@@ -169,13 +169,11 @@ export function StaffList({ initialStaff }: StaffListProps) {
                               <img
                                 src={staffMember.imageUrl}
                                 alt={`${staffMember.firstNameFr} ${staffMember.lastNameFr}`}
-                                className="rounded"
-                                style={{ width: "50px", height: "50px", objectFit: "cover" }}
+                                className="rounded skote-avatar-img"
                               />
                             ) : (
                               <div
-                                className="rounded bg-secondary d-flex align-items-center justify-content-center"
-                                style={{ width: "50px", height: "50px" }}
+                                className="rounded bg-secondary d-flex align-items-center justify-content-center skote-avatar-placeholder"
                               >
                                 <i className="fas fa-user text-white" aria-hidden="true" />
                               </div>

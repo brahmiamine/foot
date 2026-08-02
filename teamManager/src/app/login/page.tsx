@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import "./login-skote.css";
 
 interface TeamOption {
   id: string;
@@ -63,34 +64,38 @@ export default function LoginPage() {
 
   if (!selectedTeam) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-start justify-center py-10 px-4">
-        <div className="w-full max-w-xl">
-          <h1 className="text-xl font-semibold text-gray-900 text-center mb-6">
-            TeamManager — Choisissez votre club
-          </h1>
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-5">
+      <div className="tm-login d-flex align-items-center py-4">
+        <div className="container tm-login-shell">
+          <div className="tm-login-card p-4 p-md-5">
+            <div className="text-center mb-4">
+              <h1 className="h4 tm-login-brand mb-2">TeamManager</h1>
+              <p className="tm-login-muted mb-0">Choisissez votre club pour continuer</p>
+            </div>
+
             {loadingTeams ? (
-              <div className="flex justify-center py-8">
-                <span className="spinner-border spinner-border-sm text-gray-400" role="status" aria-hidden="true" />
+              <div className="d-flex justify-content-center py-5">
+                <span className="spinner-border tm-login-muted" role="status" aria-hidden="true" />
               </div>
             ) : teams.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">Aucun club disponible.</p>
+              <div className="alert alert-warning mb-0" role="alert">
+                Aucun club disponible.
+              </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="tm-team-grid">
                 {teams.map((team) => (
                   <button
                     key={team.id}
                     type="button"
                     onClick={() => setSelectedTeam(team)}
-                    className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors py-4 px-2"
+                    className="tm-team-card btn text-center d-flex flex-column align-items-center justify-content-center px-2 py-3"
                   >
                     {team.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={team.logoUrl} alt={team.nom} className="w-10 h-10 object-contain" />
+                      <img src={team.logoUrl} alt={team.nom} className="tm-team-logo mb-2" />
                     ) : (
-                      <i className="fas fa-shield-alt text-2xl text-gray-400" aria-hidden="true" />
+                      <i className="fas fa-shield-alt fs-3 tm-login-muted mb-2" aria-hidden="true" />
                     )}
-                    <span className="text-sm text-center text-gray-700">{team.nom}</span>
+                    <span className="small fw-semibold text-dark text-wrap">{team.nom}</span>
                   </button>
                 ))}
               </div>
@@ -102,18 +107,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-start justify-center py-10 px-4">
-      <div className="w-full max-w-md">
-        <h1 className="text-lg font-semibold text-gray-900 text-center mb-6">{selectedTeam.nom}</h1>
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="tm-login d-flex align-items-center py-4">
+      <div className="container tm-login-shell">
+        <div className="row justify-content-center">
+          <div className="col-12 col-md-8 col-lg-5">
+            <div className="tm-login-card p-4 p-md-5">
+              <div className="text-center mb-4">
+                <h1 className="h5 tm-login-brand mb-2">Connexion administrateur</h1>
+                <p className="tm-login-muted mb-0">Acces au panel du club selectionne</p>
+              </div>
+
+              <div className="tm-selected-team d-flex align-items-center gap-3 p-3 mb-4">
+                {selectedTeam.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selectedTeam.logoUrl} alt={selectedTeam.nom} className="tm-team-logo" />
+                ) : (
+                  <i className="fas fa-shield-alt fs-3 tm-login-muted" aria-hidden="true" />
+                )}
+                <div>
+                  <div className="small tm-login-muted">Club selectionne</div>
+                  <div className="fw-semibold text-dark">{selectedTeam.nom}</div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="tm-login-form">
             {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+              <div className="alert alert-danger" role="alert">
                 {error}
               </div>
             )}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+
+            <div className="mb-3">
+              <label htmlFor="email" className="form-label">
                 Email
               </label>
               <input
@@ -122,11 +147,12 @@ export default function LoginPage() {
                 type="email"
                 required
                 autoComplete="email"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="form-control"
               />
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+
+            <div className="mb-4">
+              <label htmlFor="password" className="form-label">
                 Mot de passe
               </label>
               <input
@@ -135,13 +161,14 @@ export default function LoginPage() {
                 type="password"
                 required
                 autoComplete="current-password"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="form-control"
               />
             </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="btn tm-login-action text-white w-100 mb-2"
             >
               {loading ? (
                 <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
@@ -149,9 +176,10 @@ export default function LoginPage() {
                 "Se connecter"
               )}
             </button>
+
             <button
               type="button"
-              className="w-full text-sm text-blue-600 hover:underline"
+              className="btn btn-link w-100 text-decoration-none"
               onClick={() => {
                 setSelectedTeam(null);
                 setError(null);
@@ -160,6 +188,8 @@ export default function LoginPage() {
               Changer de club
             </button>
           </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>

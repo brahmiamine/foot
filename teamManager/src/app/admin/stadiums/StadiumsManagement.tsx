@@ -460,8 +460,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                           <img
                             src={imagePreview}
                             alt="Aperçu de l'image"
-                            className="img-thumbnail"
-                            style={{ maxWidth: "300px", maxHeight: "300px", objectFit: "contain" }}
+                            className="img-thumbnail skote-preview-img-300"
                           />
                           <button
                             type="button"
@@ -766,8 +765,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                         <img
                           src={imagePreview}
                           alt="Image actuelle"
-                          className="img-thumbnail"
-                          style={{ maxWidth: "300px", maxHeight: "300px", objectFit: "contain" }}
+                          className="img-thumbnail skote-preview-img-300"
                         />
                       </div>
                     )}
@@ -783,7 +781,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                       Formats acceptés : JPEG, PNG, GIF, WebP. Taille maximale : 5MB
                       {imagePreview && !imageFile && (
                         <span className="text-muted d-block mt-1">
-                          L'image actuelle sera conservée si aucun nouveau fichier n'est sélectionné.
+                          L&apos;image actuelle sera conservée si aucun nouveau fichier n&apos;est sélectionné.
                         </span>
                       )}
                     </div>

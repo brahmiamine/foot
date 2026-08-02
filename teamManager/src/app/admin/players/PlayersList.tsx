@@ -181,19 +181,17 @@ export function PlayersList({ initialPlayers }: PlayersListProps) {
                     </thead>
                     <tbody>
                       {players.map((player) => (
-                        <tr key={player.id} style={{ opacity: player.isActive ? 1 : 0.5 }}>
+                        <tr key={player.id} className={player.isActive ? undefined : "skote-row-inactive"}>
                           <td>
                             {player.imageUrl ? (
                               <img
                                 src={player.imageUrl}
                                 alt={`${player.firstNameFr} ${player.lastNameFr}`}
-                                className="rounded"
-                                style={{ width: "50px", height: "50px", objectFit: "cover" }}
+                                className="rounded skote-avatar-img"
                               />
                             ) : (
                               <div
-                                className="rounded bg-secondary d-flex align-items-center justify-content-center"
-                                style={{ width: "50px", height: "50px" }}
+                                className="rounded bg-secondary d-flex align-items-center justify-content-center skote-avatar-placeholder"
                               >
                                 <i className="fas fa-user text-white" aria-hidden="true" />
                               </div>

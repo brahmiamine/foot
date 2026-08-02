@@ -18,15 +18,15 @@ export default async function CardReasonsSettingsPage() {
   const reasons = await cardReasonService.findAll();
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
+    <div className="container-fluid px-0">
+      <div className="d-flex align-items-center gap-2 mb-4">
         <Link
           href="/admin/settings"
-          className="inline-flex items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 text-sm transition-colors"
+          className="btn btn-outline-secondary btn-sm"
         >
           <i className="fas fa-arrow-left" aria-hidden="true" />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Motifs de carton</h1>
+        <h1 className="h4 mb-0">Motifs de carton</h1>
       </div>
 
       <CardReasonsList

@@ -23,13 +23,20 @@ export function AdminSidebarProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
+      if (window.innerWidth >= 992) {
         setIsOpen(false);
       }
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("sidebar-enable", isOpen);
+    return () => {
+      document.body.classList.remove("sidebar-enable");
+    };
+  }, [isOpen]);
 
   const toggleSidebar = useCallback(() => setIsOpen((prev) => !prev), []);
   const toggleCollapse = useCallback(() => setIsCollapsed((prev) => !prev), []);

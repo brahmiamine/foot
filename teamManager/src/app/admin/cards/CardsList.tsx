@@ -23,9 +23,9 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_BADGES: Record<string, string> = {
-  YELLOW: "bg-amber-100 text-amber-800",
-  RED: "bg-red-100 text-red-800",
-  DOUBLE_YELLOW: "bg-red-100 text-red-800",
+  YELLOW: "bg-warning-subtle text-warning",
+  RED: "bg-danger-subtle text-danger",
+  DOUBLE_YELLOW: "bg-danger-subtle text-danger",
 };
 
 export function CardsList({ initialCards }: { initialCards: CardData[] }) {
@@ -58,78 +58,67 @@ export function CardsList({ initialCards }: { initialCards: CardData[] }) {
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Cartons</h1>
+    <div className="container-fluid px-0">
+      <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
+        <h1 className="h4 mb-0">Cartons</h1>
         <Link
           href="/admin/cards/create"
-          className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 transition-colors"
+          className="btn btn-primary"
         >
-          <i className="fas fa-plus mr-2" aria-hidden="true" />
+          <i className="fas fa-plus me-2" aria-hidden="true" />
           Enregistrer un carton
         </Link>
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 text-red-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="ml-3 text-red-700/70 hover:text-red-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
       {success && (
-        <div className="rounded-md border border-green-200 bg-green-50 text-green-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{success}</span>
-          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="ml-3 text-green-700/70 hover:text-green-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-200">
-          <h5 className="text-lg font-semibold">Historique des cartons</h5>
+      <div className="card">
+        <div className="card-header">
+          <h5 className="card-title mb-0">Historique des cartons</h5>
         </div>
-        <div className="p-5">
+        <div className="card-body">
           {cards.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-gray-500 mb-3">Aucun carton enregistré</p>
-              <Link
-                href="/admin/cards/create"
-                className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 transition-colors"
-              >
+            <div className="text-center py-5">
+              <p className="text-muted mb-3">Aucun carton enregistré</p>
+              <Link href="/admin/cards/create" className="btn btn-primary">
                 Enregistrer le premier carton
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+            <div className="table-responsive">
+              <table className="table table-hover align-middle">
                 <thead>
-                  <tr className="text-left border-b border-gray-200 text-gray-500 uppercase text-xs tracking-wide">
-                    <th className="p-2">Type</th>
-                    <th className="p-2">Joueur</th>
-                    <th className="p-2">Match</th>
-                    <th className="p-2">Minute</th>
-                    <th className="p-2">Commentaire</th>
-                    <th className="p-2">Date</th>
-                    <th className="p-2 text-right">Actions</th>
+                  <tr>
+                    <th>Type</th>
+                    <th>Joueur</th>
+                    <th>Match</th>
+                    <th>Minute</th>
+                    <th>Commentaire</th>
+                    <th>Date</th>
+                    <th className="text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cards.map((c) => (
-                    <tr key={c.id} className={`border-b border-gray-100 hover:bg-gray-50 ${c.isNeutralized ? "text-gray-400" : ""}`}>
-                      <td className="p-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${TYPE_BADGES[c.type]}`}>
+                    <tr key={c.id} className={c.isNeutralized ? "text-muted" : ""}>
+                      <td>
+                        <span className={`badge ${TYPE_BADGES[c.type]}`}>
                           {TYPE_LABELS[c.type] ?? c.type}
                         </span>
-                        {c.isNeutralized && (
-                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 ml-1">
-                            neutralisé
-                          </span>
-                        )}
+                        {c.isNeutralized && <span className="badge bg-secondary-subtle text-secondary ms-1">neutralisé</span>}
                       </td>
-                      <td className="p-3">
+                      <td>
                         {c.player ? (
                           <>
                             #{c.player.number} {c.player.firstNameFr} {c.player.lastNameFr}
@@ -138,19 +127,19 @@ export function CardsList({ initialCards }: { initialCards: CardData[] }) {
                           "—"
                         )}
                       </td>
-                      <td className="p-3">{c.matchLabel}</td>
-                      <td className="p-3">{c.minute ?? "—"}</td>
-                      <td className="p-3">{c.commentFr || <span className="text-gray-400">-</span>}</td>
-                      <td className="p-3">{new Date(c.createdAt).toLocaleDateString("fr-TN")}</td>
-                      <td className="p-3 text-right">
+                      <td>{c.matchLabel}</td>
+                      <td>{c.minute ?? "—"}</td>
+                      <td>{c.commentFr || <span className="text-muted">-</span>}</td>
+                      <td>{new Date(c.createdAt).toLocaleDateString("fr-TN")}</td>
+                      <td className="text-end">
                         <button
                           type="button"
                           onClick={() => handleDelete(c.id)}
                           disabled={loading || isPending}
-                          className="inline-flex items-center justify-center rounded-md border border-red-300 text-red-600 hover:bg-red-50 px-3 py-1 text-sm transition-colors disabled:opacity-60"
+                          className="btn btn-sm btn-outline-danger"
                         >
                           <i className="fas fa-trash" aria-hidden="true" />
-                          <span className="sr-only">Supprimer</span>
+                          <span className="visually-hidden">Supprimer</span>
                         </button>
                       </td>
                     </tr>

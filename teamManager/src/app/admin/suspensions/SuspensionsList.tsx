@@ -26,9 +26,9 @@ const REASON_LABELS: Record<string, string> = {
 };
 
 const STATUS_BADGES: Record<string, string> = {
-  ACTIVE: "bg-red-100 text-red-800",
-  PURGED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-gray-100 text-gray-800",
+  ACTIVE: "bg-danger-subtle text-danger",
+  PURGED: "bg-success-subtle text-success",
+  CANCELLED: "bg-secondary-subtle text-secondary",
 };
 
 export function SuspensionsList({ initialSuspensions }: { initialSuspensions: SuspensionData[] }) {
@@ -58,48 +58,45 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
     }
   };
 
-  const smallInputClass = "rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-60";
+  const smallInputClass = "form-control form-control-sm";
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Suspensions</h1>
+    <div className="container-fluid px-0">
+      <h1 className="h4 mb-4">Suspensions</h1>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 text-red-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="ml-3 text-red-700/70 hover:text-red-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
       {success && (
-        <div className="rounded-md border border-green-200 bg-green-50 text-green-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{success}</span>
-          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="ml-3 text-green-700/70 hover:text-green-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-5">
+      <div className="card">
+        <div className="card-body">
         {suspensions.length === 0 ? (
-          <p className="text-gray-500 text-center py-10 mb-0">Aucune suspension enregistrée</p>
+          <p className="text-muted text-center py-5 mb-0">Aucune suspension enregistrée</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
               <thead>
-                <tr className="text-left border-b border-gray-200 text-gray-500 uppercase text-xs tracking-wide">
-                  <th className="p-2">Joueur</th>
-                  <th className="p-2">Motif</th>
-                  <th className="p-2">Matchs</th>
-                  <th className="p-2">Statut</th>
-                  <th className="p-2">Purger / Décision</th>
+                <tr>
+                  <th>Joueur</th>
+                  <th>Motif</th>
+                  <th>Matchs</th>
+                  <th>Statut</th>
+                  <th>Purger / Décision</th>
                 </tr>
               </thead>
               <tbody>
                 {suspensions.map((s) => (
-                  <tr key={s.id} className="border-b border-gray-100 align-middle">
-                    <td className="p-3">
+                  <tr key={s.id}>
+                    <td>
                       {s.player ? (
                         <>
                           #{s.player.number} {s.player.firstNameFr} {s.player.lastNameFr}
@@ -108,42 +105,41 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
                         "—"
                       )}
                     </td>
-                    <td className="p-3">{REASON_LABELS[s.reason] ?? s.reason}</td>
-                    <td className="p-3">
+                    <td>{REASON_LABELS[s.reason] ?? s.reason}</td>
+                    <td>
                       {s.matchesPurged} / {s.matchesCount}
                     </td>
-                    <td className="p-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGES[s.status]}`}>
+                    <td>
+                      <span className={`badge ${STATUS_BADGES[s.status]}`}>
                         {s.status}
                       </span>
                       {s.hasBlockingFine && s.status !== "ACTIVE" && (
-                        <div className="text-xs text-red-600 mt-1">Amende en retard — reste bloqué</div>
+                        <div className="small text-danger mt-1">Amende en retard — reste bloqué</div>
                       )}
                     </td>
-                    <td className="p-3">
+                    <td>
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
                           handlePurge(s.id, new FormData(e.currentTarget));
                         }}
-                        className="flex items-end gap-2 flex-wrap"
+                        className="row g-2 align-items-end"
                       >
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-0.5">Matchs purgés</label>
+                        <div className="col-12 col-md-auto">
+                          <label className="form-label small mb-1">Matchs purgés</label>
                           <input
                             type="number"
                             name="matchesPurged"
                             min={0}
                             max={10}
                             defaultValue={s.matchesPurged}
-                            className={smallInputClass}
-                            style={{ width: "80px" }}
+                            className={`${smallInputClass} skote-input-w-80`}
                             disabled={s.status !== "ACTIVE"}
                           />
                         </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-0.5">Décision</label>
-                          <select name="disciplinaryDecision" className={smallInputClass} defaultValue={s.disciplinaryDecision}>
+                        <div className="col-12 col-md-auto">
+                          <label className="form-label small mb-1">Décision</label>
+                          <select name="disciplinaryDecision" className="form-select form-select-sm" defaultValue={s.disciplinaryDecision}>
                             <option value="CONFIRMED">Confirmée</option>
                             <option value="MODIFIED">Modifiée</option>
                             <option value="CANCELLED_BY_COMMISSION">Annulée (commission)</option>
@@ -152,7 +148,7 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
                         <button
                           type="submit"
                           disabled={loading === s.id || isPending}
-                          className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 transition-colors disabled:opacity-60"
+                          className="btn btn-sm btn-primary col-12 col-md-auto"
                         >
                           {loading === s.id ? (
                             <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
@@ -168,6 +164,7 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
             </table>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

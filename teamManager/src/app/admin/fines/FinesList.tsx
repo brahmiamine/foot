@@ -25,9 +25,9 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const STATUS_BADGES: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  PAID: "bg-green-100 text-green-800",
-  OVERDUE: "bg-red-100 text-red-800",
+  PENDING: "bg-warning-subtle text-warning",
+  PAID: "bg-success-subtle text-success",
+  OVERDUE: "bg-danger-subtle text-danger",
 };
 
 const TABS: { label: string; value?: string }[] = [
@@ -85,25 +85,25 @@ export function FinesList({ initialFines, activeType }: { initialFines: FineData
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Amendes</h1>
+    <div className="container-fluid px-0">
+      <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
+        <h1 className="h4 mb-0">Amendes</h1>
         <Link
           href="/admin/fines/create"
-          className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 transition-colors"
+          className="btn btn-primary"
         >
-          <i className="fas fa-plus mr-2" aria-hidden="true" />
+          <i className="fas fa-plus me-2" aria-hidden="true" />
           Nouvelle amende
         </Link>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-200 mb-4">
+      <div className="d-flex flex-wrap gap-2 mb-4">
         {TABS.map((tab) => (
           <Link
             key={tab.label}
             href={tab.value ? `/admin/fines?type=${tab.value}` : "/admin/fines"}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeType === tab.value ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"
+            className={`btn btn-sm ${
+              activeType === tab.value ? "btn-primary" : "btn-outline-secondary"
             }`}
           >
             {tab.label}
@@ -112,60 +112,57 @@ export function FinesList({ initialFines, activeType }: { initialFines: FineData
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 text-red-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="ml-3 text-red-700/70 hover:text-red-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
       {success && (
-        <div className="rounded-md border border-green-200 bg-green-50 text-green-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{success}</span>
-          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="ml-3 text-green-700/70 hover:text-green-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-5">
+      <div className="card">
+        <div className="card-body">
         {fines.length === 0 ? (
-          <p className="text-gray-500 text-center py-10 mb-0">Aucune amende enregistrée</p>
+          <p className="text-muted text-center py-5 mb-0">Aucune amende enregistrée</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
               <thead>
-                <tr className="text-left border-b border-gray-200 text-gray-500 uppercase text-xs tracking-wide">
-                  <th className="p-2">Type</th>
-                  <th className="p-2">Concerné</th>
-                  <th className="p-2">Motif</th>
-                  <th className="p-2">Montant (DT)</th>
-                  <th className="p-2">Échéance</th>
-                  <th className="p-2">Statut</th>
-                  <th className="p-2 text-right">Actions</th>
+                <tr>
+                  <th>Type</th>
+                  <th>Concerné</th>
+                  <th>Motif</th>
+                  <th>Montant (DT)</th>
+                  <th>Échéance</th>
+                  <th>Statut</th>
+                  <th className="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {fines.map((f) => (
-                  <tr key={f.id} className="border-b border-gray-100 align-middle">
-                    <td className="p-3">{TYPE_LABELS[f.type] ?? f.type}</td>
-                    <td className="p-3">{f.player ? `${f.player.firstNameFr} ${f.player.lastNameFr}` : (f.directorNameFr ?? "—")}</td>
-                    <td className="p-3">{f.reasonFr}</td>
-                    <td className="p-3">{f.amount.toFixed(3)}</td>
-                    <td className="p-3">{f.dueDate ? new Date(f.dueDate).toLocaleDateString("fr-TN") : "—"}</td>
-                    <td className="p-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGES[f.status]}`}>
+                  <tr key={f.id}>
+                    <td>{TYPE_LABELS[f.type] ?? f.type}</td>
+                    <td>{f.player ? `${f.player.firstNameFr} ${f.player.lastNameFr}` : (f.directorNameFr ?? "—")}</td>
+                    <td>{f.reasonFr}</td>
+                    <td>{f.amount.toFixed(3)}</td>
+                    <td>{f.dueDate ? new Date(f.dueDate).toLocaleDateString("fr-TN") : "—"}</td>
+                    <td>
+                      <span className={`badge ${STATUS_BADGES[f.status]}`}>
                         {f.status}
                       </span>
                     </td>
-                    <td className="p-3 text-right">
-                      <div className="flex gap-2 justify-end">
+                    <td className="text-end">
+                      <div className="d-inline-flex gap-2">
                         {f.status !== "PAID" && (
                           <button
                             type="button"
                             onClick={() => markPaid(f.id)}
                             disabled={loading === f.id || isPending}
-                            className="inline-flex items-center justify-center rounded-md border border-green-300 text-green-700 hover:bg-green-50 px-3 py-1 text-sm transition-colors disabled:opacity-60"
+                            className="btn btn-sm btn-outline-success"
                           >
                             Payée
                           </button>
@@ -174,10 +171,10 @@ export function FinesList({ initialFines, activeType }: { initialFines: FineData
                           type="button"
                           onClick={() => handleDelete(f.id)}
                           disabled={loading === f.id || isPending}
-                          className="inline-flex items-center justify-center rounded-md border border-red-300 text-red-600 hover:bg-red-50 px-3 py-1 text-sm transition-colors disabled:opacity-60"
+                          className="btn btn-sm btn-outline-danger"
                         >
                           <i className="fas fa-trash" aria-hidden="true" />
-                          <span className="sr-only">Supprimer</span>
+                          <span className="visually-hidden">Supprimer</span>
                         </button>
                       </div>
                     </td>
@@ -187,6 +184,7 @@ export function FinesList({ initialFines, activeType }: { initialFines: FineData
             </table>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

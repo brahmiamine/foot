@@ -23,10 +23,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_BADGES: Record<string, string> = {
-  TACTICAL: "bg-blue-100 text-blue-800",
-  DISCIPLINARY: "bg-red-100 text-red-800",
-  MEDICAL: "bg-cyan-100 text-cyan-800",
-  OTHER: "bg-gray-100 text-gray-800",
+  TACTICAL: "bg-primary-subtle text-primary",
+  DISCIPLINARY: "bg-danger-subtle text-danger",
+  MEDICAL: "bg-info-subtle text-info",
+  OTHER: "bg-secondary-subtle text-secondary",
 };
 
 export function NotesList({ initialNotes }: { initialNotes: NoteData[] }) {
@@ -56,63 +56,63 @@ export function NotesList({ initialNotes }: { initialNotes: NoteData[] }) {
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Notes</h1>
+    <div className="container-fluid px-0">
+      <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
+        <h1 className="h4 mb-0">Notes</h1>
         <Link
           href="/admin/notes/create"
-          className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 transition-colors"
+          className="btn btn-primary"
         >
-          <i className="fas fa-plus mr-2" aria-hidden="true" />
+          <i className="fas fa-plus me-2" aria-hidden="true" />
           Nouvelle note
         </Link>
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 text-red-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="ml-3 text-red-700/70 hover:text-red-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
       {success && (
-        <div className="rounded-md border border-green-200 bg-green-50 text-green-700 px-4 py-3 mb-4 flex justify-between items-start">
+        <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{success}</span>
-          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="ml-3 text-green-700/70 hover:text-green-700">
-            ✕
-          </button>
+          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="btn-close" />
         </div>
       )}
 
       {notes.length === 0 ? (
-        <div className="bg-white rounded-lg shadow border border-gray-200 text-center py-10">
-          <p className="text-gray-500 mb-0">Aucune note enregistrée</p>
+        <div className="card">
+          <div className="card-body text-center py-5">
+            <p className="text-muted mb-0">Aucune note enregistrée</p>
+          </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="d-grid gap-3">
           {notes.map((n) => (
-            <div className="bg-white rounded-lg shadow border border-gray-200 p-5" key={n.id}>
-              <div className="flex justify-between items-start mb-2">
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_BADGES[n.category]}`}>
+            <div className="card" key={n.id}>
+              <div className="card-body">
+              <div className="d-flex justify-content-between align-items-start mb-2">
+                <span className={`badge ${CATEGORY_BADGES[n.category]}`}>
                   {CATEGORY_LABELS[n.category] ?? n.category}
                 </span>
                 <button
                   type="button"
                   onClick={() => handleDelete(n.id)}
                   disabled={loading || isPending}
-                  className="inline-flex items-center justify-center rounded-md border border-red-300 text-red-600 hover:bg-red-50 px-3 py-1 text-sm transition-colors disabled:opacity-60"
+                  className="btn btn-sm btn-outline-danger"
                 >
                   <i className="fas fa-trash" aria-hidden="true" />
-                  <span className="sr-only">Supprimer</span>
+                  <span className="visually-hidden">Supprimer</span>
                 </button>
               </div>
               <p className="mb-2">{n.contentFr}</p>
-              <div className="text-xs text-gray-500">
+              <div className="small text-muted">
                 {n.player && <span>Joueur : {n.player.firstNameFr} {n.player.lastNameFr} — </span>}
                 {n.matchLabel && <span>{n.matchLabel} — </span>}
                 {n.author?.name && <span>par {n.author.name} — </span>}
                 {new Date(n.createdAt).toLocaleDateString("fr-TN")}
+              </div>
               </div>
             </div>
           ))}

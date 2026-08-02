@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo, useRef } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createNews, updateNews, addMediaToNews, removeMediaFromNews } from "./actions";
 import { RichTextEditor } from "./RichTextEditor";
@@ -49,7 +49,7 @@ interface NewsFormProps {
  */
 export function NewsForm({ initialData, initialMedia = [], availableMediaItems = [], mode }: NewsFormProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -119,12 +119,9 @@ export function NewsForm({ initialData, initialMedia = [], availableMediaItems =
       }
       setImageFile(null);
       
-      // Update associated media only when news ID changes
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       setAssociatedMedia(initialMedia);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData?.id]); // Only depend on ID to avoid loops - initialMedia is intentionally omitted
+  }, [initialData, initialMedia]);
 
   // Handle add media to news (edit mode)
   const handleAddMedia = async (mediaItemId: number) => {
@@ -297,10 +294,11 @@ export function NewsForm({ initialData, initialMedia = [], availableMediaItems =
       if (result.success) {
         setSuccess(result.message ?? null);
         // If creating, redirect to edit page (media already associated)
-        if (mode === "create" && (result as any).id) {
+        const createdNewsId = "id" in result && typeof result.id === "number" ? result.id : null;
+        if (mode === "create" && createdNewsId) {
           setSelectedMediaIds([]); // Reset selected media
           setTimeout(() => {
-            router.push(`/admin/news/${(result as any).id}/edit`);
+            router.push(`/admin/news/${createdNewsId}/edit`);
           }, 1500);
         } else {
           // If editing, stay on page and refresh
@@ -402,8 +400,7 @@ export function NewsForm({ initialData, initialMedia = [], availableMediaItems =
                       <img
                         src={imagePreview}
                         alt="Aperçu de l'image"
-                        className="img-thumbnail"
-                        style={{ maxWidth: "300px", maxHeight: "300px", objectFit: "contain" }}
+                        className="img-thumbnail skote-preview-img-300"
                       />
                       <button
                         type="button"

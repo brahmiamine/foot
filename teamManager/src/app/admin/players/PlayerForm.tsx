@@ -422,8 +422,7 @@ export function PlayerForm({ initialData, mode }: PlayerFormProps) {
                         <img
                           src={imagePreview}
                           alt="Aperçu"
-                          className="img-thumbnail"
-                          style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "cover" }}
+                          className="img-thumbnail skote-preview-img-200"
                         />
                       </div>
                     )}

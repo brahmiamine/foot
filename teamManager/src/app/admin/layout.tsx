@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { TeamService } from "@/services/TeamService";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import "./skote-admin.css";
 
 // L'admin lit toujours l'état live de la base partagée (players, staff,
 // matchs...) : jamais de rendu statique / cache au build.

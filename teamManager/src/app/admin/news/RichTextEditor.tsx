@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -19,12 +19,6 @@ interface RichTextEditorProps {
  * Compatible with React 19
  */
 export function RichTextEditor({ value, onChange, placeholder = "Rédigez votre contenu ici..." }: RichTextEditorProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const editor = useEditor(
     {
       extensions: [
@@ -45,7 +39,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Rédigez votre 
           allowBase64: true,
         }),
       ],
-      content: mounted ? value : "", // Only set content when mounted
+      content: value,
       immediatelyRender: false, // Prevent SSR hydration issues
       onUpdate: ({ editor }) => {
         onChange(editor.getHTML());
@@ -56,7 +50,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Rédigez votre 
         },
       },
     },
-    [mounted] // Dependencies array for useEditor
+    []
   );
 
   // Update editor content when value prop changes (for edit mode)
@@ -66,33 +60,18 @@ export function RichTextEditor({ value, onChange, placeholder = "Rédigez votre 
     }
   }, [value, editor]);
 
-  if (!mounted) {
-    // Render a placeholder that matches the structure on server and client
-    return (
-      <div
-        className="rich-text-editor-placeholder"
-        style={{ minHeight: "300px", marginBottom: "50px" }}
-        suppressHydrationWarning
-      >
-        <div className="form-control" style={{ minHeight: "300px", padding: "12px" }}>
-          <p className="text-muted mb-0">{placeholder}</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!editor) {
     return (
-      <div className="form-control" style={{ minHeight: "300px", padding: "12px" }}>
-        <p className="text-muted mb-0">Chargement de l'éditeur...</p>
+      <div className="form-control rte-editor-shell">
+        <p className="text-muted mb-0">{placeholder}</p>
       </div>
     );
   }
 
   return (
-    <div className="rich-text-editor-wrapper" style={{ marginBottom: "50px" }}>
+    <div className="rich-text-editor-wrapper rte-editor-offset">
       {/* Toolbar */}
-      <div className="border rounded-top p-2 bg-light" style={{ borderBottom: "none" }}>
+      <div className="border rounded-top p-2 bg-light rte-toolbar">
         <div className="btn-group me-2 mb-2" role="group">
           <button
             type="button"
@@ -206,7 +185,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Rédigez votre 
       </div>
 
       {/* Editor Content */}
-      <div className="border rounded-bottom" style={{ minHeight: "300px" }}>
+      <div className="border rounded-bottom rte-editor-shell">
         <EditorContent editor={editor} />
       </div>
 

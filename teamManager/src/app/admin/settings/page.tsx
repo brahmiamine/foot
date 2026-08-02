@@ -18,12 +18,12 @@ export default async function SettingsPage() {
   const settings = await settingsService.get();
 
   return (
-    <div className="max-w-3xl">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Réglages disciplinaires</h1>
+    <div className="container-fluid px-0 skote-settings-narrow">
+      <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
+        <h1 className="h4 mb-0">Réglages disciplinaires</h1>
         <Link
           href="/admin/settings/card-reasons"
-          className="inline-flex items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 text-sm transition-colors"
+          className="btn btn-outline-secondary btn-sm"
         >
           Motifs de carton
         </Link>

@@ -31,83 +31,81 @@ export default async function AuditPage({
     return `/admin/audit?${qs.toString()}`;
   };
 
-  const smallInputClass =
-    "rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none";
+  const smallInputClass = "form-control form-control-sm";
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Journal d&apos;audit</h1>
+    <div className="container-fluid px-0">
+      <h1 className="h4 mb-4">Journal d&apos;audit</h1>
 
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-5 mb-4">
-        <form method="get" className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Action</label>
+      <div className="card mb-4">
+        <div className="card-body">
+          <form method="get" className="row g-3 align-items-end">
+            <div className="col-12 col-md-3">
+              <label className="form-label small mb-1">Action</label>
             <select name="action" className={smallInputClass} defaultValue={params.action ?? ""}>
               <option value="">Toutes</option>
               <option value="CREATE">CREATE</option>
               <option value="UPDATE">UPDATE</option>
               <option value="DELETE">DELETE</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Entité</label>
+            </div>
+            <div className="col-12 col-md-3">
+              <label className="form-label small mb-1">Entité</label>
             <input type="text" name="entity" className={smallInputClass} defaultValue={params.entity ?? ""} placeholder="Card, Fine..." />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Du</label>
+            </div>
+            <div className="col-6 col-md-2">
+              <label className="form-label small mb-1">Du</label>
             <input type="date" name="from" className={smallInputClass} defaultValue={params.from ?? ""} />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Au</label>
+            </div>
+            <div className="col-6 col-md-2">
+              <label className="form-label small mb-1">Au</label>
             <input type="date" name="to" className={smallInputClass} defaultValue={params.to ?? ""} />
-          </div>
-          <div>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 transition-colors"
-            >
+            </div>
+            <div className="col-12 col-md-2 d-grid">
+              <button type="submit" className="btn btn-primary btn-sm">
               Filtrer
             </button>
-          </div>
-        </form>
+            </div>
+          </form>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="p-5">
+      <div className="card">
+        <div className="card-body">
           {logs.length === 0 ? (
-            <p className="text-gray-500 text-center py-10 mb-0">Aucune entrée</p>
+            <p className="text-muted text-center py-5 mb-0">Aucune entrée</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+            <div className="table-responsive">
+              <table className="table table-hover align-middle">
                 <thead>
-                  <tr className="text-left border-b border-gray-200 text-gray-500 uppercase text-xs tracking-wide">
-                    <th className="p-2">Date</th>
-                    <th className="p-2">Utilisateur</th>
-                    <th className="p-2">Action</th>
-                    <th className="p-2">Entité</th>
-                    <th className="p-2">ID</th>
+                  <tr>
+                    <th>Date</th>
+                    <th>Utilisateur</th>
+                    <th>Action</th>
+                    <th>Entité</th>
+                    <th>ID</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((log) => (
-                    <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="p-2">{new Date(log.createdAt).toLocaleString("fr-TN")}</td>
-                      <td className="p-2">{log.user?.name ?? log.userId}</td>
-                      <td className="p-2">
+                    <tr key={log.id}>
+                      <td>{new Date(log.createdAt).toLocaleString("fr-TN")}</td>
+                      <td>{log.user?.name ?? log.userId}</td>
+                      <td>
                         <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          className={`badge ${
                             log.action === "CREATE"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-success-subtle text-success"
                               : log.action === "DELETE"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-blue-100 text-blue-800"
+                                ? "bg-danger-subtle text-danger"
+                                : "bg-primary-subtle text-primary"
                           }`}
                         >
                           {log.action}
                         </span>
                       </td>
-                      <td className="p-2">{log.entity}</td>
-                      <td className="p-2 text-gray-500 text-xs">{log.entityId}</td>
+                      <td>{log.entity}</td>
+                      <td className="text-muted small">{log.entityId}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -116,19 +114,19 @@ export default async function AuditPage({
           )}
         </div>
         {pages > 1 && (
-          <div className="px-5 py-3 border-t border-gray-200 flex justify-between items-center">
-            <span className="text-xs text-gray-500">
+          <div className="card-footer d-flex justify-content-between align-items-center">
+            <span className="small text-muted">
               Page {page} / {pages} ({total} entrées)
             </span>
-            <div className="flex gap-2">
+            <div className="d-flex gap-2">
               <a
-                className={`inline-flex items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1 text-sm transition-colors ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
+                className={`btn btn-sm btn-outline-secondary ${page <= 1 ? "disabled" : ""}`}
                 href={buildLink(page - 1)}
               >
                 Précédent
               </a>
               <a
-                className={`inline-flex items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1 text-sm transition-colors ${page >= pages ? "pointer-events-none opacity-50" : ""}`}
+                className={`btn btn-sm btn-outline-secondary ${page >= pages ? "disabled" : ""}`}
                 href={buildLink(page + 1)}
               >
                 Suivant

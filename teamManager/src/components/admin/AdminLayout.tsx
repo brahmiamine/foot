@@ -16,12 +16,12 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, teamName, userName }: AdminLayoutProps) {
   return (
     <AdminSidebarProvider>
-      <div className="min-h-screen bg-slate-950">
-        <div className="flex min-h-screen">
+      <div className="skote-admin">
+        <div className="d-flex min-vh-100">
           <AdminSidebar teamName={teamName} />
-          <div className="flex-1 bg-gray-50 text-gray-900 min-w-0">
+          <div className="skote-content d-flex flex-column">
             <AdminHeader userName={userName} />
-            <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+            <main className="page-content">{children}</main>
           </div>
         </div>
       </div>

@@ -67,75 +67,81 @@ export default async function AdminDashboardPage() {
   ).then((names) => names.filter((n): n is string => !!n));
 
   return (
-    <div>
-      <div className="bg-white rounded-lg shadow border border-gray-200 mb-6">
-        <div className="p-5">
-          <h2 className="text-xl font-semibold text-gray-900">Tableau de bord</h2>
-          <p className="text-gray-500 mt-1 mb-0">
+    <div className="container-fluid px-0">
+      <div className="card mb-4">
+        <div className="card-body">
+          <h2 className="h5 mb-1">Tableau de bord</h2>
+          <p className="text-muted mb-0">
             Bienvenue dans l&apos;espace d&apos;administration du club {team?.nom ?? ""}.
           </p>
         </div>
       </div>
 
-      <h5 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Discipline</h5>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <h5 className="text-uppercase small text-muted fw-semibold mb-3">Discipline</h5>
+      <div className="row g-3 mb-4">
         {[
           { label: "Cartons jaunes (actifs)", value: yellowCards },
           { label: "Cartons rouges", value: redCards },
           { label: "Suspensions actives", value: activeSuspensions.length },
           { label: "Amendes en attente/retard", value: pendingFines },
         ].map((stat) => (
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-4" key={stat.label}>
-            <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-            <div className="text-gray-500 text-sm">{stat.label}</div>
+          <div className="col-sm-6 col-xl-3" key={stat.label}>
+            <div className="admin-kpi-card h-100">
+              <div className="admin-kpi-value">{stat.value}</div>
+              <div className="admin-kpi-label">{stat.label}</div>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg shadow border border-gray-200">
-          <div className="px-5 py-4 border-b border-gray-200 font-semibold">Alertes</div>
-          <div className="p-5">
-            {fineBlockedPlayers.length === 0 && atRiskPlayers.length === 0 && activeSuspensions.length === 0 ? (
-              <p className="text-gray-500 mb-0">Aucune alerte</p>
-            ) : (
-              <ul className="space-y-1 text-sm">
-                {fineBlockedPlayers.map((p) => (
-                  <li key={p.id} className="text-red-600">
-                    ⛔ {p.firstNameFr} {p.lastNameFr} — bloqué (amende en retard)
-                  </li>
-                ))}
-                {atRiskPlayers.map((name) => (
-                  <li key={name} className="text-amber-600">
-                    ⚠️ {name} — 2 jaunes cumulés (à risque)
-                  </li>
-                ))}
-                {activeSuspensions.map((s) => (
-                  <li key={s.id} className="text-gray-700">
-                    🚫 {s.player?.firstNameFr} {s.player?.lastNameFr} — suspendu ({s.matchesCount - s.matchesPurged} match(s) restant(s))
-                  </li>
-                ))}
-              </ul>
-            )}
+      <div className="row g-3">
+        <div className="col-12 col-xl-6">
+          <div className="card h-100">
+            <div className="card-header fw-semibold">Alertes</div>
+            <div className="card-body">
+              {fineBlockedPlayers.length === 0 && atRiskPlayers.length === 0 && activeSuspensions.length === 0 ? (
+                <p className="text-muted mb-0">Aucune alerte</p>
+              ) : (
+                <ul className="admin-alert-list">
+                  {fineBlockedPlayers.map((p) => (
+                    <li key={p.id} className="text-danger small">
+                      ⛔ {p.firstNameFr} {p.lastNameFr} — bloqué (amende en retard)
+                    </li>
+                  ))}
+                  {atRiskPlayers.map((name) => (
+                    <li key={name} className="text-warning small">
+                      ⚠️ {name} — 2 jaunes cumulés (à risque)
+                    </li>
+                  ))}
+                  {activeSuspensions.map((s) => (
+                    <li key={s.id} className="text-body-secondary small">
+                      🚫 {s.player?.firstNameFr} {s.player?.lastNameFr} — suspendu ({s.matchesCount - s.matchesPurged} match(s) restant(s))
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow border border-gray-200">
-          <div className="px-5 py-4 border-b border-gray-200 font-semibold">Suspensions actives</div>
-          <div className="p-5">
-            {activeSuspensions.length === 0 ? (
-              <p className="text-gray-500 mb-0">Aucune suspension active</p>
-            ) : (
-              <ul className="space-y-1 text-sm mb-3">
-                {activeSuspensions.map((s) => (
-                  <li key={s.id} className="text-gray-700">
-                    {s.player?.firstNameFr} {s.player?.lastNameFr} — {s.matchesPurged}/{s.matchesCount} match(s) purgé(s)
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Link href="/admin/suspensions" className="text-sm text-blue-600 hover:underline">
-              Voir toutes les suspensions →
-            </Link>
+        <div className="col-12 col-xl-6">
+          <div className="card h-100">
+            <div className="card-header fw-semibold">Suspensions actives</div>
+            <div className="card-body">
+              {activeSuspensions.length === 0 ? (
+                <p className="text-muted mb-0">Aucune suspension active</p>
+              ) : (
+                <ul className="admin-alert-list mb-3">
+                  {activeSuspensions.map((s) => (
+                    <li key={s.id} className="text-body-secondary small">
+                      {s.player?.firstNameFr} {s.player?.lastNameFr} — {s.matchesPurged}/{s.matchesCount} match(s) purgé(s)
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link href="/admin/suspensions" className="btn btn-sm btn-primary">
+                Voir toutes les suspensions →
+              </Link>
+            </div>
           </div>
         </div>
       </div>

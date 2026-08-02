@@ -8,28 +8,38 @@ import { useAdminSidebar } from "./AdminSidebarContext";
  * Fusionne l'ancien AdminSidebarToggle + LogoutButton.
  */
 export function AdminHeader({ userName }: { userName: string }) {
-  const { toggleSidebar } = useAdminSidebar();
+  const { toggleSidebar, toggleCollapse, isCollapsed } = useAdminSidebar();
 
   return (
-    <header className="px-4 sm:px-6 lg:px-8 py-4 border-b border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <header id="page-topbar">
+      <div className="navbar-header">
+        <div className="d-flex align-items-center gap-3">
           <button
             onClick={toggleSidebar}
-            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 transition-colors"
-            aria-label="Menu"
+            className="btn btn-sm px-3 header-item d-lg-none"
+            aria-label="Ouvrir le menu"
           >
-            <i className="fas fa-bars text-gray-600" aria-hidden="true" />
+            <i className="fas fa-bars" aria-hidden="true" />
           </button>
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">Administration</h1>
+          <button
+            onClick={toggleCollapse}
+            className="btn btn-sm px-3 header-item d-none d-lg-inline-flex"
+            aria-label={isCollapsed ? "Ouvrir le menu" : "Réduire le menu"}
+          >
+            <i className={`fas ${isCollapsed ? "fa-angles-right" : "fa-angles-left"}`} aria-hidden="true" />
+          </button>
+          <div>
+            <p className="text-muted mb-0 small">Espace d&apos;administration</p>
+            <h1 className="skote-topbar-title">Administration</h1>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {userName && <span className="hidden sm:inline text-sm text-gray-500">{userName}</span>}
+        <div className="d-flex align-items-center gap-2 gap-sm-3">
+          {userName && <span className="d-none d-sm-inline text-muted small">{userName}</span>}
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="text-sm font-medium text-gray-600 hover:text-red-600 border border-gray-300 hover:border-red-300 rounded-md px-3 py-1.5 transition-colors"
+            className="btn btn-outline-secondary btn-sm"
           >
-            <i className="fas fa-sign-out-alt mr-2" aria-hidden="true" />
+            <i className="fas fa-sign-out-alt me-2" aria-hidden="true" />
             Déconnexion
           </button>
         </div>
