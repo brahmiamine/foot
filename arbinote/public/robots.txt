@@ -1,0 +1,41 @@
+# robots.txt pour ARBINOTE - Plateforme Internationale de Notation des Arbitres
+# Permet l'indexation par tous les moteurs de recherche dans le monde entier
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /uploads/
+
+# Sitemap - Mise à jour automatique pour tous les championnats
+Sitemap: https://arbinote.com/sitemap.xml
+Sitemap: http://localhost:3000/sitemap.xml
+
+# Crawl-delay pour éviter la surcharge
+Crawl-delay: 1
+
+# Spécifique pour Google
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+# Spécifique pour Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+# Spécifique pour Yandex
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+# Spécifique pour DuckDuckBot
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+

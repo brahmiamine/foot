@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* Disable the template's preloader on the public site — always hidden */
+.preloader {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Compat shim for the Bootstrap-style loading spinner used across the admin
+ * section (`spinner-border`/`spinner-border-sm`) — not Bootstrap itself, just
+ * a small utility class so existing usages keep working without touching
+ * every call site. */
+@layer components {
+  .spinner-border {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    vertical-align: -0.125em;
+    border: 0.25em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border-rotate 0.75s linear infinite;
+    opacity: 0.75;
+  }
+
+  .spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+  }
+}
+
+@keyframes spinner-border-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
