@@ -23,22 +23,18 @@ export default function ImportTeamsModal({
   onClose,
 }: ImportTeamsModalProps) {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold">Importer des équipes</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded p-4 text-sm">
-            <p className="font-medium text-blue-800 mb-2">Format JSON attendu :</p>
-            <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">
+    <>
+      <div className="modal fade show d-block" tabIndex={-1} role="dialog">
+        <div className="modal-dialog modal-dialog-centered" role="document">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">Importer des équipes</h5>
+              <button type="button" onClick={onClose} className="btn-close" aria-label="Fermer" />
+            </div>
+            <div className="modal-body">
+              <div className="alert alert-info">
+                <p className="fw-medium mb-2">Format JSON attendu :</p>
+                <pre className="bg-white p-2 rounded border small mb-2" style={{ overflowX: 'auto' }}>
 {`{
   "teams": [
     {
@@ -55,95 +51,89 @@ export default function ImportTeamsModal({
     }
   ]
 }`}
-            </pre>
-            <button
-              onClick={onDownloadSample}
-              className="btn btn-sm btn-link text-primary p-0 mt-2"
-            >
-              📄 Télécharger un fichier exemple
-            </button>
-          </div>
+                </pre>
+                <button type="button" onClick={onDownloadSample} className="btn btn-sm btn-link text-primary p-0">
+                  <i className="bx bx-download me-1" aria-hidden="true" />
+                  Télécharger un fichier exemple
+                </button>
+              </div>
 
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,application/json"
-              onChange={onFileSelect}
-              className="hidden"
-              id="json-import"
-            />
-            <label
-              htmlFor="json-import"
-              className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                importing
-                  ? 'bg-gray-100 border-gray-300 cursor-wait'
-                  : 'bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-blue-400'
-              }`}
-            >
-              {importing ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <span className="text-gray-600">Import en cours...</span>
-                </div>
-              ) : (
-                <>
-                  <span className="text-3xl mb-2">📁</span>
-                  <span className="text-gray-600">Cliquez pour sélectionner un fichier JSON</span>
-                  <span className="text-gray-400 text-sm">ou glissez-déposez ici</span>
-                </>
-              )}
-            </label>
-          </div>
-
-          {/* Résultat de l'import */}
-          {importResult && (
-            <div className={`p-4 rounded border ${
-              importResult.imported > 0 && importResult.skipped === 0
-                ? 'bg-green-50 border-green-200'
-                : importResult.imported > 0
-                ? 'bg-yellow-50 border-yellow-200'
-                : 'bg-red-50 border-red-200'
-            }`}>
-              <p className="font-medium mb-2">
-                {importResult.imported > 0 ? '✅' : '⚠️'} Résultat de l&apos;import
-              </p>
-              <ul className="text-sm space-y-1">
-                <li>Total : {importResult.total} équipe(s)</li>
-                <li className="text-green-700">Importées : {importResult.imported}</li>
-                {importResult.skipped > 0 && (
-                  <li className="text-orange-700">Ignorées : {importResult.skipped}</li>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={onFileSelect}
+                className="d-none"
+                id="json-import"
+              />
+              <label
+                htmlFor="json-import"
+                className={`d-flex flex-column align-items-center justify-content-center w-100 rounded border border-2 border-dashed py-4 ${
+                  importing ? 'bg-light' : 'bg-light-subtle'
+                }`}
+                style={{ cursor: importing ? 'wait' : 'pointer' }}
+              >
+                {importing ? (
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true" />
+                    <span className="text-muted">Import en cours...</span>
+                  </div>
+                ) : (
+                  <>
+                    <i className="bx bx-cloud-upload fs-1 text-muted mb-1" aria-hidden="true" />
+                    <span className="text-muted">Cliquez pour sélectionner un fichier JSON</span>
+                    <span className="text-muted small">ou glissez-déposez ici</span>
+                  </>
                 )}
-              </ul>
-              {importResult.errors.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium text-red-700">Erreurs :</p>
-                  <ul className="text-xs text-red-600 mt-1 max-h-24 overflow-y-auto">
-                    {importResult.errors.map((err, i) => (
-                      <li key={i}>• {err}</li>
-                    ))}
+              </label>
+
+              {importResult && (
+                <div
+                  className={`alert mt-3 mb-0 ${
+                    importResult.imported > 0 && importResult.skipped === 0
+                      ? 'alert-success'
+                      : importResult.imported > 0
+                        ? 'alert-warning'
+                        : 'alert-danger'
+                  }`}
+                >
+                  <p className="fw-medium mb-2">
+                    <i className={`bx ${importResult.imported > 0 ? 'bx-check-circle' : 'bx-error'} me-1`} aria-hidden="true" />
+                    Résultat de l&apos;import
+                  </p>
+                  <ul className="small mb-0 ps-3">
+                    <li>Total : {importResult.total} équipe(s)</li>
+                    <li className="text-success">Importées : {importResult.imported}</li>
+                    {importResult.skipped > 0 && (
+                      <li className="text-warning">Ignorées : {importResult.skipped}</li>
+                    )}
                   </ul>
+                  {importResult.errors.length > 0 && (
+                    <div className="mt-2">
+                      <p className="small fw-medium text-danger mb-1">Erreurs :</p>
+                      <ul className="small text-danger mb-0 ps-3" style={{ maxHeight: '6rem', overflowY: 'auto' }}>
+                        {importResult.errors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
-          {error && !importResult && (
-            <div className="p-3 border border-red-200 bg-red-50 text-red-700 rounded text-sm">
-              {error}
+              {error && !importResult && (
+                <div className="alert alert-danger mt-3 mb-0">{error}</div>
+              )}
             </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={onClose}
-            className="btn btn-light"
-          >
-            Fermer
-          </button>
+            <div className="modal-footer">
+              <button type="button" onClick={onClose} className="btn btn-light">
+                Fermer
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+      <div className="modal-backdrop fade show" />
+    </>
   )
 }

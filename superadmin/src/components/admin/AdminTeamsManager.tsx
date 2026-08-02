@@ -104,70 +104,70 @@ export default function AdminTeamsManager() {
 
       <div className="card shadow-sm border-0">
         <div className="card-body">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Recherche</label>
-            <input
-              type="text"
-              placeholder="Nom, abréviation, ville..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="form-select"
-            />
+          <div className="row g-3">
+            <div className="col-12 col-sm-6 col-lg-3">
+              <label className="form-label">Recherche</label>
+              <input
+                type="text"
+                placeholder="Nom, abréviation, ville..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="form-control"
+              />
+            </div>
+            <div className="col-6 col-lg-2">
+              <label className="form-label">Type</label>
+              <select
+                value={filterTeamType}
+                onChange={(e) => setFilterTeamType(e.target.value as typeof filterTeamType)}
+                className="form-select"
+              >
+                <option value="all">Tous les types</option>
+                {Object.entries(TEAM_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-6 col-lg-2">
+              <label className="form-label">Pays</label>
+              <select
+                value={filterCountry}
+                onChange={(e) => setFilterCountry(e.target.value)}
+                className="form-select"
+              >
+                <option value="all">Tous les pays</option>
+                {filterOptions?.countries.map((code) => (
+                  <option key={code} value={code}>{getCountryLabel(code)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-6 col-lg-2">
+              <label className="form-label">Sport</label>
+              <select
+                value={filterSport}
+                onChange={(e) => setFilterSport(e.target.value as typeof filterSport)}
+                className="form-select"
+              >
+                <option value="all">Tous les sports</option>
+                {Object.entries(SPORT_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-6 col-lg-3">
+              <label className="form-label">Catégorie</label>
+              <select
+                value={filterAgeCategory}
+                onChange={(e) => setFilterAgeCategory(e.target.value as typeof filterAgeCategory)}
+                className="form-select"
+              >
+                <option value="all">Toutes les catégories</option>
+                {Object.entries(AGE_CATEGORY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Type</label>
-            <select
-              value={filterTeamType}
-              onChange={(e) => setFilterTeamType(e.target.value as typeof filterTeamType)}
-              className="form-control"
-            >
-              <option value="all">Tous les types</option>
-              {Object.entries(TEAM_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Pays</label>
-            <select
-              value={filterCountry}
-              onChange={(e) => setFilterCountry(e.target.value)}
-              className="form-control"
-            >
-              <option value="all">Tous les pays</option>
-              {filterOptions?.countries.map((code) => (
-                <option key={code} value={code}>{getCountryLabel(code)}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Sport</label>
-            <select
-              value={filterSport}
-              onChange={(e) => setFilterSport(e.target.value as typeof filterSport)}
-              className="form-control"
-            >
-              <option value="all">Tous les sports</option>
-              {Object.entries(SPORT_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Catégorie</label>
-            <select
-              value={filterAgeCategory}
-              onChange={(e) => setFilterAgeCategory(e.target.value as typeof filterAgeCategory)}
-              className="form-control"
-            >
-              <option value="all">Toutes les catégories</option>
-              {Object.entries(AGE_CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
         </div>
       </div>
 

@@ -7,22 +7,34 @@ interface PhotoViewerModalProps {
 
 export default function PhotoViewerModal({ photoUrl, onClose }: PhotoViewerModalProps) {
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 text-white hover:text-gray-300 text-2xl font-bold"
-      >
-        ✕
-      </button>
-      <img
-        src={photoUrl}
-        alt="Photo en grand"
-        className="max-w-[90vw] max-h-[90vh] object-contain"
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
+    <>
+      <div className="modal fade show d-block" tabIndex={-1} role="dialog" onClick={onClose}>
+        <div
+          className="modal-dialog modal-dialog-centered modal-lg"
+          role="document"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-content bg-transparent border-0">
+            <div className="modal-header border-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-close btn-close-white ms-auto"
+                aria-label="Fermer"
+              />
+            </div>
+            <div className="modal-body text-center p-0">
+              <img
+                src={photoUrl}
+                alt="Photo en grand"
+                className="img-fluid"
+                style={{ maxHeight: '80vh', objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="modal-backdrop fade show" />
+    </>
   )
 }

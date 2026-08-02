@@ -120,13 +120,14 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
     }
   }
 
-  if (loading) return <p className="text-gray-500">Chargement...</p>
+  if (loading) return <p className="text-muted">Chargement...</p>
 
   return (
     <div className="d-flex flex-column gap-4">
       <div className="d-flex align-items-center gap-3">
         <Link href="/admin/club" className="text-muted text-decoration-none">
-          ← Retour
+          <i className="bx bx-left-arrow-alt me-1" aria-hidden="true" />
+          Retour
         </Link>
       </div>
 

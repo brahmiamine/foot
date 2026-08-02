@@ -25,91 +25,95 @@ export default function EditJourneeForm({
   onClose,
 }: EditJourneeFormProps) {
   return (
-    <div className="col-span-12 md:col-span-4 bg-white shadow-lg rounded-lg p-6 border-2 border-blue-200">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-blue-700">Modifier la journée</h3>
-        <button
-          onClick={onClose}
-          className="btn btn-sm btn-link text-muted p-0 text-decoration-none"
-        >
-          ✕ Fermer
-        </button>
+    <div className="col-12 col-lg-4">
+      <div className="card border border-primary">
+        <div className="card-header bg-transparent d-flex align-items-center justify-content-between">
+          <h5 className="card-title mb-0 text-primary">Modifier la journée</h5>
+          <button type="button" onClick={onClose} className="btn-close" aria-label="Fermer" />
+        </div>
+        <div className="card-body">
+          <form className="row g-3" onSubmit={onSubmit}>
+            <div className="col-12">
+              <label className="form-label">Saison *</label>
+              <select
+                value={editForm.saison_id}
+                onChange={(e) => setEditForm({ ...editForm, saison_id: e.target.value })}
+                className="form-select"
+                required
+              >
+                {saisons.map((saison) => (
+                  <option key={saison.id} value={saison.id}>
+                    {getSaisonDisplayName(saison)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-6">
+              <label className="form-label">Numéro</label>
+              <input
+                type="number"
+                min="1"
+                value={editForm.numero}
+                onChange={(e) => setEditForm({ ...editForm, numero: e.target.value })}
+                className="form-control"
+                placeholder="1, 2, 3..."
+              />
+            </div>
+            <div className="col-6">
+              <label className="form-label">Date</label>
+              <input
+                type="date"
+                value={editForm.date_journee}
+                onChange={(e) => setEditForm({ ...editForm, date_journee: e.target.value })}
+                className="form-control"
+              />
+            </div>
+            <div className="col-12">
+              <label className="form-label">Nom (français)</label>
+              <input
+                type="text"
+                value={editForm.nom_fr}
+                onChange={(e) => setEditForm({ ...editForm, nom_fr: e.target.value })}
+                className="form-control"
+                placeholder="Demi-finale, Finale..."
+              />
+            </div>
+            <div className="col-12">
+              <label className="form-label">Nom (anglais)</label>
+              <input
+                type="text"
+                value={editForm.nom_en}
+                onChange={(e) => setEditForm({ ...editForm, nom_en: e.target.value })}
+                className="form-control"
+                placeholder="Semi-final, Final..."
+              />
+            </div>
+            <div className="col-12">
+              <label className="form-label">Nom (arabe)</label>
+              <input
+                type="text"
+                value={editForm.nom_ar}
+                onChange={(e) => setEditForm({ ...editForm, nom_ar: e.target.value })}
+                className="form-control"
+                placeholder="نصف النهائي، النهائي..."
+                dir="rtl"
+              />
+            </div>
+            <div className="col-12">
+              <button type="submit" className="btn btn-primary" disabled={savingId === editingId || !editForm.saison_id}>
+                {savingId === editingId ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                    Enregistrement...
+                  </>
+                ) : (
+                  'Enregistrer'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-      <form className="space-y-4" onSubmit={onSubmit}>
-        <div>
-          <label className="block text-sm font-medium mb-1">Saison *</label>
-          <select
-            value={editForm.saison_id}
-            onChange={(e) => setEditForm({ ...editForm, saison_id: e.target.value })}
-            className="form-control"
-            required
-          >
-            {saisons.map((saison) => (
-              <option key={saison.id} value={saison.id}>
-                {getSaisonDisplayName(saison)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Numéro</label>
-          <input
-            type="number"
-            min="1"
-            value={editForm.numero}
-            onChange={(e) => setEditForm({ ...editForm, numero: e.target.value })}
-            className="form-control"
-            placeholder="1, 2, 3..."
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Date</label>
-          <input
-            type="date"
-            value={editForm.date_journee}
-            onChange={(e) => setEditForm({ ...editForm, date_journee: e.target.value })}
-            className="form-control"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Nom (français)</label>
-          <input
-            type="text"
-            value={editForm.nom_fr}
-            onChange={(e) => setEditForm({ ...editForm, nom_fr: e.target.value })}
-            className="form-control"
-            placeholder="Demi-finale, Finale..."
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Nom (anglais)</label>
-          <input
-            type="text"
-            value={editForm.nom_en}
-            onChange={(e) => setEditForm({ ...editForm, nom_en: e.target.value })}
-            className="form-control"
-            placeholder="Semi-final, Final..."
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Nom (arabe)</label>
-          <input
-            type="text"
-            value={editForm.nom_ar}
-            onChange={(e) => setEditForm({ ...editForm, nom_ar: e.target.value })}
-            className="form-control"
-            placeholder="نصف النهائي، النهائي..."
-            dir="rtl"
-          />
-        </div>
-        <button
-          type="submit"
-          className="btn btn-primary w-100"
-          disabled={savingId === editingId || !editForm.saison_id}
-        >
-          {savingId === editingId ? 'Enregistrement...' : 'Enregistrer'}
-        </button>
-      </form>
     </div>
   )
 }
