@@ -11,5 +11,6 @@ export { CritereDefinitionEntity } from './CritereDefinition'
 export { Contact } from './Contact'
 export { AuditLog, type AuditAction } from './AuditLog'
 export { User, type UserRole } from './User'
+export { CardReason, type CardReasonType } from './CardReason'
 
 

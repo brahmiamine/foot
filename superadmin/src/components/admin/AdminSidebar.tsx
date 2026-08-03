@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Clubs', href: '/admin/club', icon: 'bx bx-shield-quarter' },
   { label: 'Matchs', href: '/admin/matches', icon: 'bx bx-football' },
   { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },
+  { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
   { label: 'Test API-Football', href: '/admin/testapi', icon: 'bx bx-test-tube' },
 ]

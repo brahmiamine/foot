@@ -31,6 +31,7 @@ import { ProductCategory } from "@/entities/ProductCategory";
 import { Product } from "@/entities/Product";
 import { SponsorRequest } from "@/entities/SponsorRequest";
 import { Sponsor } from "@/entities/Sponsor";
+import { MatchLineup } from "@/entities/MatchLineup";
 
 /**
  * Database connection configuration
@@ -64,7 +65,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Never use synchronize in production
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor], // Import entities directly instead of using glob patterns
+      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup], // Import entities directly instead of using glob patterns
       migrations: [], // Add migrations as needed
       charset: "utf8mb4",
       timezone: "Z",

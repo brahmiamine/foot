@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { toggleMatchVisibility } from "./actions";
 
 interface MatchData {
@@ -79,6 +80,7 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
                   <th>Statut</th>
                   <th>Galerie</th>
                   <th>Visible sur le site</th>
+                  <th className="text-end">Composition</th>
                 </tr>
               </thead>
               <tbody>
@@ -110,6 +112,12 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
                           onChange={() => onToggle(match)}
                         />
                       </div>
+                    </td>
+                    <td className="text-end">
+                      <Link href={`/admin/matches/${match.id}/lineup`} className="btn btn-sm btn-outline-primary">
+                        <i className="fas fa-users me-1" aria-hidden="true" />
+                        Composition
+                      </Link>
                     </td>
                   </tr>
                 ))}
