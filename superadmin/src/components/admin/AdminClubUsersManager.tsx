@@ -149,115 +149,115 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
       {showForm && (
         <form onSubmit={handleCreate} className="card shadow-sm border-0">
           <div className="card-body">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="form-label">Nom complet</label>
-              <input
-                required
-                minLength={2}
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="form-control"
-              />
+            <div className="row g-3">
+              <div className="col-12 col-md-6">
+                <label className="form-label">Nom complet</label>
+                <input
+                  required
+                  minLength={2}
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  className="form-control"
+                />
+              </div>
+              <div className="col-12 col-md-6">
+                <label className="form-label">Email</label>
+                <input
+                  required
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  className="form-control"
+                />
+              </div>
+              <div className="col-12 col-md-6">
+                <label className="form-label">Mot de passe</label>
+                <input
+                  required
+                  minLength={8}
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  className="form-control"
+                />
+              </div>
+              <div className="col-12 col-md-6">
+                <label className="form-label">Rôle</label>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as 'ADMIN' | 'OBSERVATEUR' }))}
+                  className="form-select"
+                >
+                  <option value="ADMIN">Admin</option>
+                  <option value="OBSERVATEUR">Observateur</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="form-label">Email</label>
-              <input
-                required
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="form-control"
-              />
-            </div>
-            <div>
-              <label className="form-label">Mot de passe</label>
-              <input
-                required
-                minLength={8}
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                className="form-control"
-              />
-            </div>
-            <div>
-              <label className="form-label">Rôle</label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as 'ADMIN' | 'OBSERVATEUR' }))}
-                className="form-select"
-              >
-                <option value="ADMIN">Admin</option>
-                <option value="OBSERVATEUR">Observateur</option>
-              </select>
-            </div>
-          </div>
           </div>
           <div className="card-footer bg-transparent border-0 pt-0">
-          <button
-            type="submit"
-            disabled={saving}
-            className="btn btn-primary"
-          >
-            Créer le compte
-          </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn btn-primary"
+            >
+              Créer le compte
+            </button>
           </div>
         </form>
       )}
 
       <div className="card shadow-sm border-0">
         <div className="card-body p-0">
-        {users.length === 0 ? (
-          <p className="text-center text-muted py-4 mb-0">Aucun compte pour ce club</p>
-        ) : (
-          <div className="table-responsive">
-          <table className="table table-nowrap align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Rôle</th>
-                <th>Statut</th>
-                <th className="text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} style={{ opacity: user.isActive ? 1 : 0.6 }}>
-                  <td className="fw-medium">{user.name}</td>
-                  <td className="text-muted">{user.email}</td>
-                  <td>
-                    <span className="badge bg-soft-secondary text-secondary">{roleLabels[user.role] ?? user.role}</span>
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${
-                        user.isActive ? 'bg-soft-success text-success' : 'bg-soft-dark text-dark'
-                      }`}
-                    >
-                      {user.isActive ? 'Actif' : 'Inactif'}
-                    </span>
-                  </td>
-                  <td className="text-end">
-                    <div className="d-inline-flex gap-2">
-                    <button type="button" onClick={() => { setResetId(user.id); setResetPassword('') }} className="btn btn-sm btn-light" title="Réinitialiser mot de passe">
-                      🔑
-                    </button>
-                    <button type="button" onClick={() => toggleActive(user)} className={`btn btn-sm ${user.isActive ? 'btn-warning' : 'btn-success'}`} title="Activer / Désactiver">
-                      {user.isActive ? '⏸️' : '▶️'}
-                    </button>
-                    <button type="button" onClick={() => setDeleteId(user.id)} className="btn btn-sm btn-danger" title="Supprimer">
-                      🗑️
-                    </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        )}
+          {users.length === 0 ? (
+            <p className="text-center text-muted py-4 mb-0">Aucun compte pour ce club</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Nom</th>
+                    <th>Email</th>
+                    <th>Rôle</th>
+                    <th>Statut</th>
+                    <th className="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id} style={{ opacity: user.isActive ? 1 : 0.6 }}>
+                      <td className="fw-medium">{user.name}</td>
+                      <td className="text-muted">{user.email}</td>
+                      <td>
+                        <span className="badge rounded-pill bg-secondary-subtle text-secondary">{roleLabels[user.role] ?? user.role}</span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge rounded-pill ${
+                            user.isActive ? 'bg-success-subtle text-success' : 'bg-dark-subtle text-dark'
+                          }`}
+                        >
+                          {user.isActive ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                      <td className="text-end">
+                        <div className="d-inline-flex gap-2">
+                          <button type="button" onClick={() => { setResetId(user.id); setResetPassword('') }} className="btn btn-sm btn-light" title="Réinitialiser mot de passe">
+                            <i className="bx bx-key" aria-hidden="true" />
+                          </button>
+                          <button type="button" onClick={() => toggleActive(user)} className={`btn btn-sm ${user.isActive ? 'btn-warning' : 'btn-success'}`} title="Activer / Désactiver">
+                            <i className={`bx ${user.isActive ? 'bx-pause' : 'bx-play'}`} aria-hidden="true" />
+                          </button>
+                          <button type="button" onClick={() => setDeleteId(user.id)} className="btn btn-sm btn-danger" title="Supprimer">
+                            <i className="bx bx-trash" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
