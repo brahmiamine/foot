@@ -14,24 +14,23 @@ export class MatchService {
   }
 
   /**
-   * Matchs autour d'aujourd'hui (±3 jours), les plus proches d'abord —
-   * c'est cette liste qui alimente la barre du bas.
+   * Les matchs les plus proches d'aujourd'hui (peu importe l'écart), plus
+   * ceux sans date fixée — c'est cette liste qui alimente la barre du bas.
+   * Un ±3 jours fixe laissait la barre vide dès qu'un calendrier avait un
+   * trou (ex. intersaison), même avec des matchs à venir dans les deux sens.
    */
-  async findRecent(): Promise<Match[]> {
+  async findRecent(limit = 20): Promise<Match[]> {
     const repository = await this.getRepository();
-    const from = new Date();
-    from.setDate(from.getDate() - 3);
-    const to = new Date();
-    to.setDate(to.getDate() + 3);
 
     return repository
       .createQueryBuilder("match")
       .leftJoinAndSelect("match.homeTeam", "homeTeam")
       .leftJoinAndSelect("match.awayTeam", "awayTeam")
       .leftJoinAndSelect("match.matchday", "matchday")
-      .where("match.date BETWEEN :from AND :to", { from, to })
-      .orWhere("match.date IS NULL")
-      .orderBy("match.date", "ASC")
+      .orderBy("match.date IS NULL", "DESC")
+      .addOrderBy("ABS(DATEDIFF(match.date, CURDATE()))", "ASC")
+      .addOrderBy("match.date", "ASC")
+      .limit(limit)
       .getMany();
   }
 

@@ -13,6 +13,7 @@ if [ -f "$ROOT_DIR/arbinote/.env.local" ]; then
   set +a
 fi
 
+: "${DB_USER:?DB_USER manquant dans arbinote/.env.local}"
 : "${DB_PASSWORD:?DB_PASSWORD manquant dans arbinote/.env.local}"
 : "${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans arbinote/.env.local}"
 
@@ -68,13 +69,47 @@ until docker exec mariadb_container healthcheck.sh --connect --innodb_initialize
 done
 echo "✅ Base de données prête."
 
-# ── Nettoyage à la sortie (Ctrl+C arrête les quatre apps) ───────────────────
+# ── Correctif schéma partagé (idempotent) ───────────────────────────────────
+# teamManager et matchsheet lisent `Card.period`. On l'ajoute automatiquement
+# si la colonne n'existe pas encore.
+# NB: on utilise l'utilisateur applicatif ($DB_USER, droits ALTER accordés sur
+# `foot`) plutôt que root, car le mot de passe root n'est valable qu'à la toute
+# première création du volume mariadb_data — sur un conteneur déjà existant
+# (recréé avec un DB_ROOT_PASSWORD différent de celui d'origine), -uroot échoue
+# avec "Access denied" et interrompt tout le script (set -euo pipefail).
+echo "🔧 Vérification du schéma (Card.period)..."
+CARD_PERIOD_EXISTS="$(docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -Nse "
+  SELECT 1
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'foot'
+    AND TABLE_NAME = 'Card'
+    AND COLUMN_NAME = 'period'
+  LIMIT 1
+")"
+
+if [ "$CARD_PERIOD_EXISTS" != "1" ]; then
+  echo "🧱 Ajout de la colonne Card.period..."
+  docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+    ALTER TABLE Card
+      ADD COLUMN period ENUM('H1','H2','ET1','ET2') NULL AFTER minute;
+  "
+  echo "✅ Colonne Card.period ajoutée."
+else
+  echo "✅ Colonne Card.period déjà présente."
+fi
+
+# ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
 
 # ── arbinote sur le port 3000 (site public de notation des arbitres : votes,
 # critères, anomalies, alertes, messages — remplace l'ancien ArbiNote) ───────
 echo "🚀 Lancement d'arbinote sur http://localhost:3000 ..."
 (cd "$ROOT_DIR/arbinote" && PORT=3000 pnpm run dev 2>&1 | sed -u 's/^/[arbinote]   /') &
+
+# ── matchsheet sur le port 3001 (feuille de match électronique : avant-match,
+# live, après-match, signatures et événements) ───────────────────────────────
+echo "🚀 Lancement de matchsheet sur http://localhost:3001 ..."
+(cd "$ROOT_DIR/matchsheet" && PORT=3001 pnpm run dev 2>&1 | sed -u 's/^/[matchsheet] /') &
 
 # ── superadmin sur le port 3002 (outil interne : référentiel fédérations/
 # ligues/saisons/journées/équipes/matchs/arbitres, journal d'audit, test

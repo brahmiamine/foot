@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Sheet } from "./Sheet";
-import { SignaturePhase, ActorRole } from "./Signature";
+import type { SignaturePhase, ActorRole } from "./Signature";
 
 /**
  * Reservation Entity — réserve (réclamation formelle) consignée sur la

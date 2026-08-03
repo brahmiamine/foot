@@ -3,7 +3,7 @@ import { Sheet } from "./Sheet";
 import { Match } from "./Match";
 import { Team } from "./Team";
 import { Player } from "./Player";
-import { MatchPeriod } from "./Card";
+import type { MatchPeriod } from "./Card";
 
 /**
  * Injury Entity — blessure constatée pendant le match.

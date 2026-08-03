@@ -8,7 +8,7 @@ CREATE TABLE cms_match_lineups (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
   match_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   role ENUM('STARTER','SUBSTITUTE') NOT NULL DEFAULT 'STARTER',
   shirt_number INT NULL,
   position VARCHAR(50) NULL,
