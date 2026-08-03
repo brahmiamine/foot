@@ -265,29 +265,29 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 px-3" style={{ zIndex: 1050 }}>
           <div className="card shadow border-0" style={{ maxWidth: '420px', width: '100%' }}>
             <div className="card-body">
-            <h3 className="h6 mb-3">Nouveau mot de passe</h3>
-            <input
-              type="password"
-              autoFocus
-              minLength={8}
-              value={resetPassword}
-              onChange={(e) => setResetPassword(e.target.value)}
-              placeholder="Min. 8 caractères"
-              className="form-control"
-            />
-            <div className="d-flex justify-content-end gap-2 pt-3">
-              <button type="button" onClick={() => setResetId(null)} className="btn btn-light btn-sm">
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={submitReset}
-                disabled={resetPassword.length < 8}
-                className="btn btn-primary btn-sm"
-              >
-                Enregistrer
-              </button>
-            </div>
+              <h3 className="h6 mb-3">Nouveau mot de passe</h3>
+              <input
+                type="password"
+                autoFocus
+                minLength={8}
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                placeholder="Min. 8 caractères"
+                className="form-control"
+              />
+              <div className="d-flex justify-content-end gap-2 pt-3">
+                <button type="button" onClick={() => setResetId(null)} className="btn btn-light btn-sm">
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={submitReset}
+                  disabled={resetPassword.length < 8}
+                  className="btn btn-primary btn-sm"
+                >
+                  Enregistrer
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -297,16 +297,16 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 px-3" style={{ zIndex: 1050 }}>
           <div className="card shadow border-0" style={{ maxWidth: '420px', width: '100%' }}>
             <div className="card-body">
-            <h3 className="h6 mb-2">Supprimer ce compte ?</h3>
-            <p className="small text-muted">Cette action est irréversible.</p>
-            <div className="d-flex justify-content-end gap-2 pt-2">
-              <button type="button" onClick={() => setDeleteId(null)} className="btn btn-light btn-sm">
-                Annuler
-              </button>
-              <button type="button" onClick={confirmDelete} className="btn btn-danger btn-sm">
-                Supprimer
-              </button>
-            </div>
+              <h3 className="h6 mb-2">Supprimer ce compte ?</h3>
+              <p className="small text-muted">Cette action est irréversible.</p>
+              <div className="d-flex justify-content-end gap-2 pt-2">
+                <button type="button" onClick={() => setDeleteId(null)} className="btn btn-light btn-sm">
+                  Annuler
+                </button>
+                <button type="button" onClick={confirmDelete} className="btn btn-danger btn-sm">
+                  Supprimer
+                </button>
+              </div>
             </div>
           </div>
         </div>
