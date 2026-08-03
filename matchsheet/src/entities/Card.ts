@@ -35,7 +35,6 @@ export class Card {
   @Column({ type: "int", nullable: true })
   minute?: number | null;
 
-  /** Temps de jeu (1ère/2e mi-temps, prolongations) — renseigné par l'app matchsheet. */
   @Column({ type: "enum", enum: ["H1", "H2", "ET1", "ET2"], nullable: true })
   period?: MatchPeriod | null;
 
