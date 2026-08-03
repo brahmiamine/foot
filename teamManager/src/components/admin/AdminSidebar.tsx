@@ -86,15 +86,15 @@ export function AdminSidebar({ teamName }: { teamName: string }) {
         title: "Pages",
         items: [
           { title: "Convocations", icon: "fas fa-calendar-check", href: "/admin/convocations", children: [] },
-          { title: "Galerie", icon: "fas fa-images", href: "/admin/gallery", children: [] },
+          { title: "Galerie", icon: "fas fa-images", href: "/admin/media/items", children: [] },
           { title: "Classement", icon: "fas fa-trophy", href: "/admin/standings", children: [] },
           {
             title: "Boutique",
             icon: "fas fa-shopping-cart",
-            href: "/admin/shop",
+            href: "/admin/shop/products",
             children: [
               { title: "Produits", href: "/admin/shop/products" },
-              { title: "Commandes", href: "/admin/shop/orders" },
+              { title: "Catégories", href: "/admin/shop/categories" },
             ],
           },
           { title: "Sponsors", icon: "fas fa-handshake", href: "/admin/sponsors", children: [] },
