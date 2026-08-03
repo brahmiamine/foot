@@ -97,121 +97,131 @@ export default function TestApiPanel() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="d-flex flex-column gap-4">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Test API-Football</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="mb-1">Test API-Football</h2>
+        <p className="text-muted mb-0">
           Interface interne pour explorer les endpoints v3.football.api-sports.io sans consommer le
           quota depuis un terminal. La clé reste côté serveur (jamais envoyée au navigateur).
         </p>
       </div>
 
-      <div className="bg-white shadow rounded-lg p-6 space-y-4">
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">Raccourcis</p>
-          <div className="flex flex-wrap gap-2">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => applyPreset(preset)}
-                className="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100"
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Endpoint</label>
-          <select
-            value={endpoint}
-            onChange={(event) => setEndpoint(event.target.value as ApiFootballEndpoint)}
-            className="form-control"
-          >
-            {API_FOOTBALL_ENDPOINTS.map((ep) => (
-              <option key={ep} value={ep}>
-                /{ep}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Paramètres</label>
-          <div className="space-y-2">
-            {params.map((row, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="clé (ex: league)"
-                  value={row.key}
-                  onChange={(event) => updateParam(index, 'key', event.target.value)}
-                  className="form-control form-control-sm w-auto"
-                />
-                <input
-                  type="text"
-                  placeholder="valeur"
-                  value={row.value}
-                  onChange={(event) => updateParam(index, 'value', event.target.value)}
-                  className="form-control form-control-sm"
-                />
+      <div className="card shadow-sm border-0">
+        <div className="card-body">
+          <div className="mb-3">
+            <p className="fw-medium mb-2">Raccourcis</p>
+            <div className="d-flex flex-wrap gap-2">
+              {PRESETS.map((preset) => (
                 <button
+                  key={preset.label}
                   type="button"
-                  onClick={() => removeParam(index)}
-                  className="btn btn-sm btn-link text-danger p-0 px-2"
-                  aria-label="Supprimer le paramètre"
+                  onClick={() => applyPreset(preset)}
+                  className="btn btn-sm btn-outline-secondary rounded-pill"
                 >
-                  ✕
+                  {preset.label}
                 </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addParam}
-              className="btn btn-sm btn-link text-primary p-0"
-            >
-              + ajouter un paramètre
-            </button>
+              ))}
+            </div>
           </div>
+
+          <div className="mb-3">
+            <label className="form-label">Endpoint</label>
+            <select
+              value={endpoint}
+              onChange={(event) => setEndpoint(event.target.value as ApiFootballEndpoint)}
+              className="form-select"
+            >
+              {API_FOOTBALL_ENDPOINTS.map((ep) => (
+                <option key={ep} value={ep}>
+                  /{ep}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Paramètres</label>
+            <div className="d-flex flex-column gap-2">
+              {params.map((row, index) => (
+                <div key={index} className="d-flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="clé (ex: league)"
+                    value={row.key}
+                    onChange={(event) => updateParam(index, 'key', event.target.value)}
+                    className="form-control form-control-sm w-auto"
+                  />
+                  <input
+                    type="text"
+                    placeholder="valeur"
+                    value={row.value}
+                    onChange={(event) => updateParam(index, 'value', event.target.value)}
+                    className="form-control form-control-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeParam(index)}
+                    className="btn btn-sm btn-link text-danger p-0 px-2"
+                    aria-label="Supprimer le paramètre"
+                  >
+                    <i className="bx bx-x" aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addParam}
+                className="btn btn-sm btn-link text-primary p-0"
+              >
+                <i className="bx bx-plus me-1" aria-hidden="true" />
+                ajouter un paramètre
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={runRequest}
+            disabled={loading}
+            className="btn btn-primary"
+          >
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                Requête en cours…
+              </>
+            ) : (
+              'Envoyer la requête'
+            )}
+          </button>
+
+          {requestUrl && (
+            <p className="text-muted small font-monospace text-break mt-3 mb-0">GET {requestUrl}</p>
+          )}
         </div>
-
-        <button
-          type="button"
-          onClick={runRequest}
-          disabled={loading}
-          className="btn btn-primary"
-        >
-          {loading ? 'Requête en cours…' : 'Envoyer la requête'}
-        </button>
-
-        {requestUrl && (
-          <p className="text-xs text-gray-400 font-mono break-all">GET {requestUrl}</p>
-        )}
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md p-4">
-          {error}
-        </div>
+        <div className="alert alert-danger mb-0">{error}</div>
       )}
 
       {result && (
-        <div className="bg-white shadow rounded-lg p-6 space-y-3">
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <span className={`font-medium ${result.ok ? 'text-green-600' : 'text-red-600'}`}>
-              HTTP {result.status}
-            </span>
-            {result.rateLimit?.remainingDay !== null && (
-              <span className="text-gray-500">
-                Quota restant aujourd&apos;hui : {result.rateLimit.remainingDay} / {result.rateLimit.limitDay}
+        <div className="card shadow-sm border-0">
+          <div className="card-body">
+            <div className="d-flex flex-wrap align-items-center gap-3 mb-3">
+              <span className={`badge rounded-pill ${result.ok ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}>
+                HTTP {result.status}
               </span>
-            )}
+              {result.rateLimit?.remainingDay !== null && (
+                <span className="text-muted small">
+                  Quota restant aujourd&apos;hui : {result.rateLimit.remainingDay} / {result.rateLimit.limitDay}
+                </span>
+              )}
+            </div>
+            <pre className="bg-light border rounded p-3 small mb-0" style={{ overflow: 'auto', maxHeight: '32rem' }}>
+              {JSON.stringify(result.body, null, 2)}
+            </pre>
           </div>
-          <pre className="bg-gray-900 text-gray-100 text-xs rounded-md p-4 overflow-auto max-h-[32rem]">
-            {JSON.stringify(result.body, null, 2)}
-          </pre>
         </div>
       )}
     </div>

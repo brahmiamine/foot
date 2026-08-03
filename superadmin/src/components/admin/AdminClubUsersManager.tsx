@@ -120,13 +120,14 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
     }
   }
 
-  if (loading) return <p className="text-gray-500">Chargement...</p>
+  if (loading) return <p className="text-muted">Chargement...</p>
 
   return (
     <div className="d-flex flex-column gap-4">
       <div className="d-flex align-items-center gap-3">
         <Link href="/admin/club" className="text-muted text-decoration-none">
-          ← Retour
+          <i className="bx bx-left-arrow-alt me-1" aria-hidden="true" />
+          Retour
         </Link>
       </div>
 
@@ -148,115 +149,115 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
       {showForm && (
         <form onSubmit={handleCreate} className="card shadow-sm border-0">
           <div className="card-body">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="form-label">Nom complet</label>
-              <input
-                required
-                minLength={2}
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="form-control"
-              />
+            <div className="row g-3">
+              <div className="col-12 col-md-6">
+                <label className="form-label">Nom complet</label>
+                <input
+                  required
+                  minLength={2}
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  className="form-control"
+                />
+              </div>
+              <div className="col-12 col-md-6">
+                <label className="form-label">Email</label>
+                <input
+                  required
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  className="form-control"
+                />
+              </div>
+              <div className="col-12 col-md-6">
+                <label className="form-label">Mot de passe</label>
+                <input
+                  required
+                  minLength={8}
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  className="form-control"
+                />
+              </div>
+              <div className="col-12 col-md-6">
+                <label className="form-label">Rôle</label>
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as 'ADMIN' | 'OBSERVATEUR' }))}
+                  className="form-select"
+                >
+                  <option value="ADMIN">Admin</option>
+                  <option value="OBSERVATEUR">Observateur</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="form-label">Email</label>
-              <input
-                required
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="form-control"
-              />
-            </div>
-            <div>
-              <label className="form-label">Mot de passe</label>
-              <input
-                required
-                minLength={8}
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                className="form-control"
-              />
-            </div>
-            <div>
-              <label className="form-label">Rôle</label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as 'ADMIN' | 'OBSERVATEUR' }))}
-                className="form-select"
-              >
-                <option value="ADMIN">Admin</option>
-                <option value="OBSERVATEUR">Observateur</option>
-              </select>
-            </div>
-          </div>
           </div>
           <div className="card-footer bg-transparent border-0 pt-0">
-          <button
-            type="submit"
-            disabled={saving}
-            className="btn btn-primary"
-          >
-            Créer le compte
-          </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn btn-primary"
+            >
+              Créer le compte
+            </button>
           </div>
         </form>
       )}
 
       <div className="card shadow-sm border-0">
         <div className="card-body p-0">
-        {users.length === 0 ? (
-          <p className="text-center text-muted py-4 mb-0">Aucun compte pour ce club</p>
-        ) : (
-          <div className="table-responsive">
-          <table className="table table-nowrap align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Rôle</th>
-                <th>Statut</th>
-                <th className="text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} style={{ opacity: user.isActive ? 1 : 0.6 }}>
-                  <td className="fw-medium">{user.name}</td>
-                  <td className="text-muted">{user.email}</td>
-                  <td>
-                    <span className="badge bg-soft-secondary text-secondary">{roleLabels[user.role] ?? user.role}</span>
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${
-                        user.isActive ? 'bg-soft-success text-success' : 'bg-soft-dark text-dark'
-                      }`}
-                    >
-                      {user.isActive ? 'Actif' : 'Inactif'}
-                    </span>
-                  </td>
-                  <td className="text-end">
-                    <div className="d-inline-flex gap-2">
-                    <button type="button" onClick={() => { setResetId(user.id); setResetPassword('') }} className="btn btn-sm btn-light" title="Réinitialiser mot de passe">
-                      🔑
-                    </button>
-                    <button type="button" onClick={() => toggleActive(user)} className={`btn btn-sm ${user.isActive ? 'btn-warning' : 'btn-success'}`} title="Activer / Désactiver">
-                      {user.isActive ? '⏸️' : '▶️'}
-                    </button>
-                    <button type="button" onClick={() => setDeleteId(user.id)} className="btn btn-sm btn-danger" title="Supprimer">
-                      🗑️
-                    </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        )}
+          {users.length === 0 ? (
+            <p className="text-center text-muted py-4 mb-0">Aucun compte pour ce club</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Nom</th>
+                    <th>Email</th>
+                    <th>Rôle</th>
+                    <th>Statut</th>
+                    <th className="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id} style={{ opacity: user.isActive ? 1 : 0.6 }}>
+                      <td className="fw-medium">{user.name}</td>
+                      <td className="text-muted">{user.email}</td>
+                      <td>
+                        <span className="badge rounded-pill bg-secondary-subtle text-secondary">{roleLabels[user.role] ?? user.role}</span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge rounded-pill ${
+                            user.isActive ? 'bg-success-subtle text-success' : 'bg-dark-subtle text-dark'
+                          }`}
+                        >
+                          {user.isActive ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                      <td className="text-end">
+                        <div className="d-inline-flex gap-2">
+                          <button type="button" onClick={() => { setResetId(user.id); setResetPassword('') }} className="btn btn-sm btn-light" title="Réinitialiser mot de passe">
+                            <i className="bx bx-key" aria-hidden="true" />
+                          </button>
+                          <button type="button" onClick={() => toggleActive(user)} className={`btn btn-sm ${user.isActive ? 'btn-warning' : 'btn-success'}`} title="Activer / Désactiver">
+                            <i className={`bx ${user.isActive ? 'bx-pause' : 'bx-play'}`} aria-hidden="true" />
+                          </button>
+                          <button type="button" onClick={() => setDeleteId(user.id)} className="btn btn-sm btn-danger" title="Supprimer">
+                            <i className="bx bx-trash" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -264,29 +265,29 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 px-3" style={{ zIndex: 1050 }}>
           <div className="card shadow border-0" style={{ maxWidth: '420px', width: '100%' }}>
             <div className="card-body">
-            <h3 className="h6 mb-3">Nouveau mot de passe</h3>
-            <input
-              type="password"
-              autoFocus
-              minLength={8}
-              value={resetPassword}
-              onChange={(e) => setResetPassword(e.target.value)}
-              placeholder="Min. 8 caractères"
-              className="form-control"
-            />
-            <div className="d-flex justify-content-end gap-2 pt-3">
-              <button type="button" onClick={() => setResetId(null)} className="btn btn-light btn-sm">
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={submitReset}
-                disabled={resetPassword.length < 8}
-                className="btn btn-primary btn-sm"
-              >
-                Enregistrer
-              </button>
-            </div>
+              <h3 className="h6 mb-3">Nouveau mot de passe</h3>
+              <input
+                type="password"
+                autoFocus
+                minLength={8}
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                placeholder="Min. 8 caractères"
+                className="form-control"
+              />
+              <div className="d-flex justify-content-end gap-2 pt-3">
+                <button type="button" onClick={() => setResetId(null)} className="btn btn-light btn-sm">
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={submitReset}
+                  disabled={resetPassword.length < 8}
+                  className="btn btn-primary btn-sm"
+                >
+                  Enregistrer
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -296,16 +297,16 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 px-3" style={{ zIndex: 1050 }}>
           <div className="card shadow border-0" style={{ maxWidth: '420px', width: '100%' }}>
             <div className="card-body">
-            <h3 className="h6 mb-2">Supprimer ce compte ?</h3>
-            <p className="small text-muted">Cette action est irréversible.</p>
-            <div className="d-flex justify-content-end gap-2 pt-2">
-              <button type="button" onClick={() => setDeleteId(null)} className="btn btn-light btn-sm">
-                Annuler
-              </button>
-              <button type="button" onClick={confirmDelete} className="btn btn-danger btn-sm">
-                Supprimer
-              </button>
-            </div>
+              <h3 className="h6 mb-2">Supprimer ce compte ?</h3>
+              <p className="small text-muted">Cette action est irréversible.</p>
+              <div className="d-flex justify-content-end gap-2 pt-2">
+                <button type="button" onClick={() => setDeleteId(null)} className="btn btn-light btn-sm">
+                  Annuler
+                </button>
+                <button type="button" onClick={confirmDelete} className="btn btn-danger btn-sm">
+                  Supprimer
+                </button>
+              </div>
             </div>
           </div>
         </div>
