@@ -21,7 +21,7 @@ export default function AdminHeader() {
   }
 
   return (
-    <header className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 border-b border-gray-200 bg-white shadow-sm">
+    <header className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-white shadow-[0_1px_0_rgba(11,31,46,0.03),0_6px_16px_-12px_rgba(11,31,46,0.2)]">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {/* Bouton menu mobile */}
@@ -36,7 +36,7 @@ export default function AdminHeader() {
           </button>
           <div>
             <p className="text-xs sm:text-sm text-gray-500">Espace d'administration</p>
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">Gestion des arbitres</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl tracking-wide text-gray-900 font-[family-name:'Bebas_Neue']">Gestion des arbitres</h1>
           </div>
         </div>
         <div className="flex-shrink-0 flex items-center gap-3">
@@ -44,7 +44,7 @@ export default function AdminHeader() {
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="text-sm font-medium text-gray-600 hover:text-red-600 border border-gray-300 hover:border-red-300 rounded-md px-3 py-1.5 transition-colors disabled:opacity-60"
+            className="text-sm font-medium text-gray-600 hover:text-[#c42221] border border-gray-300 hover:border-[#c42221]/40 rounded-md px-3 py-1.5 transition-colors disabled:opacity-60"
           >
             {loggingOut ? 'Déconnexion...' : 'Déconnexion'}
           </button>

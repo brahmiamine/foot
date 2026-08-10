@@ -31,24 +31,24 @@ export default function AdminSidebar() {
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-50
-          bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800
+          bg-[#0b1f2e] text-slate-100 flex flex-col border-r border-white/5
           transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${isCollapsed ? 'lg:w-16' : 'w-64'}
         `}
       >
         {/* Header */}
-        <div className="p-4 lg:p-6 flex items-center justify-between border-b border-slate-800">
+        <div className="p-4 lg:p-6 flex items-center justify-between border-b border-white/5 relative after:content-[''] after:absolute after:left-4 after:right-4 after:-bottom-px after:h-[2px] after:bg-gradient-to-r after:from-[#c42221] after:to-transparent">
           {!isCollapsed && (
-            <span className="text-lg lg:text-xl font-bold tracking-tight">ARBINOTE</span>
+            <span className="text-lg lg:text-xl font-bold tracking-wide font-[family-name:'Bebas_Neue']">ARBINOTE</span>
           )}
           {isCollapsed && (
-            <span className="text-lg font-bold mx-auto">A</span>
+            <span className="text-lg font-bold mx-auto font-[family-name:'Bebas_Neue']">A</span>
           )}
           {/* Bouton collapse pour desktop */}
           <button
             onClick={toggleCollapse}
-            className="hidden lg:flex items-center justify-center w-8 h-8 rounded hover:bg-slate-800 transition-colors"
+            className="hidden lg:flex items-center justify-center w-8 h-8 rounded hover:bg-white/6 transition-colors"
             title={isCollapsed ? 'Ouvrir' : 'Réduire'}
           >
             <svg
@@ -63,7 +63,7 @@ export default function AdminSidebar() {
           {/* Bouton fermer pour mobile */}
           <button
             onClick={closeSidebar}
-            className="lg:hidden flex items-center justify-center w-8 h-8 rounded hover:bg-slate-800 transition-colors"
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded hover:bg-white/6 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -82,8 +82,10 @@ export default function AdminSidebar() {
                 href={item.href}
                 onClick={closeSidebar}
                 className={`
-                  flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors
-                  ${isActive ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
+                  relative flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors
+                  ${isActive
+                    ? "bg-[#c42221]/15 text-white before:content-[''] before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded before:bg-[#c42221]"
+                    : 'text-slate-300 hover:bg-white/6 hover:text-white'}
                   ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}
                 `}
                 title={isCollapsed ? item.label : undefined}
