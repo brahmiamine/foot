@@ -368,6 +368,9 @@ export function FriendlyMatchesManagement({
                           <Link href={`/admin/friendly-matches/${m.id}/lineup`} className="btn btn-sm btn-outline-success" title="Composition">
                             <i className="fas fa-users" aria-hidden="true" />
                           </Link>
+                          <Link href={`/admin/match-events/friendly/${m.id}`} className="btn btn-sm btn-outline-warning" title="Événements">
+                            <i className="fas fa-list-ol" aria-hidden="true" />
+                          </Link>
                           {canEdit && (
                             <>
                               <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setResultEditingId(m.id)} title="Résultat">

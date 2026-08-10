@@ -3,6 +3,8 @@ import { Team } from "./Team";
 import { Stadium } from "./Stadium";
 import { User } from "./User";
 import { Season } from "./Season";
+import { Competition } from "./Competition";
+import { CompetitionParticipant } from "./CompetitionParticipant";
 import type { AgeCategory } from "@/types/categories";
 
 export type FriendlyMatchStatus = "UPCOMING" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
@@ -36,6 +38,27 @@ export class FriendlyMatch {
   @ManyToOne(() => Season, { onDelete: "SET NULL", nullable: true })
   @JoinColumn({ name: "season_id" })
   season?: Season | null;
+
+  @Column({ type: "bigint", nullable: true, name: "competition_id" })
+  competitionId?: number | null;
+
+  @ManyToOne(() => Competition, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "competition_id" })
+  competition?: Competition | null;
+
+  @Column({ type: "bigint", nullable: true, name: "home_participant_id" })
+  homeParticipantId?: number | null;
+
+  @ManyToOne(() => CompetitionParticipant, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "home_participant_id" })
+  homeParticipant?: CompetitionParticipant | null;
+
+  @Column({ type: "bigint", nullable: true, name: "away_participant_id" })
+  awayParticipantId?: number | null;
+
+  @ManyToOne(() => CompetitionParticipant, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "away_participant_id" })
+  awayParticipant?: CompetitionParticipant | null;
 
   @Column({ type: "char", length: 36, nullable: true, name: "opponent_team_id" })
   opponentTeamId?: string | null;

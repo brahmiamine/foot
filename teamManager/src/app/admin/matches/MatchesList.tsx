@@ -134,9 +134,13 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
                       </div>
                     </td>
                     <td className="text-end">
-                      <Link href={`/admin/matches/${match.id}/lineup`} className="btn btn-sm btn-outline-primary">
+                      <Link href={`/admin/matches/${match.id}/lineup`} className="btn btn-sm btn-outline-primary me-1">
                         <i className="fas fa-users me-1" aria-hidden="true" />
                         Composition
+                      </Link>
+                      <Link href={`/admin/match-events/official/${match.id}`} className="btn btn-sm btn-outline-warning">
+                        <i className="fas fa-list-ol me-1" aria-hidden="true" />
+                        Événements
                       </Link>
                     </td>
                   </tr>

@@ -203,6 +203,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    key: "competitions",
+    label: "Compétitions internes",
+    permissions: [
+      { key: "competitions.view", label: "Voir les compétitions et classements" },
+      { key: "competitions.manage", label: "Gérer les compétitions, participants et événements de match" },
+    ],
+  },
+  {
     key: "trips",
     label: "Déplacements",
     permissions: [
@@ -267,6 +275,8 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "structure.view",
       "licenses.view",
       "guardians.view",
+      "competitions.view",
+      "competitions.manage",
     ],
   },
   {
@@ -283,6 +293,7 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "lineups.view",
       "convocations.view",
       "stats.view",
+      "competitions.view",
     ],
   },
   {

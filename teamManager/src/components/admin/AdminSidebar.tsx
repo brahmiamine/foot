@@ -76,6 +76,7 @@ export function AdminSidebar({ teamName, access }: { teamName: string; access: C
           { title: "Parents & tuteurs", icon: "fas fa-user-friends", href: "/admin/guardians", children: [], permission: "guardians.view" },
           { title: "Matchs", icon: "fas fa-futbol", href: "/admin/matches", children: [], permission: "matches.view" },
           { title: "Matchs amicaux", icon: "fas fa-people-arrows", href: "/admin/friendly-matches", children: [], permission: "friendlyMatches.view" },
+          { title: "Compétitions internes", icon: "fas fa-trophy", href: "/admin/competitions", children: [], permission: "competitions.view" },
           { title: "Entraînements", icon: "fas fa-dumbbell", href: "/admin/trainings", children: [], permission: "trainings.view" },
           { title: "Déplacements", icon: "fas fa-bus", href: "/admin/trips", children: [], permission: "trips.view" },
           { title: "Planches tactiques", icon: "fas fa-chalkboard", href: "/admin/tactics", children: [], permission: "tactics.view" },
