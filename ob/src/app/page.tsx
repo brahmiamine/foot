@@ -44,7 +44,7 @@ export default async function HomePage() {
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <Nav teamName={team.nom} logoUrl={team.logoUrl} />
+      <Nav teamName={team.nom} />
       <Hero />
       <NextMatchBar match={nextMatch} obTeamId={team.id} homeStadium={homeStadium} />
       <Reveal variant="left">
@@ -68,7 +68,7 @@ export default async function HomePage() {
       <Reveal variant="up">
         <ShopTicketingSection products={products} />
       </Reveal>
-      <Footer teamId={team.id} teamName={team.nom} logoUrl={team.logoUrl} stadium={homeStadium} />
+      <Footer teamId={team.id} teamName={team.nom} stadium={homeStadium} />
     </div>
   );
 }

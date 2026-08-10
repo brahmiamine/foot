@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClubBadge } from "./ClubBadge";
 import shared from "./shared.module.css";
 import styles from "./Nav.module.css";
 
@@ -13,15 +14,12 @@ const LINKS = [
   { href: "/#contact", label: "Contact" },
 ];
 
-export function Nav({ teamName, logoUrl }: { teamName: string; logoUrl?: string | null }) {
+export function Nav({ teamName }: { teamName: string }) {
   return (
     <div className={styles.nav}>
       <div className={styles.inner}>
         <Link href="/" className={styles.brand}>
-          <div className={styles.badge}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- petit badge, pas besoin de next/image */}
-            {logoUrl ? <img src={logoUrl} alt={teamName} /> : "OB"}
-          </div>
+          <ClubBadge teamName={teamName} className={styles.badge} />
           <div className={styles.name}>{teamName}</div>
         </Link>
         <div className={styles.links}>

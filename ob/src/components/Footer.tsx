@@ -1,17 +1,16 @@
 import Link from "next/link";
 import type { Stadium } from "@/entities/Stadium";
 import { getSponsorRequestUrl } from "@/lib/sponsor";
+import { ClubBadge } from "./ClubBadge";
 import styles from "./Footer.module.css";
 
 export function Footer({
   teamId,
   teamName,
-  logoUrl,
   stadium,
 }: {
   teamId: string;
   teamName: string;
-  logoUrl?: string | null;
   stadium: Stadium | null;
 }) {
   const address = [stadium?.nameFr, stadium?.addressFr, stadium?.cityFr].filter(Boolean).join(", ");
@@ -22,10 +21,7 @@ export function Footer({
       <div className={styles.grid}>
         <div>
           <div className={styles.brand}>
-            <div className={styles.badge}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- petit badge, pas besoin de next/image */}
-              {logoUrl ? <img src={logoUrl} alt={teamName} /> : "OB"}
-            </div>
+            <ClubBadge teamName={teamName} className={styles.badge} />
             <div className={styles.name}>{teamName}</div>
           </div>
           <div className={styles.address}>

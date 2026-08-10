@@ -1,9 +1,12 @@
+import Image from "next/image";
 import shared from "./shared.module.css";
 import styles from "./Hero.module.css";
 
 export function Hero() {
   return (
     <div className={styles.hero}>
+      <Image src="/images/stade-hero.jpg" alt="" fill priority sizes="100vw" className={styles.bgPhoto} />
+      <div className={styles.overlay} />
       <div className={styles.stripes} />
       <div className={styles.inner}>
         <div className={styles.eyebrow}>Fondé en 1929 · Béja, Tunisie</div>

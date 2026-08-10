@@ -20,9 +20,9 @@ export async function PageChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <Nav teamName={team.nom} logoUrl={team.logoUrl} />
+      <Nav teamName={team.nom} />
       <main>{children}</main>
-      <Footer teamId={team.id} teamName={team.nom} logoUrl={team.logoUrl} stadium={homeStadium} />
+      <Footer teamId={team.id} teamName={team.nom} stadium={homeStadium} />
     </div>
   );
 }
