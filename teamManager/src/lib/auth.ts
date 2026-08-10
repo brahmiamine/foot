@@ -8,13 +8,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        teamId: { label: "Club", type: "text" },
         email: { label: "Email", type: "email" },
         password: { label: "Mot de passe", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        // `User.email` porte une contrainte UNIQUE globale (tous clubs
+        // confondus, table partagée avec cardManager) : un email identifie
+        // un seul compte, donc un seul club. Pas besoin de le faire choisir
+        // à la connexion, le club est simplement celui du compte trouvé.
         const userService = new UserService();
         const user = await userService.findByEmail(credentials.email as string);
 
@@ -23,12 +26,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(credentials.password as string, user.password);
         if (!valid) return null;
 
-        // Un compte n'est valide que pour SON club (même logique que
-        // cardManager) : SUPERADMIN (sans club) n'a jamais accès à teamManager.
-        const submittedTeamId = (credentials.teamId as string | undefined) || null;
-        if (!user.teamId || user.teamId !== submittedTeamId) {
-          return null;
-        }
+        // SUPERADMIN (sans club, réservé à cardManager) n'a jamais accès à teamManager.
+        if (!user.teamId) return null;
 
         return {
           id: user.id,
