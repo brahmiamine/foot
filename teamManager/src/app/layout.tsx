@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import { TemplateAssets } from "@/components/TemplateAssets";
 import "./globals.css";
 
@@ -11,13 +13,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const dir = locale === "ar" ? "rtl" : "ltr";
+
   return (
-    <html lang="en" className="css-loading" suppressHydrationWarning>
+    <html lang={locale} dir={dir} className="css-loading" suppressHydrationWarning>
       <body>
         {/* Critical inline styles to prevent FOUC - Loads immediately */}
         <style
@@ -183,7 +188,7 @@ export default function RootLayout({
 
         <TemplateAssets />
 
-        {children}
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>
   );

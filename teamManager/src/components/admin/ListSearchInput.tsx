@@ -1,12 +1,15 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface ListSearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
 }
 
-export function ListSearchInput({ value, onChange, placeholder = "Rechercher..." }: ListSearchInputProps) {
+export function ListSearchInput({ value, onChange, placeholder }: ListSearchInputProps) {
+  const t = useTranslations("common.table");
   return (
     <div className="input-group" style={{ maxWidth: 320 }}>
       <span className="input-group-text bg-white">
@@ -15,10 +18,10 @@ export function ListSearchInput({ value, onChange, placeholder = "Rechercher..."
       <input
         type="search"
         className="form-control"
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("searchPlaceholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        aria-label="Rechercher"
+        aria-label={t("search")}
       />
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface ListPaginationProps {
   page: number;
   totalPages: number;
@@ -8,13 +10,12 @@ interface ListPaginationProps {
 }
 
 export function ListPagination({ page, totalPages, onPageChange, totalCount }: ListPaginationProps) {
+  const t = useTranslations("common.table");
   if (totalPages <= 1) return null;
 
   return (
-    <nav className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3" aria-label="Pagination">
-      <span className="text-muted small">
-        {totalCount} résultat{totalCount > 1 ? "s" : ""}
-      </span>
+    <nav className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3" aria-label={t("pagination")}>
+      <span className="text-muted small">{t("resultsCount", { count: totalCount })}</span>
       <ul className="pagination pagination-sm mb-0">
         <li className={`page-item ${page === 1 ? "disabled" : ""}`}>
           <button
@@ -23,7 +24,7 @@ export function ListPagination({ page, totalPages, onPageChange, totalCount }: L
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
           >
-            Précédent
+            {t("previous")}
           </button>
         </li>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
@@ -40,7 +41,7 @@ export function ListPagination({ page, totalPages, onPageChange, totalCount }: L
             onClick={() => onPageChange(page + 1)}
             disabled={page === totalPages}
           >
-            Suivant
+            {t("next")}
           </button>
         </li>
       </ul>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 
 interface ConfirmModalProps {
   message: string;
@@ -18,13 +19,17 @@ interface ConfirmModalProps {
  */
 export function ConfirmModal({
   message,
-  title = "Confirmation",
-  confirmLabel = "Confirmer",
-  cancelLabel = "Annuler",
+  title,
+  confirmLabel,
+  cancelLabel,
   variant = "danger",
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const t = useTranslations("common.actions");
+  const resolvedTitle = title ?? t("confirmation");
+  const resolvedConfirmLabel = confirmLabel ?? t("confirm");
+  const resolvedCancelLabel = cancelLabel ?? t("cancel");
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -51,19 +56,19 @@ export function ConfirmModal({
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title" id="confirm-modal-title">
-                {title}
+                {resolvedTitle}
               </h5>
-              <button type="button" className="btn-close" aria-label="Fermer" onClick={onCancel} />
+              <button type="button" className="btn-close" aria-label={t("close")} onClick={onCancel} />
             </div>
             <div className="modal-body">
               <p className="mb-0">{message}</p>
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-outline-secondary" onClick={onCancel}>
-                {cancelLabel}
+                {resolvedCancelLabel}
               </button>
               <button ref={confirmButtonRef} type="button" className={`btn btn-${variant}`} onClick={onConfirm}>
-                {confirmLabel}
+                {resolvedConfirmLabel}
               </button>
             </div>
           </div>
