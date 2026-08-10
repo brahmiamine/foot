@@ -167,6 +167,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     label: "Rôles & permissions",
     permissions: [{ key: "roles.manage", label: "Gérer les rôles & permissions" }],
   },
+  {
+    key: "tactics",
+    label: "Planches tactiques",
+    permissions: [
+      { key: "tactics.view", label: "Voir les planches tactiques publiques" },
+      { key: "tactics.manage", label: "Créer / gérer ses propres planches tactiques" },
+    ],
+  },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_MODULES.flatMap((m) => m.permissions.map((p) => p.key));
@@ -206,6 +214,8 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "convocations.respond",
       "stadiums.view",
       "stats.view",
+      "tactics.view",
+      "tactics.manage",
     ],
   },
   {
