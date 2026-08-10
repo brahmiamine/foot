@@ -76,6 +76,12 @@ export default function TeamInfoSection({ team, displayName, displayCity, displa
                 <span className="text-gray-700 dark:text-gray-300">{t(`team.ageCategory.${team.age_category}`)}</span>
               </div>
             )}
+            {team.gender && (
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{t('team.gender')}:</span>
+                <span className="text-gray-700 dark:text-gray-300">{t(`team.gender.${team.gender}`)}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

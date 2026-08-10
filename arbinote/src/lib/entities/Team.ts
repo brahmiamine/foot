@@ -2,7 +2,11 @@ import { Column, Entity, PrimaryGeneratedColumn, Unique } from 'typeorm'
 
 export type TeamType = 'club' | 'national'
 export type Sport = 'football' | 'handball' | 'basketball' | 'volleyball'
-export type AgeCategory = 'seniors' | 'u21' | 'u20' | 'u19' | 'u18' | 'u17' | 'u16' | 'u15' | 'u14' | 'u13'
+export type AgeCategory =
+  | 'seniors'
+  | 'u21' | 'u20' | 'u19' | 'u18' | 'u17' | 'u16' | 'u15' | 'u14' | 'u13'
+  | 'u12' | 'u11' | 'u10' | 'u9' | 'u8' | 'u7'
+export type Gender = 'male' | 'female' | 'mixed'
 
 @Entity({ name: 'teams' })
 @Unique(['abbr'])
@@ -39,12 +43,23 @@ export class Team {
   })
   sport!: Sport
 
-  @Column({ 
-    type: 'enum', 
-    enum: ['seniors', 'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13'],
+  @Column({
+    type: 'enum',
+    enum: [
+      'seniors',
+      'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13',
+      'u12', 'u11', 'u10', 'u9', 'u8', 'u7',
+    ],
     default: 'seniors'
   })
   age_category!: AgeCategory
+
+  @Column({
+    type: 'enum',
+    enum: ['male', 'female', 'mixed'],
+    default: 'male'
+  })
+  gender!: Gender
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   city?: string | null

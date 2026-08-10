@@ -46,10 +46,21 @@ export class Team {
 
   @Column({
     type: "enum",
-    enum: ["seniors", "u21", "u20", "u19", "u18", "u17", "u16", "u15", "u14", "u13"],
+    enum: [
+      "seniors",
+      "u21", "u20", "u19", "u18", "u17", "u16", "u15", "u14", "u13",
+      "u12", "u11", "u10", "u9", "u8", "u7",
+    ],
     name: "age_category",
   })
   ageCategory!: string;
+
+  @Column({
+    type: "enum",
+    enum: ["male", "female", "mixed"],
+    default: "male",
+  })
+  gender!: "male" | "female" | "mixed";
 
   @Column({ type: "varchar", length: 255, nullable: true })
   city?: string | null;

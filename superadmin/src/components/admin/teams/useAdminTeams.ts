@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Team, TeamType, Sport, AgeCategory } from '@/types'
+import type { Team, TeamType, Sport, AgeCategory, Gender } from '@/types'
 import { emptyForm } from './constants'
 import type { FilterOptions, ImportResult, TeamFormState } from './types'
 
@@ -13,6 +13,7 @@ function buildEdit(team: Team): TeamFormState {
     country_code: team.country_code || '',
     sport: team.sport || 'football',
     age_category: team.age_category || 'seniors',
+    gender: team.gender || 'male',
     city: team.city || '',
     city_en: team.city_en || '',
     city_ar: team.city_ar || '',
@@ -46,6 +47,7 @@ export function useAdminTeams() {
   const [filterTeamType, setFilterTeamType] = useState<TeamType | 'all'>('all')
   const [filterSport, setFilterSport] = useState<Sport | 'all'>('all')
   const [filterAgeCategory, setFilterAgeCategory] = useState<AgeCategory | 'all'>('all')
+  const [filterGender, setFilterGender] = useState<Gender | 'all'>('all')
   const [filterCountry, setFilterCountry] = useState<string>('all')
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function useAdminTeams() {
   useEffect(() => {
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterTeamType, filterSport, filterAgeCategory, filterCountry])
+  }, [filterTeamType, filterSport, filterAgeCategory, filterGender, filterCountry])
 
   const filteredTeams = useMemo(() => {
     if (!searchQuery.trim()) return teams
@@ -96,6 +98,7 @@ export function useAdminTeams() {
       if (filterTeamType !== 'all') params.set('team_type', filterTeamType)
       if (filterSport !== 'all') params.set('sport', filterSport)
       if (filterAgeCategory !== 'all') params.set('age_category', filterAgeCategory)
+      if (filterGender !== 'all') params.set('gender', filterGender)
       if (filterCountry !== 'all') params.set('country_code', filterCountry)
 
       const response = await fetch(`/api/admin/teams?${params.toString()}`, {
@@ -142,6 +145,7 @@ export function useAdminTeams() {
         country_code: createForm.country_code || null,
         sport: createForm.sport,
         age_category: createForm.age_category,
+        gender: createForm.gender,
         city: createForm.city.trim() || null,
         city_en: createForm.city_en.trim() || null,
         city_ar: createForm.city_ar.trim() || null,
@@ -189,6 +193,7 @@ export function useAdminTeams() {
         country_code: editForm.country_code || null,
         sport: editForm.sport,
         age_category: editForm.age_category,
+        gender: editForm.gender,
         city: editForm.city.trim() || null,
         city_en: editForm.city_en.trim() || null,
         city_ar: editForm.city_ar.trim() || null,
@@ -325,6 +330,7 @@ export function useAdminTeams() {
           country_code: "TUN",
           sport: "football",
           age_category: "seniors",
+          gender: "male",
           city: "Tunis",
           city_en: "Tunis",
           stadium: "Stade Exemple"
@@ -369,6 +375,8 @@ export function useAdminTeams() {
     setFilterSport,
     filterAgeCategory,
     setFilterAgeCategory,
+    filterGender,
+    setFilterGender,
     filterCountry,
     setFilterCountry,
     filteredTeams,

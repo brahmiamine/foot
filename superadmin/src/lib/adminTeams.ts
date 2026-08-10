@@ -1,7 +1,7 @@
 import { getDataSource } from './db'
 import { Team } from './entities'
 import { toPlain, toPlainArray } from './serialization'
-import type { TeamType, Sport, AgeCategory } from '@/types'
+import type { TeamType, Sport, AgeCategory, Gender } from '@/types'
 
 export interface TeamFilters {
   search?: string
@@ -9,6 +9,7 @@ export interface TeamFilters {
   country_code?: string | 'all'
   sport?: Sport | 'all'
   age_category?: AgeCategory | 'all'
+  gender?: Gender | 'all'
 }
 
 export interface TeamCreateInput {
@@ -20,6 +21,7 @@ export interface TeamCreateInput {
   country_code?: string | null
   sport?: Sport
   age_category?: AgeCategory
+  gender?: Gender
   city?: string | null
   city_en?: string | null
   city_ar?: string | null
@@ -37,6 +39,7 @@ export interface TeamUpdateInput {
   country_code?: string | null
   sport?: Sport
   age_category?: AgeCategory
+  gender?: Gender
   city?: string | null
   city_en?: string | null
   city_ar?: string | null
@@ -84,6 +87,11 @@ export async function listTeamsForAdmin(filters: TeamFilters = {}) {
     qb.andWhere('team.age_category = :age_category', { age_category: filters.age_category })
   }
 
+  // Filtre par genre
+  if (filters.gender && filters.gender !== 'all') {
+    qb.andWhere('team.gender = :gender', { gender: filters.gender })
+  }
+
   const teams = await qb.getMany()
   return toPlainArray(teams)
 }
@@ -110,7 +118,12 @@ export async function getTeamsFilterOptions() {
   return {
     team_types: ['club', 'national'] as TeamType[],
     sports: ['football', 'handball', 'basketball', 'volleyball'] as Sport[],
-    age_categories: ['seniors', 'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13'] as AgeCategory[],
+    age_categories: [
+      'seniors',
+      'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13',
+      'u12', 'u11', 'u10', 'u9', 'u8', 'u7',
+    ] as AgeCategory[],
+    genders: ['male', 'female', 'mixed'] as Gender[],
     countries,
   }
 }
@@ -155,6 +168,7 @@ export async function createTeamAdmin(payload: TeamCreateInput) {
     country_code: payload.country_code || null,
     sport: payload.sport || 'football',
     age_category: payload.age_category || 'seniors',
+    gender: payload.gender || 'male',
     city: payload.city || null,
     city_en: payload.city_en || null,
     city_ar: payload.city_ar || null,
@@ -197,6 +211,7 @@ export async function updateTeamAdmin(id: string, payload: TeamUpdateInput) {
   if (payload.country_code !== undefined) updateData.country_code = payload.country_code
   if (payload.sport !== undefined) updateData.sport = payload.sport
   if (payload.age_category !== undefined) updateData.age_category = payload.age_category
+  if (payload.gender !== undefined) updateData.gender = payload.gender
   if (payload.city !== undefined) updateData.city = payload.city
   if (payload.city_en !== undefined) updateData.city_en = payload.city_en
   if (payload.city_ar !== undefined) updateData.city_ar = payload.city_ar
@@ -255,6 +270,7 @@ export interface TeamImportItem {
   country_code?: string | null
   sport?: Sport
   age_category?: AgeCategory
+  gender?: Gender
   city?: string | null
   city_en?: string | null
   city_ar?: string | null
@@ -301,19 +317,28 @@ export async function importTeamsFromJson(teams: TeamImportItem[]) {
       // Valider et normaliser les valeurs enum
       const validTeamTypes: TeamType[] = ['club', 'national']
       const validSports: Sport[] = ['football', 'handball', 'basketball', 'volleyball']
-      const validAgeCategories: AgeCategory[] = ['seniors', 'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13']
+      const validAgeCategories: AgeCategory[] = [
+        'seniors',
+        'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13',
+        'u12', 'u11', 'u10', 'u9', 'u8', 'u7',
+      ]
+      const validGenders: Gender[] = ['male', 'female', 'mixed']
 
-      const team_type: TeamType = teamData.team_type && validTeamTypes.includes(teamData.team_type) 
-        ? teamData.team_type 
+      const team_type: TeamType = teamData.team_type && validTeamTypes.includes(teamData.team_type)
+        ? teamData.team_type
         : 'club'
-      
-      const sport: Sport = teamData.sport && validSports.includes(teamData.sport) 
-        ? teamData.sport 
+
+      const sport: Sport = teamData.sport && validSports.includes(teamData.sport)
+        ? teamData.sport
         : 'football'
-      
-      const age_category: AgeCategory = teamData.age_category && validAgeCategories.includes(teamData.age_category) 
-        ? teamData.age_category 
+
+      const age_category: AgeCategory = teamData.age_category && validAgeCategories.includes(teamData.age_category)
+        ? teamData.age_category
         : 'seniors'
+
+      const gender: Gender = teamData.gender && validGenders.includes(teamData.gender)
+        ? teamData.gender
+        : 'male'
 
       // Créer l'équipe
       const newTeam = repo.create({
@@ -325,6 +350,7 @@ export async function importTeamsFromJson(teams: TeamImportItem[]) {
         country_code: teamData.country_code || null,
         sport,
         age_category,
+        gender,
         city: teamData.city || null,
         city_en: teamData.city_en || null,
         city_ar: teamData.city_ar || null,

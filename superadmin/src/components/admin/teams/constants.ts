@@ -1,4 +1,4 @@
-import type { TeamType, Sport, AgeCategory } from '@/types'
+import type { TeamType, Sport, AgeCategory, Gender } from '@/types'
 import type { TeamFormState } from './types'
 
 export const emptyForm: TeamFormState = {
@@ -10,6 +10,7 @@ export const emptyForm: TeamFormState = {
   country_code: '',
   sport: 'football',
   age_category: 'seniors',
+  gender: 'male',
   city: '',
   city_en: '',
   city_ar: '',
@@ -41,6 +42,18 @@ export const AGE_CATEGORY_LABELS: Record<AgeCategory, string> = {
   u15: 'U15',
   u14: 'U14',
   u13: 'U13',
+  u12: 'U12',
+  u11: 'U11',
+  u10: 'U10',
+  u9: 'U9',
+  u8: 'U8',
+  u7: 'U7',
+}
+
+export const GENDER_LABELS: Record<Gender, string> = {
+  male: 'Masculin',
+  female: 'Féminin',
+  mixed: 'Mixte',
 }
 
 export const COUNTRY_LABELS: Record<string, string> = {

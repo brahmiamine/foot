@@ -1,7 +1,7 @@
 'use client'
 
-import type { AgeCategory, Sport, Team, TeamType } from '@/types'
-import { AGE_CATEGORY_LABELS, getCountryLabel, SPORT_LABELS, TEAM_TYPE_LABELS } from './constants'
+import type { AgeCategory, Gender, Sport, Team, TeamType } from '@/types'
+import { AGE_CATEGORY_LABELS, GENDER_LABELS, getCountryLabel, SPORT_LABELS, TEAM_TYPE_LABELS } from './constants'
 
 interface TeamsTableProps {
   teams: Team[]
@@ -12,6 +12,7 @@ interface TeamsTableProps {
   filterTeamType: TeamType | 'all'
   filterSport: Sport | 'all'
   filterAgeCategory: AgeCategory | 'all'
+  filterGender: Gender | 'all'
   filterCountry: string
   onStartEdit: (team: Team) => void
   onDelete: (id: string) => void
@@ -26,6 +27,7 @@ export default function TeamsTable({
   filterTeamType,
   filterSport,
   filterAgeCategory,
+  filterGender,
   filterCountry,
   onStartEdit,
   onDelete,
@@ -51,14 +53,15 @@ export default function TeamsTable({
                     <th>Pays</th>
                     <th>Sport</th>
                     <th>Catégorie</th>
+                    <th>Genre</th>
                     <th className="text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {teams.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center text-muted py-5">
-                        {searchQuery.trim() || filterTeamType !== 'all' || filterSport !== 'all' || filterAgeCategory !== 'all' || filterCountry !== 'all'
+                      <td colSpan={9} className="text-center text-muted py-5">
+                        {searchQuery.trim() || filterTeamType !== 'all' || filterSport !== 'all' || filterAgeCategory !== 'all' || filterGender !== 'all' || filterCountry !== 'all'
                           ? 'Aucune équipe trouvée pour ces filtres'
                           : 'Aucune équipe'}
                       </td>
@@ -102,6 +105,7 @@ export default function TeamsTable({
                         <td>{getCountryLabel(team.country_code)}</td>
                         <td>{SPORT_LABELS[team.sport || 'football']}</td>
                         <td>{AGE_CATEGORY_LABELS[team.age_category || 'seniors']}</td>
+                        <td>{GENDER_LABELS[team.gender || 'male']}</td>
                         <td className="text-end">
                           <div className="d-flex gap-2 justify-content-end">
                             <button

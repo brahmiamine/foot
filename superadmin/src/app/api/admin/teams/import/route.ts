@@ -22,6 +22,7 @@ export const runtime = 'nodejs'
  *       "country_code": "TUN",
  *       "sport": "football",
  *       "age_category": "seniors",
+ *       "gender": "male",
  *       "city": "City",
  *       "stadium": "Stadium Name",
  *       "logo_url": "https://..."

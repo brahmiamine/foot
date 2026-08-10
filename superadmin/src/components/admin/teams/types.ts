@@ -1,4 +1,4 @@
-import type { TeamType, Sport, AgeCategory } from '@/types'
+import type { TeamType, Sport, AgeCategory, Gender } from '@/types'
 
 export interface ImportResult {
   total: number
@@ -16,6 +16,7 @@ export interface TeamFormState {
   country_code: string
   sport: Sport
   age_category: AgeCategory
+  gender: Gender
   city: string
   city_en: string
   city_ar: string
@@ -28,5 +29,6 @@ export interface FilterOptions {
   team_types: TeamType[]
   sports: Sport[]
   age_categories: AgeCategory[]
+  genders: Gender[]
   countries: string[]
 }

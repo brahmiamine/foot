@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
 import { ensureAdminAuth } from '@/lib/adminAuth'
 import { listTeamsForAdmin, createTeamAdmin, getTeamsFilterOptions, TeamFilters } from '@/lib/adminTeams'
-import type { TeamType, Sport, AgeCategory } from '@/types'
+import type { TeamType, Sport, AgeCategory, Gender } from '@/types'
 import { logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
@@ -40,11 +40,22 @@ export async function GET(request: NextRequest) {
     }
 
     const ageCategoryParam = searchParams.get('age_category')
-    const validAgeCategories: AgeCategory[] = ['seniors', 'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13']
+    const validAgeCategories: AgeCategory[] = [
+      'seniors',
+      'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13',
+      'u12', 'u11', 'u10', 'u9', 'u8', 'u7',
+    ]
     if (ageCategoryParam && validAgeCategories.includes(ageCategoryParam as AgeCategory)) {
       filters.age_category = ageCategoryParam as AgeCategory
     } else if (ageCategoryParam) {
       filters.age_category = 'all'
+    }
+
+    const genderParam = searchParams.get('gender')
+    if (genderParam === 'male' || genderParam === 'female' || genderParam === 'mixed') {
+      filters.gender = genderParam as Gender
+    } else if (genderParam) {
+      filters.gender = 'all'
     }
 
     const countryCodeParam = searchParams.get('country_code')

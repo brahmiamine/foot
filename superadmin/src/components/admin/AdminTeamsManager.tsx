@@ -4,7 +4,7 @@ import CreateTeamForm from './teams/CreateTeamForm'
 import EditTeamForm from './teams/EditTeamForm'
 import ImportTeamsModal from './teams/ImportTeamsModal'
 import TeamsTable from './teams/TeamsTable'
-import { AGE_CATEGORY_LABELS, emptyForm, getCountryLabel, SPORT_LABELS, TEAM_TYPE_LABELS } from './teams/constants'
+import { AGE_CATEGORY_LABELS, emptyForm, GENDER_LABELS, getCountryLabel, SPORT_LABELS, TEAM_TYPE_LABELS } from './teams/constants'
 import { useAdminTeams } from './teams/useAdminTeams'
 
 export default function AdminTeamsManager() {
@@ -35,6 +35,8 @@ export default function AdminTeamsManager() {
     setFilterSport,
     filterAgeCategory,
     setFilterAgeCategory,
+    filterGender,
+    setFilterGender,
     filterCountry,
     setFilterCountry,
     filteredTeams,
@@ -167,6 +169,19 @@ export default function AdminTeamsManager() {
                 ))}
               </select>
             </div>
+            <div className="col-6 col-lg-2">
+              <label className="form-label">Genre</label>
+              <select
+                value={filterGender}
+                onChange={(e) => setFilterGender(e.target.value as typeof filterGender)}
+                className="form-select"
+              >
+                <option value="all">Tous les genres</option>
+                {Object.entries(GENDER_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -181,6 +196,7 @@ export default function AdminTeamsManager() {
           filterTeamType={filterTeamType}
           filterSport={filterSport}
           filterAgeCategory={filterAgeCategory}
+          filterGender={filterGender}
           filterCountry={filterCountry}
           onStartEdit={startEdit}
           onDelete={handleDelete}

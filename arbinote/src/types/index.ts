@@ -42,7 +42,11 @@ export interface League {
 
 export type TeamType = 'club' | 'national'
 export type Sport = 'football' | 'handball' | 'basketball' | 'volleyball'
-export type AgeCategory = 'seniors' | 'u21' | 'u20' | 'u19' | 'u18' | 'u17' | 'u16' | 'u15' | 'u14' | 'u13'
+export type AgeCategory =
+  | 'seniors'
+  | 'u21' | 'u20' | 'u19' | 'u18' | 'u17' | 'u16' | 'u15' | 'u14' | 'u13'
+  | 'u12' | 'u11' | 'u10' | 'u9' | 'u8' | 'u7'
+export type Gender = 'male' | 'female' | 'mixed'
 
 export interface Team {
   id: string
@@ -55,6 +59,7 @@ export interface Team {
   country_code?: string | null
   sport?: Sport
   age_category?: AgeCategory
+  gender?: Gender
   city?: string | null
   city_ar?: string | null
   city_en?: string | null

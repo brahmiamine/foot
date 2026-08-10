@@ -1,8 +1,8 @@
 'use client'
 
 import type { FormEvent } from 'react'
-import type { TeamType, Sport, AgeCategory } from '@/types'
-import { AGE_CATEGORY_LABELS, COUNTRY_LABELS, SPORT_LABELS } from './constants'
+import type { TeamType, Sport, AgeCategory, Gender } from '@/types'
+import { AGE_CATEGORY_LABELS, COUNTRY_LABELS, GENDER_LABELS, SPORT_LABELS } from './constants'
 import type { TeamFormState } from './types'
 
 interface EditTeamFormProps {
@@ -117,6 +117,19 @@ export default function EditTeamForm({
                 required
               >
                 {Object.entries(AGE_CATEGORY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-6">
+              <label className="form-label">Genre *</label>
+              <select
+                value={editForm.gender}
+                onChange={(e) => setEditForm({ ...editForm, gender: e.target.value as Gender })}
+                className="form-select"
+                required
+              >
+                {Object.entries(GENDER_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
