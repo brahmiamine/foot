@@ -1,34 +1,67 @@
 @import url("/css/bootstrap.min.css");
 @import url("/css/all.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap");
 
-/* Skote-inspired admin theme for teamManager (/admin only) */
+/* Club-branded admin theme for teamManager (/admin only) — palette taken from
+ * the public site's own brand tokens (public/css/custom.css: --primary-color
+ * #031521, --accent-color #C42221, "Bebas Neue" display face) instead of the
+ * generic Skote indigo, so the admin panel reads as the same product. */
 
 :root {
-  --skote-body-bg: #f8f8fb;
-  --skote-body-color: #495057;
-  --skote-primary: #556ee6;
-  --skote-primary-rgb: 85, 110, 230;
-  --skote-secondary: #74788d;
-  --skote-success: #34c38f;
-  --skote-info: #50a5f1;
-  --skote-warning: #f1b44c;
-  --skote-danger: #f46a6a;
-  --skote-dark: #343a40;
-  --skote-sidebar-bg: #2a3042;
-  --skote-sidebar-menu-item: #a6b0cf;
+  --skote-body-bg: #f4f6f8;
+  --skote-body-color: #3d4650;
+  --skote-font-ui: "Manrope", "Segoe UI", sans-serif;
+  --skote-font-display: "Bebas Neue", "Manrope", sans-serif;
+  --skote-primary: #c42221;
+  --skote-primary-rgb: 196, 34, 33;
+  --skote-primary-dark: #9c1b1a;
+  --skote-secondary: #64748b;
+  --skote-success: #3fa772;
+  --skote-info: #4a90a4;
+  --skote-warning: #d99a3d;
+  --skote-danger: #d6455a;
+  --skote-dark: #0b1f2e;
+  --skote-sidebar-bg: #0b1f2e;
+  --skote-sidebar-menu-item: #93a6b8;
   --skote-sidebar-menu-item-active: #ffffff;
-  --skote-sidebar-menu-item-active-bg: #2f3b52;
+  --skote-sidebar-menu-item-active-bg: rgba(196, 34, 33, 0.16);
   --skote-topbar-bg: #ffffff;
   --skote-topbar-height: 70px;
-  --skote-border: #eff2f7;
+  --skote-border: #e7ebf0;
   --skote-card-bg: #ffffff;
-  --skote-card-shadow: 0 2px 3px rgba(52, 58, 64, 0.06);
+  --skote-card-shadow: 0 1px 2px rgba(11, 31, 46, 0.04), 0 8px 20px -12px rgba(11, 31, 46, 0.14);
+  --skote-card-shadow-hover: 0 1px 2px rgba(11, 31, 46, 0.05), 0 14px 28px -14px rgba(11, 31, 46, 0.2);
+  --skote-radius-sm: 0.4rem;
+  --skote-radius-md: 0.65rem;
+  --skote-radius-lg: 1rem;
+
+  /* Retint Bootstrap's own semantic variables so every .btn-primary,
+     .text-danger, .badge.bg-* etc. across the ~20 admin pages picks up the
+     brand palette automatically, without touching each page. */
+  --bs-primary: var(--skote-primary);
+  --bs-primary-rgb: var(--skote-primary-rgb);
+  --bs-secondary: var(--skote-secondary);
+  --bs-success: var(--skote-success);
+  --bs-success-rgb: 63, 167, 114;
+  --bs-info: var(--skote-info);
+  --bs-info-rgb: 74, 144, 164;
+  --bs-warning: var(--skote-warning);
+  --bs-warning-rgb: 217, 154, 61;
+  --bs-danger: var(--skote-danger);
+  --bs-danger-rgb: 214, 69, 90;
+  --bs-dark: var(--skote-dark);
+  --bs-link-color: var(--skote-primary);
+  --bs-link-hover-color: var(--skote-primary-dark);
+  --bs-border-radius: var(--skote-radius-sm);
+  --bs-border-radius-lg: var(--skote-radius-md);
+  --bs-body-font-family: var(--skote-font-ui);
 }
 
 .skote-admin {
   min-height: 100vh;
   background: var(--skote-body-bg);
   color: var(--skote-body-color);
+  font-family: var(--skote-font-ui);
 }
 
 .skote-admin .page-content {
@@ -54,6 +87,7 @@
 #page-topbar {
   background: var(--skote-topbar-bg);
   border-bottom: 1px solid var(--skote-border);
+  box-shadow: 0 1px 0 rgba(11, 31, 46, 0.03), 0 6px 16px -12px rgba(11, 31, 46, 0.2);
   position: sticky;
   top: 0;
   z-index: 1010;
@@ -74,9 +108,11 @@
 }
 
 .skote-topbar-title {
-  color: #343a40;
-  font-size: 1rem;
-  font-weight: 600;
+  color: var(--skote-dark);
+  font-family: var(--skote-font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+  font-weight: 400;
   margin: 0;
 }
 
@@ -120,6 +156,17 @@
   align-items: center;
   justify-content: center;
   padding: 0 1rem;
+  position: relative;
+}
+
+.vertical-menu .navbar-brand-box::after {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--skote-primary), transparent);
 }
 
 .vertical-menu .logo {
@@ -138,14 +185,19 @@
   height: 32px;
   align-items: center;
   justify-content: center;
-  border-radius: 0.35rem;
-  background: rgba(85, 110, 230, 0.25);
+  border-radius: var(--skote-radius-sm);
+  background: var(--skote-primary);
   color: #fff;
+  font-family: var(--skote-font-display);
+  letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
 .vertical-menu .logo-lg {
   color: #fff;
+  font-family: var(--skote-font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
@@ -185,24 +237,46 @@
   gap: 0.6rem;
   color: var(--skote-sidebar-menu-item);
   font-size: 0.9rem;
-  border-radius: 0.35rem;
+  border-radius: var(--skote-radius-sm);
   padding: 0.6rem 0.65rem;
   min-height: 42px;
   text-decoration: none;
-  transition: all 0.2s ease;
+  position: relative;
+  transition: color 0.2s ease, background 0.2s ease;
 }
 
-.vertical-menu #sidebar-menu li a:hover,
+.vertical-menu #sidebar-menu li a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .vertical-menu #sidebar-menu li.mm-active > a,
 .vertical-menu #sidebar-menu li a.active {
   color: #fff;
   background: var(--skote-sidebar-menu-item-active-bg);
 }
 
+.vertical-menu #sidebar-menu li.mm-active > a::before,
+.vertical-menu #sidebar-menu li a.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--skote-primary);
+}
+
 .vertical-menu #sidebar-menu li a i:first-child {
   width: 1.1rem;
   text-align: center;
   flex-shrink: 0;
+}
+
+.vertical-menu #sidebar-menu li.mm-active > a i:first-child,
+.vertical-menu #sidebar-menu li a.active i:first-child {
+  color: #ef7674;
 }
 
 .vertical-menu #sidebar-menu .menu-arrow {
@@ -222,10 +296,14 @@
   color: #8f9bb7;
 }
 
-.vertical-menu #sidebar-menu .sub-menu li a:hover,
+.vertical-menu #sidebar-menu .sub-menu li a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .vertical-menu #sidebar-menu .sub-menu li a.active {
   color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--skote-sidebar-menu-item-active-bg);
 }
 
 .vertical-menu.vertical-menu-collapsed .logo-lg,
@@ -309,10 +387,11 @@
 
 .skote-admin .card,
 .skote-admin .bg-white.rounded-lg.shadow.border.border-gray-200 {
-  border: 1px solid var(--skote-border) !important;
+  border: 0 !important;
   box-shadow: var(--skote-card-shadow) !important;
-  border-radius: 0.5rem !important;
+  border-radius: var(--skote-radius-md) !important;
   background: var(--skote-card-bg) !important;
+  transition: box-shadow 0.25s ease;
 }
 
 .skote-admin .card-header,
@@ -320,15 +399,34 @@
   background-color: transparent;
   border-bottom: 1px solid var(--skote-border) !important;
   padding: 1rem 1.25rem;
+  font-family: var(--skote-font-ui);
 }
 
 .skote-admin .card-body {
   padding: 1.25rem;
 }
 
+.skote-admin .btn {
+  border-radius: var(--skote-radius-sm);
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.skote-admin .btn:active {
+  transform: scale(0.98);
+}
+
 .skote-admin .btn-primary {
   background: var(--skote-primary);
   border-color: var(--skote-primary);
+}
+
+.skote-admin .btn-primary:hover,
+.skote-admin .btn-primary:focus {
+  background: var(--skote-primary-dark);
+  border-color: var(--skote-primary-dark);
+  box-shadow: 0 6px 14px -6px rgba(var(--skote-primary-rgb), 0.55);
+  transform: translateY(-1px);
 }
 
 .skote-admin .btn-outline-primary {
@@ -339,10 +437,28 @@
 .skote-admin .btn-outline-primary:hover {
   background: var(--skote-primary);
   border-color: var(--skote-primary);
+  transform: translateY(-1px);
+}
+
+.skote-admin .btn-soft-primary {
+  color: var(--skote-primary);
+  background: rgba(var(--skote-primary-rgb), 0.1);
+  border-color: transparent;
+}
+
+.skote-admin .btn-soft-primary:hover {
+  color: #fff;
+  background: var(--skote-primary);
+  transform: translateY(-1px);
+}
+
+.skote-admin .btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(var(--skote-primary-rgb), 0.25);
 }
 
 .skote-admin .table {
-  color: #495057;
+  color: var(--skote-body-color);
   margin-bottom: 0;
 }
 
@@ -351,20 +467,26 @@
 }
 
 .skote-admin .table > thead {
-  background: #f8f9fa;
+  background: #f4f6f8;
 }
 
 .skote-admin .table > thead th {
-  color: #495057;
-  font-size: 0.74rem;
+  color: #5b6570;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  font-weight: 700;
   border-bottom-width: 1px;
   white-space: nowrap;
 }
 
+.skote-admin .table > tbody > tr:hover {
+  background-color: rgba(11, 31, 46, 0.02);
+}
+
 .skote-admin .badge {
-  font-weight: 500;
+  font-weight: 600;
+  border-radius: var(--skote-radius-sm);
 }
 
 .skote-admin .form-control,
@@ -394,22 +516,35 @@
 }
 
 .skote-admin .admin-kpi-card {
-  border: 1px solid var(--skote-border);
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border: 0;
+  border-radius: var(--skote-radius-lg);
+  padding: 1.15rem 1.25rem;
   background: #fff;
   box-shadow: var(--skote-card-shadow);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.skote-admin .admin-kpi-card:hover {
+  box-shadow: var(--skote-card-shadow-hover);
+  transform: translateY(-2px);
 }
 
 .skote-admin .admin-kpi-value {
-  color: #343a40;
-  font-size: 1.35rem;
-  font-weight: 700;
+  color: var(--skote-dark);
+  font-family: var(--skote-font-display);
+  font-size: 2.1rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-weight: 400;
 }
 
 .skote-admin .admin-kpi-label {
   color: #74788d;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  margin-top: 0.3rem;
 }
 
 .skote-admin .admin-alert-list {
