@@ -46,7 +46,7 @@ function parseCsv(content: string): ArbitreImportInput[] {
 }
 
 export async function POST(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

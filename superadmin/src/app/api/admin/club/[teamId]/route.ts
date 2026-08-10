@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
  * Infos du club + liste de ses comptes de connexion.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ teamId: string }> }) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

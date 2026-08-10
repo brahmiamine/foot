@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { buildLoginUrlForPath } from "@/lib/ssoSession";
 import { TeamService } from "@/services/TeamService";
 import { getUserAccess, toClientAccess } from "@/lib/access";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -21,7 +22,7 @@ export default async function Layout({
 }) {
   const session = await auth();
   if (!session?.user?.teamId) {
-    redirect("/login");
+    redirect(await buildLoginUrlForPath("/admin"));
   }
 
   const teamService = new TeamService();

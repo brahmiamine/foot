@@ -1,0 +1,31 @@
+:root {
+  --sso-bg: #0f172a;
+  --sso-card: #1e293b;
+  --sso-border: #334155;
+  --sso-text: #f1f5f9;
+  --sso-muted: #94a3b8;
+  --sso-accent: #2563eb;
+  --sso-accent-hover: #1d4ed8;
+  --sso-error: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--sso-bg);
+  color: var(--sso-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}

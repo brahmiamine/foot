@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
  * Liste des clubs avec le nombre de comptes de connexion de chacun.
  */
 export async function GET(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
  * Crée un nouveau compte de connexion pour un club.
  */
 export async function POST(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

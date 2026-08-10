@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
  * Protégé par authentification admin
  */
 export async function GET(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {
