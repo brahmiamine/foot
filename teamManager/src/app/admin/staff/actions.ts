@@ -2,6 +2,7 @@
 
 import { StaffService } from "@/services/StaffService";
 import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, requirePermission, requireCategory } from "@/lib/access";
 import { createStaffSchema, updateStaffSchema } from "@/types/staff";
 import { revalidatePath } from "next/cache";
 
@@ -27,9 +28,14 @@ export async function createStaff(formData: FormData) {
       imageUrl: (formData.get("imageUrl") as string) || null,
       staffType: (formData.get("staffType") as string) as "COACH" | "ADJOINT" | "KINE" | "MEDECIN" | "PREPARATEUR" | "ANALYSTE" | "EQUIPEMENTIER" | "COMMUNICATION" | "AUTRE",
       userId: formData.get("userId") ? parseInt(formData.get("userId") as string, 10) : null,
+      category: (formData.get("category") as string) || "seniors",
     };
 
     const validatedData = createStaffSchema.parse(data);
+    const access = await getUserAccess();
+    requirePermission(access, "staff.create");
+    requireCategory(access, validatedData.category);
+
     const teamId = await requireTeamId();
     const staffService = new StaffService();
     await staffService.create(validatedData, teamId);
@@ -60,6 +66,7 @@ export async function updateStaff(id: number, formData: FormData) {
       imageUrl?: string | null;
       staffType?: "COACH" | "ADJOINT" | "KINE" | "MEDECIN" | "PREPARATEUR" | "ANALYSTE" | "EQUIPEMENTIER" | "COMMUNICATION" | "AUTRE";
       userId?: number | null;
+      category?: string;
     } = {};
 
     if (formData.get("firstNameFr")) {
@@ -89,10 +96,25 @@ export async function updateStaff(id: number, formData: FormData) {
     if (formData.has("userId")) {
       data.userId = formData.get("userId") ? parseInt(formData.get("userId") as string, 10) : null;
     }
+    if (formData.has("category")) {
+      data.category = (formData.get("category") as string) || "seniors";
+    }
 
     const validatedData = updateStaffSchema.parse(data);
     const teamId = await requireTeamId();
+    const access = await getUserAccess();
+    requirePermission(access, "staff.edit");
+
     const staffService = new StaffService();
+    const existing = await staffService.findById(id, teamId);
+    if (!existing) {
+      throw new Error("Membre du staff non trouvé");
+    }
+    requireCategory(access, existing.category);
+    if (validatedData.category) {
+      requireCategory(access, validatedData.category);
+    }
+
     await staffService.update(id, teamId, validatedData);
 
     revalidatePath("/admin/staff");
@@ -111,7 +133,16 @@ export async function updateStaff(id: number, formData: FormData) {
 export async function deleteStaff(id: number) {
   try {
     const teamId = await requireTeamId();
+    const access = await getUserAccess();
+    requirePermission(access, "staff.delete");
+
     const staffService = new StaffService();
+    const existing = await staffService.findById(id, teamId);
+    if (!existing) {
+      throw new Error("Membre du staff non trouvé");
+    }
+    requireCategory(access, existing.category);
+
     await staffService.delete(id, teamId);
 
     revalidatePath("/admin/staff");

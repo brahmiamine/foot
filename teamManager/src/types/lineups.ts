@@ -5,16 +5,21 @@ const lineupEntrySchema = z.object({
   role: z.enum(["STARTER", "SUBSTITUTE"]),
   shirtNumber: z.number().int().positive().optional().nullable(),
   position: z.string().max(50).optional().nullable(),
+  posX: z.number().min(0).max(100).optional().nullable(),
+  posY: z.number().min(0).max(100).optional().nullable(),
   isCaptain: z.boolean().default(false),
 });
 
 /**
- * Remplace intégralement la composition d'un match pour l'équipe du club
- * connecté (liste complète titulaires + remplaçants envoyée à chaque
- * sauvegarde, plus simple/robuste qu'un diff incrémental côté client).
+ * Remplace intégralement la composition d'un match (officiel ou amical)
+ * pour l'équipe du club connecté (liste complète titulaires + remplaçants
+ * envoyée à chaque sauvegarde, plus simple/robuste qu'un diff incrémental
+ * côté client).
  */
 export const saveLineupSchema = z.object({
-  matchId: z.string().min(1),
+  matchType: z.enum(["OFFICIAL", "FRIENDLY"]).default("OFFICIAL"),
+  matchId: z.string().min(1).optional().nullable(),
+  friendlyMatchId: z.number().int().positive().optional().nullable(),
   entries: z
     .array(lineupEntrySchema)
     .refine((entries) => entries.filter((e) => e.role === "STARTER").length <= 11, {

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { getDataSource } from "@/lib/database";
 import { Player, type PlayerStatus } from "@/entities/Player";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
+import { AgeCategory } from "@/types/categories";
 
 /**
  * Service for Player operations
@@ -16,10 +17,19 @@ export class PlayerService {
   }
 
   /**
-   * Get all players of a team
+   * Get all players of a team, optionally restreint à un sous-ensemble de
+   * catégories internes (accès scopé d'un coach, voir lib/access.ts).
+   * `categories: "ALL"` (ou omis) ne filtre pas.
    */
-  async findAll(teamId: string): Promise<Player[]> {
+  async findAll(teamId: string, categories?: "ALL" | AgeCategory[]): Promise<Player[]> {
     const repository = await this.getRepository();
+    if (categories && categories !== "ALL") {
+      if (categories.length === 0) return [];
+      return repository.find({
+        where: { teamId, category: In(categories) },
+        order: { lastNameFr: "ASC", firstNameFr: "ASC" },
+      });
+    }
     return repository.find({
       where: { teamId },
       order: {
@@ -53,6 +63,7 @@ export class PlayerService {
       birthDate?: Date | null;
       position?: string | null;
       imageUrl?: string | null;
+      category?: AgeCategory;
     },
     teamId: string
   ): Promise<Player> {
@@ -62,6 +73,7 @@ export class PlayerService {
       id: randomUUID(),
       ...data,
       status: data.status ?? "TITULAR",
+      category: data.category ?? "seniors",
       isActive: true,
       teamId,
     });
@@ -85,6 +97,7 @@ export class PlayerService {
       birthDate?: Date | null;
       position?: string | null;
       imageUrl?: string | null;
+      category?: AgeCategory;
     }
   ): Promise<Player> {
     const repository = await this.getRepository();

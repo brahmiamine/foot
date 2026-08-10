@@ -1,6 +1,7 @@
 import { getDataSource } from "@/lib/database";
 import { Staff } from "@/entities/Staff";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
+import { AgeCategory } from "@/types/categories";
 
 /**
  * Service for Staff operations
@@ -13,10 +14,18 @@ export class StaffService {
   }
 
   /**
-   * Get all staff members of a team
+   * Get all staff members of a team, optionnellement restreint à un
+   * sous-ensemble de catégories internes (accès scopé, voir lib/access.ts).
    */
-  async findAll(teamId: string): Promise<Staff[]> {
+  async findAll(teamId: string, categories?: "ALL" | AgeCategory[]): Promise<Staff[]> {
     const repository = await this.getRepository();
+    if (categories && categories !== "ALL") {
+      if (categories.length === 0) return [];
+      return repository.find({
+        where: { teamId, category: In(categories) },
+        order: { lastNameFr: "ASC", firstNameFr: "ASC" },
+      });
+    }
     return repository.find({
       where: { teamId },
       order: {
@@ -50,12 +59,13 @@ export class StaffService {
       imageUrl?: string | null;
       staffType: "COACH" | "ADJOINT" | "KINE" | "MEDECIN" | "PREPARATEUR" | "ANALYSTE" | "EQUIPEMENTIER" | "COMMUNICATION" | "AUTRE";
       userId?: number | null;
+      category?: AgeCategory;
     },
     teamId: string
   ): Promise<Staff> {
     const repository = await this.getRepository();
 
-    const staff = repository.create({ ...data, teamId });
+    const staff = repository.create({ ...data, category: data.category ?? "seniors", teamId });
     return repository.save(staff);
   }
 
@@ -75,6 +85,7 @@ export class StaffService {
       imageUrl?: string | null;
       staffType?: "COACH" | "ADJOINT" | "KINE" | "MEDECIN" | "PREPARATEUR" | "ANALYSTE" | "EQUIPEMENTIER" | "COMMUNICATION" | "AUTRE";
       userId?: number | null;
+      category?: AgeCategory;
     }
   ): Promise<Staff> {
     const repository = await this.getRepository();

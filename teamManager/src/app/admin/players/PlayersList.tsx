@@ -8,6 +8,7 @@ import { ListSearchInput } from "@/components/admin/ListSearchInput";
 import { ListPagination } from "@/components/admin/ListPagination";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useListFilter } from "@/hooks/useListFilter";
+import { AGE_CATEGORY_LABELS, type AgeCategory } from "@/types/categories";
 import { deletePlayer } from "./actions";
 
 type PlayerStatus = "TITULAR" | "SUBSTITUTE" | "BLANK" | "ENTERING" | "OUT_OF_LIST" | "SUSPENDED";
@@ -45,19 +46,23 @@ interface PlayerData {
   birthDate: string | null;
   position: string | null;
   imageUrl: string | null;
+  category: AgeCategory;
   createdAt: string;
   updatedAt: string | null;
 }
 
 interface PlayersListProps {
   initialPlayers: PlayerData[];
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 /**
  * Players List Component
  * Displays the list of players with actions
  */
-export function PlayersList({ initialPlayers }: PlayersListProps) {
+export function PlayersList({ initialPlayers, canCreate, canEdit, canDelete }: PlayersListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [players] = useState<PlayerData[]>(initialPlayers);
@@ -136,10 +141,12 @@ export function PlayersList({ initialPlayers }: PlayersListProps) {
       <div className="row mb-4">
         <div className="col-12 d-flex justify-content-between align-items-center">
           <h1 className="mb-0">Gestion des Joueurs</h1>
-          <Link href="/admin/players/create" className="btn btn-primary">
-            <i className="fas fa-plus me-2" aria-hidden="true" />
-            Ajouter un joueur
-          </Link>
+          {canCreate && (
+            <Link href="/admin/players/create" className="btn btn-primary">
+              <i className="fas fa-plus me-2" aria-hidden="true" />
+              Ajouter un joueur
+            </Link>
+          )}
         </div>
       </div>
 
@@ -181,9 +188,11 @@ export function PlayersList({ initialPlayers }: PlayersListProps) {
               {players.length === 0 ? (
                 <div className="text-center py-5">
                   <p className="text-muted mb-3">Aucun joueur enregistré</p>
-                  <Link href="/admin/players/create" className="btn btn-primary">
-                    Ajouter le premier joueur
-                  </Link>
+                  {canCreate && (
+                    <Link href="/admin/players/create" className="btn btn-primary">
+                      Ajouter le premier joueur
+                    </Link>
+                  )}
                 </div>
               ) : totalCount === 0 ? (
                 <p className="text-muted text-center py-5 mb-0">Aucun joueur ne correspond à votre recherche</p>
@@ -194,6 +203,7 @@ export function PlayersList({ initialPlayers }: PlayersListProps) {
                       <tr>
                         <th>Photo</th>
                         <th>Nom complet</th>
+                        <th>Catégorie</th>
                         <th>Position</th>
                         <th>Numéro</th>
                         <th>Statut</th>
@@ -231,6 +241,9 @@ export function PlayersList({ initialPlayers }: PlayersListProps) {
                             )}
                           </td>
                           <td>
+                            <span className="badge bg-primary-subtle text-primary">{AGE_CATEGORY_LABELS[player.category]}</span>
+                          </td>
+                          <td>
                             <span className="badge bg-info">{getPositionLabel(player.position)}</span>
                           </td>
                           <td>
@@ -242,22 +255,26 @@ export function PlayersList({ initialPlayers }: PlayersListProps) {
                           <td>{calculateAge(player.birthDate)}</td>
                           <td className="text-end">
                             <div className="btn-group" role="group">
-                              <Link
-                                href={`/admin/players/${player.id}/edit`}
-                                className="btn btn-sm btn-outline-primary"
-                              >
-                                <i className="fas fa-edit" aria-hidden="true" />
-                                <span className="visually-hidden">Modifier</span>
-                              </Link>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleDelete(player.id)}
-                                disabled={loading || isPending}
-                              >
-                                <i className="fas fa-trash" aria-hidden="true" />
-                                <span className="visually-hidden">Supprimer</span>
-                              </button>
+                              {canEdit && (
+                                <Link
+                                  href={`/admin/players/${player.id}/edit`}
+                                  className="btn btn-sm btn-outline-primary"
+                                >
+                                  <i className="fas fa-edit" aria-hidden="true" />
+                                  <span className="visually-hidden">Modifier</span>
+                                </Link>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleDelete(player.id)}
+                                  disabled={loading || isPending}
+                                >
+                                  <i className="fas fa-trash" aria-hidden="true" />
+                                  <span className="visually-hidden">Supprimer</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

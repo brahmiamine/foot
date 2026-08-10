@@ -1,5 +1,7 @@
 import { StaffService } from "@/services/StaffService";
 import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, can, categoryAllowed, selectableCategories } from "@/lib/access";
+import { AGE_CATEGORIES } from "@/types/categories";
 import { StaffForm } from "../../StaffForm";
 import { notFound } from "next/navigation";
 
@@ -16,10 +18,11 @@ export default async function EditStaffPage({ params }: { params: Promise<{ id: 
   }
 
   const teamId = await requireTeamId();
+  const access = await getUserAccess();
   const staffService = new StaffService();
   const staff = await staffService.findById(id, teamId);
 
-  if (!staff) {
+  if (!staff || !can(access, "staff.edit") || !categoryAllowed(access, staff.category)) {
     notFound();
   }
 
@@ -46,9 +49,10 @@ export default async function EditStaffPage({ params }: { params: Promise<{ id: 
     imageUrl: staff.imageUrl || null,
     staffType: staff.staffType || "COACH",
     userId: staff.userId || null,
+    category: staff.category,
     createdAt: createdAtStr,
     updatedAt: updatedAtStr,
   };
 
-  return <StaffForm mode="edit" initialData={staffData} />;
+  return <StaffForm mode="edit" initialData={staffData} allowedCategories={selectableCategories(access, AGE_CATEGORIES)} />;
 }

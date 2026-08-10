@@ -1,5 +1,6 @@
 import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { Team } from "./Team";
+import type { AgeCategory } from "@/types/categories";
 
 export type PlayerStatus = "TITULAR" | "SUBSTITUTE" | "BLANK" | "ENTERING" | "OUT_OF_LIST" | "SUSPENDED";
 
@@ -37,6 +38,10 @@ export class Player {
   @ManyToOne(() => Team, { onDelete: "CASCADE" })
   @JoinColumn({ name: "teamId" })
   team!: Team;
+
+  /** Catégorie interne du club (Seniors, U17...) — voir types/categories.ts. */
+  @Column({ type: "varchar", length: 10, default: "seniors" })
+  category!: AgeCategory;
 
   @Column({
     type: "enum",

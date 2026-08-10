@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { AGE_CATEGORY_LABELS, type AgeCategory } from "@/types/categories";
 import { createStaff, updateStaff } from "./actions";
 
 /**
@@ -20,6 +21,7 @@ interface StaffData {
   imageUrl: string | null;
   staffType: string;
   userId: number | null;
+  category: AgeCategory;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -27,13 +29,14 @@ interface StaffData {
 interface StaffFormProps {
   initialData?: StaffData | null;
   mode: "create" | "edit";
+  allowedCategories: readonly AgeCategory[];
 }
 
 /**
  * Staff Form Component
  * Handles creation and editing of staff members
  */
-export function StaffForm({ initialData, mode }: StaffFormProps) {
+export function StaffForm({ initialData, mode, allowedCategories }: StaffFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
@@ -57,6 +60,7 @@ export function StaffForm({ initialData, mode }: StaffFormProps) {
     imageUrl: initialData?.imageUrl || "",
     staffType: initialData?.staffType || "COACH",
     userId: initialData?.userId?.toString() || "",
+    category: initialData?.category || allowedCategories[0] || "seniors",
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -76,6 +80,7 @@ export function StaffForm({ initialData, mode }: StaffFormProps) {
         imageUrl: initialData.imageUrl || "",
         staffType: initialData.staffType || "COACH",
         userId: initialData.userId?.toString() || "",
+        category: initialData.category || allowedCategories[0] || "seniors",
       });
       // Set image preview if image exists
       if (initialData.imageUrl) {
@@ -172,6 +177,7 @@ export function StaffForm({ initialData, mode }: StaffFormProps) {
       formDataObj.append("imageUrl", imageUrl || "");
       formDataObj.append("staffType", formData.staffType);
       formDataObj.append("userId", formData.userId);
+      formDataObj.append("category", formData.category);
 
       let result;
       if (mode === "create") {
@@ -370,6 +376,28 @@ export function StaffForm({ initialData, mode }: StaffFormProps) {
                       <option value="EQUIPEMENTIER">Équipementier</option>
                       <option value="COMMUNICATION">Communication</option>
                       <option value="AUTRE">Autre</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-4 mb-3">
+                    <label htmlFor="category" className="form-label">
+                      Catégorie <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      id="category"
+                      required
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value as AgeCategory })}
+                      disabled={loading || allowedCategories.length <= 1}
+                    >
+                      {allowedCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {AGE_CATEGORY_LABELS[c]}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

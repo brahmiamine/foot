@@ -2,6 +2,7 @@
 
 import { PlayerService } from "@/services/PlayerService";
 import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, requirePermission, requireCategory } from "@/lib/access";
 import { createPlayerSchema, updatePlayerSchema } from "@/types/players";
 import { revalidatePath } from "next/cache";
 
@@ -26,9 +27,14 @@ export async function createPlayer(formData: FormData) {
       birthDate: birthDateStr ? new Date(birthDateStr) : null,
       position: (formData.get("position") as string) || null,
       imageUrl: (formData.get("imageUrl") as string) || null,
+      category: (formData.get("category") as string) || "seniors",
     };
 
     const validatedData = createPlayerSchema.parse(data);
+    const access = await getUserAccess();
+    requirePermission(access, "players.create");
+    requireCategory(access, validatedData.category);
+
     const teamId = await requireTeamId();
     const playerService = new PlayerService();
     await playerService.create(validatedData, teamId);
@@ -59,6 +65,7 @@ export async function updatePlayer(id: string, formData: FormData) {
       birthDate?: Date | null;
       position?: string | null;
       imageUrl?: string | null;
+      category?: string;
     } = {};
 
     if (formData.get("firstNameFr")) {
@@ -94,10 +101,25 @@ export async function updatePlayer(id: string, formData: FormData) {
     if (formData.has("imageUrl")) {
       data.imageUrl = (formData.get("imageUrl") as string) || null;
     }
+    if (formData.has("category")) {
+      data.category = (formData.get("category") as string) || "seniors";
+    }
 
     const validatedData = updatePlayerSchema.parse(data);
     const teamId = await requireTeamId();
+    const access = await getUserAccess();
+    requirePermission(access, "players.edit");
+
     const playerService = new PlayerService();
+    const existing = await playerService.findById(id, teamId);
+    if (!existing) {
+      throw new Error("Joueur non trouvé");
+    }
+    requireCategory(access, existing.category);
+    if (validatedData.category) {
+      requireCategory(access, validatedData.category);
+    }
+
     await playerService.update(id, teamId, validatedData);
 
     revalidatePath("/admin/players");
@@ -116,7 +138,16 @@ export async function updatePlayer(id: string, formData: FormData) {
 export async function deletePlayer(id: string) {
   try {
     const teamId = await requireTeamId();
+    const access = await getUserAccess();
+    requirePermission(access, "players.delete");
+
     const playerService = new PlayerService();
+    const existing = await playerService.findById(id, teamId);
+    if (!existing) {
+      throw new Error("Joueur non trouvé");
+    }
+    requireCategory(access, existing.category);
+
     await playerService.delete(id, teamId);
 
     revalidatePath("/admin/players");

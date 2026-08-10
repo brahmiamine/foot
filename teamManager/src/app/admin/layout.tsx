@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { TeamService } from "@/services/TeamService";
+import { getUserAccess, toClientAccess } from "@/lib/access";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import "./skote-admin.css";
 
@@ -25,9 +26,10 @@ export default async function Layout({
 
   const teamService = new TeamService();
   const team = await teamService.findById(session.user.teamId);
+  const access = toClientAccess(await getUserAccess());
 
   return (
-    <AdminLayout teamName={team?.nom ?? "Club"} userName={session.user.name ?? session.user.email ?? ""}>
+    <AdminLayout teamName={team?.nom ?? "Club"} userName={session.user.name ?? session.user.email ?? ""} access={access}>
       {children}
     </AdminLayout>
   );

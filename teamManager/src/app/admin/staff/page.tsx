@@ -1,15 +1,17 @@
 import { StaffService } from "@/services/StaffService";
 import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, can } from "@/lib/access";
 import { StaffList } from "./StaffList";
 
 /**
  * Admin Staff List Page
- * Displays the list of staff members
+ * Displays the list of staff members, filtrée par les catégories autorisées.
  */
 export default async function StaffPage() {
   const teamId = await requireTeamId();
+  const access = await getUserAccess();
   const staffService = new StaffService();
-  const staffData = await staffService.findAll(teamId);
+  const staffData = await staffService.findAll(teamId, access.categories);
 
   const staff = staffData.map((staffMember) => ({
     id: staffMember.id,
@@ -25,6 +27,7 @@ export default async function StaffPage() {
     imageUrl: staffMember.imageUrl || null,
     staffType: staffMember.staffType || "COACH",
     userId: staffMember.userId || null,
+    category: staffMember.category,
     createdAt: staffMember.createdAt instanceof Date ? staffMember.createdAt.toISOString() : new Date(staffMember.createdAt).toISOString(),
     updatedAt: staffMember.updatedAt
       ? staffMember.updatedAt instanceof Date
@@ -33,5 +36,12 @@ export default async function StaffPage() {
       : null,
   }));
 
-  return <StaffList initialStaff={staff} />;
+  return (
+    <StaffList
+      initialStaff={staff}
+      canCreate={can(access, "staff.create")}
+      canEdit={can(access, "staff.edit")}
+      canDelete={can(access, "staff.delete")}
+    />
+  );
 }
