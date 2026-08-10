@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocale } from 'next-intl'
 import type { Match, Journee, Arbitre, Team } from '@/types'
-import { useTranslations } from '@/lib/i18n'
+import type { Locale } from '@/i18n/request'
 import { buildEdit, buildNewForm } from './utils'
 import type { MatchEdit, NewMatchForm, SaisonOption } from './types'
 
 export function useAdminMatches() {
-  const { locale } = useTranslations()
+  const locale = useLocale() as Locale
   const [matches, setMatches] = useState<Match[]>([])
   const [journees, setJournees] = useState<Journee[]>([])
   const [arbitres, setArbitres] = useState<Arbitre[]>([])

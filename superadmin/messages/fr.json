@@ -1,0 +1,833 @@
+{
+  "nav": {
+    "seasons": "Saisons",
+    "matchday": "Journée",
+    "matches": "Matchs",
+    "statistics": "Statistiques",
+    "rankings": "Classement",
+    "archive": "Archive",
+    "myVotes": "Mes votes",
+    "arbitres": "Arbitres",
+    "teams": "Équipes",
+    "allMatches": "Tous les matchs"
+  },
+  "home": {
+    "title": "ARBINOTE ⚽",
+    "subtitle": "ARBINOTE centralise les notes des arbitres de Ligue 1 tunisienne : saisons, journées, matchs et votes en direct.",
+    "seasons": {
+      "description": "Parcourez la saison actuelle et consultez chaque journée."
+    },
+    "matches": {
+      "description": "Consultez les matchs récents et votez pour évaluer les arbitres."
+    },
+    "rankings": {
+      "description": "Découvrez les meilleures moyennes d'arbitres en temps réel.",
+      "referees": "Top arbitres",
+      "general": "Meilleure équipe arbitrale",
+      "subtitle": "Aperçu basé sur les dernières notes",
+      "votes": "{{count}} vote(s)",
+      "empty": "Aucune donnée disponible pour cette ligue."
+    },
+    "featuredSeasons": "Saisons mises en avant",
+    "viewDays": "Voir les journées →",
+    "howItWorks": {
+      "title": "Comment ça marche ?",
+      "step1": "1. Choisissez une journée ou un match à évaluer.",
+      "step2": "2. Notez l'arbitre sur différents critères.",
+      "step3": "3. Les moyennes alimentent automatiquement les classements."
+    },
+    "previous": {
+      "title": "Journée précédente",
+      "subtitle": "Les derniers résultats et performances arbitrales",
+      "empty": "Aucune journée précédente n'est disponible pour le moment.",
+      "cta": "Voir le détail de la journée"
+    },
+    "stats": {
+      "title": "Vue d'ensemble {{season}}",
+      "referees": "Arbitres actifs",
+      "matches": "Matchs programmés",
+      "journees": "Journées disputées",
+      "votes": "Votes enregistrés"
+    },
+    "insights": {
+      "title": "Stories & analyses",
+      "subtitle": "Restez informé sur l'arbitrage professionnel",
+      "cards": {
+        "performance": {
+          "title": "Performance des arbitres",
+          "description": "Comparez les moyennes par compétition et détectez les tendances."
+        },
+        "training": {
+          "title": "Programme de formation",
+          "description": "Suivez les ateliers et modules pour faire progresser l'arbitrage."
+        },
+        "community": {
+          "title": "Communauté & votes",
+          "description": "Vos retours construisent le classement en temps réel."
+        }
+      },
+      "read": "Découvrir"
+    },
+    "upcoming": {
+      "badge": "Prochaine journée",
+      "title": "Journée {{numero}} à venir",
+      "cta": "Voir la journée →",
+      "notPlayed": "Coup d'envoi à venir"
+    },
+    "matchStats": {
+      "global": "Note globale",
+      "referee": "Note arbitre",
+      "var": "Note VAR",
+      "assistants": "Note assistants",
+      "voteCount": "{{count}} vote(s)"
+    }
+  },
+  "federationSwitcher": {
+    "title": "Fédération sélectionnée",
+    "selected": "Sélectionnée",
+    "noSelection": "Aucune ligue sélectionnée",
+    "switching": "Changement en cours...",
+    "leagues": "Ligues disponibles",
+    "noLeagues": "Aucune ligue pour cette fédération"
+  },
+  "common": {
+    "error": "Erreur",
+    "errorConfig": "Assurez-vous que Supabase est configuré et que les tables sont créées.",
+    "emptyMatchesTitle": "Aucun match disponible",
+    "emptyMatchesDescription": "Les matchs apparaîtront ici une fois ajoutés à la base de données.",
+    "homeTeam": "Domicile",
+    "awayTeam": "Extérieur",
+    "date": "Date",
+    "datePending": "À venir",
+    "score": "Score",
+    "finished": "Terminé",
+    "upcoming": "À venir",
+    "matchday": "Journée",
+    "season": "Saison",
+    "stadium": "Stade",
+    "referee": "Arbitre",
+    "refereeAssigned": "Arbitre assigné",
+    "globalNote": "Note globale",
+    "criteria": "Critères",
+    "backToMatches": "← Retour à la liste des matchs",
+    "backToHome": "← Retour à l'accueil",
+    "allRightsReserved": "Tous droits réservés",
+    "privacyPolicy": "Politique de confidentialité",
+    "termsOfService": "Conditions d'utilisation",
+    "legalNotice": "Mentions légales",
+    "contact": "Contact",
+    "noRefereeAssigned": "Aucun arbitre assigné à ce match. Impossible de voter.",
+    "vote": "vote",
+    "votes": "votes",
+    "viewMatches": "Voir les matchs →",
+    "close": "Fermer",
+    "viewDays": "Voir les journées →",
+    "live": "EN DIRECT",
+    "halftime": "mi-temps",
+    "firstHalf": "1ère mi-temps",
+    "secondHalf": "2ème mi-temps",
+    "loading": "Chargement..."
+  },
+  "matches": {
+    "list": {
+      "title": "Matchs récents",
+      "currentJournee": "Journée en cours : {{numero}}",
+      "emptyTitle": "Aucun match disponible",
+      "emptyDescription": "Les matchs apparaîtront ici une fois ajoutés à la base de données."
+    }
+  },
+  "matchCard": {
+    "date": "Date",
+    "score": "Score",
+    "stadium": "Stade",
+    "referee": "Arbitre",
+    "matchday": "Journée",
+    "alreadyVoted": "Déjà voté"
+  },
+  "matchDetail": {
+    "voteTitle": "Voter pour l'arbitre",
+    "noReferee": "Aucun arbitre assigné à ce match. Impossible de voter.",
+    "cannotVote": "Vous ne pouvez pas voter pour ce match. Le match doit avoir un arbitre assigné et la date/heure du match doit être dans le passé.",
+    "matchNotStarted": "Le match n'a pas encore commencé.",
+    "waitToVote": "Veuillez attendre encore {{minutes}} minute(s) après le début du match avant de pouvoir voter.",
+    "alreadyVotedAlert": "✅ Vous avez déjà voté pour ce match.",
+    "refereeInfo": "Informations sur l'arbitre",
+    "myVotes": "Mes votes",
+    "voteNotFound": "Vote non trouvé. Si vous avez déjà voté, veuillez rafraîchir la page.",
+    "comparison": "Comparaison avec les autres votes",
+    "comparisonDescription": "Comparaison de votre vote avec {{count}} autre(s) vote(s) sur ce match",
+    "noOtherVotes": "Aucun autre vote disponible pour ce match.",
+    "arbitreNote": "Note arbitre",
+    "arbitrageNote": "Note arbitrage",
+    "arbitrageSection": "Arbitrage (VAR et Assistants)",
+    "criteria": "Critère",
+    "yourVote": "Votre vote",
+    "average": "Moyenne",
+    "min": "Min",
+    "max": "Max",
+    "statsPreviewTitle": "Tendances des votes",
+    "statsPreviewDescription": "Consultez les moyennes actuelles avant d'envoyer votre vote.",
+    "statsPreviewNoVotes": "Aucun vote enregistré pour le moment. Soyez le premier à voter !",
+    "statsPreviewVotes": "{{count}} vote(s)"
+  },
+  "share": {
+    "title": "Partager mon vote",
+    "description": "Générez une carte prête pour les réseaux sociaux.",
+    "buttonLabel": "Partager",
+    "noVote": "Vous devez voter pour ce match avant de pouvoir partager votre carte.",
+    "cta": {
+      "vote": "Aller à la page du match"
+    },
+    "download": "Télécharger l'image",
+    "shareNative": "Partager",
+    "generating": "Génération…",
+    "error": "Une erreur est survenue. Veuillez réessayer.",
+    "generateError": "Impossible de générer l'image, réessayez dans un instant.",
+    "loadingVote": "Chargement de vos votes...",
+    "previewLabel": "Aperçu",
+    "downloaded": "Image téléchargée sur votre appareil.",
+    "nativeUnsupported": "Le partage natif n'est pas disponible. L'image a été téléchargée.",
+    "nativeTitle": "Mes votes pour {{match}}",
+    "nativeText": "Carte générée avec ARBINOTE",
+    "shared": "Carte partagée avec succès !",
+    "reviewMatch": "Voir le match"
+  },
+  "journee": {
+    "backToSeason": "← Retour à la saison",
+    "matchesTitle": "Matchs",
+    "noMatches": "Aucun match pour cette journée.",
+    "rankingsTitle": "Classement des arbitres",
+    "noVotes": "Aucun vote disponible pour cette journée.",
+    "generalRankingTitle": "Classement arbitrage global",
+    "varRankingTitle": "Classement VAR",
+    "assistantRankingTitle": "Classement Assistants",
+    "bestReferee": "Meilleur arbitre de la journée"
+  },
+  "journees": {
+    "title": "Journées",
+    "selectJournee": "Sélectionner une journée",
+    "viewDetails": "Voir les détails",
+    "noJourneeSelected": "Aucune journée sélectionnée",
+    "noSeason": "Aucune saison disponible pour le moment"
+  },
+  "myVotes": {
+    "title": "Mes votes",
+    "noVotes": "Vous n'avez pas encore voté pour aucun match.",
+    "noFingerprint": "Impossible de récupérer votre identifiant. Veuillez rafraîchir la page.",
+    "refereeVote": "Note arbitre",
+    "varVote": "Note VAR",
+    "assistantVote": "Note assistants",
+    "notRated": "Non noté"
+  },
+  "saisons": {
+    "title": "Saisons",
+    "error": "Impossible de charger les saisons",
+    "empty": "Aucune saison disponible.",
+    "viewDays": "Voir les journées →"
+  },
+  "saisonDetail": {
+    "backLink": "← Retour aux saisons",
+    "daysTitle": "Journées",
+    "noDays": "Aucune journée enregistrée pour cette saison.",
+    "matchCountSuffix": "match(s)",
+    "rankingsTitle": "Classement arbitres",
+    "noVotes": "Aucun vote enregistré pour cette saison.",
+    "viewMatches": "Voir les matchs →",
+    "generalRankingTitle": "Classement arbitrage général",
+    "bestReferee": "Meilleur arbitre de la saison"
+  },
+  "classement": {
+    "title": "Classement des arbitres",
+    "noSeason": "Aucune saison n'est encore enregistrée. Ajoutez des données via Supabase.",
+    "seasonLabel": "Saison",
+    "noVotes": "Aucun vote enregistré pour cette saison.",
+    "viewDays": "Voir les journées →",
+    "refereeRankingTitle": "Classement des arbitres (central)",
+    "refereeRankingDescription": "Moyennes calculées uniquement sur les critères de l'arbitre principal.",
+    "generalRankingTitle": "Classement arbitrage général",
+    "generalRankingDescription": "Inclut les notes du VAR et des assistants pour mesurer toute l'équipe arbitrale.",
+    "bestRefereeOverall": "Meilleur arbitre de la saison",
+    "bestArbitrageOverall": "Meilleur arbitrage global",
+    "bestByJournee": "Meilleur arbitre par journée",
+    "rank": "Rang",
+    "referee": "Arbitre",
+    "globalNote": "Note globale",
+    "votesCount": "Votes",
+    "topMatchesSubtitle": "Top 5 matchs",
+    "topVarMatches": "Meilleure note VAR",
+    "topAssistantMatches": "Meilleure note Assistants",
+    "voteCount": "{{count}} vote(s)",
+    "noMatchesForCategory": "Aucun match avec des votes pour cette catégorie",
+    "refereeRankingByJournee": "Classement des arbitres par journée",
+    "refereeRankingByJourneeDescription": "Classement des arbitres centraux pour les journées courante et précédente",
+    "noJournees": "Aucune journée disponible",
+    "topMatches": "Meilleurs matchs",
+    "showAll": "Voir tout le classement",
+    "showLess": "Voir moins"
+  },
+  "arbitre": {
+    "back": "← Retour au classement",
+    "category": "Catégorie",
+    "nationality": "Nationalité",
+    "birthDate": "Date de naissance",
+    "averageNote": "Note moyenne",
+    "voteCount": "Nombre de votes",
+    "criteriaTitle": "Notes par critère",
+    "criteria": {
+      "fairplay": "Fair-play",
+      "decisions": "Décisions",
+      "gestion": "Gestion du match",
+      "communication": "Communication"
+    },
+    "matchesTitle": "Matchs arbitrés",
+    "unknownDate": "Date inconnue",
+    "vote": "vote",
+    "votes": "votes"
+  },
+  "voteForm": {
+    "intro": "Notez l'arbitre sur différents critères.",
+    "errorIncomplete": "Veuillez noter tous les critères",
+    "errorAlreadyVoted": "Vous avez déjà voté pour ce match",
+    "errorCannotVote": "Vous ne pouvez pas voter pour ce match. Le match doit avoir un arbitre assigné et la date/heure du match doit être dans le passé.",
+    "waitToVote": "Veuillez attendre encore {{minutes}} minute(s) après le début du match avant de pouvoir voter.",
+    "submit": "Envoyer le vote",
+    "submitting": "Enregistrement...",
+    "success": "Vote enregistré avec succès ! Merci pour votre participation.",
+    "alreadyVoted": "✅ Vous avez déjà voté pour ce match.",
+    "cannotChange": "Une fois votre vote enregistré, vous ne pouvez plus le modifier.",
+    "modalTitle": "Merci pour votre vote !",
+    "noteGlobal": "Note globale",
+    "criteria": {
+      "fairplay": "Fair-play",
+      "decisions": "Décisions",
+      "gestion": "Gestion du match",
+      "communication": "Communication"
+    },
+    "section": {
+      "arbitre": "Performance de l’arbitre central",
+      "var": "VAR",
+      "assistant": "Assistants"
+    }
+  },
+  "notFound": {
+    "title": "Page non trouvée",
+    "description": "La page que vous cherchez n'existe pas ou a été déplacée.",
+    "cta": "Retour à l'accueil"
+  },
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "lastUpdated": "Dernière mise à jour : août 2026",
+    "section1": {
+      "title": "1. Introduction",
+      "paragraph1": "ARBINOTE (ci-après \"nous\", \"notre\", \"la plateforme\") s'engage à protéger votre vie privée et vos données personnelles. Cette politique de confidentialité explique comment nous collectons, utilisons, stockons et protégeons vos informations lorsque vous utilisez notre plateforme de notation d'arbitres.",
+      "paragraph2": "En utilisant ARBINOTE, vous acceptez les pratiques décrites dans cette politique. Si vous n'acceptez pas ces pratiques, veuillez ne pas utiliser notre service."
+    },
+    "section2": {
+      "title": "2. Données collectées",
+      "paragraph1": "Nous collectons les types de données suivants lorsque vous utilisez ARBINOTE :",
+      "list": {
+        "item1": "Identifiant d'appareil (Device Fingerprint) : Nous utilisons FingerprintJS pour générer un identifiant unique basé sur les caractéristiques techniques de votre appareil (navigateur, système d'exploitation, résolution d'écran, etc.). Cet identifiant est utilisé uniquement pour prévenir les votes multiples et garantir l'intégrité du processus de notation.",
+        "item2": "Données de vote : Lorsque vous votez pour un arbitre, nous enregistrons votre évaluation (notes par critère, note globale), l'identifiant du match, l'identifiant de l'arbitre et l'identifiant de votre appareil.",
+        "item3": "Préférences utilisateur : Nous stockons vos préférences de langue (français, anglais, arabe) et de thème (mode clair/sombre) dans votre navigateur via localStorage et cookies.",
+        "item4": "Ligue active : Nous stockons votre sélection de ligue active dans un cookie pour améliorer votre expérience de navigation.",
+        "item5": "Données de navigation : Nous collectons automatiquement certaines informations techniques telles que votre adresse IP, le type de navigateur, le système d'exploitation et les pages visitées pour assurer le bon fonctionnement de la plateforme."
+      },
+      "paragraph2": "Important : Nous ne collectons pas de données personnelles identifiables telles que votre nom, adresse e-mail, numéro de téléphone ou adresse postale."
+    },
+    "section3": {
+      "title": "3. Cookies et technologies similaires",
+      "paragraph1": "Nous utilisons les technologies suivantes pour améliorer votre expérience :",
+      "list": {
+        "item1": "Cookies essentiels : \"arbinote-locale\" (préférence de langue), \"activeLeagueId\" (ligue sélectionnée). Ces cookies sont nécessaires au fonctionnement de la plateforme.",
+        "item2": "LocalStorage : Nous stockons vos préférences de thème (\"arbinote-theme\"), votre préférence de langue (\"arbinote-locale\") et une liste locale de vos votes (\"note-arbitre-votes\") pour améliorer les performances et votre expérience.",
+        "item3": "Vous pouvez gérer ou supprimer ces cookies et données via les paramètres de votre navigateur. Cependant, cela peut affecter certaines fonctionnalités de la plateforme."
+      }
+    },
+    "section4": {
+      "title": "4. Utilisation de FingerprintJS",
+      "paragraph1": "ARBINOTE utilise FingerprintJS (version 5.0.1), un service tiers permettant de générer un identifiant unique basé sur les caractéristiques de votre appareil et navigateur. Cette technologie est utilisée exclusivement pour :",
+      "paragraph2": "Empêcher les votes multiples : Assurer qu'un seul vote par match est enregistré par appareil, préservant ainsi l'intégrité des statistiques et classements.",
+      "note": {
+        "title": "Note importante :",
+        "text": "L'identifiant généré par FingerprintJS n'est pas personnellement identifiable et ne peut pas être utilisé pour vous identifier en dehors de la plateforme ARBINOTE. Nous ne partageons pas cet identifiant avec des tiers à des fins publicitaires ou de suivi."
+      }
+    },
+    "section5": {
+      "title": "5. Utilisation des données",
+      "paragraph1": "Nous utilisons vos données pour les finalités suivantes :",
+      "list": {
+        "item1": "Fonctionnement de la plateforme : Gérer le système de vote, calculer les statistiques et classements, et afficher les résultats.",
+        "item2": "Amélioration de l'expérience : Mémoriser vos préférences (langue, thème, ligue), personnaliser l'affichage et faciliter votre navigation.",
+        "item3": "Sécurité et intégrité : Détecter et prévenir la fraude, les votes multiples et les abus afin de maintenir la qualité et la fiabilité des données."
+      }
+    },
+    "section6": {
+      "title": "6. Partage et transmission des données",
+      "paragraph1": "Nous nous engageons à ne pas vendre, louer ou partager vos données à des tiers à des fins commerciales. Cependant, nous pouvons partager certaines informations dans les cas suivants :",
+      "paragraph2": "Données agrégées anonymisées : Les statistiques globales (moyennes, classements, tendances) sont publiques et accessibles à tous les utilisateurs. Ces données sont anonymisées et ne permettent pas de vous identifier individuellement.",
+      "list": {
+        "item1": "Prestataires de services : Nous pouvons utiliser des services tiers (hébergement, base de données) qui ont accès aux données techniques nécessaires au fonctionnement de la plateforme. Ces prestataires sont tenus de respecter la confidentialité et la sécurité des données.",
+        "item2": "Obligations légales : Si la loi l'exige, nous pouvons divulguer vos informations aux autorités compétentes.",
+        "item3": "Protection de nos droits : Nous pouvons révéler des informations si cela est nécessaire pour protéger nos droits, notre propriété ou la sécurité de nos utilisateurs.",
+        "item4": "Avec votre consentement : Dans tout autre cas, nous ne partagerons vos données qu'avec votre consentement explicite."
+      }
+    },
+    "section7": {
+      "title": "7. Sécurité des données",
+      "paragraph1": "Nous mettons en œuvre des mesures de sécurité techniques et organisationnelles pour protéger vos données :",
+      "list": {
+        "item1": "Chiffrement : Les communications entre votre navigateur et nos serveurs sont chiffrées via HTTPS.",
+        "item2": "Base de données sécurisée : Vos données sont stockées dans une base de données MySQL sécurisée avec des accès restreints.",
+        "item3": "Limitation d'accès : Seuls les administrateurs autorisés ont accès aux données pour assurer la maintenance et le support technique."
+      }
+    },
+    "section8": {
+      "title": "8. Vos droits",
+      "paragraph1": "Conformément aux lois sur la protection des données (RGPD pour les résidents de l'UE), vous disposez des droits suivants :",
+      "paragraph2": "Droit d'accès : Vous pouvez demander une copie des données que nous détenons sur vous. Cependant, comme nous ne collectons pas de données personnelles identifiables, cet accès se limitera aux données techniques (identifiant d'appareil, votes associés).",
+      "paragraph3": "Droit à la suppression : Vous pouvez demander la suppression de vos votes. Notez que la suppression d'un vote peut affecter les statistiques et classements déjà calculés."
+    },
+    "section9": {
+      "title": "9. Durée de conservation des données",
+      "paragraph1": "Nous conservons vos données pendant les durées suivantes :",
+      "paragraph2": "Votes : Vos votes sont conservés indéfiniment pour maintenir l'historique des statistiques et classements. Cependant, vous pouvez demander leur suppression à tout moment."
+    },
+    "section10": {
+      "title": "10. Contact",
+      "paragraph1": "Pour toute question concernant cette politique de confidentialité ou pour exercer vos droits, vous pouvez nous contacter :",
+      "paragraph2": "Nous nous engageons à répondre à vos demandes dans les meilleurs délais.",
+      "contact": {
+        "title": "Contact :",
+        "email": "Pour toute demande relative à vos données personnelles, veuillez contacter l'administrateur de la plateforme via le formulaire de contact disponible sur le site."
+      }
+    },
+    "section11": {
+      "title": "11. Modifications de la politique",
+      "paragraph1": "Nous nous réservons le droit de modifier cette politique de confidentialité à tout moment. Les modifications importantes vous seront communiquées via une notification sur la plateforme.",
+      "paragraph2": "Nous vous encourageons à consulter régulièrement cette page pour rester informé de nos pratiques de protection des données."
+    },
+    "footer": "En continuant à utiliser ARBINOTE, vous acceptez cette politique de confidentialité. Si vous n'acceptez pas ces termes, veuillez cesser d'utiliser notre service."
+  },
+  "terms": {
+    "title": "Conditions Générales d'Utilisation",
+    "lastUpdated": "Dernière mise à jour : août 2026",
+    "section1": {
+      "title": "1. Acceptation des conditions",
+      "paragraph1": "Les présentes Conditions Générales d'Utilisation (ci-après \"CGU\" ou \"Conditions\") régissent votre utilisation de la plateforme ARBINOTE (ci-après \"la Plateforme\", \"nous\", \"notre\").",
+      "paragraph2": "En accédant à ARBINOTE ou en utilisant nos services, vous reconnaissez avoir lu, compris et accepté d'être lié par ces Conditions. Si vous n'acceptez pas ces Conditions, vous ne devez pas utiliser la Plateforme.",
+      "paragraph3": "Nous nous réservons le droit de modifier ces Conditions à tout moment. Les modifications prennent effet dès leur publication sur la Plateforme. Il est de votre responsabilité de consulter régulièrement les Conditions pour prendre connaissance des modifications éventuelles."
+    },
+    "section2": {
+      "title": "2. Description du service",
+      "paragraph1": "ARBINOTE est une plateforme en ligne permettant aux utilisateurs de :",
+      "list": {
+        "item1": "Consulter les matchs de football et les informations relatives aux arbitres",
+        "item2": "Voter et noter les arbitres sur différents critères (arbitre central, VAR, assistants)",
+        "item3": "Consulter les classements et statistiques des arbitres",
+        "item4": "Accéder à l'historique des saisons, journées et matchs"
+      }
+    },
+    "section3": {
+      "title": "3. Conditions d'utilisation",
+      "paragraph1": "En utilisant ARBINOTE, vous vous engagez à :",
+      "list": {
+        "item1": "Utiliser la Plateforme de manière légale et conforme à ces Conditions",
+        "item2": "Ne pas tenter de manipuler, fausser ou falsifier les votes ou les résultats",
+        "item3": "Ne pas utiliser de robots, scripts automatisés ou autres moyens pour voter de manière frauduleuse",
+        "item4": "Respecter les droits de propriété intellectuelle et les droits d'auteur de la Plateforme et de ses contenus"
+      },
+      "paragraph2": "Tout non-respect de ces Conditions peut entraîner la suspension ou la résiliation de votre accès à la Plateforme, sans préavis."
+    },
+    "section4": {
+      "title": "4. Système de vote",
+      "paragraph1": "Les règles suivantes s'appliquent au système de vote :",
+      "list": {
+        "item1": "Un seul vote par match et par appareil est autorisé pour garantir l'intégrité des statistiques",
+        "item2": "Le vote n'est possible que si le match a commencé et qu'au moins 30 minutes se sont écoulées depuis le début du match",
+        "item3": "Une fois enregistré, un vote ne peut pas être modifié ou supprimé par l'utilisateur"
+      }
+    },
+    "section5": {
+      "title": "5. Propriété intellectuelle",
+      "paragraph1": "Tous les contenus présents sur ARBINOTE, incluant mais sans s'y limiter : les textes, graphismes, logos, icônes, images, clips audio, téléchargements numériques, et compilations de données, sont la propriété de ARBINOTE ou de ses fournisseurs de contenu et sont protégés par les lois internationales sur le droit d'auteur.",
+      "paragraph2": "Vous n'êtes pas autorisé à reproduire, distribuer, modifier, créer des œuvres dérivées, afficher publiquement, représenter publiquement, republier, télécharger, stocker ou transmettre tout contenu de la Plateforme sans notre autorisation écrite préalable.",
+      "note": {
+        "title": "Exception :",
+        "text": "Les données statistiques agrégées et anonymisées (moyennes, classements, tendances) peuvent être utilisées à des fins d'information et d'analyse, dans le respect des droits de propriété intellectuelle."
+      }
+    },
+    "section6": {
+      "title": "6. Disponibilité du service",
+      "paragraph1": "Nous nous efforçons de garantir une disponibilité continue de la Plateforme, mais :",
+      "list": {
+        "item1": "Nous ne garantissons pas que la Plateforme sera accessible en permanence, sans interruption, sans erreur ou exempte de défauts",
+        "item2": "Nous nous réservons le droit d'interrompre temporairement l'accès à la Plateforme pour maintenance, mise à jour ou pour toute autre raison technique ou administrative",
+        "item3": "Nous ne sommes pas responsables des pertes ou dommages résultant de l'indisponibilité temporaire de la Plateforme",
+        "item4": "Nous nous réservons le droit de modifier, suspendre ou interrompre tout ou partie de la Plateforme à tout moment, sans préavis"
+      }
+    },
+    "section7": {
+      "title": "7. Limitations de responsabilité",
+      "paragraph1": "Dans les limites autorisées par la loi applicable, ARBINOTE ne sera pas responsable des dommages directs, indirects, accessoires, spéciaux, consécutifs ou punitifs résultant de votre utilisation ou de votre incapacité à utiliser la Plateforme.",
+      "paragraph2": "Les statistiques, classements et données affichées sur ARBINOTE sont fournis \"tels quels\" à titre informatif. Nous ne garantissons pas l'exactitude, l'exhaustivité ou l'actualité de ces informations et ne sommes pas responsables des décisions prises sur la base de ces informations."
+    },
+    "section8": {
+      "title": "8. Protection des données personnelles",
+      "paragraph1": "La collecte et le traitement de vos données personnelles sont régis par notre Politique de Confidentialité, qui fait partie intégrante de ces Conditions.",
+      "list": {
+        "item1": "En utilisant la Plateforme, vous consentez à la collecte et au traitement de vos données conformément à notre Politique de Confidentialité",
+        "item2": "Vous pouvez consulter notre Politique de Confidentialité pour obtenir des informations détaillées sur la manière dont nous collectons, utilisons et protégeons vos données",
+        "item3": "Vous disposez de droits concernant vos données personnelles, notamment le droit d'accès, de rectification et de suppression, conformément à la législation applicable"
+      }
+    },
+    "section9": {
+      "title": "9. Modification et résiliation",
+      "paragraph1": "Nous nous réservons le droit de modifier, suspendre ou résilier votre accès à la Plateforme à tout moment, sans préavis, pour quelque raison que ce soit, notamment en cas de violation de ces Conditions.",
+      "paragraph2": "Vous pouvez cesser d'utiliser la Plateforme à tout moment. La résiliation de votre utilisation n'affectera pas les votes que vous avez déjà soumis, qui resteront dans notre base de données conformément à notre Politique de Confidentialité."
+    },
+    "section10": {
+      "title": "10. Contact et réclamations",
+      "paragraph1": "Pour toute question, réclamation ou demande concernant ces Conditions ou la Plateforme, vous pouvez nous contacter :",
+      "contact": {
+        "title": "Contact :",
+        "email": "Pour toute demande relative aux Conditions Générales d'Utilisation, veuillez contacter l'administrateur de la plateforme via le formulaire de contact disponible sur le site."
+      }
+    },
+    "section11": {
+      "title": "11. Droit applicable et juridiction",
+      "paragraph1": "Ces Conditions sont régies par les lois en vigueur dans le pays où ARBINOTE est hébergé et exploité. Tout litige découlant de ou lié à ces Conditions sera soumis à la juridiction exclusive des tribunaux compétents de ce pays.",
+      "paragraph2": "Si une disposition de ces Conditions est jugée invalide ou inapplicable, cette disposition sera modifiée et interprétée pour atteindre les objectifs de cette disposition dans la mesure du possible, et les autres dispositions resteront en vigueur."
+    },
+    "footer": "En utilisant ARBINOTE, vous reconnaissez avoir lu et accepté ces Conditions Générales d'Utilisation. Si vous n'acceptez pas ces Conditions, veuillez ne pas utiliser notre service."
+  },
+  "legal": {
+    "title": "Mentions légales",
+    "lastUpdated": "Dernière mise à jour : août 2026",
+    "section1": {
+      "title": "1. Éditeur du site",
+      "name": "Nom",
+      "nameValue": "ARBINOTE",
+      "description": "Description",
+      "descriptionValue": "Plateforme de notation et d'évaluation des arbitres de football",
+      "url": "URL du site",
+      "urlValue": "https://arbinote.com"
+    },
+    "section2": {
+      "title": "2. Directeur de publication",
+      "role": "Rôle",
+      "roleValue": "Directeur de publication",
+      "responsibility": "Responsabilité",
+      "responsibilityValue": "Le directeur de publication est responsable du contenu éditorial de la plateforme ARBINOTE."
+    },
+    "section3": {
+      "title": "3. Contact",
+      "contact": "Pour toute question ou demande concernant la plateforme, vous pouvez nous contacter :",
+      "email": "Adresse e-mail",
+      "emailValue": "contact@arbinote.com",
+      "website": "Site web",
+      "websiteValue": "https://arbinote.com"
+    },
+    "section4": {
+      "title": "4. Hébergement",
+      "paragraph1": "Le site ARBINOTE est hébergé par un prestataire d'hébergement web. Les informations relatives à l'hébergement seront précisées ici dès que la plateforme sera déployée en production.",
+      "provider": "Prestataire",
+      "providerValue": "À compléter lors du déploiement en production",
+      "address": "Adresse",
+      "addressValue": "À compléter lors du déploiement en production",
+      "website": "Site web",
+      "websiteValue": ""
+    },
+    "section5": {
+      "title": "5. Responsable du traitement des données",
+      "paragraph1": "Conformément au Règlement Général sur la Protection des Données (RGPD), le responsable du traitement des données personnelles collectées sur ARBINOTE est :",
+      "responsible": "Responsable",
+      "responsibleValue": "ARBINOTE",
+      "contact": "Contact",
+      "contactValue": "contact@arbinote.com",
+      "note": "Pour toute question concernant le traitement de vos données personnelles, veuillez consulter notre Politique de Confidentialité ou nous contacter directement."
+    },
+    "section6": {
+      "title": "6. Propriété intellectuelle",
+      "paragraph1": "Tous les éléments présents sur ARBINOTE sont protégés par le droit de la propriété intellectuelle et appartiennent à ARBINOTE ou à ses partenaires. Sont notamment protégés :",
+      "list": {
+        "item1": "Les textes, articles, descriptions et contenus rédactionnels",
+        "item2": "Les graphismes, logos, icônes et éléments graphiques",
+        "item3": "La structure générale du site, les bases de données et les codes source"
+      },
+      "paragraph2": "Toute reproduction, représentation, modification, publication ou adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans autorisation écrite préalable de ARBINOTE."
+    },
+    "section7": {
+      "title": "7. Limitations de responsabilité",
+      "paragraph1": "ARBINOTE s'efforce de fournir des informations exactes et à jour. Cependant, ARBINOTE ne peut garantir :",
+      "list": {
+        "item1": "L'exactitude, la complétude ou l'actualité des informations diffusées sur la plateforme",
+        "item2": "L'absence d'interruptions ou d'erreurs techniques pouvant affecter l'accessibilité du site",
+        "item3": "La sécurité absolue des données transmises via Internet"
+      }
+    },
+    "section8": {
+      "title": "8. Liens externes",
+      "paragraph1": "Le site ARBINOTE peut contenir des liens vers d'autres sites web. ARBINOTE n'exerce aucun contrôle sur ces sites et décline toute responsabilité quant à leur contenu, leur accessibilité ou leur politique de confidentialité.",
+      "paragraph2": "La création de liens hypertextes vers le site ARBINOTE est autorisée, à condition que ces liens ne portent pas atteinte à l'image de ARBINOTE et que la source soit clairement identifiée."
+    },
+    "footer": "Pour toute question concernant ces mentions légales, vous pouvez nous contacter via l'adresse e-mail indiquée ci-dessus."
+  },
+  "cookieBanner": {
+    "text": "ARBINOTE utilise des cookies techniques nécessaires au fonctionnement du site. Aucun cookie publicitaire n'est utilisé. En continuant, vous acceptez l'utilisation de ces cookies.",
+    "textShort": "ARBINOTE utilise uniquement des cookies techniques nécessaires au fonctionnement du site.",
+    "accept": "Compris",
+    "learnMore": "En savoir plus"
+  },
+  "cookies": {
+    "title": "Politique Cookies",
+    "lastUpdated": "Dernière mise à jour : août 2026",
+    "section1": {
+      "title": "1. Introduction",
+      "paragraph1": "ARBINOTE utilise des cookies techniques pour assurer le bon fonctionnement de la plateforme et améliorer votre expérience de navigation. Cette page vous informe sur l'utilisation des cookies sur notre site.",
+      "paragraph2": "Important : ARBINOTE n'utilise aucun cookie publicitaire, de suivi marketing ou de cookies tiers à des fins commerciales. Seuls des cookies techniques strictement nécessaires sont utilisés."
+    },
+    "section2": {
+      "title": "2. Cookies utilisés",
+      "paragraph1": "ARBINOTE utilise exclusivement les cookies techniques suivants :",
+      "list": {
+        "item1": {
+          "name": "arbinote-locale",
+          "description": "Cookie technique permettant de mémoriser votre préférence de langue (français, anglais, arabe).",
+          "usage": "Durée : 1 an | Type : Technique essentiel"
+        },
+        "item2": {
+          "name": "activeLeagueId",
+          "description": "Cookie technique permettant de mémoriser votre sélection de ligue active pour améliorer votre navigation.",
+          "usage": "Durée : Session | Type : Technique essentiel"
+        },
+        "item3": {
+          "name": "arbinote-theme (localStorage)",
+          "description": "Donnée stockée dans localStorage pour mémoriser votre préférence de thème (mode clair/sombre).",
+          "usage": "Stockage : localStorage | Type : Technique essentiel"
+        },
+        "item4": {
+          "name": "Device Fingerprint (via FingerprintJS)",
+          "description": "Identifiant pseudonymisé généré pour prévenir les votes multiples. Cet identifiant n'est pas personnellement identifiable et ne sert qu'à garantir l'intégrité du système de vote.",
+          "usage": "Stockage : Base de données | Type : Technique de sécurité"
+        }
+      }
+    },
+    "section3": {
+      "title": "3. Finalités d'utilisation",
+      "paragraph1": "Les cookies techniques utilisés par ARBINOTE ont pour unique finalité de : assurer le bon fonctionnement de la plateforme, mémoriser vos préférences (langue, thème, ligue), et prévenir la fraude aux votes.",
+      "note": {
+        "title": "Note importante :",
+        "text": "Aucun cookie n'est utilisé à des fins publicitaires, de profilage publicitaire, de suivi comportemental ou de ciblage publicitaire. Nous ne partageons aucune donnée avec des réseaux publicitaires."
+      }
+    },
+    "section4": {
+      "title": "4. Gestion des cookies",
+      "paragraph1": "Vous pouvez gérer ou supprimer les cookies et données stockées via les paramètres de votre navigateur. Cependant, la suppression de ces cookies techniques peut affecter certaines fonctionnalités de la plateforme, notamment :",
+      "paragraph2": "La perte de vos préférences de langue et de thème, la nécessité de re-sélectionner votre ligue active à chaque visite, ou l'impossibilité de voter si le device fingerprint est supprimé."
+    },
+    "section5": {
+      "title": "5. Contact",
+      "paragraph1": "Pour toute question concernant notre utilisation des cookies, vous pouvez nous contacter :",
+      "contact": {
+        "title": "Contact :",
+        "email": "Pour toute demande relative à notre politique cookies, veuillez contacter l'administrateur de la plateforme via le formulaire de contact disponible sur le site."
+      }
+    },
+    "footer": "Pour en savoir plus sur la gestion de vos données personnelles, consultez notre Politique de Confidentialité."
+  },
+  "contact": {
+    "title": "Contactez-nous",
+    "subtitle": "Pour toute question, suggestion ou demande, n'hésitez pas à nous contacter.",
+    "form": {
+      "email": "Email",
+      "emailPlaceholder": "votre@email.com",
+      "subject": "Sujet",
+      "subjectPlaceholder": "Objet de votre message",
+      "message": "Message",
+      "messagePlaceholder": "Votre message...",
+      "submit": "Envoyer le message",
+      "submitting": "Envoi en cours...",
+      "success": "✅ Votre message a été envoyé avec succès ! Nous vous répondrons dans les plus brefs délais.",
+      "error": "Une erreur s'est produite lors de l'envoi de votre message. Veuillez réessayer.",
+      "characters": "caractères",
+      "alreadySentToday": "⚠️ Vous avez déjà envoyé un message aujourd'hui. Vous ne pouvez envoyer qu'un seul message par jour.",
+      "loadingFingerprint": "Chargement de l'identifiant..."
+    },
+    "previousMessages": "Mes messages précédents"
+  },
+  "pwa": {
+    "title": "Installer ARBINOTE",
+    "description": "Ajoutez l'application à votre écran d'accueil",
+    "installButton": "Installer",
+    "closeButton": "Fermer",
+    "iosInstallInstructions": "Pour installer l'application sur iOS :\n\n1. Appuyez sur le bouton Partager (icône carrée avec flèche vers le haut)\n2. Faites défiler et sélectionnez 'Sur l'écran d'accueil'\n3. Appuyez sur 'Ajouter'",
+    "androidInstallInstructions": "Pour installer l'application sur Android :\n\n1. Appuyez sur le menu (3 points) en haut à droite\n2. Sélectionnez 'Installer l'application' ou 'Ajouter à l'écran d'accueil'\n3. Confirmez l'installation",
+    "genericInstallInstructions": "Pour installer l'application :\n\n1. Cherchez l'option 'Installer' ou 'Ajouter à l'écran d'accueil' dans le menu de votre navigateur\n2. Suivez les instructions à l'écran"
+  },
+  "credibility": {
+    "high": "Élevée",
+    "medium": "Moyenne",
+    "low": "Faible",
+    "veryLow": "Très faible",
+    "tooltip": "Crédibilité des votes : {{percentage}}% - Basé sur l'analyse statistique des votes pour détecter les manipulations",
+    "modal": {
+      "title": "Qu'est-ce que la crédibilité ?",
+      "description": "Le score de crédibilité mesure la fiabilité des votes d'un match en analysant les patterns de vote pour détecter d'éventuelles manipulations.",
+      "high": {
+        "title": "Crédibilité élevée (80-100%)",
+        "description": "Les votes semblent authentiques et diversifiés. Aucun pattern suspect détecté."
+      },
+      "medium": {
+        "title": "Crédibilité moyenne (60-79%)",
+        "description": "Les votes sont généralement fiables, mais quelques anomalies mineures ont été détectées."
+      },
+      "low": {
+        "title": "Crédibilité faible (40-59%)",
+        "description": "Des anomalies significatives ont été détectées dans les patterns de vote. La fiabilité est réduite."
+      },
+      "veryLow": {
+        "title": "Crédibilité très faible (0-39%)",
+        "description": "Des anomalies majeures ont été détectées. Les votes peuvent être manipulés ou coordonnés."
+      },
+      "howItWorks": "Comment ça fonctionne ?",
+      "howItWorksText": "Notre système analyse les votes en temps réel pour détecter : votes extrêmes groupés, votes coordonnés, votes identiques et votes précipités. Plus le score est élevé, plus les votes sont fiables.",
+      "close": "Fermer"
+    }
+  },
+  "transparence": {
+    "header": {
+      "title": "Notre engagement pour des notes fiables",
+      "description": "Découvrez comment Arbinote protège l'intégrité des évaluations et garantit des résultats justes."
+    },
+    "intro": {
+      "title": "Pourquoi c'est important ?",
+      "text": "Sur internet, certains peuvent tenter de manipuler les notes en votant plusieurs fois ou en organisant des campagnes de votes coordonnés. Nous avons mis en place plusieurs niveaux de protection pour garantir que chaque note reflète vraiment l'opinion de la communauté.",
+      "protection": "plusieurs niveaux de protection"
+    },
+    "bayesian": {
+      "title": "Moyenne intelligente (Bayésienne)",
+      "description": "Au lieu d'une simple moyenne, nous utilisons une formule statistique avancée. Un arbitre avec seulement 2 votes à 5/5 n'aura pas automatiquement la meilleure note.",
+      "howItWorks": "Comment ça marche :",
+      "howItWorksText": "Les notes sont pondérées par le nombre de votes. Plus un arbitre accumule de votes, plus sa note devient représentative de l'opinion générale."
+    },
+    "anomalies": {
+      "title": "Détection automatique des anomalies",
+      "description": "Notre système analyse en temps réel les patterns de votes et détecte les comportements suspects.",
+      "extreme": {
+        "title": "Votes extrêmes groupés",
+        "description": "Trop de 5/5 ou 1/5 en même temps"
+      },
+      "coordinated": {
+        "title": "Votes coordonnés",
+        "description": "Beaucoup de votes en quelques minutes"
+      },
+      "identical": {
+        "title": "Votes identiques",
+        "description": "Tous les votes avec la même note exacte"
+      },
+      "rushed": {
+        "title": "Votes précipités",
+        "description": "Votes trop rapides après le match"
+      }
+    },
+    "weighting": {
+      "title": "Pondération intelligente des votes",
+      "description": "Plutôt que de supprimer des votes, nous ajustons leur influence. Un vote suspect compte moins dans le calcul final, mais n'est pas effacé.",
+      "example": "Exemple :",
+      "exampleText": "Un vote très éloigné de la moyenne des autres votes aura moins d'impact. Un vote modéré et réfléchi aura plus de poids."
+    },
+    "protection": {
+      "title": "Protection contre les votes multiples",
+      "description": "Chaque appareil ne peut voter qu'une seule fois par match. Nous utilisons plusieurs techniques pour identifier les tentatives de votes multiples.",
+      "fingerprint": "Empreinte d'appareil unique",
+      "networkLimit": "Limite de votes par adresse réseau",
+      "speedDetection": "Détection des votes trop rapides"
+    },
+    "moderation": {
+      "title": "Surveillance humaine",
+      "description": "Notre équipe de modération reçoit des alertes automatiques en cas de comportement suspect et peut intervenir manuellement si nécessaire.",
+      "alerts": "Système d'alertes :",
+      "alertsText": "Quand un match présente des anomalies, nos modérateurs sont immédiatement notifiés pour examiner la situation."
+    },
+    "credibility": {
+      "title": "Score de crédibilité",
+      "description": "Chaque match reçoit un score de crédibilité (0-100%) basé sur l'analyse de ses votes. Un score élevé indique que les votes semblent authentiques et diversifiés."
+    },
+    "footer": {
+      "title": "Des questions ?",
+      "description": "Si vous avez des questions sur notre système ou si vous remarquez un comportement suspect, n'hésitez pas à nous contacter.",
+      "contact": "Nous contacter"
+    }
+  },
+  "team": {
+    "city": "Ville",
+    "stadium": "Stade",
+    "type": "Type",
+    "national": "Sélection nationale",
+    "club": "Club",
+    "sportLabel": "Sport",
+    "sport": {
+      "football": "Football",
+      "handball": "Handball",
+      "basketball": "Basketball",
+      "volleyball": "Volleyball"
+    },
+    "ageCategoryLabel": "Catégorie d'âge",
+    "ageCategory": {
+      "seniors": "Sénior",
+      "u21": "U21",
+      "u20": "U20",
+      "u19": "U19",
+      "u18": "U18",
+      "u17": "U17",
+      "u16": "U16",
+      "u15": "U15",
+      "u14": "U14",
+      "u13": "U13"
+    },
+    "tabs": {
+      "referee": "Note arbitre",
+      "matches": "Mes matches"
+    },
+    "referee": {
+      "best": "Meilleur arbitre pour moi",
+      "worst": "Mauvais arbitre pour moi",
+      "matchCount": "{{count}} match",
+      "matchCount_plural": "{{count}} matchs",
+      "voteCount": "{{count}} vote",
+      "voteCount_plural": "{{count}} votes"
+    },
+    "topMatches": {
+      "title": "Top 5 matchs",
+      "arbitre": "Note arbitre",
+      "var": "VAR",
+      "assistant": "Assistants",
+      "empty": "Aucun match disponible"
+    },
+    "matches": {
+      "title": "Tous les matchs par journée",
+      "unknownJournee": "Journée inconnue",
+      "referee": "Arbitre",
+      "empty": "Aucun match disponible"
+    }
+  },
+  "search": {
+    "arbitresTitle": "Recherche d'arbitres",
+    "arbitresPlaceholder": "Rechercher un arbitre par nom...",
+    "teamsTitle": "Recherche d'équipes",
+    "teamsPlaceholder": "Rechercher une équipe par nom...",
+    "matchesTitle": "Recherche de matchs",
+    "matchesPlaceholder": "Rechercher un match par équipe...",
+    "noResults": "Aucun résultat trouvé",
+    "resultsCount": "{{count}} résultat(s)"
+  },
+  "pagination": {
+    "previous": "← Précédent",
+    "next": "Suivant →",
+    "pageInfo": "Page {{current}} sur {{total}}"
+  },
+  "export": {
+    "csv": "Exporter en CSV",
+    "pdf": "Exporter en PDF"
+  }
+}

@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useLocale } from 'next-intl'
 import type { Journee, Saison } from '@/types'
-import { useTranslations } from '@/lib/i18n'
+import type { Locale } from '@/i18n/request'
 import { getJourneeDisplayName } from '@/lib/utils'
 import { buildForm, emptyForm } from './constants'
 import type { JourneeForm } from './types'
 
 export function useAdminJournees() {
-  const { locale } = useTranslations()
+  const locale = useLocale() as Locale
   const [journees, setJournees] = useState<Journee[]>([])
   const [saisons, setSaisons] = useState<Saison[]>([])
   const [loading, setLoading] = useState(true)

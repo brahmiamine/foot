@@ -1,0 +1,833 @@
+{
+  "nav": {
+    "seasons": "Seasons",
+    "matchday": "Matchday",
+    "matches": "Matches",
+    "statistics": "Statistics",
+    "rankings": "Rankings",
+    "archive": "Archive",
+    "myVotes": "My votes",
+    "arbitres": "Referees",
+    "teams": "Teams",
+    "allMatches": "All Matches"
+  },
+  "home": {
+    "title": "ARBINOTE ⚽",
+    "subtitle": "ARBINOTE centralizes Tunisian Ligue 1 referee ratings: seasons, matchdays, games, and live votes.",
+    "seasons": {
+      "description": "Browse the current season and review every matchday."
+    },
+    "matches": {
+      "description": "Check the latest games and vote to rate referees."
+    },
+    "rankings": {
+      "description": "Discover the best referee averages in real time.",
+      "referees": "Top referees",
+      "general": "Best officiating crew",
+      "subtitle": "Preview based on the latest ratings",
+      "votes": "{{count}} vote(s)",
+      "empty": "No ranking data for this league yet."
+    },
+    "featuredSeasons": "Featured seasons",
+    "viewDays": "View matchdays →",
+    "howItWorks": {
+      "title": "How it works",
+      "step1": "1. Pick a matchday or a match to evaluate.",
+      "step2": "2. Score the referee on multiple criteria.",
+      "step3": "3. Averages automatically feed the rankings."
+    },
+    "previous": {
+      "title": "Previous matchday",
+      "subtitle": "Latest scores and referee performances",
+      "empty": "No previous matchday is available yet.",
+      "cta": "Open full matchday"
+    },
+    "stats": {
+      "title": "Season overview {{season}}",
+      "referees": "Active referees",
+      "matches": "Scheduled matches",
+      "journees": "Matchdays played",
+      "votes": "Votes recorded"
+    },
+    "insights": {
+      "title": "Stories & insights",
+      "subtitle": "Stay informed about professional refereeing",
+      "cards": {
+        "performance": {
+          "title": "Referee performance",
+          "description": "Compare averages across competitions and detect trends."
+        },
+        "training": {
+          "title": "Training program",
+          "description": "Follow workshops and modules to raise the officiating level."
+        },
+        "community": {
+          "title": "Community & votes",
+          "description": "Your feedback powers the live rankings."
+        }
+      },
+      "read": "Learn more"
+    },
+    "upcoming": {
+      "badge": "Next matchday",
+      "title": "Matchday {{numero}} is coming",
+      "cta": "View the matchday →",
+      "notPlayed": "Kick-off pending"
+    },
+    "matchStats": {
+      "global": "Overall score",
+      "referee": "Referee score",
+      "var": "VAR score",
+      "assistants": "Assistants score",
+      "voteCount": "{{count}} vote(s)"
+    }
+  },
+  "federationSwitcher": {
+    "title": "Selected federation",
+    "selected": "Selected",
+    "noSelection": "No league selected",
+    "switching": "Switching...",
+    "leagues": "Available leagues",
+    "noLeagues": "No league for this federation"
+  },
+  "common": {
+    "error": "Error",
+    "errorConfig": "Make sure Supabase is configured and tables exist.",
+    "emptyMatchesTitle": "No matches available",
+    "emptyMatchesDescription": "Matches will appear here as soon as they are added to the database.",
+    "homeTeam": "Home",
+    "awayTeam": "Away",
+    "date": "Date",
+    "datePending": "Upcoming",
+    "score": "Score",
+    "finished": "Finished",
+    "upcoming": "Upcoming",
+    "matchday": "Matchday",
+    "season": "Season",
+    "stadium": "Stadium",
+    "referee": "Referee",
+    "refereeAssigned": "Assigned referee",
+    "globalNote": "Overall grade",
+    "criteria": "Criteria",
+    "backToMatches": "← Back to match list",
+    "backToHome": "← Back to home",
+    "allRightsReserved": "All rights reserved",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "legalNotice": "Legal Notice",
+    "contact": "Contact",
+    "noRefereeAssigned": "No referee assigned to this match. Voting is disabled.",
+    "vote": "vote",
+    "votes": "votes",
+    "viewMatches": "View matches →",
+    "close": "Close",
+    "viewDays": "View matchdays →",
+    "live": "LIVE",
+    "halftime": "halftime",
+    "firstHalf": "1st half",
+    "secondHalf": "2nd half",
+    "loading": "Loading..."
+  },
+  "matches": {
+    "list": {
+      "title": "Latest matches",
+      "currentJournee": "Current matchday: {{numero}}",
+      "emptyTitle": "No matches available",
+      "emptyDescription": "Matches will appear here once they are added to the database."
+    }
+  },
+  "matchCard": {
+    "date": "Date",
+    "score": "Score",
+    "stadium": "Stadium",
+    "referee": "Referee",
+    "matchday": "Matchday",
+    "alreadyVoted": "Already voted"
+  },
+  "matchDetail": {
+    "voteTitle": "Vote for the referee",
+    "noReferee": "No referee assigned to this match. Voting is disabled.",
+    "cannotVote": "You cannot vote for this match. The match must have an assigned referee and the match date/time must be in the past.",
+    "matchNotStarted": "The match has not started yet.",
+    "waitToVote": "Please wait {{minutes}} more minute(s) after the match starts before voting.",
+    "alreadyVotedAlert": "✅ You have already voted for this match.",
+    "refereeInfo": "Referee Information",
+    "myVotes": "My votes",
+    "voteNotFound": "Vote not found. If you have already voted, please refresh the page.",
+    "comparison": "Comparison with other votes",
+    "comparisonDescription": "Comparison of your vote with {{count}} other vote(s) on this match",
+    "noOtherVotes": "No other votes available for this match.",
+    "arbitreNote": "Referee note",
+    "arbitrageNote": "Refereeing note",
+    "arbitrageSection": "Refereeing (VAR and Assistants)",
+    "criteria": "Criteria",
+    "yourVote": "Your vote",
+    "average": "Average",
+    "min": "Min",
+    "max": "Max",
+    "statsPreviewTitle": "Current voting trends",
+    "statsPreviewDescription": "See how the community rates this officiating team before you vote.",
+    "statsPreviewNoVotes": "No votes have been recorded yet. Be the first to vote!",
+    "statsPreviewVotes": "{{count}} vote(s)"
+  },
+  "share": {
+    "title": "Share my vote",
+    "description": "Generate a social-ready card in one tap.",
+    "buttonLabel": "Share",
+    "noVote": "You need to vote for this match before sharing your card.",
+    "cta": {
+      "vote": "Go to the match page"
+    },
+    "download": "Download image",
+    "shareNative": "Share",
+    "generating": "Generating…",
+    "error": "Something went wrong. Please try again.",
+    "generateError": "We couldn't generate the image. Please retry in a moment.",
+    "loadingVote": "Loading your vote…",
+    "previewLabel": "Preview",
+    "downloaded": "Image downloaded to your device.",
+    "nativeUnsupported": "Native sharing is not available. The image was downloaded instead.",
+    "nativeTitle": "My vote for {{match}}",
+    "nativeText": "Card created with ARBINOTE",
+    "shared": "Card shared successfully!",
+    "reviewMatch": "View match"
+  },
+  "journee": {
+    "backToSeason": "← Back to the season",
+    "matchesTitle": "Matches",
+    "noMatches": "No matches for this matchday.",
+    "rankingsTitle": "Referee rankings",
+    "noVotes": "No votes available for this matchday.",
+    "generalRankingTitle": "Overall refereeing ranking",
+    "varRankingTitle": "VAR Ranking",
+    "assistantRankingTitle": "Assistants Ranking",
+    "bestReferee": "Best referee of the matchday"
+  },
+  "journees": {
+    "title": "Matchdays",
+    "selectJournee": "Select a matchday",
+    "viewDetails": "View details",
+    "noJourneeSelected": "No matchday selected",
+    "noSeason": "No season available at the moment"
+  },
+  "myVotes": {
+    "title": "My votes",
+    "noVotes": "You haven't voted for any matches yet.",
+    "noFingerprint": "Unable to retrieve your identifier. Please refresh the page.",
+    "refereeVote": "Referee score",
+    "varVote": "VAR score",
+    "assistantVote": "Assistants score",
+    "notRated": "Not rated"
+  },
+  "saisons": {
+    "title": "Seasons",
+    "error": "Unable to load seasons",
+    "empty": "No seasons available.",
+    "viewDays": "View matchdays →"
+  },
+  "saisonDetail": {
+    "backLink": "← Back to seasons",
+    "daysTitle": "Matchdays",
+    "noDays": "No recorded matchdays for this season.",
+    "matchCountSuffix": "match(es)",
+    "rankingsTitle": "Referee ranking",
+    "noVotes": "No votes recorded for this season.",
+    "viewMatches": "View matches →",
+    "generalRankingTitle": "Overall refereeing ranking",
+    "bestReferee": "Best referee of the season"
+  },
+  "classement": {
+    "title": "Referee rankings",
+    "noSeason": "No season has been recorded yet. Add data via Supabase.",
+    "seasonLabel": "Season",
+    "noVotes": "No votes recorded for this season.",
+    "viewDays": "View matchdays →",
+    "refereeRankingTitle": "Central referee ranking",
+    "refereeRankingDescription": "Averages computed only with the main referee criteria.",
+    "generalRankingTitle": "Overall refereeing ranking",
+    "generalRankingDescription": "Includes VAR and assistants to measure the entire crew.",
+    "bestRefereeOverall": "Best referee of the season",
+    "bestArbitrageOverall": "Best refereeing crew",
+    "bestByJournee": "Best referee by matchday",
+    "rank": "Rank",
+    "referee": "Referee",
+    "globalNote": "Overall grade",
+    "votesCount": "Votes",
+    "topMatchesSubtitle": "Top 5 matches",
+    "topVarMatches": "Best VAR rating",
+    "topAssistantMatches": "Best Assistants rating",
+    "voteCount": "{{count}} vote(s)",
+    "noMatchesForCategory": "No matches with votes for this category",
+    "refereeRankingByJournee": "Referee ranking by matchday",
+    "refereeRankingByJourneeDescription": "Central referee rankings for current and previous matchdays",
+    "noJournees": "No matchdays available",
+    "topMatches": "Top matches",
+    "showAll": "View full ranking",
+    "showLess": "Show less"
+  },
+  "arbitre": {
+    "back": "← Back to rankings",
+    "category": "Category",
+    "nationality": "Nationality",
+    "birthDate": "Birth date",
+    "averageNote": "Average grade",
+    "voteCount": "Number of votes",
+    "criteriaTitle": "Scores per criterion",
+    "criteria": {
+      "fairplay": "Fair-play",
+      "decisions": "Decisions",
+      "gestion": "Game management",
+      "communication": "Communication"
+    },
+    "matchesTitle": "Refereed matches",
+    "unknownDate": "Unknown date",
+    "vote": "vote",
+    "votes": "votes"
+  },
+  "voteForm": {
+    "intro": "Score the referee on the following criteria.",
+    "errorIncomplete": "Please rate every criterion",
+    "errorAlreadyVoted": "You already voted for this match",
+    "errorCannotVote": "You cannot vote for this match. The match must have an assigned referee and the match date/time must be in the past.",
+    "waitToVote": "Please wait {{minutes}} more minute(s) after the match starts before voting.",
+    "submit": "Submit vote",
+    "submitting": "Saving...",
+    "success": "Vote saved successfully! Thanks for your contribution.",
+    "alreadyVoted": "✅ You already voted for this match.",
+    "cannotChange": "Once your vote is recorded, you cannot change it.",
+    "modalTitle": "Thank you for your vote!",
+    "noteGlobal": "Overall grade",
+    "criteria": {
+      "fairplay": "Fair-play",
+      "decisions": "Decisions",
+      "gestion": "Game management",
+      "communication": "Communication"
+    },
+    "section": {
+      "arbitre": "Main referee performance",
+      "var": "VAR",
+      "assistant": "Assistant referees"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for does not exist or has moved.",
+    "cta": "Back to home"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: August 2026",
+    "section1": {
+      "title": "1. Introduction",
+      "paragraph1": "ARBINOTE (hereinafter \"we\", \"our\", \"the platform\") is committed to protecting your privacy and personal data. This privacy policy explains how we collect, use, store, and protect your information when you use our referee rating platform.",
+      "paragraph2": "By using ARBINOTE, you agree to the practices described in this policy. If you do not agree to these practices, please do not use our service."
+    },
+    "section2": {
+      "title": "2. Data Collected",
+      "paragraph1": "We collect the following types of data when you use ARBINOTE:",
+      "list": {
+        "item1": "Device Identifier (Device Fingerprint): We use FingerprintJS to generate a unique identifier based on the technical characteristics of your device (browser, operating system, screen resolution, etc.). This identifier is used solely to prevent multiple votes and ensure the integrity of the rating process.",
+        "item2": "Voting Data: When you vote for a referee, we record your evaluation (scores by criterion, overall rating), the match identifier, the referee identifier, and your device identifier.",
+        "item3": "User Preferences: We store your language preferences (French, English, Arabic) and theme preferences (light/dark mode) in your browser via localStorage and cookies.",
+        "item4": "Active League: We store your active league selection in a cookie to improve your browsing experience.",
+        "item5": "Browsing Data: We automatically collect certain technical information such as your IP address, browser type, operating system, and pages visited to ensure the proper functioning of the platform."
+      },
+      "paragraph2": "Important: We do not collect personally identifiable data such as your name, email address, phone number, or postal address."
+    },
+    "section3": {
+      "title": "3. Cookies and Similar Technologies",
+      "paragraph1": "We use the following technologies to improve your experience:",
+      "list": {
+        "item1": "Essential Cookies: \"arbinote-locale\" (language preference), \"activeLeagueId\" (selected league). These cookies are necessary for the platform to function.",
+        "item2": "LocalStorage: We store your theme preferences (\"arbinote-theme\"), language preference (\"arbinote-locale\"), and a local list of your votes (\"note-arbitre-votes\") to improve performance and your experience.",
+        "item3": "You can manage or delete these cookies and data through your browser settings. However, this may affect some platform features."
+      }
+    },
+    "section4": {
+      "title": "4. Use of FingerprintJS",
+      "paragraph1": "ARBINOTE uses FingerprintJS (version 5.0.1), a third-party service that generates a unique identifier based on your device and browser characteristics. This technology is used exclusively to:",
+      "paragraph2": "Prevent Multiple Votes: Ensure that only one vote per match is recorded per device, thus preserving the integrity of statistics and rankings.",
+      "note": {
+        "title": "Important Note:",
+        "text": "The identifier generated by FingerprintJS is not personally identifiable and cannot be used to identify you outside of the ARBINOTE platform. We do not share this identifier with third parties for advertising or tracking purposes."
+      }
+    },
+    "section5": {
+      "title": "5. Use of Data",
+      "paragraph1": "We use your data for the following purposes:",
+      "list": {
+        "item1": "Platform Operation: Manage the voting system, calculate statistics and rankings, and display results.",
+        "item2": "Experience Improvement: Remember your preferences (language, theme, league), personalize the display, and facilitate your navigation.",
+        "item3": "Security and Integrity: Detect and prevent fraud, multiple votes, and abuse to maintain the quality and reliability of data."
+      }
+    },
+    "section6": {
+      "title": "6. Data Sharing and Disclosure",
+      "paragraph1": "We are committed to not selling, renting, or sharing your data with third parties for commercial purposes. However, we may share certain information in the following cases:",
+      "paragraph2": "Anonymized Aggregated Data: Overall statistics (averages, rankings, trends) are public and accessible to all users. This data is anonymized and does not allow individual identification.",
+      "list": {
+        "item1": "Service Providers: We may use third-party services (hosting, database) that have access to the technical data necessary for the platform to function. These providers are required to respect data confidentiality and security.",
+        "item2": "Legal Obligations: If required by law, we may disclose your information to competent authorities.",
+        "item3": "Protection of Our Rights: We may reveal information if necessary to protect our rights, property, or the security of our users.",
+        "item4": "With Your Consent: In any other case, we will only share your data with your explicit consent."
+      }
+    },
+    "section7": {
+      "title": "7. Data Security",
+      "paragraph1": "We implement technical and organizational security measures to protect your data:",
+      "list": {
+        "item1": "Encryption: Communications between your browser and our servers are encrypted via HTTPS.",
+        "item2": "Secure Database: Your data is stored in a secure MySQL database with restricted access.",
+        "item3": "Access Limitation: Only authorized administrators have access to data to ensure maintenance and technical support."
+      }
+    },
+    "section8": {
+      "title": "8. Your Rights",
+      "paragraph1": "In accordance with data protection laws (GDPR for EU residents), you have the following rights:",
+      "paragraph2": "Right of Access: You can request a copy of the data we hold about you. However, since we do not collect personally identifiable data, this access will be limited to technical data (device identifier, associated votes).",
+      "paragraph3": "Right to Deletion: You can request the deletion of your votes. Note that deleting a vote may affect already calculated statistics and rankings."
+    },
+    "section9": {
+      "title": "9. Data Retention Period",
+      "paragraph1": "We retain your data for the following periods:",
+      "paragraph2": "Votes: Your votes are retained indefinitely to maintain the history of statistics and rankings. However, you can request their deletion at any time."
+    },
+    "section10": {
+      "title": "10. Contact",
+      "paragraph1": "For any questions regarding this privacy policy or to exercise your rights, you can contact us:",
+      "paragraph2": "We are committed to responding to your requests as soon as possible.",
+      "contact": {
+        "title": "Contact:",
+        "email": "For any request regarding your personal data, please contact the platform administrator via the contact form available on the website."
+      }
+    },
+    "section11": {
+      "title": "11. Policy Changes",
+      "paragraph1": "We reserve the right to modify this privacy policy at any time. Significant changes will be communicated to you via a notification on the platform.",
+      "paragraph2": "We encourage you to regularly consult this page to stay informed of our data protection practices."
+    },
+    "footer": "By continuing to use ARBINOTE, you accept this privacy policy. If you do not accept these terms, please stop using our service."
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: August 2026",
+    "section1": {
+      "title": "1. Acceptance of Terms",
+      "paragraph1": "These Terms of Service (hereinafter \"Terms\" or \"Conditions\") govern your use of the ARBINOTE platform (hereinafter \"the Platform\", \"we\", \"our\").",
+      "paragraph2": "By accessing ARBINOTE or using our services, you acknowledge that you have read, understood, and agree to be bound by these Terms. If you do not accept these Terms, you must not use the Platform.",
+      "paragraph3": "We reserve the right to modify these Terms at any time. Changes take effect immediately upon their publication on the Platform. It is your responsibility to regularly review the Terms to be aware of any changes."
+    },
+    "section2": {
+      "title": "2. Service Description",
+      "paragraph1": "ARBINOTE is an online platform that allows users to:",
+      "list": {
+        "item1": "View football matches and information about referees",
+        "item2": "Vote and rate referees on different criteria (main referee, VAR, assistants)",
+        "item3": "View referee rankings and statistics",
+        "item4": "Access history of seasons, matchdays, and matches"
+      }
+    },
+    "section3": {
+      "title": "3. Terms of Use",
+      "paragraph1": "By using ARBINOTE, you agree to:",
+      "list": {
+        "item1": "Use the Platform legally and in accordance with these Terms",
+        "item2": "Not attempt to manipulate, falsify, or tamper with votes or results",
+        "item3": "Not use bots, automated scripts, or other means to vote fraudulently",
+        "item4": "Respect the intellectual property rights and copyrights of the Platform and its content"
+      },
+      "paragraph2": "Any breach of these Terms may result in the suspension or termination of your access to the Platform, without prior notice."
+    },
+    "section4": {
+      "title": "4. Voting System",
+      "paragraph1": "The following rules apply to the voting system:",
+      "list": {
+        "item1": "Only one vote per match and per device is allowed to ensure the integrity of statistics",
+        "item2": "Voting is only possible if the match has started and at least 30 minutes have elapsed since the start of the match",
+        "item3": "Once recorded, a vote cannot be modified or deleted by the user"
+      }
+    },
+    "section5": {
+      "title": "5. Intellectual Property",
+      "paragraph1": "All content on ARBINOTE, including but not limited to: texts, graphics, logos, icons, images, audio clips, digital downloads, and data compilations, are the property of ARBINOTE or its content providers and are protected by international copyright laws.",
+      "paragraph2": "You are not authorized to reproduce, distribute, modify, create derivative works, publicly display, publicly perform, republish, download, store, or transmit any content from the Platform without our prior written permission.",
+      "note": {
+        "title": "Exception:",
+        "text": "Aggregated and anonymized statistical data (averages, rankings, trends) may be used for informational and analytical purposes, respecting intellectual property rights."
+      }
+    },
+    "section6": {
+      "title": "6. Service Availability",
+      "paragraph1": "We strive to ensure continuous availability of the Platform, but:",
+      "list": {
+        "item1": "We do not guarantee that the Platform will be accessible at all times, without interruption, error-free, or defect-free",
+        "item2": "We reserve the right to temporarily interrupt access to the Platform for maintenance, updates, or any other technical or administrative reason",
+        "item3": "We are not responsible for losses or damages resulting from the temporary unavailability of the Platform",
+        "item4": "We reserve the right to modify, suspend, or discontinue all or part of the Platform at any time, without prior notice"
+      }
+    },
+    "section7": {
+      "title": "7. Limitation of Liability",
+      "paragraph1": "To the extent permitted by applicable law, ARBINOTE will not be liable for direct, indirect, incidental, special, consequential, or punitive damages resulting from your use or inability to use the Platform.",
+      "paragraph2": "Statistics, rankings, and data displayed on ARBINOTE are provided \"as is\" for informational purposes. We do not guarantee the accuracy, completeness, or timeliness of this information and are not responsible for decisions made based on this information."
+    },
+    "section8": {
+      "title": "8. Personal Data Protection",
+      "paragraph1": "The collection and processing of your personal data is governed by our Privacy Policy, which is an integral part of these Terms.",
+      "list": {
+        "item1": "By using the Platform, you consent to the collection and processing of your data in accordance with our Privacy Policy",
+        "item2": "You can review our Privacy Policy for detailed information on how we collect, use, and protect your data",
+        "item3": "You have rights regarding your personal data, including the right to access, rectify, and delete, in accordance with applicable legislation"
+      }
+    },
+    "section9": {
+      "title": "9. Modification and Termination",
+      "paragraph1": "We reserve the right to modify, suspend, or terminate your access to the Platform at any time, without prior notice, for any reason, including in case of violation of these Terms.",
+      "paragraph2": "You may stop using the Platform at any time. Termination of your use will not affect votes you have already submitted, which will remain in our database in accordance with our Privacy Policy."
+    },
+    "section10": {
+      "title": "10. Contact and Complaints",
+      "paragraph1": "For any questions, complaints, or requests regarding these Terms or the Platform, you can contact us:",
+      "contact": {
+        "title": "Contact:",
+        "email": "For any request regarding the Terms of Service, please contact the platform administrator via the contact form available on the website."
+      }
+    },
+    "section11": {
+      "title": "11. Applicable Law and Jurisdiction",
+      "paragraph1": "These Terms are governed by the laws in force in the country where ARBINOTE is hosted and operated. Any dispute arising from or related to these Terms will be subject to the exclusive jurisdiction of the competent courts of that country.",
+      "paragraph2": "If a provision of these Terms is found to be invalid or unenforceable, that provision will be modified and interpreted to achieve the objectives of that provision to the extent possible, and the other provisions will remain in effect."
+    },
+    "footer": "By using ARBINOTE, you acknowledge that you have read and accepted these Terms of Service. If you do not accept these Terms, please do not use our service."
+  },
+  "legal": {
+    "title": "Legal Notice",
+    "lastUpdated": "Last updated: August 2026",
+    "section1": {
+      "title": "1. Website Publisher",
+      "name": "Name",
+      "nameValue": "ARBINOTE",
+      "description": "Description",
+      "descriptionValue": "Football referee rating and evaluation platform",
+      "url": "Website URL",
+      "urlValue": "https://arbinote.com"
+    },
+    "section2": {
+      "title": "2. Publishing Director",
+      "role": "Role",
+      "roleValue": "Publishing Director",
+      "responsibility": "Responsibility",
+      "responsibilityValue": "The publishing director is responsible for the editorial content of the ARBINOTE platform."
+    },
+    "section3": {
+      "title": "3. Contact",
+      "contact": "For any questions or requests regarding the platform, you can contact us:",
+      "email": "Email address",
+      "emailValue": "contact@arbinote.com",
+      "website": "Website",
+      "websiteValue": "https://arbinote.com"
+    },
+    "section4": {
+      "title": "4. Hosting",
+      "paragraph1": "The ARBINOTE website is hosted by a web hosting provider. Hosting information will be specified here once the platform is deployed to production.",
+      "provider": "Provider",
+      "providerValue": "To be completed upon production deployment",
+      "address": "Address",
+      "addressValue": "To be completed upon production deployment",
+      "website": "Website",
+      "websiteValue": ""
+    },
+    "section5": {
+      "title": "5. Data Processing Controller",
+      "paragraph1": "In accordance with the General Data Protection Regulation (GDPR), the controller for personal data collected on ARBINOTE is:",
+      "responsible": "Controller",
+      "responsibleValue": "ARBINOTE",
+      "contact": "Contact",
+      "contactValue": "contact@arbinote.com",
+      "note": "For any questions regarding the processing of your personal data, please consult our Privacy Policy or contact us directly."
+    },
+    "section6": {
+      "title": "6. Intellectual Property",
+      "paragraph1": "All elements present on ARBINOTE are protected by intellectual property law and belong to ARBINOTE or its partners. The following are particularly protected:",
+      "list": {
+        "item1": "Texts, articles, descriptions, and editorial content",
+        "item2": "Graphics, logos, icons, and graphic elements",
+        "item3": "The general structure of the site, databases, and source codes"
+      },
+      "paragraph2": "Any reproduction, representation, modification, publication, or adaptation of all or part of the site's elements, regardless of the means or process used, is prohibited without prior written authorization from ARBINOTE."
+    },
+    "section7": {
+      "title": "7. Limitation of Liability",
+      "paragraph1": "ARBINOTE strives to provide accurate and up-to-date information. However, ARBINOTE cannot guarantee:",
+      "list": {
+        "item1": "The accuracy, completeness, or timeliness of information published on the platform",
+        "item2": "The absence of interruptions or technical errors that may affect site accessibility",
+        "item3": "Absolute security of data transmitted over the Internet"
+      }
+    },
+    "section8": {
+      "title": "8. External Links",
+      "paragraph1": "The ARBINOTE website may contain links to other websites. ARBINOTE exercises no control over these sites and disclaims any responsibility regarding their content, accessibility, or privacy policy.",
+      "paragraph2": "Creating hypertext links to the ARBINOTE website is permitted, provided that these links do not harm ARBINOTE's image and that the source is clearly identified."
+    },
+    "footer": "For any questions regarding this legal notice, you can contact us via the email address indicated above."
+  },
+  "cookieBanner": {
+    "text": "ARBINOTE uses technical cookies necessary for the website to function. No advertising cookies are used. By continuing, you accept the use of these cookies.",
+    "textShort": "ARBINOTE uses only technical cookies necessary for the website to function.",
+    "accept": "OK",
+    "learnMore": "Learn more"
+  },
+  "cookies": {
+    "title": "Cookie Policy",
+    "lastUpdated": "Last updated: August 2026",
+    "section1": {
+      "title": "1. Introduction",
+      "paragraph1": "ARBINOTE uses technical cookies to ensure the proper functioning of the platform and improve your browsing experience. This page informs you about the use of cookies on our website.",
+      "paragraph2": "Important: ARBINOTE does not use any advertising cookies, marketing tracking cookies, or third-party cookies for commercial purposes. Only strictly necessary technical cookies are used."
+    },
+    "section2": {
+      "title": "2. Cookies Used",
+      "paragraph1": "ARBINOTE exclusively uses the following technical cookies:",
+      "list": {
+        "item1": {
+          "name": "arbinote-locale",
+          "description": "Technical cookie that remembers your language preference (French, English, Arabic).",
+          "usage": "Duration: 1 year | Type: Essential technical"
+        },
+        "item2": {
+          "name": "activeLeagueId",
+          "description": "Technical cookie that remembers your active league selection to improve your browsing experience.",
+          "usage": "Duration: Session | Type: Essential technical"
+        },
+        "item3": {
+          "name": "arbinote-theme (localStorage)",
+          "description": "Data stored in localStorage to remember your theme preference (light/dark mode).",
+          "usage": "Storage: localStorage | Type: Essential technical"
+        },
+        "item4": {
+          "name": "Device Fingerprint (via FingerprintJS)",
+          "description": "Pseudonymized identifier generated to prevent multiple votes. This identifier is not personally identifiable and is used solely to ensure the integrity of the voting system.",
+          "usage": "Storage: Database | Type: Security technical"
+        }
+      }
+    },
+    "section3": {
+      "title": "3. Purposes of Use",
+      "paragraph1": "The technical cookies used by ARBINOTE are used solely to: ensure the proper functioning of the platform, remember your preferences (language, theme, league), and prevent voting fraud.",
+      "note": {
+        "title": "Important Note:",
+        "text": "No cookies are used for advertising purposes, advertising profiling, behavioral tracking, or advertising targeting. We do not share any data with advertising networks."
+      }
+    },
+    "section4": {
+      "title": "4. Cookie Management",
+      "paragraph1": "You can manage or delete cookies and stored data through your browser settings. However, deleting these technical cookies may affect some platform features, including:",
+      "paragraph2": "Loss of your language and theme preferences, the need to re-select your active league on each visit, or the inability to vote if the device fingerprint is deleted."
+    },
+    "section5": {
+      "title": "5. Contact",
+      "paragraph1": "For any questions regarding our use of cookies, you can contact us:",
+      "contact": {
+        "title": "Contact:",
+        "email": "For any request regarding our cookie policy, please contact the platform administrator via the contact form available on the website."
+      }
+    },
+    "footer": "To learn more about the management of your personal data, please consult our Privacy Policy."
+  },
+  "contact": {
+    "title": "Contact Us",
+    "subtitle": "For any questions, suggestions, or requests, please don't hesitate to contact us.",
+    "form": {
+      "email": "Email",
+      "emailPlaceholder": "your@email.com",
+      "subject": "Subject",
+      "subjectPlaceholder": "Subject of your message",
+      "message": "Message",
+      "messagePlaceholder": "Your message...",
+      "submit": "Send message",
+      "submitting": "Sending...",
+      "success": "✅ Your message has been sent successfully! We will get back to you as soon as possible.",
+      "error": "An error occurred while sending your message. Please try again.",
+      "characters": "characters",
+      "alreadySentToday": "⚠️ You have already sent a message today. You can only send one message per day.",
+      "loadingFingerprint": "Loading identifier..."
+    },
+    "previousMessages": "My previous messages"
+  },
+  "pwa": {
+    "title": "Install ARBINOTE",
+    "description": "Add the app to your home screen",
+    "installButton": "Install",
+    "closeButton": "Close",
+    "iosInstallInstructions": "To install the app on iOS:\n\n1. Tap the Share button (square icon with upward arrow)\n2. Scroll down and select 'Add to Home Screen'\n3. Tap 'Add'",
+    "androidInstallInstructions": "To install the app on Android:\n\n1. Tap the menu (3 dots) in the top right corner\n2. Select 'Install app' or 'Add to Home Screen'\n3. Confirm the installation",
+    "genericInstallInstructions": "To install the app:\n\n1. Look for the 'Install' or 'Add to Home Screen' option in your browser menu\n2. Follow the on-screen instructions"
+  },
+  "credibility": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "veryLow": "Very Low",
+    "tooltip": "Vote credibility: {{percentage}}% - Based on statistical analysis of votes to detect manipulation",
+    "modal": {
+      "title": "What is credibility?",
+      "description": "The credibility score measures the reliability of a match's votes by analyzing voting patterns to detect potential manipulation.",
+      "high": {
+        "title": "High credibility (80-100%)",
+        "description": "Votes appear authentic and diverse. No suspicious patterns detected."
+      },
+      "medium": {
+        "title": "Medium credibility (60-79%)",
+        "description": "Votes are generally reliable, but some minor anomalies have been detected."
+      },
+      "low": {
+        "title": "Low credibility (40-59%)",
+        "description": "Significant anomalies have been detected in voting patterns. Reliability is reduced."
+      },
+      "veryLow": {
+        "title": "Very low credibility (0-39%)",
+        "description": "Major anomalies have been detected. Votes may be manipulated or coordinated."
+      },
+      "howItWorks": "How does it work?",
+      "howItWorksText": "Our system analyzes votes in real-time to detect: grouped extreme votes, coordinated votes, identical votes and rushed votes. The higher the score, the more reliable the votes.",
+      "close": "Close"
+    }
+  },
+  "transparence": {
+    "header": {
+      "title": "Our commitment to reliable ratings",
+      "description": "Discover how Arbinote protects the integrity of evaluations and ensures fair results."
+    },
+    "intro": {
+      "title": "Why is this important?",
+      "text": "On the internet, some may attempt to manipulate ratings by voting multiple times or organizing coordinated voting campaigns. We have implemented multiple levels of protection to ensure that each rating truly reflects the community's opinion.",
+      "protection": "multiple levels of protection"
+    },
+    "bayesian": {
+      "title": "Smart average (Bayesian)",
+      "description": "Instead of a simple average, we use an advanced statistical formula. A referee with only 2 votes of 5/5 will not automatically get the best rating.",
+      "howItWorks": "How it works:",
+      "howItWorksText": "Ratings are weighted by the number of votes. The more votes a referee accumulates, the more representative their rating becomes of general opinion."
+    },
+    "anomalies": {
+      "title": "Automatic anomaly detection",
+      "description": "Our system analyzes voting patterns in real-time and detects suspicious behavior.",
+      "extreme": {
+        "title": "Grouped extreme votes",
+        "description": "Too many 5/5 or 1/5 at the same time"
+      },
+      "coordinated": {
+        "title": "Coordinated votes",
+        "description": "Many votes in a few minutes"
+      },
+      "identical": {
+        "title": "Identical votes",
+        "description": "All votes with the exact same rating"
+      },
+      "rushed": {
+        "title": "Rushed votes",
+        "description": "Votes too fast after the match"
+      }
+    },
+    "weighting": {
+      "title": "Smart vote weighting",
+      "description": "Rather than deleting votes, we adjust their influence. A suspicious vote counts less in the final calculation, but is not erased.",
+      "example": "Example:",
+      "exampleText": "A vote very far from the average of other votes will have less impact. A moderate and thoughtful vote will have more weight."
+    },
+    "protection": {
+      "title": "Protection against multiple votes",
+      "description": "Each device can only vote once per match. We use several techniques to identify multiple voting attempts.",
+      "fingerprint": "Unique device fingerprint",
+      "networkLimit": "Vote limit per network address",
+      "speedDetection": "Detection of votes that are too fast"
+    },
+    "moderation": {
+      "title": "Human surveillance",
+      "description": "Our moderation team receives automatic alerts in case of suspicious behavior and can intervene manually if necessary.",
+      "alerts": "Alert system:",
+      "alertsText": "When a match shows anomalies, our moderators are immediately notified to examine the situation."
+    },
+    "credibility": {
+      "title": "Credibility score",
+      "description": "Each match receives a credibility score (0-100%) based on the analysis of its votes. A high score indicates that votes appear authentic and diverse."
+    },
+    "footer": {
+      "title": "Questions?",
+      "description": "If you have questions about our system or notice suspicious behavior, please do not hesitate to contact us.",
+      "contact": "Contact us"
+    }
+  },
+  "team": {
+    "city": "City",
+    "stadium": "Stadium",
+    "type": "Type",
+    "national": "National team",
+    "club": "Club",
+    "sportLabel": "Sport",
+    "sport": {
+      "football": "Football",
+      "handball": "Handball",
+      "basketball": "Basketball",
+      "volleyball": "Volleyball"
+    },
+    "ageCategoryLabel": "Age category",
+    "ageCategory": {
+      "seniors": "Senior",
+      "u21": "U21",
+      "u20": "U20",
+      "u19": "U19",
+      "u18": "U18",
+      "u17": "U17",
+      "u16": "U16",
+      "u15": "U15",
+      "u14": "U14",
+      "u13": "U13"
+    },
+    "tabs": {
+      "referee": "Referee rating",
+      "matches": "My matches"
+    },
+    "referee": {
+      "best": "Best referee for me",
+      "worst": "Worst referee for me",
+      "matchCount": "{{count}} match",
+      "matchCount_plural": "{{count}} matches",
+      "voteCount": "{{count}} vote",
+      "voteCount_plural": "{{count}} votes"
+    },
+    "topMatches": {
+      "title": "Top 5 matches",
+      "arbitre": "Referee rating",
+      "var": "VAR",
+      "assistant": "Assistants",
+      "empty": "No matches available"
+    },
+    "matches": {
+      "title": "All matches by matchday",
+      "unknownJournee": "Unknown matchday",
+      "referee": "Referee",
+      "empty": "No matches available"
+    }
+  },
+  "search": {
+    "arbitresTitle": "Search referees",
+    "arbitresPlaceholder": "Search a referee by name...",
+    "teamsTitle": "Search teams",
+    "teamsPlaceholder": "Search a team by name...",
+    "matchesTitle": "Search matches",
+    "matchesPlaceholder": "Search a match by team...",
+    "noResults": "No results found",
+    "resultsCount": "{{count}} result(s)"
+  },
+  "pagination": {
+    "previous": "← Previous",
+    "next": "Next →",
+    "pageInfo": "Page {{current}} of {{total}}"
+  },
+  "export": {
+    "csv": "Export as CSV",
+    "pdf": "Export as PDF"
+  }
+}

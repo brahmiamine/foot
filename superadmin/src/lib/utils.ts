@@ -2,6 +2,18 @@
  * Utilitaires pour l'application SuperAdmin
  */
 
+import frMessages from '../../messages/fr.json'
+import arMessages from '../../messages/ar.json'
+import enMessages from '../../messages/en.json'
+
+// Libellé "Journée" localisé, réutilisé tel quel depuis les fichiers de messages
+// (source unique de vérité) pour éviter de dupliquer une traduction en dur ici.
+const MATCHDAY_LABELS: Record<string, string> = {
+  fr: frMessages.common.matchday,
+  ar: arMessages.common.matchday,
+  en: enMessages.common.matchday,
+}
+
 /**
  * Formate une date selon la locale fournie
  * Note: Toujours utiliser le format français (fr-FR) pour la cohérence
@@ -121,12 +133,13 @@ export function getJourneeDisplayName(
     })
   }
   
-  // Sinon, utiliser le numéro comme fallback
+  // Sinon, utiliser le numéro comme fallback, avec le libellé "Journée" localisé
+  const matchdayLabel = MATCHDAY_LABELS[locale] ?? MATCHDAY_LABELS.fr
   if (journee.numero !== null && journee.numero !== undefined) {
-    return `Journée ${journee.numero}`
+    return `${matchdayLabel} ${journee.numero}`
   }
-  
-  return 'Journée'
+
+  return matchdayLabel
 }
 
 /**
