@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { canClient, type ClientAccess } from "@/lib/access-client";
+import type { ResolvedBranding } from "@/lib/branding";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 
 /**
  * Admin Sidebar Navigation Component
@@ -25,6 +27,8 @@ interface MenuItem {
   href: string;
   children: MenuChild[];
   permission?: string;
+  /** Réservé au président du club (`User.role === "ADMIN"`), jamais délégable via le catalogue de rôles. */
+  adminOnly?: boolean;
 }
 
 interface MenuGroup {
@@ -32,7 +36,7 @@ interface MenuGroup {
   items: MenuItem[];
 }
 
-export function AdminSidebar({ teamName, access }: { teamName: string; access: ClientAccess }) {
+export function AdminSidebar({ branding, access }: { branding: ResolvedBranding; access: ClientAccess }) {
   const { isOpen, isCollapsed, closeSidebar, openSidebar, toggleCollapse } = useAdminSidebar();
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -148,6 +152,7 @@ export function AdminSidebar({ teamName, access }: { teamName: string; access: C
         items: [
           { title: "Utilisateurs", icon: "fas fa-id-badge", href: "/admin/users", children: [], permission: "users.view" },
           { title: "Rôles & permissions", icon: "fas fa-user-shield", href: "/admin/roles", children: [], permission: "roles.manage" },
+          { title: "Identité & apparence", icon: "fas fa-palette", href: "/admin/settings/branding", children: [], adminOnly: true },
         ],
       },
     ],
@@ -159,7 +164,9 @@ export function AdminSidebar({ teamName, access }: { teamName: string; access: C
       allMenuGroups
         .map((group) => ({
           ...group,
-          items: group.items.filter((item) => !item.permission || canClient(access, item.permission)),
+          items: group.items.filter(
+            (item) => (!item.permission || canClient(access, item.permission)) && (!item.adminOnly || access.isClubAdmin)
+          ),
         }))
         .filter((group) => group.items.length > 0),
     [allMenuGroups, access]
@@ -201,8 +208,14 @@ export function AdminSidebar({ teamName, access }: { teamName: string; access: C
       >
         <div className="navbar-brand-box">
           <Link href="/admin" className="logo logo-dark" onClick={closeSidebar}>
-            <span className="logo-sm fw-bold">TM</span>
-            <span className="logo-lg fw-semibold text-truncate">{teamName}</span>
+            <span className="logo-sm fw-bold">
+              {branding.logoDarkUrl ? (
+                <ImageWithFallback src={branding.logoDarkUrl} alt="" fallbackIcon="fas fa-shield-alt" />
+              ) : (
+                branding.shortName.slice(0, 2).toUpperCase()
+              )}
+            </span>
+            <span className="logo-lg fw-semibold text-truncate">{branding.displayName}</span>
           </Link>
         </div>
 

@@ -2,12 +2,16 @@
 
 import { signOut } from "next-auth/react";
 import { useAdminSidebar } from "./AdminSidebarContext";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+import type { ResolvedBranding } from "@/lib/branding";
 
 /**
  * Admin Header — même structure qu'arbinote (bg-white, border-b, shadow-sm).
- * Fusionne l'ancien AdminSidebarToggle + LogoutButton.
+ * Fusionne l'ancien AdminSidebarToggle + LogoutButton. Affiche le logo/nom
+ * du club connecté (module "Branding") à côté du bouton de repli sidebar,
+ * visible même quand la sidebar est réduite.
  */
-export function AdminHeader({ userName }: { userName: string }) {
+export function AdminHeader({ branding, userName }: { branding: ResolvedBranding; userName: string }) {
   const { toggleSidebar, toggleCollapse, isCollapsed } = useAdminSidebar();
 
   return (
@@ -28,9 +32,19 @@ export function AdminHeader({ userName }: { userName: string }) {
           >
             <i className={`fas ${isCollapsed ? "fa-angles-right" : "fa-angles-left"}`} aria-hidden="true" />
           </button>
-          <div>
-            <p className="text-muted mb-0 small">Espace d&apos;administration</p>
-            <h1 className="skote-topbar-title">Administration</h1>
+          <div className="d-flex align-items-center gap-2">
+            {branding.logoUrl && (
+              <ImageWithFallback
+                src={branding.logoUrl}
+                alt={branding.displayName}
+                fallbackIcon="fas fa-shield-alt"
+                style={{ width: "32px", height: "32px", objectFit: "contain" }}
+              />
+            )}
+            <div>
+              <p className="text-muted mb-0 small">{branding.displayName}</p>
+              <h1 className="skote-topbar-title">Administration</h1>
+            </div>
           </div>
         </div>
         <div className="d-flex align-items-center gap-2 gap-sm-3">

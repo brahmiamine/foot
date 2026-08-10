@@ -21,12 +21,18 @@ export default async function SettingsPage() {
     <div className="container-fluid px-0 skote-settings-narrow">
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
         <h1 className="h4 mb-0">Réglages disciplinaires</h1>
-        <Link
-          href="/admin/settings/card-reasons"
-          className="btn btn-outline-secondary btn-sm"
-        >
-          Motifs de carton
-        </Link>
+        <div className="d-flex gap-2">
+          <Link href="/admin/settings/branding" className="btn btn-outline-primary btn-sm">
+            <i className="fas fa-palette me-1" aria-hidden="true" />
+            Identité & apparence
+          </Link>
+          <Link
+            href="/admin/settings/card-reasons"
+            className="btn btn-outline-secondary btn-sm"
+          >
+            Motifs de carton
+          </Link>
+        </div>
       </div>
 
       <SettingsForm

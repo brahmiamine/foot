@@ -1,7 +1,8 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { TeamService } from "@/services/TeamService";
 import { getUserAccess, toClientAccess } from "@/lib/access";
+import { getTeamContext, buildBrandingCssVars } from "@/lib/branding";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import "./skote-admin.css";
 
@@ -10,9 +11,31 @@ import "./skote-admin.css";
 export const dynamic = "force-dynamic";
 
 /**
+ * Titre d'onglet + favicon dynamiques, résolus depuis le branding du club
+ * connecté (session.user.teamId). Avant authentification (accès direct à
+ * une page /admin sans session), on retombe sur un titre générique — le
+ * layout ci-dessous redirige de toute façon vers /login dans ce cas.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const branding = await getTeamContext();
+    return {
+      title: `${branding.shortName} — TeamManager`,
+      icons: branding.faviconUrl ? { icon: branding.faviconUrl } : undefined,
+    };
+  } catch {
+    return { title: "TeamManager" };
+  }
+}
+
+/**
  * Admin Layout
  * Vérifie la session (un compte = un club, table `User` partagée avec
- * cardManager) puis affiche le nom du club connecté dans la sidebar/header.
+ * cardManager) puis résout l'identité & apparence du club (module
+ * "Branding", voir lib/branding.ts) : logo, nom affiché, couleurs. Les
+ * couleurs sont injectées en variables CSS (`--skote-primary`, etc.),
+ * consommées par tout le thème `skote-admin.css` — aucun composant n'a
+ * besoin de connaître la couleur du club, seul ce point d'entrée la résout.
  */
 export default async function Layout({
   children,
@@ -24,13 +47,15 @@ export default async function Layout({
     redirect("/login");
   }
 
-  const teamService = new TeamService();
-  const team = await teamService.findById(session.user.teamId);
   const access = toClientAccess(await getUserAccess());
+  const branding = await getTeamContext();
 
   return (
-    <AdminLayout teamName={team?.nom ?? "Club"} userName={session.user.name ?? session.user.email ?? ""} access={access}>
-      {children}
-    </AdminLayout>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `:root{${buildBrandingCssVars(branding)}}` }} />
+      <AdminLayout branding={branding} userName={session.user.name ?? session.user.email ?? ""} access={access}>
+        {children}
+      </AdminLayout>
+    </>
   );
 }
