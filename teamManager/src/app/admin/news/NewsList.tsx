@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import { deleteNews } from "./actions";
 
 /**
@@ -36,10 +40,20 @@ export function NewsList({ initialNews }: NewsListProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleNews,
+  } = useListFilter(news, { searchableText: (n) => n.title });
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette actualité ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir supprimer cette actualité ?"))) {
       return;
     }
 
@@ -67,6 +81,7 @@ export function NewsList({ initialNews }: NewsListProps) {
 
   return (
     <div className="container-fluid">
+      {confirmDialog}
       <div className="row mb-4">
         <div className="col-12 d-flex justify-content-between align-items-center">
           <h1 className="mb-0">Gestion des Actualités</h1>
@@ -107,8 +122,9 @@ export function NewsList({ initialNews }: NewsListProps) {
       <div className="row">
         <div className="col-12">
           <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
               <h5 className="card-title mb-0">Liste des Actualités</h5>
+              <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher une actualité..." />
             </div>
             <div className="card-body">
               {news.length === 0 ? (
@@ -118,6 +134,8 @@ export function NewsList({ initialNews }: NewsListProps) {
                     Ajouter la première actualité
                   </Link>
                 </div>
+              ) : totalCount === 0 ? (
+                <p className="text-muted text-center py-5 mb-0">Aucune actualité ne correspond à votre recherche</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover">
@@ -130,7 +148,7 @@ export function NewsList({ initialNews }: NewsListProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {news.map((newsItem) => (
+                      {visibleNews.map((newsItem) => (
                         <tr key={newsItem.id}>
                           <td>
                             <strong>{newsItem.title}</strong>
@@ -178,6 +196,7 @@ export function NewsList({ initialNews }: NewsListProps) {
                       ))}
                     </tbody>
                   </table>
+                  <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
                 </div>
               )}
             </div>

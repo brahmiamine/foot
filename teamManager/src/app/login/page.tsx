@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import "./login-skote.css";
 
 interface TeamOption {
@@ -25,6 +26,7 @@ export default function LoginPage() {
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<TeamOption | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetch("/api/teams")
@@ -90,8 +92,12 @@ export default function LoginPage() {
                     className="tm-team-card btn text-center d-flex flex-column align-items-center justify-content-center px-2 py-3"
                   >
                     {team.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={team.logoUrl} alt={team.nom} className="tm-team-logo mb-2" />
+                      <ImageWithFallback
+                        src={team.logoUrl}
+                        alt={team.nom}
+                        className="tm-team-logo mb-2"
+                        fallbackIcon="fas fa-shield-alt"
+                      />
                     ) : (
                       <i className="fas fa-shield-alt fs-3 tm-login-muted mb-2" aria-hidden="true" />
                     )}
@@ -119,8 +125,12 @@ export default function LoginPage() {
 
               <div className="tm-selected-team d-flex align-items-center gap-3 p-3 mb-4">
                 {selectedTeam.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedTeam.logoUrl} alt={selectedTeam.nom} className="tm-team-logo" />
+                  <ImageWithFallback
+                    src={selectedTeam.logoUrl}
+                    alt={selectedTeam.nom}
+                    className="tm-team-logo"
+                    fallbackIcon="fas fa-shield-alt"
+                  />
                 ) : (
                   <i className="fas fa-shield-alt fs-3 tm-login-muted" aria-hidden="true" />
                 )}
@@ -155,14 +165,25 @@ export default function LoginPage() {
               <label htmlFor="password" className="form-label">
                 Mot de passe
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                className="form-control"
-              />
+              <div className="input-group">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  className="form-control"
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  aria-pressed={showPassword}
+                >
+                  <i className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`} aria-hidden="true" />
+                </button>
+              </div>
             </div>
 
             <button

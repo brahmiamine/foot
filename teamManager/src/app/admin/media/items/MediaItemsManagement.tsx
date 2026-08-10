@@ -3,6 +3,10 @@
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createMediaItem, updateMediaItem, deleteMediaItem } from "./actions";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
 import { MediaUploader } from "@/components/admin/MediaUploader";
 import { MediaPreview } from "@/components/admin/MediaPreview";
 
@@ -41,6 +45,18 @@ export function MediaItemsManagement({ initialMediaItems }: MediaItemsManagement
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<{ path: string; type: string; mimeType: string } | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleMediaItems,
+  } = useListFilter(mediaItems, {
+    searchableText: (item) => `${item.altTextFr ?? ""} ${item.altTextAr ?? ""} ${item.type}`,
+  });
 
   // Sync local state with props when they change (after refresh)
   useEffect(() => {
@@ -141,7 +157,7 @@ export function MediaItemsManagement({ initialMediaItems }: MediaItemsManagement
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cet élément média ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir supprimer cet élément média ?"))) {
       return;
     }
 
@@ -180,6 +196,7 @@ export function MediaItemsManagement({ initialMediaItems }: MediaItemsManagement
 
   return (
     <div className="container-fluid">
+      {confirmDialog}
       <div className="row mb-4">
         <div className="col-12">
           <h1 className="mb-0">Gestion des Médias</h1>
@@ -332,8 +349,9 @@ export function MediaItemsManagement({ initialMediaItems }: MediaItemsManagement
         {/* List Column */}
         <div className={`col-12 ${formMode === "edit" ? "col-lg-7" : "col-lg-12"}`}>
           <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
               <h5 className="card-title mb-0">Liste des Médias</h5>
+              <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un média..." />
             </div>
             <div className="card-body">
               {mediaItems.length === 0 ? (
@@ -343,6 +361,8 @@ export function MediaItemsManagement({ initialMediaItems }: MediaItemsManagement
                     Ajouter le premier média
                   </button>
                 </div>
+              ) : totalCount === 0 ? (
+                <p className="text-muted text-center py-5 mb-0">Aucun média ne correspond à votre recherche</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover">
@@ -357,7 +377,7 @@ export function MediaItemsManagement({ initialMediaItems }: MediaItemsManagement
                       </tr>
                     </thead>
                     <tbody>
-                      {mediaItems.map((item) => (
+                      {visibleMediaItems.map((item) => (
                         <tr key={item.id}>
                           <td>
                             <span className="badge bg-primary">{getTypeLabel(item.type)}</span>
@@ -399,6 +419,7 @@ export function MediaItemsManagement({ initialMediaItems }: MediaItemsManagement
                       ))}
                     </tbody>
                   </table>
+                  <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
                 </div>
               )}
             </div>

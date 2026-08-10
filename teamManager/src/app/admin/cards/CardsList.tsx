@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useConfirm } from "@/hooks/useConfirm";
 import { deleteCard } from "./actions";
 
 interface CardData {
@@ -35,9 +36,10 @@ export function CardsList({ initialCards }: { initialCards: CardData[] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce carton ? La suspension et l'amende associées seront aussi supprimées.")) return;
+    if (!(await confirm("Supprimer ce carton ? La suspension et l'amende associées seront aussi supprimées."))) return;
 
     setLoading(true);
     setError(null);
@@ -59,6 +61,7 @@ export function CardsList({ initialCards }: { initialCards: CardData[] }) {
 
   return (
     <div className="container-fluid px-0">
+      {confirmDialog}
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
         <h1 className="h4 mb-0">Cartons</h1>
         <Link

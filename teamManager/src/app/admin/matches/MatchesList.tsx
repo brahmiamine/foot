@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useListFilter } from "@/hooks/useListFilter";
 import { toggleMatchVisibility } from "./actions";
 
 interface MatchData {
@@ -59,16 +62,33 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
     });
   };
 
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleMatches,
+  } = useListFilter(matches, {
+    searchableText: (m) => `${m.homeTeam?.nom ?? ""} ${m.awayTeam?.nom ?? ""}`,
+  });
+
   return (
     <div className="card">
       <div className="card-body">
-        <h2 className="card-title mb-3">Matchs</h2>
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h2 className="card-title mb-0">Matchs</h2>
+          <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un match..." />
+        </div>
         <p className="text-muted small">
           Les matchs sont gérés dans cardManager/ArbiNote. Ici, contrôlez uniquement leur visibilité sur le site public.
         </p>
         {error && <div className="alert alert-danger">{error}</div>}
         {matches.length === 0 ? (
           <p className="text-muted">Aucun match trouvé pour ce club.</p>
+        ) : totalCount === 0 ? (
+          <p className="text-muted">Aucun match ne correspond à votre recherche.</p>
         ) : (
           <div className="table-responsive">
             <table className="table align-middle">
@@ -84,7 +104,7 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
                 </tr>
               </thead>
               <tbody>
-                {matches.map((match) => (
+                {visibleMatches.map((match) => (
                   <tr key={match.id}>
                     <td>{formatDate(match.date)}</td>
                     <td>
@@ -123,6 +143,7 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
                 ))}
               </tbody>
             </table>
+            <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
           </div>
         )}
       </div>

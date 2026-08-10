@@ -3,6 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import { deleteStaff } from "./actions";
 
 /**
@@ -38,6 +43,19 @@ export function StaffList({ initialStaff }: StaffListProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleStaff,
+  } = useListFilter(staff, {
+    searchableText: (s) =>
+      `${s.firstNameFr} ${s.lastNameFr} ${s.firstNameAr ?? ""} ${s.lastNameAr ?? ""} ${s.staffType}`,
+  });
 
   // Calculate age from birth date
   const calculateAge = (birthDate: string): number => {
@@ -69,7 +87,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce membre du staff ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir supprimer ce membre du staff ?"))) {
       return;
     }
 
@@ -97,6 +115,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
 
   return (
     <div className="container-fluid">
+      {confirmDialog}
       <div className="row mb-4">
         <div className="col-12 d-flex justify-content-between align-items-center">
           <h1 className="mb-0">Gestion du Staff</h1>
@@ -137,8 +156,9 @@ export function StaffList({ initialStaff }: StaffListProps) {
       <div className="row">
         <div className="col-12">
           <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
               <h5 className="card-title mb-0">Liste du Staff</h5>
+              <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre du staff..." />
             </div>
             <div className="card-body">
               {staff.length === 0 ? (
@@ -148,6 +168,8 @@ export function StaffList({ initialStaff }: StaffListProps) {
                     Ajouter le premier membre du staff
                   </Link>
                 </div>
+              ) : totalCount === 0 ? (
+                <p className="text-muted text-center py-5 mb-0">Aucun membre du staff ne correspond à votre recherche</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover">
@@ -162,14 +184,15 @@ export function StaffList({ initialStaff }: StaffListProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {staff.map((staffMember) => (
+                      {visibleStaff.map((staffMember) => (
                         <tr key={staffMember.id}>
                           <td>
                             {staffMember.imageUrl ? (
-                              <img
+                              <ImageWithFallback
                                 src={staffMember.imageUrl}
                                 alt={`${staffMember.firstNameFr} ${staffMember.lastNameFr}`}
                                 className="rounded skote-avatar-img"
+                                fallbackIcon="fas fa-user text-white"
                               />
                             ) : (
                               <div
@@ -218,6 +241,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
                       ))}
                     </tbody>
                   </table>
+                  <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
                 </div>
               )}
             </div>

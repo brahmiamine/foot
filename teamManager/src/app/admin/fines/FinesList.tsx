@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useConfirm } from "@/hooks/useConfirm";
 import { updateFine, deleteFine } from "./actions";
 
 interface FineData {
@@ -45,6 +46,7 @@ export function FinesList({ initialFines, activeType }: { initialFines: FineData
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const markPaid = async (id: string) => {
     setLoading(id);
@@ -67,7 +69,7 @@ export function FinesList({ initialFines, activeType }: { initialFines: FineData
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette amende ?")) return;
+    if (!(await confirm("Supprimer cette amende ?"))) return;
     setLoading(id);
     setError(null);
     setSuccess(null);
@@ -86,6 +88,7 @@ export function FinesList({ initialFines, activeType }: { initialFines: FineData
 
   return (
     <div className="container-fluid px-0">
+      {confirmDialog}
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
         <h1 className="h4 mb-0">Amendes</h1>
         <Link

@@ -7,8 +7,8 @@ import { useMemo, useState } from "react";
 
 /**
  * Admin Sidebar Navigation Component
- * Même structure/couleurs que arbinote/superadmin (sidebar sombre slate-900,
- * Tailwind), avec support des sous-menus et du mode compact desktop
+ * Même structure/couleurs que arbinote/superadmin (sidebar sombre, Bootstrap 5
+ * + skote-admin.css), avec support des sous-menus et du mode compact desktop
  * (spécifiques à teamManager, qui a plus de sections qu'arbinote).
  */
 export function AdminSidebar({ teamName }: { teamName: string }) {
@@ -87,7 +87,6 @@ export function AdminSidebar({ teamName }: { teamName: string }) {
         items: [
           { title: "Convocations", icon: "fas fa-calendar-check", href: "/admin/convocations", children: [] },
           { title: "Galerie", icon: "fas fa-images", href: "/admin/media/items", children: [] },
-          { title: "Classement", icon: "fas fa-trophy", href: "/admin/standings", children: [] },
           {
             title: "Boutique",
             icon: "fas fa-shopping-cart",

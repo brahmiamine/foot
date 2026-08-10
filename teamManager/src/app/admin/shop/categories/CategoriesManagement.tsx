@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useConfirm } from "@/hooks/useConfirm";
 import { createProductCategory, updateProductCategory, deleteProductCategory } from "./actions";
 
 interface CategoryData {
@@ -29,6 +30,7 @@ export function CategoriesManagement({ initialCategories }: { initialCategories:
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const resetForm = () => {
     setFormMode(null);
@@ -81,7 +83,7 @@ export function CategoriesManagement({ initialCategories }: { initialCategories:
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ?"))) {
       return;
     }
 
@@ -106,6 +108,7 @@ export function CategoriesManagement({ initialCategories }: { initialCategories:
 
   return (
     <div className="container-fluid px-0">
+      {confirmDialog}
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
         <div>
           <h1 className="h4 mb-1">Catégories boutique</h1>

@@ -2,6 +2,11 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import {
   acceptSponsorRequest,
   refuseSponsorRequest,
@@ -88,6 +93,16 @@ export function SponsorsManagement({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleSponsors,
+  } = useListFilter(sponsors, { searchableText: (s) => s.companyName });
 
   const acceptFormRef = useRef<HTMLFormElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
@@ -153,7 +168,7 @@ export function SponsorsManagement({
   };
 
   const handleDeleteRequest = async (id: number) => {
-    if (!confirm("Supprimer cette demande ?")) return;
+    if (!(await confirm("Supprimer cette demande ?"))) return;
     setBusyId(id);
     try {
       const result = await deleteSponsorRequest(id);
@@ -185,7 +200,7 @@ export function SponsorsManagement({
   };
 
   const handleDeleteSponsor = async (id: number) => {
-    if (!confirm("Supprimer ce dossier sponsor ?")) return;
+    if (!(await confirm("Supprimer ce dossier sponsor ?"))) return;
     setBusyId(id);
     try {
       const result = await deleteSponsor(id);
@@ -198,6 +213,7 @@ export function SponsorsManagement({
 
   return (
     <div className="container-fluid px-0">
+      {confirmDialog}
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2 flex-wrap">
         <div>
           <h1 className="h4 mb-1">Sponsors</h1>
@@ -250,8 +266,13 @@ export function SponsorsManagement({
                   <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                     <div className="d-flex align-items-center gap-3">
                       {r.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={r.logoUrl} alt={r.companyName} className="avatar-sm rounded border" style={{ objectFit: "contain" }} />
+                        <ImageWithFallback
+                          src={r.logoUrl}
+                          alt={r.companyName}
+                          className="avatar-sm rounded border"
+                          style={{ objectFit: "contain" }}
+                          fallbackIcon="fas fa-handshake"
+                        />
                       ) : (
                         <div className="avatar-sm">
                           <span className="avatar-title rounded bg-light text-muted">{r.companyName.charAt(0).toUpperCase()}</span>
@@ -374,23 +395,31 @@ export function SponsorsManagement({
 
       {tab === "sponsors" && (
         <div className="card">
-          <div className="card-header">
+          <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h5 className="card-title mb-0">Dossiers sponsors actifs</h5>
+            <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un sponsor..." />
           </div>
           <div className="card-body">
             {sponsors.length === 0 ? (
               <div className="text-center py-5">
                 <p className="text-muted mb-0">Aucun sponsor actif — acceptez une demande pour en créer un</p>
               </div>
+            ) : totalCount === 0 ? (
+              <p className="text-muted text-center py-5 mb-0">Aucun sponsor ne correspond à votre recherche</p>
             ) : (
               <div className="d-grid gap-3">
-                {sponsors.map((s) => (
+                {visibleSponsors.map((s) => (
                   <div className="border rounded p-3" key={s.id}>
                     <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
                       <div className="d-flex align-items-center gap-3">
                         {s.logoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.logoUrl} alt={s.companyName} className="avatar-sm rounded border" style={{ objectFit: "contain" }} />
+                          <ImageWithFallback
+                            src={s.logoUrl}
+                            alt={s.companyName}
+                            className="avatar-sm rounded border"
+                            style={{ objectFit: "contain" }}
+                            fallbackIcon="fas fa-handshake"
+                          />
                         ) : (
                           <div className="avatar-sm">
                             <span className="avatar-title rounded bg-light text-muted">{s.companyName.charAt(0).toUpperCase()}</span>
@@ -504,6 +533,7 @@ export function SponsorsManagement({
                     )}
                   </div>
                 ))}
+                <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
               </div>
             )}
           </div>

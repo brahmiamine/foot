@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { TeamService } from "@/services/TeamService";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { SponsorRequestForm } from "./SponsorRequestForm";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +22,13 @@ export default async function SponsorRequestPage({ params }: { params: Promise<{
     <div className="container py-5" style={{ maxWidth: "720px" }}>
       <div className="text-center mb-4">
         {team.logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={team.logoUrl} alt={team.nom} style={{ height: "80px", objectFit: "contain" }} className="mb-3" />
+          <ImageWithFallback
+            src={team.logoUrl}
+            alt={team.nom}
+            style={{ height: "80px", objectFit: "contain" }}
+            className="mb-3"
+            fallbackIcon="fas fa-shield-alt fa-2x"
+          />
         )}
         <h1 className="h3 mb-2">Devenir sponsor de {team.nom}</h1>
         <p className="text-muted">

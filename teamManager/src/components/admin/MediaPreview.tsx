@@ -1,5 +1,7 @@
 "use client";
 
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+
 /**
  * Media Preview Component
  * Displays a preview of a media item based on its type
@@ -15,11 +17,12 @@ export function MediaPreview({ url, type, altText, className = "" }: MediaPrevie
   switch (type) {
     case "IMAGE":
       return (
-        <img
+        <ImageWithFallback
           src={url}
           alt={altText || "Image preview"}
           className={`img-thumbnail ${className}`}
           style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "cover" }}
+          fallbackIcon="fas fa-image fa-2x"
         />
       );
 
