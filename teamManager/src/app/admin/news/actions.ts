@@ -4,6 +4,8 @@ import { NewsService } from "@/services/NewsService";
 import { requireTeamId } from "@/lib/team-context";
 import { createNewsSchema, updateNewsSchema } from "@/types/news";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
+import { PlatformNotificationService } from "@/services/PlatformNotificationService";
 
 /**
  * Server Actions for News CRUD operations
@@ -40,6 +42,26 @@ export async function createNews(formData: FormData) {
       } catch (parseError) {
         // If mediaIds parsing fails, continue without media association
         console.error("Error parsing mediaIds:", parseError);
+      }
+    }
+
+    if (validatedData.isPublished) {
+      try {
+        const session = await auth();
+        const notificationService = new PlatformNotificationService();
+        await notificationService.notifyTeam(
+          teamId,
+          {
+            type: "NEWS_PUBLISHED",
+            title: "Nouvelle actualité publiée",
+            body: validatedData.title,
+            url: "/admin/news",
+            createdBy: session?.user?.id ?? null,
+          },
+          { excludeUserId: session?.user?.id }
+        );
+      } catch (notifyError) {
+        console.error("Error sending news notification:", notifyError);
       }
     }
 

@@ -98,6 +98,58 @@ else
   echo "✅ Colonne Card.period déjà présente."
 fi
 
+# ── Notifications centralisées (idempotent) ─────────────────────────────────
+# teamManager et matchsheet partagent la table `platform_notifications` (+
+# préférences email). Voir db/foot.sql pour un environnement neuf ; ce bloc
+# couvre les volumes mariadb_data déjà créés avant l'ajout de ces tables.
+echo "🔧 Vérification du schéma (notifications centralisées)..."
+PLATFORM_NOTIFICATIONS_EXISTS="$(docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -Nse "
+  SELECT 1
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'foot'
+    AND TABLE_NAME = 'platform_notifications'
+  LIMIT 1
+")"
+
+if [ "$PLATFORM_NOTIFICATIONS_EXISTS" != "1" ]; then
+  echo "🧱 Création des tables de notifications centralisées..."
+  docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+    CREATE TABLE IF NOT EXISTS platform_notifications (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(191) NOT NULL,
+      team_id CHAR(36) NULL,
+      source_app VARCHAR(20) NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      body TEXT NOT NULL,
+      url VARCHAR(500) NULL,
+      match_id CHAR(36) NULL,
+      is_urgent TINYINT(1) NOT NULL DEFAULT 0,
+      read_at DATETIME NULL,
+      email_status ENUM('PENDING','SENT','FAILED','SKIPPED') NOT NULL DEFAULT 'PENDING',
+      email_sent_at DATETIME NULL,
+      email_error VARCHAR(500) NULL,
+      created_by VARCHAR(191) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_platform_notifications_user FOREIGN KEY (user_id) REFERENCES User(id) ON DELETE CASCADE,
+      CONSTRAINT fk_platform_notifications_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+      CONSTRAINT fk_platform_notifications_match FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE SET NULL,
+      INDEX idx_platform_notifications_user (user_id, read_at),
+      INDEX idx_platform_notifications_email_status (email_status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+      user_id VARCHAR(191) NOT NULL PRIMARY KEY,
+      email_enabled TINYINT(1) NOT NULL DEFAULT 1,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT fk_notification_preferences_user FOREIGN KEY (user_id) REFERENCES User(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+  "
+  echo "✅ Tables de notifications centralisées créées."
+else
+  echo "✅ Tables de notifications centralisées déjà présentes."
+fi
+
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
 

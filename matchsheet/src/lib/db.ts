@@ -16,6 +16,9 @@ import { Substitution } from "@/entities/Substitution";
 import { Reservation } from "@/entities/Reservation";
 import { MatchOfficial } from "@/entities/MatchOfficial";
 import { PlayerControl } from "@/entities/PlayerControl";
+import { User } from "@/entities/User";
+import { PlatformNotification } from "@/entities/PlatformNotification";
+import { NotificationPreference } from "@/entities/NotificationPreference";
 
 /**
  * Connexion TypeORM vers la base "foot", partagée avec superadmin,
@@ -58,6 +61,9 @@ export async function getDataSource(): Promise<DataSource> {
         Reservation,
         MatchOfficial,
         PlayerControl,
+        User,
+        PlatformNotification,
+        NotificationPreference,
       ],
       migrations: [],
       charset: "utf8mb4",

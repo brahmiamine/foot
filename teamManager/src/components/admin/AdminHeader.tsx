@@ -1,6 +1,7 @@
 "use client";
 
 import { useAdminSidebar } from "./AdminSidebarContext";
+import { NotificationBell } from "./NotificationBell";
 
 /**
  * Admin Header — même structure qu'arbinote (bg-white, border-b, shadow-sm).
@@ -33,6 +34,7 @@ export function AdminHeader({ userName }: { userName: string }) {
           </div>
         </div>
         <div className="d-flex align-items-center gap-2 gap-sm-3">
+          <NotificationBell />
           {userName && <span className="d-none d-sm-inline text-muted small">{userName}</span>}
           <button
             onClick={() => {

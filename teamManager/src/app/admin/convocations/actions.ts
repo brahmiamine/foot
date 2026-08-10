@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { requireTeamId } from "@/lib/team-context";
 import { ConvocationService } from "@/services/ConvocationService";
 import { AuditLogService } from "@/services/AuditLogService";
+import { PlatformNotificationService } from "@/services/PlatformNotificationService";
 import { createConvocationSchema, updateConvocationResponseSchema } from "@/types/convocations";
 import type { ConvocationResponse } from "@/entities/Convocation";
 
@@ -38,6 +39,26 @@ export async function createConvocation(formData: FormData) {
       entityId: String(data.matchId),
       after: { matchId: data.matchId, playerIds: data.playerIds, created: convocations.length },
     });
+
+    if (convocations.length > 0) {
+      try {
+        const notificationService = new PlatformNotificationService();
+        await notificationService.notifyTeam(
+          teamId,
+          {
+            type: "CONVOCATION_SENT",
+            title: "Convocations envoyées",
+            body: `${convocations.length} joueur(s) convoqué(s) pour un match.`,
+            url: "/admin/convocations",
+            createdBy: session.user.id,
+          },
+          { excludeUserId: session.user.id }
+        );
+      } catch (notifyError) {
+        // Ne bloque jamais l'envoi des convocations pour une erreur de notification.
+        console.error("Error sending convocation notification:", notifyError);
+      }
+    }
 
     revalidatePath("/admin/convocations");
     return {

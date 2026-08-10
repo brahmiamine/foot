@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { TemplateAssets } from "@/components/TemplateAssets";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,6 +10,14 @@ export const metadata: Metadata = {
   description: "Site vitrine du club avec le template Footclub (Next.js + TypeScript).",
   icons: {
     icon: "/images/favicon.png",
+  },
+  manifest: "/manifest.json",
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "Footclub",
+    "mobile-web-app-capable": "yes",
+    "theme-color": "#c1272d",
   },
 };
 
@@ -182,6 +192,8 @@ export default function RootLayout({
         <Script src="/js/jquery-3.7.1.min.js" strategy="beforeInteractive" />
 
         <TemplateAssets />
+        <ServiceWorkerRegistration />
+        <PWAInstallPrompt />
 
         {children}
       </body>

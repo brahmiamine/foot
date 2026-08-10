@@ -1977,6 +1977,47 @@ ALTER TABLE `votes`
 --
 ALTER TABLE `vote_alerts`
   ADD CONSTRAINT `fk_vote_alerts_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE;
+
+-- --------------------------------------------------------
+
+--
+-- Notifications centralisées (in-app + email), partagées entre teamManager
+-- et matchsheet (voir roadmap.md §2). Une ligne = une notification pour un
+-- utilisateur donné (fan-out à la création, pas de table de lecture séparée).
+-- Table neutre (sans préfixe cms_/ms_) car alimentée par plusieurs apps.
+--
+
+CREATE TABLE `platform_notifications` (
+  `id` bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `user_id` varchar(191) NOT NULL,
+  `team_id` char(36) DEFAULT NULL,
+  `source_app` varchar(20) NOT NULL,
+  `type` varchar(50) NOT NULL,
+  `title` varchar(200) NOT NULL,
+  `body` text NOT NULL,
+  `url` varchar(500) DEFAULT NULL,
+  `match_id` char(36) DEFAULT NULL,
+  `is_urgent` tinyint(1) NOT NULL DEFAULT 0,
+  `read_at` datetime DEFAULT NULL,
+  `email_status` enum('PENDING','SENT','FAILED','SKIPPED') NOT NULL DEFAULT 'PENDING',
+  `email_sent_at` datetime DEFAULT NULL,
+  `email_error` varchar(500) DEFAULT NULL,
+  `created_by` varchar(191) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  CONSTRAINT `fk_platform_notifications_user` FOREIGN KEY (`user_id`) REFERENCES `User` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_platform_notifications_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_platform_notifications_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE SET NULL,
+  KEY `idx_platform_notifications_user` (`user_id`,`read_at`),
+  KEY `idx_platform_notifications_email_status` (`email_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+CREATE TABLE `notification_preferences` (
+  `user_id` varchar(191) NOT NULL PRIMARY KEY,
+  `email_enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  CONSTRAINT `fk_notification_preferences_user` FOREIGN KEY (`user_id`) REFERENCES `User` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -96,15 +96,31 @@ Créer un vrai système :
 ### Événements à notifier
 
 - match créé ;
-- convocation envoyée ;
+- convocation envoyée ; ✅ câblé (`teamManager/src/app/admin/convocations/actions.ts`)
 - changement d'horaire ;
 - composition publiée ;
-- feuille de match clôturée ;
+- feuille de match clôturée ; ✅ câblé (`matchsheet/src/app/[matchId]/post-match/actions.ts`)
 - résultat final ;
-- nouvelle actualité ;
+- nouvelle actualité ; ✅ câblé (`teamManager/src/app/admin/news/actions.ts`)
 - sponsor accepté ;
 - commande payée ;
 - anomalie vote détectée.
+
+### Statut — première itération livrée (teamManager + matchsheet)
+
+Fait :
+- Table partagée `platform_notifications` (+ `notification_preferences`) — `db/foot.sql`, création idempotente dans `start.sh`, fichiers `sql/migration_add_platform_notifications.sql` dans les deux apps.
+- `PlatformNotificationService` (créer/lister/marquer lu/préférences) dans `teamManager` et `matchsheet`, fan-out par utilisateur à la création.
+- Canaux **in-app + email** (choix validé) : cloche + panneau déroulant dans le header, page complète `/admin/notification-center` (teamManager) et `/notification-center` (matchsheet), toggle préférence email par utilisateur.
+- Email envoyé de façon synchrone via `sendEmailOrThrow` (nodemailer, réutilise `SMTP_HOST/PORT/USER/PASS/FROM`) ; statut de livraison tracé (`emailStatus`/`emailError`/`emailSentAt`) ; `retryFailedEmails()` permet de rejouer les échecs.
+- 3 déclencheurs réels câblés (voir ci-dessus) à titre de preuve du pipeline ; le reste de la liste "Événements à notifier" reste à câbler au fil de l'eau.
+
+Volontairement **hors scope** de cette itération (voir questions posées avant implémentation) :
+- **Web Push** (notifications navigateur) — nécessiterait la génération de clés VAPID et un endpoint d'abonnement ; non fait, le choix retenu était in-app + email.
+- **File d'attente / retry automatique** (BullMQ+Redis ou équivalent) — l'envoi reste synchrone avec un statut trackable et un retry manuel (`retryFailedEmails`), suffisant pour ce volume ; une vraie queue reste une évolution possible si le volume augmente.
+- **Templates** d'email formatés (HTML actuellement généré inline, pas de moteur de templates séparé).
+- **arbinote et superadmin** n'ont pas (encore) le système — périmètre limité à teamManager + matchsheet pour cette passe (choix validé).
+- Ciblage avancé (par catégorie, rôle, joueur, supporter) — le ciblage actuel est club-entier (tous les ADMIN/OBSERVATEUR actifs du club) ; le filtrage plus fin reste à faire.
 
 ### Priorité
 
@@ -124,14 +140,14 @@ La PWA est un objectif explicite du cahier des charges `teamManager`. `arbinote`
 
 Ajouter :
 
-- `manifest.json` ;
-- `sw.js` ;
-- icônes ;
-- prompt d'installation ;
-- stratégie offline ;
-- cache assets ;
-- notifications push ;
-- tests Lighthouse.
+- `manifest.json` ; ✅ fait
+- `sw.js` ; ✅ fait (cache network-first, exclut `/api/**`)
+- icônes ; ✅ placeholders générés (192x192/512x512, à remplacer par un vrai logo)
+- prompt d'installation ; ✅ fait (mêmes composants qu'arbinote, adaptés Bootstrap)
+- stratégie offline ; ✅ basique (cache network-first avec fallback cache)
+- cache assets ; ✅ basique (page racine + manifest + icône au install)
+- notifications push ; ⬜ non fait (scope notifications de cette itération = in-app + email, pas push)
+- tests Lighthouse. ⬜ non exécuté (pas d'environnement de build/preview disponible pendant cette itération)
 
 ### Priorité
 
@@ -281,9 +297,9 @@ Haute si données réelles ou mineurs.
 
 ## Produit
 
-- [ ] Notifications centralisées
-- [ ] PWA `teamManager`
-- [ ] PWA `matchsheet`
+- [x] Notifications centralisées — in-app + email, teamManager + matchsheet (web push, queue/retry auto et arbinote/superadmin restent à faire)
+- [x] PWA `teamManager` — manifest/sw/icônes placeholder/install prompt (push + Lighthouse restent à faire)
+- [x] PWA `matchsheet` — manifest/sw/icônes placeholder/install prompt (push + Lighthouse restent à faire)
 - [ ] Espace supporter
 - [ ] Gamification
 - [ ] Boutique
