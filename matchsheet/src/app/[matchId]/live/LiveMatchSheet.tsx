@@ -337,6 +337,7 @@ function CardsSection({
   const [minute, setMinute] = useState("");
   const [cardReasonId, setCardReasonId] = useState("");
   const [comment, setComment] = useState("");
+  const [suspendedMatches, setSuspendedMatches] = useState("1");
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -344,6 +345,7 @@ function CardsSection({
   const filteredReasons = cardReasons.filter((r) =>
     type === "YELLOW" ? r.type === "YELLOW" || r.type === "BOTH" : r.type === "RED" || r.type === "BOTH",
   );
+  const needsSuspendedMatches = type === "RED" || type === "DOUBLE_YELLOW";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -355,13 +357,23 @@ function CardsSection({
     setError(null);
     setSuccess(null);
     try {
-      const result = await addCard(matchId, playerId, type, minute ? Number(minute) : null, period, cardReasonId || null, comment || null);
+      const result = await addCard(
+        matchId,
+        playerId,
+        type,
+        minute ? Number(minute) : null,
+        period,
+        cardReasonId || null,
+        comment || null,
+        needsSuspendedMatches ? Number(suspendedMatches) || undefined : undefined,
+      );
       if (result.success) {
         setSuccess(result.message ?? "Carton enregistré");
         setPlayerId("");
         setMinute("");
         setCardReasonId("");
         setComment("");
+        setSuspendedMatches("1");
         refresh();
       } else {
         setError(result.error);
@@ -496,7 +508,20 @@ function CardsSection({
               ))}
             </select>
           </div>
-          <div className="col-md-5">
+          {needsSuspendedMatches && (
+            <div className="col-md-3">
+              <label className="form-label">Matchs de suspension</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                className="form-control"
+                value={suspendedMatches}
+                onChange={(e) => setSuspendedMatches(e.target.value)}
+              />
+            </div>
+          )}
+          <div className={needsSuspendedMatches ? "col-md-2" : "col-md-5"}>
             <label className="form-label">Commentaire (optionnel)</label>
             <input type="text" className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>

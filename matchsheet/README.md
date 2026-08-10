@@ -39,6 +39,17 @@ L'accueil (`/`) affiche la barre horizontale des matchs des ±3 jours autour d'a
 
 Les cartons enregistrés ici écrivent directement dans la table `Card` partagée : ils sont immédiatement visibles dans le module discipline de `teamManager`.
 
+## Synchronisation disciplinaire (amendes / suspensions)
+
+Un carton saisi depuis matchsheet déclenche exactement les mêmes effets qu'un carton saisi depuis l'admin teamManager, car les deux écrivent dans les mêmes tables partagées `Fine` et `Suspension` (`src/services/DisciplinaryService.ts`, port de `teamManager/src/services/CardService.ts` + `SuspensionService.ts`) :
+
+- **Amende** (`Fine`, type `CARD`) créée pour l'équipe du joueur, montant/échéance lus depuis `Settings` (`yellowFineAmount`/`redFineAmount`/`fineDueDays`).
+- **Suspension** (`Suspension`) : cumul de 3 jaunes non neutralisés → 1 match auto ; rouge/double jaune → nombre de matchs saisi par l'arbitre (champ « Matchs de suspension », défaut 1) ; le joueur passe alors au statut `SUSPENDED`.
+- Un 2e carton jaune isolé pour le même joueur/match est refusé (`DoubleYellowRequiredError`) — il faut saisir un « 2e jaune » (double jaune).
+- La suppression d'un carton depuis la feuille en direct annule l'amende et la suspension liées, restaure les jaunes neutralisés par un double jaune supprimé, et réactive le joueur si plus aucune suspension active ne le bloque (et pas d'amende `OVERDUE` en attente).
+
+**Écart volontaire avec teamManager :** pas d'e-mail d'alerte de suspension/risque (mailer SMTP propre à teamManager, non dupliqué dans ce kiosque). Les emails ne partent donc que pour les cartons saisis directement depuis l'admin teamManager.
+
 ## Charte graphique et bilinguisme
 
 Couleur primaire rouge/blanc (FTF) : `$primary` pointe vers `$ftf-red` (`#ce1126`) dans `src/assets/scss/_variables.scss`, ce qui rebranding automatiquement boutons, badges et liens Bootstrap dérivés.

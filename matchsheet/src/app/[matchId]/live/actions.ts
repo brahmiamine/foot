@@ -10,7 +10,13 @@ import type { CardType, MatchPeriod } from "@/entities/Card";
 
 type ActionResult = { success: true; message?: string } | { success: false; error: string };
 
-/** Ajoute un carton (jaune/rouge/double jaune) — écrit directement dans la table Card partagée. */
+/**
+ * Ajoute un carton (jaune/rouge/double jaune) — écrit directement dans la
+ * table Card partagée, et déclenche l'amende + la vérification de
+ * suspension (mêmes tables Fine/Suspension que teamManager).
+ * `suspendedMatches` (RED / DOUBLE_YELLOW uniquement) : nombre de matchs de
+ * suspension, laissé vide pour le défaut (1).
+ */
 export async function addCard(
   matchId: string,
   playerId: string,
@@ -19,11 +25,12 @@ export async function addCard(
   period: MatchPeriod,
   cardReasonId: string | null,
   commentFr: string | null,
+  suspendedMatches?: number,
 ): Promise<ActionResult> {
   try {
     if (!playerId) return { success: false, error: "Merci de sélectionner un joueur" };
     const cardEventService = new CardEventService();
-    await cardEventService.create({ matchId, playerId, type, minute, period, cardReasonId, commentFr });
+    await cardEventService.create({ matchId, playerId, type, minute, period, cardReasonId, commentFr, suspendedMatches });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "Carton enregistré" };
   } catch (error) {
