@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { createStaff, updateStaff } from "./actions";
 
 /**
@@ -389,7 +390,7 @@ export function StaffForm({ initialData, mode }: StaffFormProps) {
                     <div className="form-text">Formats acceptés : JPEG, PNG, GIF, WebP (max 5MB)</div>
                     {imagePreview && (
                       <div className="mt-2">
-                        <img
+                        <ImageWithFallback
                           src={imagePreview}
                           alt="Aperçu"
                           className="img-thumbnail skote-preview-img-200"

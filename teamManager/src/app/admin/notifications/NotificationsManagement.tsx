@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import { createNotification, deleteNotification } from "./actions";
 
 interface NotificationData {
@@ -47,6 +51,18 @@ export function NotificationsManagement({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleNotifications,
+  } = useListFilter(notifications, {
+    searchableText: (n) => `${n.title} ${n.message} ${n.matchLabel ?? ""}`,
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,7 +86,7 @@ export function NotificationsManagement({
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette notification ?")) return;
+    if (!(await confirm("Supprimer cette notification ?"))) return;
     setDeletingId(id);
     setError(null);
     try {
@@ -87,6 +103,7 @@ export function NotificationsManagement({
 
   return (
     <div className="container-fluid px-0">
+      {confirmDialog}
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
         <div>
           <h1 className="h4 mb-1">Notifications</h1>
@@ -173,14 +190,17 @@ export function NotificationsManagement({
       )}
 
       <div className="card">
-        <div className="card-header">
+        <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
           <h5 className="card-title mb-0">Historique des notifications</h5>
+          <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher une notification..." />
         </div>
         <div className="card-body">
           {notifications.length === 0 ? (
             <div className="text-center py-5">
               <p className="text-muted mb-0">Aucune notification envoyée</p>
             </div>
+          ) : totalCount === 0 ? (
+            <p className="text-muted text-center py-5 mb-0">Aucune notification ne correspond à votre recherche</p>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover align-middle mb-0">
@@ -195,7 +215,7 @@ export function NotificationsManagement({
                   </tr>
                 </thead>
                 <tbody>
-                  {notifications.map((n) => (
+                  {visibleNotifications.map((n) => (
                     <tr key={n.id}>
                       <td className="fw-medium">{n.title}</td>
                       <td className="text-truncate" style={{ maxWidth: "320px" }}>
@@ -225,6 +245,7 @@ export function NotificationsManagement({
                   ))}
                 </tbody>
               </table>
+              <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
             </div>
           )}
         </div>

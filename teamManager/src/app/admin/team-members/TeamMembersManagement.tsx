@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import { createTeamMember, updateTeamMember, deleteTeamMember } from "./actions";
 
 /**
@@ -78,6 +82,7 @@ export function TeamMembersManagement({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   // Sync local state with props when they change (after refresh)
   useEffect(() => {
@@ -186,7 +191,7 @@ export function TeamMembersManagement({
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir retirer ce membre de l'équipe ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir retirer ce membre de l'équipe ?"))) {
       return;
     }
 
@@ -234,8 +239,21 @@ export function TeamMembersManagement({
     return "Inconnu";
   };
 
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleTeamMembers,
+  } = useListFilter(teamMembers, {
+    searchableText: (member) => `${getMemberName(member)} ${getMemberTypeLabel(member)}`,
+  });
+
   return (
     <div className="container-fluid">
+      {confirmDialog}
       <div className="row mb-4">
         <div className="col-12">
           <h1 className="mb-0">Gestion des Membres d'Équipe</h1>
@@ -466,8 +484,9 @@ export function TeamMembersManagement({
         {/* List Column - Always on left */}
         <div className={`col-12 ${formMode === "edit" ? "col-lg-7" : "col-lg-12"}`}>
           <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
               <h5 className="card-title mb-0">Liste des Membres d'Équipe</h5>
+              <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre..." />
             </div>
             <div className="card-body">
               {teamMembers.length === 0 ? (
@@ -477,6 +496,8 @@ export function TeamMembersManagement({
                     Ajouter le premier membre
                   </button>
                 </div>
+              ) : totalCount === 0 ? (
+                <p className="text-muted text-center py-5 mb-0">Aucun membre ne correspond à votre recherche</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover">
@@ -491,7 +512,7 @@ export function TeamMembersManagement({
                       </tr>
                     </thead>
                     <tbody>
-                      {teamMembers.map((member) => (
+                      {visibleTeamMembers.map((member) => (
                         <tr key={member.id}>
                           <td>
                             <strong>{getMemberName(member)}</strong>
@@ -554,6 +575,7 @@ export function TeamMembersManagement({
                       ))}
                     </tbody>
                   </table>
+                  <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
                 </div>
               )}
             </div>

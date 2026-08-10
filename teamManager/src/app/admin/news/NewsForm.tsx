@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createNews, updateNews, addMediaToNews, removeMediaFromNews } from "./actions";
 import { RichTextEditor } from "./RichTextEditor";
 import { MediaPreview } from "@/components/admin/MediaPreview";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { useConfirm } from "@/hooks/useConfirm";
 
 /**
  * Plain object type for News (serializable)
@@ -53,6 +55,7 @@ export function NewsForm({ initialData, initialMedia = [], availableMediaItems =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
@@ -157,7 +160,7 @@ export function NewsForm({ initialData, initialMedia = [], availableMediaItems =
     if (mode === "edit") {
       if (!initialData?.id) return;
 
-      if (!confirm("Êtes-vous sûr de vouloir retirer ce média de l'actualité ?")) {
+      if (!(await confirm("Êtes-vous sûr de vouloir retirer ce média de l'actualité ?"))) {
         return;
       }
 
@@ -320,6 +323,7 @@ export function NewsForm({ initialData, initialMedia = [], availableMediaItems =
 
   return (
     <div className="container-fluid">
+      {confirmDialog}
       <div className="row mb-4">
         <div className="col-12">
           <h1 className="mb-0">{mode === "create" ? "Créer une actualité" : "Modifier l'actualité"}</h1>
@@ -397,7 +401,7 @@ export function NewsForm({ initialData, initialMedia = [], availableMediaItems =
                   </label>
                   {imagePreview && (
                     <div className="mb-2">
-                      <img
+                      <ImageWithFallback
                         src={imagePreview}
                         alt="Aperçu de l'image"
                         className="img-thumbnail skote-preview-img-300"

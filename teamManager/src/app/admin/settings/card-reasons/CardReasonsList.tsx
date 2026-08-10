@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import { createCardReason, updateCardReason, deleteCardReason } from "./actions";
 
 interface ReasonData {
@@ -21,6 +25,16 @@ export function CardReasonsList({ initialReasons }: { initialReasons: ReasonData
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleReasons,
+  } = useListFilter(reasons, { searchableText: (r) => `${r.labelFr} ${r.labelAr ?? ""}` });
 
   const handleCreate = async (formData: FormData) => {
     setLoading(true);
@@ -57,7 +71,7 @@ export function CardReasonsList({ initialReasons }: { initialReasons: ReasonData
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce motif ?")) return;
+    if (!(await confirm("Supprimer ce motif ?"))) return;
     setLoading(true);
     setError(null);
     try {
@@ -76,6 +90,7 @@ export function CardReasonsList({ initialReasons }: { initialReasons: ReasonData
 
   return (
     <div>
+      {confirmDialog}
       {error && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{error}</span>
@@ -129,9 +144,15 @@ export function CardReasonsList({ initialReasons }: { initialReasons: ReasonData
       </div>
 
       <div className="card">
+        <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span className="fw-semibold">Motifs enregistrés</span>
+          <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un motif..." />
+        </div>
         <div className="card-body">
         {reasons.length === 0 ? (
           <p className="text-muted text-center py-5 mb-0">Aucun motif enregistré</p>
+        ) : totalCount === 0 ? (
+          <p className="text-muted text-center py-5 mb-0">Aucun motif ne correspond à votre recherche</p>
         ) : (
           <div className="table-responsive">
             <table className="table table-hover align-middle">
@@ -144,7 +165,7 @@ export function CardReasonsList({ initialReasons }: { initialReasons: ReasonData
                 </tr>
               </thead>
               <tbody>
-                {reasons.map((r) => (
+                {visibleReasons.map((r) => (
                   <tr key={r.id}>
                     <td>
                       {r.labelFr}
@@ -179,6 +200,7 @@ export function CardReasonsList({ initialReasons }: { initialReasons: ReasonData
                 ))}
               </tbody>
             </table>
+            <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
           </div>
         )}
         </div>

@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import { createStadium, updateStadium, deleteStadium } from "./actions";
 
 /**
@@ -41,6 +46,18 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleStadiums,
+  } = useListFilter(stadiums, {
+    searchableText: (s) => `${s.nameFr} ${s.nameAr ?? ""} ${s.cityFr ?? ""} ${s.cityAr ?? ""}`,
+  });
 
   // Sync local state with props when they change (after refresh)
   useEffect(() => {
@@ -227,7 +244,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce stade ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir supprimer ce stade ?"))) {
       return;
     }
 
@@ -254,6 +271,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
 
   return (
     <div className="container-fluid">
+      {confirmDialog}
       <div className="row mb-4">
         <div className="col-12">
           <h1 className="mb-0">Gestion des Stades</h1>
@@ -457,7 +475,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                       </label>
                       {imagePreview && (
                         <div className="mb-2">
-                          <img
+                          <ImageWithFallback
                             src={imagePreview}
                             alt="Aperçu de l'image"
                             className="img-thumbnail skote-preview-img-300"
@@ -531,8 +549,9 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
         {/* List Column - Always on left */}
         <div className={`col-12 ${formMode === "edit" ? "col-lg-7" : "col-lg-12"}`}>
           <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
               <h5 className="card-title mb-0">Liste des Stades</h5>
+              <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un stade..." />
             </div>
             <div className="card-body">
               {stadiums.length === 0 ? (
@@ -542,6 +561,8 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                     Ajouter le premier stade
                   </button>
                 </div>
+              ) : totalCount === 0 ? (
+                <p className="text-muted text-center py-5 mb-0">Aucun stade ne correspond à votre recherche</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover">
@@ -556,7 +577,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                       </tr>
                     </thead>
                     <tbody>
-                      {stadiums.map((stadium) => (
+                      {visibleStadiums.map((stadium) => (
                         <tr key={stadium.id}>
                           <td>{stadium.nameFr}</td>
                           <td>{stadium.nameAr || <span className="text-muted">-</span>}</td>
@@ -603,6 +624,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                       ))}
                     </tbody>
                   </table>
+                  <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
                 </div>
               )}
             </div>
@@ -762,7 +784,7 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                     </label>
                     {imagePreview && (
                       <div className="mb-2">
-                        <img
+                        <ImageWithFallback
                           src={imagePreview}
                           alt="Image actuelle"
                           className="img-thumbnail skote-preview-img-300"

@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
 import { createConvocation, deleteConvocation, updateConvocationResponse } from "./actions";
 
 type ConvocationResponseValue = "PENDING" | "PRESENT" | "ABSENT";
@@ -66,6 +70,7 @@ export function ConvocationsManagement({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const togglePlayer = (id: string) => {
     setSelectedPlayerIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
@@ -117,7 +122,7 @@ export function ConvocationsManagement({
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette convocation ?")) return;
+    if (!(await confirm("Supprimer cette convocation ?"))) return;
     setDeletingId(id);
     setError(null);
     try {
@@ -146,17 +151,33 @@ export function ConvocationsManagement({
     grouped[idx].items.push(c);
   }
 
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleGroups,
+  } = useListFilter(grouped, {
+    searchableText: (g) => `${g.matchLabel} ${g.items.map((c) => c.playerLabel).join(" ")}`,
+  });
+
   return (
     <div className="container-fluid px-0">
+      {confirmDialog}
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
         <div>
           <h1 className="h4 mb-1">Convocations</h1>
           <p className="text-muted mb-0">Sélectionnez les joueurs convoqués pour un match et suivez leur réponse.</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
-          <i className="fas fa-plus me-2" aria-hidden="true" />
-          {showForm ? "Annuler" : "Convoquer des joueurs"}
-        </button>
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un match ou un joueur..." />
+          <button type="button" className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
+            <i className="fas fa-plus me-2" aria-hidden="true" />
+            {showForm ? "Annuler" : "Convoquer des joueurs"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -249,8 +270,14 @@ export function ConvocationsManagement({
             </div>
           </div>
         </div>
+      ) : totalCount === 0 ? (
+        <div className="card">
+          <div className="card-body">
+            <p className="text-muted text-center py-5 mb-0">Aucun résultat pour votre recherche</p>
+          </div>
+        </div>
       ) : (
-        grouped.map((g) => (
+        visibleGroups.map((g) => (
           <div className="card mb-4" key={g.matchId}>
             <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
               <h5 className="card-title mb-0">{g.matchLabel}</h5>
@@ -315,6 +342,7 @@ export function ConvocationsManagement({
           </div>
         ))
       )}
+      <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
     </div>
   );
 }

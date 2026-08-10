@@ -3,6 +3,10 @@
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createMediaGallery, updateMediaGallery, deleteMediaGallery } from "./actions";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useListFilter } from "@/hooks/useListFilter";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
 import { MediaPreview } from "@/components/admin/MediaPreview";
 
 /**
@@ -48,6 +52,18 @@ export function MediaGalleriesManagement({ initialGalleries, availableMediaItems
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleGalleries,
+  } = useListFilter(galleries, {
+    searchableText: (g) => `${g.titleFr} ${g.titleAr ?? ""}`,
+  });
 
   // Sync local state with props when they change (after refresh)
   useEffect(() => {
@@ -138,7 +154,7 @@ export function MediaGalleriesManagement({ initialGalleries, availableMediaItems
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette galerie ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir supprimer cette galerie ?"))) {
       return;
     }
 
@@ -169,6 +185,7 @@ export function MediaGalleriesManagement({ initialGalleries, availableMediaItems
 
   return (
     <div className="container-fluid">
+      {confirmDialog}
       <div className="row mb-4">
         <div className="col-12">
           <h1 className="mb-0">Gestion des Galeries</h1>
@@ -383,8 +400,9 @@ export function MediaGalleriesManagement({ initialGalleries, availableMediaItems
         {/* List Column */}
         <div className={`col-12 ${formMode === "edit" ? "col-lg-7" : "col-lg-12"}`}>
           <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
               <h5 className="card-title mb-0">Liste des Galeries</h5>
+              <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher une galerie..." />
             </div>
             <div className="card-body">
               {galleries.length === 0 ? (
@@ -394,6 +412,8 @@ export function MediaGalleriesManagement({ initialGalleries, availableMediaItems
                     Ajouter la première galerie
                   </button>
                 </div>
+              ) : totalCount === 0 ? (
+                <p className="text-muted text-center py-5 mb-0">Aucune galerie ne correspond à votre recherche</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover">
@@ -408,7 +428,7 @@ export function MediaGalleriesManagement({ initialGalleries, availableMediaItems
                       </tr>
                     </thead>
                     <tbody>
-                      {galleries.map((gallery) => (
+                      {visibleGalleries.map((gallery) => (
                         <tr key={gallery.id}>
                           <td>
                             {gallery.coverImageUrl ? (
@@ -457,6 +477,7 @@ export function MediaGalleriesManagement({ initialGalleries, availableMediaItems
                       ))}
                     </tbody>
                   </table>
+                  <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
                 </div>
               )}
             </div>

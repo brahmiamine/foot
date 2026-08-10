@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ListSearchInput } from "@/components/admin/ListSearchInput";
+import { ListPagination } from "@/components/admin/ListPagination";
+import { useListFilter } from "@/hooks/useListFilter";
 import { updateSuspension } from "./actions";
 
 interface SuspensionData {
@@ -38,6 +41,17 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const {
+    search,
+    setSearch,
+    page,
+    setPage,
+    totalPages,
+    totalCount,
+    items: visibleSuspensions,
+  } = useListFilter(suspensions, {
+    searchableText: (s) => `${s.player?.firstNameFr ?? ""} ${s.player?.lastNameFr ?? ""} ${REASON_LABELS[s.reason] ?? s.reason}`,
+  });
 
   const handlePurge = async (id: string, formData: FormData) => {
     setLoading(id);
@@ -62,7 +76,10 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
 
   return (
     <div className="container-fluid px-0">
-      <h1 className="h4 mb-4">Suspensions</h1>
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 className="h4 mb-0">Suspensions</h1>
+        <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un joueur..." />
+      </div>
 
       {error && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
@@ -81,6 +98,8 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
         <div className="card-body">
         {suspensions.length === 0 ? (
           <p className="text-muted text-center py-5 mb-0">Aucune suspension enregistrée</p>
+        ) : totalCount === 0 ? (
+          <p className="text-muted text-center py-5 mb-0">Aucune suspension ne correspond à votre recherche</p>
         ) : (
           <div className="table-responsive">
             <table className="table table-hover align-middle">
@@ -94,7 +113,7 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
                 </tr>
               </thead>
               <tbody>
-                {suspensions.map((s) => (
+                {visibleSuspensions.map((s) => (
                   <tr key={s.id}>
                     <td>
                       {s.player ? (
@@ -162,6 +181,7 @@ export function SuspensionsList({ initialSuspensions }: { initialSuspensions: Su
                 ))}
               </tbody>
             </table>
+            <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />
           </div>
         )}
         </div>

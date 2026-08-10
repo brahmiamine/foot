@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { useConfirm } from "@/hooks/useConfirm";
 import { createProduct, updateProduct, deleteProduct } from "./actions";
 
 /**
@@ -72,6 +74,7 @@ export function ProductsManagement({ initialProducts, categories }: ProductsMana
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const { confirm, confirmDialog } = useConfirm();
 
   // Sync local state with props when they change (after refresh)
   useEffect(() => {
@@ -244,7 +247,7 @@ export function ProductsManagement({ initialProducts, categories }: ProductsMana
 
   // Handle delete
   const handleDelete = async (id: number) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) {
+    if (!(await confirm("Êtes-vous sûr de vouloir supprimer ce produit ?"))) {
       return;
     }
 
@@ -413,7 +416,7 @@ export function ProductsManagement({ initialProducts, categories }: ProductsMana
         </label>
         {imagePreview && (
           <div className="mb-2">
-            <img src={imagePreview} alt="Aperçu de l'image" className="img-thumbnail skote-preview-img-300" />
+            <ImageWithFallback src={imagePreview} alt="Aperçu de l'image" className="img-thumbnail skote-preview-img-300" />
             <button
               type="button"
               className="btn btn-sm btn-outline-danger ms-2"
@@ -457,6 +460,7 @@ export function ProductsManagement({ initialProducts, categories }: ProductsMana
 
   return (
     <div className="container-fluid px-0">
+      {confirmDialog}
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2 flex-wrap">
         <div>
           <h1 className="h4 mb-1">Produits boutique</h1>
@@ -575,11 +579,12 @@ export function ProductsManagement({ initialProducts, categories }: ProductsMana
                         <tr key={product.id}>
                           <td>
                             {product.imageUrl ? (
-                              <img
+                              <ImageWithFallback
                                 src={product.imageUrl}
                                 alt={product.nameFr}
                                 className="avatar-sm rounded"
                                 style={{ objectFit: "cover" }}
+                                fallbackIcon="fas fa-image text-muted"
                               />
                             ) : (
                               <div className="avatar-sm rounded bg-light d-flex align-items-center justify-content-center">

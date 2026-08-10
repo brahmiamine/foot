@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { TemplateAssets } from "@/components/TemplateAssets";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -50,17 +51,6 @@ export default function RootLayout({
           }}
         />
 
-        {/* Preconnect to external resources for faster loading */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
-
-        {/* Preload critical CSS files for faster loading */}
-        <link rel="preload" href="/css/bootstrap.min.css" as="style" />
-        <link rel="preload" href="/css/custom.css" as="style" />
-        <link rel="preload" href="/css/all.min.css" as="style" />
-
         {/* CRITICAL: Load Template CSS files synchronously in exact template order */}
         {/* Order matches template/index.html exactly to prevent style conflicts */}
         <Script
@@ -69,9 +59,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                // The admin section and /login use Tailwind (globals.css) instead of the
-                // Footclub template — skip loading Bootstrap/FontAwesome/custom.css there
-                // entirely so the two never collide on the same page.
+                // The admin section and /login use their own dedicated stylesheets
+                // (skote-admin.css, login-skote.css) instead of the Footclub template —
+                // skip loading Bootstrap/FontAwesome/custom.css there entirely so the
+                // two never collide on the same page.
                 var isAdminSection = /^\\/admin(\\/|$)/.test(window.location.pathname) || window.location.pathname === '/login';
                 if (isAdminSection) {
                   document.documentElement.classList.remove('css-loading');
@@ -184,29 +175,13 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Template JavaScript Files - Loaded globally for all pages (including /admin) */}
-        {/* jQuery must load first (beforeInteractive) - Required by all template scripts */}
+        {/* jQuery must load first (beforeInteractive) - Next.js only allows this
+            strategy directly in the root layout. Every other template script
+            (Bootstrap JS, GSAP, Swiper...) depends on it and is loaded by
+            <TemplateAssets>, which skips /admin and /login entirely. */}
         <Script src="/js/jquery-3.7.1.min.js" strategy="beforeInteractive" />
 
-        {/* Bootstrap JS from template - Loaded after jQuery */}
-        <Script src="/js/bootstrap.min.js" strategy="afterInteractive" />
-
-        {/* All other template JS files - Loaded after interactive for all pages */}
-        <Script src="/js/validator.min.js" strategy="afterInteractive" />
-        <Script src="/js/jquery.slicknav.js" strategy="afterInteractive" />
-        <Script src="/js/swiper-bundle.min.js" strategy="afterInteractive" />
-        <Script src="/js/jquery.waypoints.min.js" strategy="afterInteractive" />
-        <Script src="/js/jquery.counterup.min.js" strategy="afterInteractive" />
-        <Script src="/js/jquery.magnific-popup.min.js" strategy="afterInteractive" />
-        <Script src="/js/SmoothScroll.js" strategy="afterInteractive" />
-        <Script src="/js/parallaxie.js" strategy="afterInteractive" />
-        <Script src="/js/gsap.min.js" strategy="afterInteractive" />
-        <Script src="/js/magiccursor.js" strategy="afterInteractive" />
-        <Script src="/js/SplitText.js" strategy="afterInteractive" />
-        <Script src="/js/ScrollTrigger.min.js" strategy="afterInteractive" />
-        <Script src="/js/jquery.mb.YTPlayer.min.js" strategy="afterInteractive" />
-        <Script src="/js/wow.min.js" strategy="afterInteractive" />
-        <Script src="/js/function.js" strategy="afterInteractive" />
+        <TemplateAssets />
 
         {children}
       </body>
