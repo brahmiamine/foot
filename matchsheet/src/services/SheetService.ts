@@ -1,6 +1,8 @@
 import { getDataSource } from "@/lib/db";
 import { Sheet, SheetStatus } from "@/entities/Sheet";
 import { Repository } from "typeorm";
+import { syncMatchStatus } from "@/lib/matchStatusSync";
+import { logMatchsheetAction } from "@/lib/auditLog";
 
 /**
  * Service for Sheet operations (la feuille de match elle-même — statut,
@@ -41,6 +43,21 @@ export class SheetService {
     if (status === "PRE_MATCH_SIGNED") sheet.preMatchSignedAt = new Date();
     if (status === "POST_MATCH_SIGNED") sheet.postMatchSignedAt = new Date();
     if (status === "CLOSED") sheet.closedAt = new Date();
-    return repository.save(sheet);
+    const saved = await repository.save(sheet);
+
+    await logMatchsheetAction({
+      action: "update",
+      entityType: "sheet",
+      entityId: saved.matchId,
+      summary: `Statut de la feuille -> ${status}`,
+    });
+
+    if (status === "IN_PROGRESS") {
+      await syncMatchStatus(saved.matchId, "IN_PROGRESS");
+    } else if (status === "CLOSED") {
+      await syncMatchStatus(saved.matchId, "FINISHED");
+    }
+
+    return saved;
   }
 }

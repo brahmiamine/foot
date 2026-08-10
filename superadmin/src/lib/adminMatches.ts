@@ -20,6 +20,7 @@ export interface MatchUpdateInput {
   arbitre_id?: string | null
   equipe_home?: string | null
   equipe_away?: string | null
+  status?: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
 }
 
 function parseDate(value?: string | null) {
@@ -140,6 +141,9 @@ export async function updateMatchAdmin(id: string, payload: MatchUpdateInput, le
   }
   if (payload.equipe_away !== undefined) {
     updateData.equipe_away_id = payload.equipe_away === null || payload.equipe_away === '' ? undefined : payload.equipe_away
+  }
+  if (payload.status !== undefined) {
+    updateData.status = payload.status
   }
 
   // Mettre à jour directement dans la base de données

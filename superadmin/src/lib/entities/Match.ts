@@ -53,6 +53,13 @@ export class Match {
   @Column({ type: 'int', nullable: true })
   score_away?: number | null
 
+  @Column({
+    type: 'enum',
+    enum: ['UPCOMING', 'IN_PROGRESS', 'FINISHED', 'CANCELLED'],
+    default: 'UPCOMING',
+  })
+  status!: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 }

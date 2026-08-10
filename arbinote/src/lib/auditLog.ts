@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server'
 import { getDataSource } from './db'
 import { AuditLog, type AuditAction } from './entities'
 import { getClientIP } from './utils'
+import { getSsoSessionFromRequest } from './ssoSession'
+
+const APP_SOURCE = 'arbinote'
 
 interface LogAdminActionParams {
   request: NextRequest
@@ -10,22 +13,6 @@ interface LogAdminActionParams {
   entityId?: string | null
   summary?: string | null
   adminUsername?: string | null
-}
-
-function getAdminUsername(request: NextRequest): string | null {
-  // Le token contient "username:password" en base64 (voir adminAuth.ts) : on
-  // récupère uniquement le nom d'utilisateur pour l'attribution du journal.
-  const header = request.headers.get('authorization')
-  const token = header?.startsWith('Basic ')
-    ? header.slice(6)
-    : request.cookies.get('admin-token')?.value ?? null
-  if (!token) return null
-  try {
-    const decoded = Buffer.from(token, 'base64').toString('utf-8')
-    return decoded.split(':')[0] || null
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -44,13 +31,15 @@ export async function logAdminAction({
   try {
     const dataSource = await getDataSource()
     const repo = dataSource.getRepository<AuditLog>('audit_logs')
+    const session = adminUsername ? null : await getSsoSessionFromRequest(request)
     const entry = repo.create({
       action,
       entity_type: entityType,
       entity_id: entityId ?? null,
       summary: summary ?? null,
-      admin_username: adminUsername ?? getAdminUsername(request),
+      admin_username: adminUsername ?? session?.email ?? null,
       ip_address: getClientIP(request) !== 'unknown' ? getClientIP(request) : null,
+      app_source: APP_SOURCE,
     })
     await repo.save(entry)
   } catch (error) {

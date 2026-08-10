@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { getDataSource } from "@/lib/db";
 import { Card, CardType, MatchPeriod } from "@/entities/Card";
 import { Repository } from "typeorm";
@@ -11,15 +10,29 @@ interface CreateCardInput {
   period: MatchPeriod;
   cardReasonId?: string | null;
   commentFr?: string | null;
+  /** Utilisateur SSO réel qui saisit le carton (User.id), pas "matchsheet". */
+  createdBy: string;
+}
+
+function getInternalHeaders() {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret) throw new Error("INTERNAL_API_SECRET must be set");
+  return { "Content-Type": "application/json", "x-internal-secret": secret };
+}
+
+function getTeamManagerUrl() {
+  const url = process.env.TEAMMANAGER_URL;
+  if (!url) throw new Error("TEAMMANAGER_URL must be set");
+  return url;
 }
 
 /**
- * Service for Card operations. matchsheet écrit directement dans la table
- * `Card` partagée avec cardManager/teamManager : un carton donné pendant le
- * match reste ainsi immédiatement visible dans le module discipline du
- * club. Le recalcul des suspensions/amendes reste piloté par teamManager
- * (CardService.create y applique les règles de cumul) — matchsheet se
- * contente d'enregistrer le fait, à charge pour le club de le retrouver.
+ * Service for Card operations. La création/suppression passe désormais par
+ * l'API interne de teamManager (CardService.create/delete), qui applique
+ * les règles d'amende et de suspension — matchsheet ne duplique plus cette
+ * logique (voir teamManager/src/app/api/internal/cards). La lecture reste
+ * directe sur la table `Card` partagée : c'est déjà une lecture seule,
+ * cohérente avec le reste du repo.
  */
 export class CardEventService {
   private async getRepository(): Promise<Repository<Card>> {
@@ -36,25 +49,33 @@ export class CardEventService {
     });
   }
 
-  async create(data: CreateCardInput): Promise<Card> {
-    const repository = await this.getRepository();
-    const card = repository.create({
-      id: randomUUID(),
-      matchId: data.matchId,
-      playerId: data.playerId,
-      type: data.type,
-      minute: data.minute ?? null,
-      period: data.period,
-      cardReasonId: data.cardReasonId ?? null,
-      commentFr: data.commentFr ?? null,
-      createdBy: "matchsheet",
-      isNeutralized: false,
+  /**
+   * Appel bloquant : si teamManager est injoignable, le carton n'est PAS
+   * enregistré. C'est précisément le bug qu'on corrige — un carton saisi
+   * sans passer par le calcul d'amende/suspension serait un faux succès.
+   */
+  async create(data: CreateCardInput): Promise<void> {
+    const response = await fetch(`${getTeamManagerUrl()}/api/internal/cards`, {
+      method: "POST",
+      headers: getInternalHeaders(),
+      body: JSON.stringify(data),
     });
-    return repository.save(card);
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || `Échec de l'enregistrement du carton (${response.status})`);
+    }
   }
 
   async delete(id: string): Promise<void> {
-    const repository = await this.getRepository();
-    await repository.delete({ id });
+    const response = await fetch(`${getTeamManagerUrl()}/api/internal/cards/${id}`, {
+      method: "DELETE",
+      headers: getInternalHeaders(),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || `Échec de la suppression du carton (${response.status})`);
+    }
   }
 }

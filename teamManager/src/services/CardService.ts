@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getDataSource } from "@/lib/database";
-import { Card, type CardType } from "@/entities/Card";
+import { Card, type CardType, type MatchPeriod } from "@/entities/Card";
 import { Player } from "@/entities/Player";
 import { Suspension } from "@/entities/Suspension";
 import { Fine } from "@/entities/Fine";
@@ -13,6 +13,8 @@ export interface CreateCardInput {
   matchId: string;
   type: CardType;
   minute?: number | null;
+  /** Mi-temps/prolongation — renseigné par l'app matchsheet. */
+  period?: MatchPeriod | null;
   cardReasonId?: string | null;
   commentFr?: string | null;
   commentAr?: string | null;
@@ -90,6 +92,7 @@ export class CardService {
       matchId: data.matchId,
       type: data.type,
       minute: data.minute ?? null,
+      period: data.period ?? null,
       cardReasonId: data.cardReasonId ?? null,
       commentFr: data.commentFr ?? null,
       commentAr: data.commentAr ?? null,

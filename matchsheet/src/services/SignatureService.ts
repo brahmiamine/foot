@@ -1,6 +1,7 @@
 import { getDataSource } from "@/lib/db";
 import { Signature, SignaturePhase, ActorRole } from "@/entities/Signature";
 import { Repository } from "typeorm";
+import { logMatchsheetAction } from "@/lib/auditLog";
 
 /**
  * Service for Signature operations (signature dessinée par l'un des trois
@@ -41,7 +42,16 @@ export class SignatureService {
         signatureData: data.signatureData,
       });
     }
-    return repository.save(signature);
+    const saved = await repository.save(signature);
+
+    await logMatchsheetAction({
+      action: "create",
+      entityType: "signature",
+      entityId: String(sheetId),
+      summary: `Signature ${phase} par ${actorRole}${data.signerName ? ` (${data.signerName})` : ""}`,
+    });
+
+    return saved;
   }
 
   /**

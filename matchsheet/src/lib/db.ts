@@ -16,12 +16,17 @@ import { Substitution } from "@/entities/Substitution";
 import { Reservation } from "@/entities/Reservation";
 import { MatchOfficial } from "@/entities/MatchOfficial";
 import { PlayerControl } from "@/entities/PlayerControl";
+import { AuditLog } from "@/entities/AuditLog";
 
 /**
  * Connexion TypeORM vers la base "foot", partagée avec superadmin,
- * teamManager et arbinote. matchsheet ne fait que lire les référentiels
- * (matches/teams/joueurs/motifs de carton/composition) et possède ses
- * propres tables additives ms_* (feuille de match, signatures, événements).
+ * teamManager et arbinote. matchsheet lit les référentiels
+ * (matches/teams/joueurs/motifs de carton/composition), possède ses
+ * propres tables additives ms_* (feuille de match, signatures, événements),
+ * et écrit dans `audit_logs` (journal d'audit partagé avec
+ * arbinote/superadmin — voir src/lib/auditLog.ts). Les cartons ne sont plus
+ * écrits directement ici : voir src/services/CardEventService.ts qui
+ * délègue à l'API interne de teamManager (amende + suspension).
  */
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
@@ -58,6 +63,7 @@ export async function getDataSource(): Promise<DataSource> {
         Reservation,
         MatchOfficial,
         PlayerControl,
+        AuditLog,
       ],
       migrations: [],
       charset: "utf8mb4",

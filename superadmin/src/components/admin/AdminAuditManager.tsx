@@ -10,7 +10,15 @@ interface AuditLogEntry {
   summary: string | null
   admin_username: string | null
   ip_address: string | null
+  app_source: string | null
   created_at: string
+}
+
+const APP_LABELS: Record<string, string> = {
+  arbinote: 'ArbiNote',
+  superadmin: 'Superadmin',
+  matchsheet: 'Feuille de match',
+  teamManager: 'TeamManager',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -78,6 +86,7 @@ export default function AdminAuditManager() {
             <thead className="table-light">
               <tr>
                 <th>Date</th>
+                <th>App</th>
                 <th>Admin</th>
                 <th>Action</th>
                 <th>Entité</th>
@@ -88,17 +97,20 @@ export default function AdminAuditManager() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">Chargement...</td>
+                  <td colSpan={7} className="text-center text-muted py-4">Chargement...</td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">Aucune action enregistrée</td>
+                  <td colSpan={7} className="text-center text-muted py-4">Aucune action enregistrée</td>
                 </tr>
               ) : (
                 logs.map((log) => (
                   <tr key={log.id}>
                     <td className="text-muted">
                       {new Date(log.created_at).toLocaleString('fr-FR')}
+                    </td>
+                    <td className="text-muted">
+                      {log.app_source ? (APP_LABELS[log.app_source] || log.app_source) : '—'}
                     </td>
                     <td className="fw-medium">
                       {log.admin_username || '—'}

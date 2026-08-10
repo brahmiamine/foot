@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { CardEventService } from "@/services/CardEventService";
 import { GoalService } from "@/services/GoalService";
 import { InjuryService } from "@/services/InjuryService";
@@ -10,7 +11,7 @@ import type { CardType, MatchPeriod } from "@/entities/Card";
 
 type ActionResult = { success: true; message?: string } | { success: false; error: string };
 
-/** Ajoute un carton (jaune/rouge/double jaune) — écrit directement dans la table Card partagée. */
+/** Ajoute un carton (jaune/rouge/double jaune) — délègue à teamManager (amende + suspension). */
 export async function addCard(
   matchId: string,
   playerId: string,
@@ -22,8 +23,11 @@ export async function addCard(
 ): Promise<ActionResult> {
   try {
     if (!playerId) return { success: false, error: "Merci de sélectionner un joueur" };
+    const requestHeaders = await headers();
+    const createdBy = requestHeaders.get("x-sso-user-id");
+    if (!createdBy) return { success: false, error: "Session invalide, merci de vous reconnecter" };
     const cardEventService = new CardEventService();
-    await cardEventService.create({ matchId, playerId, type, minute, period, cardReasonId, commentFr });
+    await cardEventService.create({ matchId, playerId, type, minute, period, cardReasonId, commentFr, createdBy });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "Carton enregistré" };
   } catch (error) {

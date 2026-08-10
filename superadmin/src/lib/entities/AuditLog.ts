@@ -25,6 +25,10 @@ export class AuditLog {
   @Column({ type: 'varchar', length: 45, nullable: true })
   ip_address?: string | null
 
+  /** Quelle app a écrit cette entrée : 'arbinote' | 'superadmin' | 'matchsheet'. Nullable : colonne ajoutée après coup, absente sur les lignes historiques. */
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  app_source?: string | null
+
   @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date
 }

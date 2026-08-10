@@ -10,6 +10,7 @@ export { VoteAlert, type AlertType, type AlertStatus } from './VoteAlert'
 export { CritereDefinitionEntity } from './CritereDefinition'
 export { Contact } from './Contact'
 export { AuditLog, type AuditAction } from './AuditLog'
+export { TeamManagerAuditLog } from './TeamManagerAuditLog'
 export { User, type UserRole } from './User'
 export { CardReason, type CardReasonType } from './CardReason'
 

@@ -7,7 +7,10 @@ interface DashboardStats {
   arbitres: number
   matches: number
   votes: number
+  unresolvedVoteAlerts: number
 }
+
+const ARBINOTE_URL = process.env.NEXT_PUBLIC_ARBINOTE_URL
 
 export default function AdminDashboardStats() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -70,7 +73,7 @@ export default function AdminDashboardStats() {
       <div className="row g-4">
         <Link
           href="/admin/arbitres"
-          className="col-xl-4 col-md-6 text-decoration-none"
+          className="col-xl-3 col-md-6 text-decoration-none"
         >
           <div className="card mini-stats-wid h-100 shadow-sm border-0">
             <div className="card-body">
@@ -90,7 +93,7 @@ export default function AdminDashboardStats() {
 
         <Link
           href="/admin/matches"
-          className="col-xl-4 col-md-6 text-decoration-none"
+          className="col-xl-3 col-md-6 text-decoration-none"
         >
           <div className="card mini-stats-wid h-100 shadow-sm border-0">
             <div className="card-body">
@@ -110,7 +113,7 @@ export default function AdminDashboardStats() {
 
         <Link
           href="/admin/votes"
-          className="col-xl-4 col-md-6 text-decoration-none"
+          className="col-xl-3 col-md-6 text-decoration-none"
         >
           <div className="card mini-stats-wid h-100 shadow-sm border-0">
             <div className="card-body">
@@ -127,6 +130,30 @@ export default function AdminDashboardStats() {
             </div>
           </div>
         </Link>
+
+        <a
+          href={ARBINOTE_URL ? `${ARBINOTE_URL}/admin/alerts` : '#'}
+          className="col-xl-3 col-md-6 text-decoration-none"
+        >
+          <div className="card mini-stats-wid h-100 shadow-sm border-0">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <p className="text-muted fw-medium mb-2">Alertes de vote</p>
+                  <h3 className={`mb-0 ${(stats?.unresolvedVoteAlerts ?? 0) > 0 ? 'text-danger' : ''}`}>
+                    {stats?.unresolvedVoteAlerts ?? 0}
+                  </h3>
+                </div>
+                <div className="avatar-sm rounded-circle bg-danger-subtle d-flex align-items-center justify-content-center">
+                  <i className="bx bx-bell fs-4 text-danger" />
+                </div>
+              </div>
+              <p className="text-danger fw-medium mb-0 mt-3">
+                {ARBINOTE_URL ? 'Voir dans ArbiNote' : 'NEXT_PUBLIC_ARBINOTE_URL non configuré'}
+              </p>
+            </div>
+          </div>
+        </a>
       </div>
 
       <div className="card shadow-sm border-0 mt-4">
@@ -135,24 +162,27 @@ export default function AdminDashboardStats() {
           Accès rapide
           </h3>
           <div className="row g-3">
-          <Link
-            href="/admin/anomalies"
+          {/* Anomalies/Alertes vivent dans arbinote, pas ici — ces deux liens
+              pointaient vers des routes /admin/anomalies et /admin/alerts
+              inexistantes dans superadmin (404) avant ce fix. */}
+          <a
+            href={ARBINOTE_URL ? `${ARBINOTE_URL}/admin/anomalies` : '#'}
               className="col-lg-3 col-md-6 text-decoration-none"
           >
               <div className="p-3 rounded border bg-light d-flex align-items-center gap-2 text-body">
                 <i className="bx bx-error fs-4 text-warning" />
-                <span className="fw-medium">Anomalies</span>
+                <span className="fw-medium">Anomalies (ArbiNote)</span>
               </div>
-          </Link>
-          <Link
-            href="/admin/alerts"
+          </a>
+          <a
+            href={ARBINOTE_URL ? `${ARBINOTE_URL}/admin/alerts` : '#'}
               className="col-lg-3 col-md-6 text-decoration-none"
           >
               <div className="p-3 rounded border bg-light d-flex align-items-center gap-2 text-body">
                 <i className="bx bx-bell fs-4 text-danger" />
-                <span className="fw-medium">Alertes</span>
+                <span className="fw-medium">Alertes (ArbiNote)</span>
               </div>
-          </Link>
+          </a>
           <Link
             href="/admin/federations"
               className="col-lg-3 col-md-6 text-decoration-none"
