@@ -2,13 +2,13 @@
 
 ## Contexte
 
-Cette analyse porte sur la branche locale `work` du dépôt `foot`, après l'ajout visible d'une application `sso` dédiée à l'authentification centralisée.
+Cette analyse porte sur le dépôt `foot`, après l'ajout d'une application `sso` dédiée à l'authentification centralisée.
 
-> Note : un `git pull` n'a pas pu être effectué dans cet environnement, car aucun remote Git n'est configuré (`git remote -v` ne retourne rien). L'analyse ci-dessous concerne donc le code actuellement présent localement.
+Ce document couvre l'infrastructure, la sécurité, la qualité et la gouvernance des données. Le backlog fonctionnel/produit (API-Football, notifications, PWA, espace supporter, boutique, sponsors, finance, RGPD) est traité séparément dans `roadmap.md`.
 
 ## Applications concernées
 
-Le dépôt contient désormais plusieurs applications :
+Le dépôt contient plusieurs applications :
 
 - `arbinote` : site public de notation des arbitres, votes, critères, anomalies, alertes et messages.
 - `matchsheet` : feuille de match électronique, avant-match, live, après-match, signatures et événements.
@@ -20,45 +20,7 @@ Le dépôt contient désormais plusieurs applications :
 
 # 1. Manques critiques d'infrastructure
 
-## 1.1. Remote Git absent
-
-### Constat
-
-La commande `git remote -v` ne retourne aucun remote. Il est donc impossible d'exécuter un vrai `git pull`.
-
-### Impact
-
-Sans remote configuré, il est impossible de :
-
-- synchroniser la branche locale avec le dépôt distant ;
-- vérifier si la branche locale est à jour ;
-- récupérer les dernières modifications distantes ;
-- comparer local vs remote ;
-- préparer un workflow PR complet depuis cette copie.
-
-### Recommandation
-
-Configurer un remote :
-
-```bash
-git remote add origin <url-du-repo>
-git fetch origin
-git pull --ff-only origin work
-```
-
-Ou, si la branche distante porte un autre nom :
-
-```bash
-git pull --ff-only origin <nom-branche>
-```
-
-### Priorité
-
-Très haute.
-
----
-
-## 1.2. `sso` n'est pas lancé par `start.sh`
+## 1.1. `sso` n'est pas lancé par `start.sh`
 
 ### Constat
 
@@ -91,7 +53,7 @@ Très haute.
 
 ---
 
-## 1.3. Documentation des ports incomplète
+## 1.2. Documentation des ports incomplète
 
 ### Constat
 
@@ -809,256 +771,9 @@ Haute.
 
 ---
 
-# 7. Manques API-Football
+# 7. Manques exploitation
 
-## 7.1. Matching équipes/matchs à finaliser
-
-### Constat
-
-Le fichier `matching.md` identifie déjà le besoin : ne pas matcher les équipes uniquement par nom, mais utiliser des identifiants API-Football explicites.
-
-### Recommandation
-
-Ajouter :
-
-- `Team.api_football_id` ;
-- `Match.api_football_fixture_id` ;
-- `Match.live_status` ;
-- `Match.live_score_home` ;
-- `Match.live_score_away` ;
-- `Match.live_minute` ;
-- `Match.live_updated_at`.
-
-### Priorité
-
-Haute.
-
----
-
-## 7.2. Job de synchronisation live absent
-
-### Recommandation
-
-Créer un job qui :
-
-1. récupère les matchs locaux du jour ;
-2. appelle API-Football seulement pendant les fenêtres utiles ;
-3. matche par `api_football_fixture_id` si disponible ;
-4. sinon matche par date + IDs API des équipes ;
-5. met à jour statut, score, minute ;
-6. journalise succès/erreurs ;
-7. protège le quota.
-
-### Priorité
-
-Haute.
-
----
-
-## 7.3. Écran de mapping API-Football absent
-
-### Recommandation
-
-Ajouter dans `superadmin` :
-
-- écran mapping équipes locales ↔ équipes API ;
-- écran matching fixtures ;
-- affichage conflits ;
-- bouton resynchroniser ;
-- historique de synchronisation.
-
-### Priorité
-
-Haute.
-
----
-
-# 8. Manques notifications
-
-## 8.1. Notifications centralisées à finaliser
-
-### Constat
-
-`teamManager` prévoit notifications PWA, email et in-app.
-
-### Recommandation
-
-Créer un vrai système :
-
-- table `Notification` standardisée ;
-- préférences utilisateur ;
-- templates ;
-- queue d'envoi ;
-- retry ;
-- statut livraison ;
-- ciblage par club, catégorie, rôle, joueur, supporter ;
-- historique ;
-- push PWA ;
-- emails.
-
-### Événements à notifier
-
-- match créé ;
-- convocation envoyée ;
-- changement d'horaire ;
-- composition publiée ;
-- feuille de match clôturée ;
-- résultat final ;
-- nouvelle actualité ;
-- sponsor accepté ;
-- commande payée ;
-- anomalie vote détectée.
-
-### Priorité
-
-Haute.
-
----
-
-# 9. Manques PWA
-
-## 9.1. PWA complète côté `teamManager` et `matchsheet`
-
-### Constat
-
-La PWA est un objectif explicite du cahier des charges `teamManager`. `arbinote` et `superadmin` semblent avoir des fichiers PWA, mais `teamManager` et `matchsheet` doivent être complétés.
-
-### Recommandation
-
-Ajouter :
-
-- `manifest.json` ;
-- `sw.js` ;
-- icônes ;
-- prompt d'installation ;
-- stratégie offline ;
-- cache assets ;
-- notifications push ;
-- tests Lighthouse.
-
-### Priorité
-
-Moyenne à haute.
-
----
-
-# 10. Manques produit `teamManager`
-
-## 10.1. Espace supporter / communauté incomplet
-
-### Fonctionnalités attendues
-
-- inscription supporter ;
-- profil supporter ;
-- commentaires ;
-- votes homme du match ;
-- sondages ;
-- pronostics ;
-- mur supporters ;
-- encouragements ;
-- points ;
-- badges ;
-- classement supporters ;
-- contenus exclusifs ;
-- QR présence stade.
-
-### Priorité
-
-Moyenne à haute.
-
----
-
-## 10.2. Boutique e-commerce incomplète
-
-### Fonctionnalités attendues
-
-- panier ;
-- checkout ;
-- paiement ;
-- webhook paiement ;
-- commandes ;
-- factures ;
-- gestion stock ;
-- livraison ;
-- retrait stade ;
-- retours ;
-- remboursements ;
-- codes promo ;
-- avis produits ;
-- billetterie.
-
-### Priorité
-
-Moyenne.
-
----
-
-## 10.3. Sponsors : workflow contrat/facturation à compléter
-
-### Fonctionnalités attendues
-
-- pipeline sponsor ;
-- validation/refus ;
-- contrat ;
-- dates début/fin ;
-- montant ;
-- niveau sponsor ;
-- emplacements d'affichage ;
-- statistiques visibilité ;
-- renouvellement ;
-- facturation.
-
-### Priorité
-
-Moyenne.
-
----
-
-## 10.4. Finance / trésorerie à implémenter
-
-### Fonctionnalités attendues
-
-- cotisations joueurs ;
-- échéanciers ;
-- relances ;
-- paiements ;
-- dépenses ;
-- justificatifs ;
-- validation trésorier ;
-- exports comptables ;
-- rapports ;
-- budget prévisionnel.
-
-### Priorité
-
-Haute si gestion réelle du club.
-
----
-
-## 10.5. Juridique et RGPD à formaliser
-
-### Fonctionnalités attendues
-
-- consentements ;
-- droit à l'image ;
-- données mineurs ;
-- données médicales ;
-- export des données ;
-- suppression/anonymisation ;
-- registre de traitement ;
-- contrats ;
-- assurances ;
-- archivage règlements.
-
-### Priorité
-
-Haute si données réelles ou mineurs.
-
----
-
-# 11. Manques exploitation
-
-## 11.1. Backup et restauration
+## 7.1. Backup et restauration
 
 ### Constat
 
@@ -1082,7 +797,7 @@ Très haute avant production.
 
 ---
 
-## 11.2. Monitoring et alerting
+## 7.2. Monitoring et alerting
 
 ### Recommandation
 
@@ -1104,7 +819,7 @@ Haute.
 
 ---
 
-## 11.3. Gestion des uploads
+## 7.3. Gestion des uploads
 
 ### Recommandation
 
@@ -1127,20 +842,19 @@ Moyenne à haute.
 
 ---
 
-# 12. Priorités globales recommandées
+# 8. Priorités globales recommandées
 
 ## Priorité 1 — À faire immédiatement
 
-1. Configurer un remote Git.
-2. Ajouter `sso` dans `start.sh`.
-3. Installer les dépendances `sso`.
-4. Ajouter `.env.example` partout.
-5. Corriger la config ESLint, surtout l'exclusion `public/**` dans `teamManager`.
-6. Corriger les erreurs lint bloquantes.
-7. Ajouter healthcheck SSO, `teamManager`, `matchsheet`.
-8. Centraliser le code SSO dans un package partagé.
-9. Ajouter middleware admin global pour `superadmin` et `arbinote`.
-10. Définir la source de vérité des tables partagées.
+1. Ajouter `sso` dans `start.sh`.
+2. Installer les dépendances `sso`.
+3. Ajouter `.env.example` partout.
+4. Corriger la config ESLint, surtout l'exclusion `public/**` dans `teamManager`.
+5. Corriger les erreurs lint bloquantes.
+6. Ajouter healthcheck SSO, `teamManager`, `matchsheet`.
+7. Centraliser le code SSO dans un package partagé.
+8. Ajouter middleware admin global pour `superadmin` et `arbinote`.
+9. Définir la source de vérité des tables partagées.
 
 ## Priorité 2 — Sécurité et fiabilité
 
@@ -1155,26 +869,14 @@ Moyenne à haute.
 9. Machine d'état commune des matchs.
 10. Verrouillage des feuilles clôturées.
 
-## Priorité 3 — Fonctionnel métier
-
-1. Mapping API-Football.
-2. Job synchro live.
-3. Notifications centralisées.
-4. Espace supporter.
-5. PWA complète.
-6. Boutique complète.
-7. Sponsors avancés.
-8. Finance/trésorerie.
-9. RGPD.
-10. Monitoring produit.
+Le backlog fonctionnel/produit (API-Football, notifications, PWA, espace supporter, boutique, sponsors, finance, RGPD) est priorisé séparément dans `roadmap.md`.
 
 ---
 
-# 13. Checklist rapide
+# 9. Checklist rapide
 
 ## Infrastructure
 
-- [ ] Remote Git configuré
 - [ ] `sso` lancé dans `start.sh`
 - [ ] Ports documentés
 - [ ] `.env.example` ajoutés
@@ -1226,26 +928,10 @@ Moyenne à haute.
 - [ ] Publication résultat
 - [ ] Votes arbitres synchronisés
 
-## API-Football
+## Exploitation
 
-- [ ] `Team.api_football_id`
-- [ ] `Match.api_football_fixture_id`
-- [ ] Colonnes live match
-- [ ] Écran mapping
-- [ ] Job synchro
-- [ ] Journal sync
-- [ ] Quota monitoring
-
-## Produit
-
-- [ ] Notifications centralisées
-- [ ] PWA `teamManager`
-- [ ] PWA `matchsheet`
-- [ ] Espace supporter
-- [ ] Gamification
-- [ ] Boutique
-- [ ] Paiement
-- [ ] Sponsors avancés
-- [ ] Finance
-- [ ] RGPD
-
+- [ ] Backup DB
+- [ ] Backup uploads
+- [ ] Test de restauration
+- [ ] Monitoring / alerting
+- [ ] Gestion des uploads standardisée
