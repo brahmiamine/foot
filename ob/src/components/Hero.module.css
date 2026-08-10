@@ -16,7 +16,19 @@
   width: 70%;
   height: 100%;
   background: repeating-linear-gradient(90deg, var(--ob-red) 0 40px, transparent 40px 80px);
-  opacity: 0.08;
+  opacity: 0;
+  animation: heroStripesIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+@keyframes heroStripesIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 0.08;
+    transform: translateX(0);
+  }
 }
 
 .inner {
@@ -27,6 +39,17 @@
   width: 100%;
 }
 
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .eyebrow {
   font-family: var(--ob-font-display);
   font-weight: 700;
@@ -35,6 +58,7 @@
   text-transform: uppercase;
   color: var(--ob-red);
   margin-bottom: 18px;
+  animation: heroFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .title {
@@ -46,6 +70,7 @@
   letter-spacing: -1px;
   max-width: 900px;
   margin: 0;
+  animation: heroFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
 }
 
 .lead {
@@ -54,6 +79,7 @@
   color: var(--ob-text-muted);
   max-width: 560px;
   margin-top: 24px;
+  animation: heroFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
 }
 
 .actions {
@@ -61,4 +87,19 @@
   gap: 16px;
   margin-top: 36px;
   flex-wrap: wrap;
+  animation: heroFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.36s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stripes,
+  .eyebrow,
+  .title,
+  .lead,
+  .actions {
+    animation: none;
+    opacity: 1;
+  }
+  .stripes {
+    opacity: 0.08;
+  }
 }

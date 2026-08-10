@@ -1,6 +1,7 @@
 import type { Match } from "@/entities/Match";
 import type { Stadium } from "@/entities/Stadium";
 import { formatMatchDateTime } from "@/lib/format";
+import { Reveal } from "./Reveal";
 import styles from "./NextMatchBar.module.css";
 
 export function NextMatchBar({
@@ -21,7 +22,7 @@ export function NextMatchBar({
 
   return (
     <div id="calendrier" className={styles.bar}>
-      <div className={styles.inner}>
+      <Reveal variant="up" className={styles.inner}>
         <div className={styles.label}>Prochain match · Ligue Professionnelle 1</div>
 
         {match ? (
@@ -44,7 +45,7 @@ export function NextMatchBar({
         ) : (
           <div className={styles.location}>Aucun match à venir programmé pour le moment.</div>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

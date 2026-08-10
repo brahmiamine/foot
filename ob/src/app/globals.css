@@ -37,6 +37,10 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--ob-font-body);
 }
@@ -44,6 +48,7 @@ body {
 a {
   color: var(--ob-red);
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 a:hover {
@@ -76,4 +81,17 @@ img {
 .ob-scroll::-webkit-scrollbar-thumb {
   background: #333;
   border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

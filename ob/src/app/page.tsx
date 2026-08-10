@@ -18,6 +18,7 @@ import { HistorySection } from "@/components/HistorySection";
 import { GallerySection } from "@/components/GallerySection";
 import { ShopTicketingSection } from "@/components/ShopTicketingSection";
 import { Footer } from "@/components/Footer";
+import { Reveal } from "@/components/Reveal";
 
 export const dynamic = "force-dynamic";
 
@@ -46,13 +47,27 @@ export default async function HomePage() {
       <Nav teamName={team.nom} logoUrl={team.logoUrl} />
       <Hero />
       <NextMatchBar match={nextMatch} obTeamId={team.id} homeStadium={homeStadium} />
-      <RecentResults results={recentResults} obTeamId={team.id} />
-      <NewsSection news={news} />
-      <SquadSection groups={squad} />
-      <StandingsSection standings={standings} obTeamId={team.id} federationName={team.federation?.nom} />
-      <HistorySection />
-      <GallerySection photos={photos} />
-      <ShopTicketingSection products={products} />
+      <Reveal variant="left">
+        <RecentResults results={recentResults} obTeamId={team.id} />
+      </Reveal>
+      <Reveal variant="up">
+        <NewsSection news={news} />
+      </Reveal>
+      <Reveal variant="right">
+        <SquadSection groups={squad} />
+      </Reveal>
+      <Reveal variant="up">
+        <StandingsSection standings={standings} obTeamId={team.id} federationName={team.federation?.nom} />
+      </Reveal>
+      <Reveal variant="left">
+        <HistorySection />
+      </Reveal>
+      <Reveal variant="scale">
+        <GallerySection photos={photos} />
+      </Reveal>
+      <Reveal variant="up">
+        <ShopTicketingSection products={products} />
+      </Reveal>
       <Footer teamId={team.id} teamName={team.nom} logoUrl={team.logoUrl} stadium={homeStadium} />
     </div>
   );

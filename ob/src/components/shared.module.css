@@ -32,6 +32,11 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--ob-text-faint);
+  transition: color 0.2s ease;
+}
+
+.sectionSubtitle:hover {
+  color: var(--ob-red-hover);
 }
 
 .eyebrow {
@@ -45,6 +50,13 @@
 .card {
   background: var(--ob-card-bg);
   border: 1px solid var(--ob-card-border);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  border-color: var(--ob-red);
 }
 
 .btn {
@@ -57,6 +69,16 @@
   padding: 14px 28px;
   border: none;
   cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, background-color 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0) scale(0.97);
 }
 
 .btnPrimary {
@@ -90,7 +112,20 @@
   padding: 12px 26px;
 }
 
+.btnOutline:hover {
+  background: var(--ob-text);
+  color: var(--ob-bg);
+}
+
 .empty {
   font-size: 15px;
   color: var(--ob-text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .btn,
+  .sectionSubtitle {
+    transition: none;
+  }
 }
