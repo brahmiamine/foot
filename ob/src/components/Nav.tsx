@@ -29,7 +29,7 @@ export function Nav({ teamName, logoUrl }: { teamName: string; logoUrl?: string 
             </a>
           ))}
         </div>
-        <a href="#billetterie" className={shared.btnPrimary}>
+        <a href="#billetterie" className={`${shared.btnPrimary} ${styles.cta}`}>
           Billetterie
         </a>
       </div>

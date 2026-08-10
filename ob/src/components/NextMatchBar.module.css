@@ -73,3 +73,27 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
+
+@media (max-width: 640px) {
+  .bar {
+    padding: 20px;
+  }
+
+  .teams {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+
+  .teamName {
+    font-size: 18px;
+  }
+
+  .meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .when {
+    text-align: left;
+  }
+}

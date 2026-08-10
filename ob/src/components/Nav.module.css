@@ -70,8 +70,35 @@
   color: var(--ob-text);
 }
 
+.cta {
+  flex-shrink: 0;
+}
+
 @media (max-width: 900px) {
   .links {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .inner {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .badge {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .name {
+    font-size: 14px;
+    max-width: 110px;
+  }
+
+  .cta {
+    padding: 8px 14px;
+    font-size: 12px;
   }
 }

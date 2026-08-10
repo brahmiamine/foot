@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "mariadb": "^3.4.5",
+    "mysql": "^2.18.1",
+    "mysql2": "^3.16.0",
     "next": "16.0.10",
     "react": "19.2.1",
     "react-dom": "19.2.1",
