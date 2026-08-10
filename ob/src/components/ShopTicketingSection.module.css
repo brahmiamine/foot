@@ -1,0 +1,50 @@
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+}
+
+.tickets {
+  background: var(--ob-red);
+}
+
+.title {
+  font-family: var(--ob-font-display);
+  font-weight: 800;
+  font-size: 30px;
+  text-transform: uppercase;
+}
+
+.ticketsText {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ob-red-pale);
+}
+
+.shopText {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ob-text-muted);
+}
+
+.products {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--ob-text-muted);
+}

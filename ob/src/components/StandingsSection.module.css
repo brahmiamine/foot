@@ -1,0 +1,61 @@
+.section {
+  background: var(--ob-bg-alt);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--ob-font-display);
+}
+
+.table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ob-text-faint);
+  border-bottom: 2px solid var(--ob-card-border);
+}
+
+.table th.center,
+.table td.center {
+  text-align: center;
+}
+
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--ob-divider);
+  color: var(--ob-text-muted);
+}
+
+.pos {
+  font-weight: 700;
+  color: var(--ob-text-faint);
+}
+
+.team {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ob-text);
+}
+
+.pts {
+  text-align: center;
+  font-weight: 800;
+  color: var(--ob-text);
+}
+
+.highlight td {
+  background: var(--ob-highlight-bg);
+}
+
+.highlight .pos,
+.highlight .team {
+  color: var(--ob-highlight-text);
+}

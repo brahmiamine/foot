@@ -1,0 +1,96 @@
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.sectionPad {
+  padding: 64px 32px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.sectionTitle {
+  font-family: var(--ob-font-display);
+  font-weight: 800;
+  font-size: 34px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.sectionSubtitle {
+  font-family: var(--ob-font-display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ob-text-faint);
+}
+
+.eyebrow {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.card {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+}
+
+.btn {
+  display: inline-block;
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 14px 28px;
+  border: none;
+  cursor: pointer;
+}
+
+.btnPrimary {
+  composes: btn;
+  background: var(--ob-red);
+  color: #fff;
+}
+
+.btnPrimary:hover {
+  color: #fff;
+  background: var(--ob-red-hover);
+}
+
+.btnDark {
+  composes: btn;
+  background: var(--ob-bg);
+  color: #fff;
+}
+
+.btnLight {
+  composes: btn;
+  background: var(--ob-text);
+  color: var(--ob-bg);
+}
+
+.btnOutline {
+  composes: btn;
+  background: transparent;
+  border: 2px solid var(--ob-text);
+  color: var(--ob-text);
+  padding: 12px 26px;
+}
+
+.empty {
+  font-size: 15px;
+  color: var(--ob-text-faint);
+}

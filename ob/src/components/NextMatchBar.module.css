@@ -1,0 +1,75 @@
+.bar {
+  background: var(--ob-red);
+  padding: 28px 32px;
+}
+
+.inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.label {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ob-red-tint);
+}
+
+.teams {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-family: var(--ob-font-display);
+}
+
+.teamName {
+  font-weight: 800;
+  font-size: 26px;
+  text-transform: uppercase;
+}
+
+.vs {
+  font-weight: 600;
+  font-size: 18px;
+  opacity: 0.85;
+}
+
+.meta {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.when {
+  text-align: right;
+}
+
+.datetime {
+  font-family: var(--ob-font-display);
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.location {
+  font-size: 13px;
+  color: var(--ob-red-tint);
+}
+
+.cta {
+  background: var(--ob-bg);
+  color: #fff;
+  padding: 12px 24px;
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}

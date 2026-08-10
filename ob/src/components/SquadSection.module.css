@@ -1,0 +1,48 @@
+.group {
+  margin-bottom: 36px;
+}
+
+.groupLabel {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ob-red);
+  border-bottom: 2px solid var(--ob-card-border);
+  padding-bottom: 8px;
+  margin-bottom: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.player {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.number {
+  font-family: var(--ob-font-display);
+  font-weight: 800;
+  font-size: 30px;
+  color: var(--ob-number-dim);
+}
+
+.name {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ob-text);
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--ob-text-faint);
+  min-height: 1em;
+}
