@@ -18,7 +18,7 @@ export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) {
     return unauthorized
   }

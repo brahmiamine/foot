@@ -7,7 +7,7 @@ import { logAdminAction } from '@/lib/auditLog'
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

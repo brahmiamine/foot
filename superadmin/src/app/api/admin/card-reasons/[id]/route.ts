@@ -9,7 +9,7 @@ import { logAdminAction } from '@/lib/auditLog'
 export const runtime = 'nodejs'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {
@@ -52,7 +52,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

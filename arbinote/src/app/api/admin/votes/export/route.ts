@@ -12,7 +12,7 @@ export const runtime = 'nodejs'
 const MAX_EXPORT_ROWS = 20000
 
 export async function GET(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

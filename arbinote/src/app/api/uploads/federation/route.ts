@@ -26,7 +26,7 @@ async function ensureFederationUploadsDir() {
 }
 
 export async function POST(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) {
     return unauthorized
   }

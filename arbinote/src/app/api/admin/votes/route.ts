@@ -19,7 +19,7 @@ export const runtime = 'nodejs'
  * Liste tous les votes avec filtres et pagination
  */
 export async function GET(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
  * Supprime plusieurs votes (bulk delete)
  */
 export async function DELETE(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

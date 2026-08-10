@@ -1,66 +1,29 @@
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { UserService } from "@/services/UserService";
+import { getSsoSession } from "./ssoSession";
+import type { SessionUser } from "@/types/auth";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
-  providers: [
-    Credentials({
-      credentials: {
-        teamId: { label: "Club", type: "text" },
-        email: { label: "Email", type: "email" },
-        password: { label: "Mot de passe", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+/**
+ * Remplace l'ancien NextAuth (Credentials + JWT local) par une lecture du
+ * cookie de session partagé émis par l'app `sso`. Signature inchangée
+ * (`await auth()` retourne `{ user } | null`) pour ne pas toucher aux ~30
+ * fichiers qui l'appellent déjà (les actions.ts sous admin/, admin/layout.tsx,
+ * app/page.tsx, exports...).
+ *
+ * Règle métier conservée : SUPERADMIN (sans club) n'a jamais accès à
+ * teamManager — un compte sans teamId ne produit pas de session ici.
+ */
+export async function auth(): Promise<{ user: SessionUser } | null> {
+  const session = await getSsoSession();
+  if (!session || session.role === "SUPERADMIN" || !session.teamId) {
+    return null;
+  }
 
-        const userService = new UserService();
-        const user = await userService.findByEmail(credentials.email as string);
-
-        if (!user || !user.isActive) return null;
-
-        const valid = await bcrypt.compare(credentials.password as string, user.password);
-        if (!valid) return null;
-
-        // Un compte n'est valide que pour SON club (même logique que
-        // cardManager) : SUPERADMIN (sans club) n'a jamais accès à teamManager.
-        const submittedTeamId = (credentials.teamId as string | undefined) || null;
-        if (!user.teamId || user.teamId !== submittedTeamId) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          teamId: user.teamId,
-        };
-      },
-    }),
-  ],
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        const u = user as { role?: string; id?: string; teamId?: string | null };
-        token.role = u.role;
-        token.id = u.id;
-        token.teamId = u.teamId ?? null;
-      }
-      return token;
+  return {
+    user: {
+      id: session.id,
+      name: session.name,
+      email: session.email,
+      role: session.role,
+      teamId: session.teamId,
     },
-    session({ session, token }) {
-      if (session.user) {
-        const u = session.user as { role?: unknown; id?: unknown; teamId?: unknown };
-        u.role = token.role;
-        u.id = token.id;
-        u.teamId = token.teamId;
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: "/login",
-  },
-});
+  };
+}

@@ -16,7 +16,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ matchId: string }> }
 ) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   try {

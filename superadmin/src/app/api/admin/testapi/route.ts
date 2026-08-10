@@ -6,7 +6,7 @@ import { API_FOOTBALL_ENDPOINTS, callApiFootball, isApiFootballEndpoint } from '
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
-  const unauthorized = ensureAdminAuth(request)
+  const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
 
   const { searchParams } = new URL(request.url)

@@ -1,6 +1,5 @@
 "use client";
 
-import { signOut } from "next-auth/react";
 import { useAdminSidebar } from "./AdminSidebarContext";
 
 /**
@@ -36,7 +35,9 @@ export function AdminHeader({ userName }: { userName: string }) {
         <div className="d-flex align-items-center gap-2 gap-sm-3">
           {userName && <span className="d-none d-sm-inline text-muted small">{userName}</span>}
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => {
+              window.location.href = "/api/logout";
+            }}
             className="btn btn-outline-secondary btn-sm"
           >
             <i className="fas fa-sign-out-alt me-2" aria-hidden="true" />
