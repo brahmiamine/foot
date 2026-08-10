@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { MatchService } from "@/services/MatchService";
 import { SheetService } from "@/services/SheetService";
 import { LineupService } from "@/services/LineupService";
+import { MatchOfficialService } from "@/services/MatchOfficialService";
 import { SheetStatusBadge } from "@/components/SheetStatusBadge";
+import { TeamLineupCard } from "./TeamLineupCard";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
   const matchService = new MatchService();
   const sheetService = new SheetService();
   const lineupService = new LineupService();
+  const officialService = new MatchOfficialService();
 
   const match = await matchService.findById(matchId);
   if (!match) {
@@ -27,57 +30,22 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
   }
 
   const [sheet, lineup] = await Promise.all([sheetService.getOrCreate(matchId), lineupService.findByMatch(matchId)]);
+  const officialsConfirmed = await officialService.areMandatoryRolesConfirmed(sheet.id);
 
   const homeLineup = lineup.filter((l) => l.teamId === match.equipeHome);
   const awayLineup = lineup.filter((l) => l.teamId === match.equipeAway);
 
-  const renderTeamLineup = (teamName: string, entries: typeof lineup) => {
-    const starters = entries.filter((e) => e.role === "STARTER");
-    const substitutes = entries.filter((e) => e.role === "SUBSTITUTE");
-    return (
-      <div className="card h-100">
-        <div className="card-header bg-transparent">
-          <h5 className="card-title mb-0">{teamName}</h5>
-        </div>
-        <div className="card-body">
-          {entries.length === 0 ? (
-            <p className="text-muted mb-0">Composition non renseignée (à faire depuis teamManager).</p>
-          ) : (
-            <>
-              <h6 className="text-uppercase small text-muted fw-semibold">Titulaires ({starters.length}/11)</h6>
-              <ul className="list-unstyled mb-3">
-                {starters.map((e) => (
-                  <li key={e.id} className="d-flex align-items-center gap-2 py-1">
-                    <span className="badge bg-light text-dark border" style={{ minWidth: "2rem" }}>
-                      {e.shirtNumber ?? "—"}
-                    </span>
-                    <span>
-                      {e.player?.firstNameFr} {e.player?.lastNameFr}
-                    </span>
-                    {e.isCaptain && <span className="badge bg-warning-subtle text-warning">C</span>}
-                    {e.position && <span className="text-muted small ms-auto">{e.position}</span>}
-                  </li>
-                ))}
-              </ul>
-              <h6 className="text-uppercase small text-muted fw-semibold">Remplaçants ({substitutes.length})</h6>
-              <ul className="list-unstyled mb-0">
-                {substitutes.map((e) => (
-                  <li key={e.id} className="d-flex align-items-center gap-2 py-1">
-                    <span className="badge bg-light text-dark border" style={{ minWidth: "2rem" }}>
-                      {e.shirtNumber ?? "—"}
-                    </span>
-                    <span>
-                      {e.player?.firstNameFr} {e.player?.lastNameFr}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const toEntry = (entries: typeof lineup, role: "STARTER" | "SUBSTITUTE") =>
+    entries
+      .filter((e) => e.role === role)
+      .map((e) => ({
+        id: e.id,
+        shirtNumber: e.shirtNumber ?? null,
+        isCaptain: e.isCaptain,
+        position: e.position ?? null,
+        nameFr: `${e.player?.firstNameFr ?? ""} ${e.player?.lastNameFr ?? ""}`.trim() || "Joueur inconnu",
+        nameAr: e.player?.firstNameAr && e.player?.lastNameAr ? `${e.player.firstNameAr} ${e.player.lastNameAr}` : null,
+      }));
 
   return (
     <div className="container-fluid px-0">
@@ -109,6 +77,19 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
           </div>
 
           <div className="d-flex flex-wrap gap-2 mt-4">
+            <Link href={`/${matchId}/officials`} className="btn btn-outline-primary">
+              <i className="bx bx-id-card me-2" aria-hidden="true" />
+              Infos arbitre
+              {officialsConfirmed ? (
+                <i className="bx bx-check-circle text-success ms-2" aria-hidden="true" />
+              ) : (
+                <i className="bx bx-error text-warning ms-2" aria-hidden="true" />
+              )}
+            </Link>
+            <Link href={`/${matchId}/controls`} className="btn btn-outline-primary">
+              <i className="bx bx-list-check me-2" aria-hidden="true" />
+              Contrôles
+            </Link>
             <Link href={`/${matchId}/pre-match`} className="btn btn-primary">
               <i className="bx bx-edit-alt me-2" aria-hidden="true" />
               Signatures avant-match
@@ -126,8 +107,22 @@ export default async function MatchOverviewPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="row g-4">
-        <div className="col-12 col-lg-6">{renderTeamLineup(match.homeTeam?.nom ?? "Équipe domicile", homeLineup)}</div>
-        <div className="col-12 col-lg-6">{renderTeamLineup(match.awayTeam?.nom ?? "Équipe extérieure", awayLineup)}</div>
+        <div className="col-12 col-lg-6">
+          <TeamLineupCard
+            teamName={match.homeTeam?.nom ?? "Équipe domicile"}
+            starters={toEntry(homeLineup, "STARTER")}
+            substitutes={toEntry(homeLineup, "SUBSTITUTE")}
+            hasComposition={homeLineup.length > 0}
+          />
+        </div>
+        <div className="col-12 col-lg-6">
+          <TeamLineupCard
+            teamName={match.awayTeam?.nom ?? "Équipe extérieure"}
+            starters={toEntry(awayLineup, "STARTER")}
+            substitutes={toEntry(awayLineup, "SUBSTITUTE")}
+            hasComposition={awayLineup.length > 0}
+          />
+        </div>
       </div>
     </div>
   );

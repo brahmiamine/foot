@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { SheetService } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
+import { MatchOfficialService } from "@/services/MatchOfficialService";
 import type { ActorRole, SignaturePhase } from "@/entities/Signature";
 
 /**
@@ -92,6 +93,15 @@ export async function confirmPreMatch(sheetId: number, matchId: string) {
   try {
     const sheetService = new SheetService();
     const signatureService = new SignatureService();
+    const officialService = new MatchOfficialService();
+
+    const officialsConfirmed = await officialService.areMandatoryRolesConfirmed(sheetId);
+    if (!officialsConfirmed) {
+      return {
+        success: false,
+        error: "Les postes obligatoires (arbitre central, assistants 1/2, délégué) doivent être validés dans « Infos arbitre » avant de continuer.",
+      };
+    }
 
     const complete = await signatureService.isPhaseComplete(sheetId, "PRE_MATCH");
     if (!complete) {

@@ -116,6 +116,7 @@ $yellow:  #f1b44c;
 $green:   #34c38f;
 $teal:    #050505;
 $cyan:    #50a5f1;
+$ftf-red: #ce1126; // couleur primaire FTF (charte rouge/blanc)
 // scss-docs-end color-variables
 
 // scss-docs-start colors-map
@@ -138,7 +139,7 @@ $colors: (
 // scss-docs-end colors-map
 
 // scss-docs-start theme-color-variables
-$primary:       $blue;
+$primary:       $ftf-red;
 $secondary:     $gray-600;
 $success:       $green;
 $info:          $cyan;
