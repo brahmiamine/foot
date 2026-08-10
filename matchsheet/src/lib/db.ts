@@ -14,6 +14,8 @@ import { Goal } from "@/entities/Goal";
 import { Injury } from "@/entities/Injury";
 import { Substitution } from "@/entities/Substitution";
 import { Reservation } from "@/entities/Reservation";
+import { MatchOfficial } from "@/entities/MatchOfficial";
+import { PlayerControl } from "@/entities/PlayerControl";
 
 /**
  * Connexion TypeORM vers la base "foot", partagée avec superadmin,
@@ -39,7 +41,24 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false,
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Team, Matchday, Match, Player, Card, CardReason, MatchLineup, Sheet, Signature, Goal, Injury, Substitution, Reservation],
+      entities: [
+        Federation,
+        Team,
+        Matchday,
+        Match,
+        Player,
+        Card,
+        CardReason,
+        MatchLineup,
+        Sheet,
+        Signature,
+        Goal,
+        Injury,
+        Substitution,
+        Reservation,
+        MatchOfficial,
+        PlayerControl,
+      ],
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",

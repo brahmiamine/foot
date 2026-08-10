@@ -4,10 +4,12 @@ import "@/assets/scss/skote-theme.scss";
 import "./matchsheet.css";
 import { MatchService } from "@/services/MatchService";
 import { MatchesBottomBar } from "@/components/MatchesBottomBar";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 export const metadata: Metadata = {
-  title: "Feuille de match",
-  description: "Feuille de match électronique — composition, événements et signatures.",
+  title: "FTF — Feuille de Match Électronique",
+  description: "Fédération Tunisienne de Football — feuille de match électronique : composition, événements et signatures.",
   robots: { index: false, follow: false },
 };
 
@@ -32,10 +34,13 @@ export default async function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body data-layout-mode="light" className="matchsheet-app">
-        <div className="matchsheet-shell">
-          <main className="matchsheet-main">{children}</main>
-          <MatchesBottomBar matches={matchOptions} />
-        </div>
+        <LanguageProvider>
+          <div className="matchsheet-shell">
+            <LanguageToggle />
+            <main className="matchsheet-main">{children}</main>
+            <MatchesBottomBar matches={matchOptions} />
+          </div>
+        </LanguageProvider>
       </body>
     </html>
   );
