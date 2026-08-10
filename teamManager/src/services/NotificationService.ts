@@ -1,5 +1,6 @@
 import { getDataSource } from "@/lib/database";
 import { Notification, NotificationTargetType } from "@/entities/Notification";
+import { NotificationRead } from "@/entities/NotificationRead";
 import { Repository } from "typeorm";
 import { AgeCategory } from "@/types/categories";
 
@@ -11,6 +12,11 @@ export class NotificationService {
   private async getRepository(): Promise<Repository<Notification>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(Notification);
+  }
+
+  private async getReadRepository(): Promise<Repository<NotificationRead>> {
+    const dataSource = await getDataSource();
+    return dataSource.getRepository(NotificationRead);
   }
 
   /**
@@ -72,5 +78,27 @@ export class NotificationService {
     }
     await repository.remove(notification);
     return true;
+  }
+
+  // ---- Accusés de lecture ---------------------------------------------
+
+  /** Marque une notification comme lue par un compte (idempotent). */
+  async markAsRead(notificationId: number, userId: string): Promise<void> {
+    const repository = await this.getReadRepository();
+    const existing = await repository.findOne({ where: { notificationId, userId } });
+    if (existing) return;
+    const read = repository.create({ notificationId, userId });
+    await repository.save(read);
+  }
+
+  async getReadCount(notificationId: number): Promise<number> {
+    const repository = await this.getReadRepository();
+    return repository.count({ where: { notificationId } });
+  }
+
+  async hasRead(notificationId: number, userId: string): Promise<boolean> {
+    const repository = await this.getReadRepository();
+    const existing = await repository.findOne({ where: { notificationId, userId } });
+    return Boolean(existing);
   }
 }

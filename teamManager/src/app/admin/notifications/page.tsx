@@ -1,3 +1,4 @@
+import { auth } from "@/lib/auth";
 import { requireTeamId } from "@/lib/team-context";
 import { getUserAccess, selectableCategories } from "@/lib/access";
 import { NotificationService } from "@/services/NotificationService";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 /** Page Communication — messages/annonces internes (club, coach, direction). */
 export default async function NotificationsPage() {
+  const session = await auth();
   const teamId = await requireTeamId();
   const access = await getUserAccess();
   const notificationService = new NotificationService();
@@ -19,16 +21,23 @@ export default async function NotificationsPage() {
     matchService.findAll(teamId),
   ]);
 
-  const notifications = notificationsData.map((n) => ({
-    id: n.id,
-    title: n.title,
-    message: n.message,
-    targetType: n.targetType,
-    category: n.category ?? null,
-    isUrgent: n.isUrgent,
-    matchLabel: n.match ? `${n.match.homeTeam?.nom ?? "?"} vs ${n.match.awayTeam?.nom ?? "?"}` : null,
-    createdAt: n.createdAt.toISOString(),
-  }));
+  if (session?.user) {
+    await Promise.all(notificationsData.map((n) => notificationService.markAsRead(n.id, session.user.id)));
+  }
+
+  const notifications = await Promise.all(
+    notificationsData.map(async (n) => ({
+      id: n.id,
+      title: n.title,
+      message: n.message,
+      targetType: n.targetType,
+      category: n.category ?? null,
+      isUrgent: n.isUrgent,
+      matchLabel: n.match ? `${n.match.homeTeam?.nom ?? "?"} vs ${n.match.awayTeam?.nom ?? "?"}` : null,
+      createdAt: n.createdAt.toISOString(),
+      readCount: await notificationService.getReadCount(n.id),
+    }))
+  );
 
   const matches = matchesData.map((m) => ({
     id: m.id,

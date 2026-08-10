@@ -219,6 +219,38 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    key: "documents",
+    label: "Documents & échéances",
+    permissions: [
+      { key: "documents.view", label: "Voir les documents et échéances" },
+      { key: "documents.manage", label: "Gérer les documents" },
+    ],
+  },
+  {
+    key: "finance",
+    label: "Cotisations & paiements",
+    permissions: [
+      { key: "finance.view", label: "Voir les cotisations et paiements" },
+      { key: "finance.manage", label: "Gérer les cotisations et paiements" },
+    ],
+  },
+  {
+    key: "orders",
+    label: "Commandes boutique",
+    permissions: [
+      { key: "orders.view", label: "Voir les commandes" },
+      { key: "orders.manage", label: "Gérer les commandes" },
+    ],
+  },
+  {
+    key: "evaluations",
+    label: "Évaluations joueurs",
+    permissions: [
+      { key: "evaluations.view", label: "Voir les évaluations et objectifs" },
+      { key: "evaluations.manage", label: "Gérer les évaluations et objectifs" },
+    ],
+  },
+  {
     key: "tactics",
     label: "Planches tactiques",
     permissions: [
@@ -277,6 +309,8 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "guardians.view",
       "competitions.view",
       "competitions.manage",
+      "evaluations.view",
+      "evaluations.manage",
     ],
   },
   {
@@ -300,6 +334,6 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
     name: "Staff médical",
     description: "Consultation de l'effectif et des convocations de sa catégorie, gestion des dossiers de blessure.",
     isGlobal: false,
-    permissions: ["players.view", "staff.view", "matches.view", "convocations.view", "trainings.view", "medical.view", "medical.manage"],
+    permissions: ["players.view", "staff.view", "matches.view", "convocations.view", "trainings.view", "medical.view", "medical.manage", "documents.view", "documents.manage"],
   },
 ];

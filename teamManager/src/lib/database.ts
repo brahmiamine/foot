@@ -53,6 +53,15 @@ import { PlayerGuardian } from "@/entities/PlayerGuardian";
 import { Competition } from "@/entities/Competition";
 import { CompetitionParticipant } from "@/entities/CompetitionParticipant";
 import { MatchEvent } from "@/entities/MatchEvent";
+import { Document } from "@/entities/Document";
+import { FeePlan } from "@/entities/FeePlan";
+import { PlayerFee } from "@/entities/PlayerFee";
+import { Payment } from "@/entities/Payment";
+import { Order } from "@/entities/Order";
+import { OrderItem } from "@/entities/OrderItem";
+import { PlayerEvaluation } from "@/entities/PlayerEvaluation";
+import { PlayerObjective } from "@/entities/PlayerObjective";
+import { NotificationRead } from "@/entities/NotificationRead";
 
 /**
  * Database connection configuration
@@ -86,7 +95,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Never use synchronize in production
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant, Season, InternalTeam, License, Guardian, PlayerGuardian, Competition, CompetitionParticipant, MatchEvent], // Import entities directly instead of using glob patterns
+      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant, Season, InternalTeam, License, Guardian, PlayerGuardian, Competition, CompetitionParticipant, MatchEvent, Document, FeePlan, PlayerFee, Payment, Order, OrderItem, PlayerEvaluation, PlayerObjective, NotificationRead], // Import entities directly instead of using glob patterns
       migrations: [], // Add migrations as needed
       charset: "utf8mb4",
       timezone: "Z",

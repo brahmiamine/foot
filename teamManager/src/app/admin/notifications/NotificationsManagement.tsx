@@ -20,6 +20,7 @@ interface NotificationData {
   isUrgent: boolean;
   matchLabel: string | null;
   createdAt: string;
+  readCount: number;
 }
 
 interface MatchOption {
@@ -246,6 +247,7 @@ export function NotificationsManagement({
                     <th>Destinataires</th>
                     <th>Catégorie</th>
                     <th>Date</th>
+                    <th title="Nombre de comptes ayant ouvert la notification">Lue par</th>
                     <th className="text-end">Actions</th>
                   </tr>
                 </thead>
@@ -264,6 +266,12 @@ export function NotificationsManagement({
                       </td>
                       <td>{n.category ? <span className="badge bg-primary-subtle text-primary">{AGE_CATEGORY_LABELS[n.category]}</span> : <span className="text-muted small">Club entier</span>}</td>
                       <td>{new Date(n.createdAt).toLocaleDateString("fr-TN")}</td>
+                      <td>
+                        <span className="badge bg-light text-dark">
+                          <i className="fas fa-eye me-1" aria-hidden="true" />
+                          {n.readCount}
+                        </span>
+                      </td>
                       <td className="text-end">
                         <button
                           type="button"
