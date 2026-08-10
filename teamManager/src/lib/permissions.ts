@@ -144,7 +144,10 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   {
     key: "stats",
     label: "Statistiques",
-    permissions: [{ key: "stats.view", label: "Voir les statistiques" }],
+    permissions: [
+      { key: "stats.view", label: "Voir les statistiques" },
+      { key: "stats.manage", label: "Saisir / importer des statistiques joueurs" },
+    ],
   },
   {
     key: "discipline",
@@ -168,6 +171,22 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     permissions: [{ key: "roles.manage", label: "Gérer les rôles & permissions" }],
   },
   {
+    key: "medical",
+    label: "Blessures & santé (accès restreint)",
+    permissions: [
+      { key: "medical.view", label: "Voir les dossiers de blessure" },
+      { key: "medical.manage", label: "Gérer les dossiers de blessure" },
+    ],
+  },
+  {
+    key: "trips",
+    label: "Déplacements",
+    permissions: [
+      { key: "trips.view", label: "Voir les déplacements" },
+      { key: "trips.manage", label: "Organiser les déplacements" },
+    ],
+  },
+  {
     key: "tactics",
     label: "Planches tactiques",
     permissions: [
@@ -187,9 +206,9 @@ export function isValidPermissionKey(key: string): boolean {
 export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; isGlobal: boolean; permissions: string[] }> = [
   {
     name: "Secrétaire Général",
-    description: "Accès global à toutes les catégories : consultation et gestion administrative complète.",
+    description: "Accès global à toutes les catégories : consultation et gestion administrative complète (hors dossiers médicaux, accès strictement réservé).",
     isGlobal: true,
-    permissions: ALL_PERMISSION_KEYS.filter((k) => k !== "roles.manage" && k !== "users.manage"),
+    permissions: ALL_PERMISSION_KEYS.filter((k) => k !== "roles.manage" && k !== "users.manage" && !k.startsWith("medical.")),
   },
   {
     name: "Coach",
@@ -214,8 +233,13 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "convocations.respond",
       "stadiums.view",
       "stats.view",
+      "stats.manage",
       "tactics.view",
       "tactics.manage",
+      "notifications.view",
+      "notifications.send",
+      "trips.view",
+      "trips.manage",
     ],
   },
   {
@@ -236,8 +260,8 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
   },
   {
     name: "Staff médical",
-    description: "Consultation de l'effectif et des convocations de sa catégorie.",
+    description: "Consultation de l'effectif et des convocations de sa catégorie, gestion des dossiers de blessure.",
     isGlobal: false,
-    permissions: ["players.view", "staff.view", "matches.view", "convocations.view", "trainings.view"],
+    permissions: ["players.view", "staff.view", "matches.view", "convocations.view", "trainings.view", "medical.view", "medical.manage"],
   },
 ];

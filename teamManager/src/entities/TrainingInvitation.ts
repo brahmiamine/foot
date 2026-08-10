@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Training } from "./Training";
 import { Player } from "./Player";
 
-export type TrainingInvitationResponse = "PENDING" | "PRESENT" | "ABSENT";
+export type TrainingInvitationResponse = "PENDING" | "PRESENT" | "ABSENT" | "LATE" | "INJURED";
 
 /**
  * TrainingInvitation Entity — joueur invité à une séance d'entraînement,
@@ -28,7 +28,7 @@ export class TrainingInvitation {
   @JoinColumn({ name: "player_id" })
   player!: Player;
 
-  @Column({ type: "enum", enum: ["PENDING", "PRESENT", "ABSENT"], default: "PENDING" })
+  @Column({ type: "enum", enum: ["PENDING", "PRESENT", "ABSENT", "LATE", "INJURED"], default: "PENDING" })
   response!: TrainingInvitationResponse;
 
   @Column({ type: "datetime", nullable: true, name: "notified_at" })

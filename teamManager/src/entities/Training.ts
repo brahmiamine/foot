@@ -6,6 +6,7 @@ import type { AgeCategory } from "@/types/categories";
 
 export type TrainingType = "TECHNIQUE" | "PHYSIQUE" | "TACTIQUE" | "PREPARATION_MATCH" | "RECUPERATION" | "AUTRE";
 export type TrainingStatus = "SCHEDULED" | "DONE" | "CANCELLED";
+export type TrainingIntensity = "LOW" | "MEDIUM" | "HIGH";
 
 /**
  * Training Entity — séance d'entraînement d'une catégorie du club, avec
@@ -30,6 +31,9 @@ export class Training {
   @Column({ type: "varchar", length: 200 })
   title!: string;
 
+  @Column({ type: "varchar", length: 500, nullable: true })
+  objective?: string | null;
+
   @Column({
     type: "enum",
     enum: ["TECHNIQUE", "PHYSIQUE", "TACTIQUE", "PREPARATION_MATCH", "RECUPERATION", "AUTRE"],
@@ -38,11 +42,17 @@ export class Training {
   })
   trainingType!: TrainingType;
 
+  @Column({ type: "enum", enum: ["LOW", "MEDIUM", "HIGH"], nullable: true })
+  intensity?: TrainingIntensity | null;
+
   @Column({ type: "datetime" })
   date!: Date;
 
   @Column({ type: "int", nullable: true, name: "duration_minutes" })
   durationMinutes?: number | null;
+
+  @Column({ type: "varchar", length: 500, nullable: true })
+  equipment?: string | null;
 
   @Column({ type: "bigint", nullable: true, name: "stadium_id" })
   stadiumId?: number | null;

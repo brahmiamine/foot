@@ -1,9 +1,11 @@
 import { getDataSource } from "@/lib/database";
 import { Notification, NotificationTargetType } from "@/entities/Notification";
 import { Repository } from "typeorm";
+import { AgeCategory } from "@/types/categories";
 
 /**
- * Service for Notification operations (annonces diffusées par le club).
+ * Service for Notification operations (communication interne : annonces
+ * diffusées par le club, scopées par catégorie pour les rôles restreints).
  */
 export class NotificationService {
   private async getRepository(): Promise<Repository<Notification>> {
@@ -11,8 +13,28 @@ export class NotificationService {
     return dataSource.getRepository(Notification);
   }
 
-  async findAll(teamId: string): Promise<Notification[]> {
+  /**
+   * Notifications visibles par l'utilisateur : club-entier (category NULL)
+   * + celles de ses catégories autorisées. `categories: "ALL"` ne filtre pas.
+   */
+  async findAll(teamId: string, categories?: "ALL" | AgeCategory[]): Promise<Notification[]> {
     const repository = await this.getRepository();
+    if (categories && categories !== "ALL") {
+      const qb = repository
+        .createQueryBuilder("n")
+        .leftJoinAndSelect("n.match", "match")
+        .leftJoinAndSelect("match.homeTeam", "homeTeam")
+        .leftJoinAndSelect("match.awayTeam", "awayTeam")
+        .where("n.teamId = :teamId", { teamId })
+        .orderBy("n.createdAt", "DESC");
+
+      if (categories.length === 0) {
+        qb.andWhere("n.category IS NULL");
+      } else {
+        qb.andWhere("(n.category IS NULL OR n.category IN (:...categories))", { categories });
+      }
+      return qb.getMany();
+    }
     return repository.find({
       where: { teamId },
       relations: ["match", "match.homeTeam", "match.awayTeam"],
@@ -30,6 +52,8 @@ export class NotificationService {
       title: string;
       message: string;
       targetType?: NotificationTargetType;
+      category?: AgeCategory | null;
+      isUrgent?: boolean;
       matchId?: string | null;
     },
     teamId: string,

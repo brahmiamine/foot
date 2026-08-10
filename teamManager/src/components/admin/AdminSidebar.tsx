@@ -73,7 +73,9 @@ export function AdminSidebar({ teamName, access }: { teamName: string; access: C
           { title: "Matchs", icon: "fas fa-futbol", href: "/admin/matches", children: [], permission: "matches.view" },
           { title: "Matchs amicaux", icon: "fas fa-people-arrows", href: "/admin/friendly-matches", children: [], permission: "friendlyMatches.view" },
           { title: "Entraînements", icon: "fas fa-dumbbell", href: "/admin/trainings", children: [], permission: "trainings.view" },
+          { title: "Déplacements", icon: "fas fa-bus", href: "/admin/trips", children: [], permission: "trips.view" },
           { title: "Planches tactiques", icon: "fas fa-chalkboard", href: "/admin/tactics", children: [], permission: "tactics.view" },
+          { title: "Blessures & santé", icon: "fas fa-notes-medical", href: "/admin/injuries", children: [], permission: "medical.view" },
           {
             title: "Discipline",
             icon: "fas fa-gavel",
@@ -127,8 +129,9 @@ export function AdminSidebar({ teamName, access }: { teamName: string; access: C
             ],
           },
           { title: "Sponsors", icon: "fas fa-handshake", href: "/admin/sponsors", children: [], permission: "sponsors.view" },
-          { title: "Notifications", icon: "fas fa-bell", href: "/admin/notifications", children: [], permission: "notifications.view" },
+          { title: "Communication", icon: "fas fa-bell", href: "/admin/notifications", children: [], permission: "notifications.view" },
           { title: "Statistiques", icon: "fas fa-chart-bar", href: "/admin/stats", children: [], permission: "stats.view" },
+          { title: "Stats joueurs", icon: "fas fa-chart-line", href: "/admin/player-stats", children: [], permission: "stats.view" },
         ],
       },
       {

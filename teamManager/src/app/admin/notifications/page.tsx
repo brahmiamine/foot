@@ -1,18 +1,21 @@
 import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, selectableCategories } from "@/lib/access";
 import { NotificationService } from "@/services/NotificationService";
 import { MatchService } from "@/services/MatchService";
+import { AGE_CATEGORIES } from "@/types/categories";
 import { NotificationsManagement } from "./NotificationsManagement";
 
 export const dynamic = "force-dynamic";
 
-/** Page Notifications — annonces diffusées aux joueurs/staff/membres du club. */
+/** Page Communication — messages/annonces internes (club, coach, direction). */
 export default async function NotificationsPage() {
   const teamId = await requireTeamId();
+  const access = await getUserAccess();
   const notificationService = new NotificationService();
   const matchService = new MatchService();
 
   const [notificationsData, matchesData] = await Promise.all([
-    notificationService.findAll(teamId),
+    notificationService.findAll(teamId, access.categories),
     matchService.findAll(teamId),
   ]);
 
@@ -21,6 +24,8 @@ export default async function NotificationsPage() {
     title: n.title,
     message: n.message,
     targetType: n.targetType,
+    category: n.category ?? null,
+    isUrgent: n.isUrgent,
     matchLabel: n.match ? `${n.match.homeTeam?.nom ?? "?"} vs ${n.match.awayTeam?.nom ?? "?"}` : null,
     createdAt: n.createdAt.toISOString(),
   }));
@@ -30,5 +35,12 @@ export default async function NotificationsPage() {
     label: `J${m.matchday?.number ?? "?"} — ${m.homeTeam?.nom ?? ""} vs ${m.awayTeam?.nom ?? ""}`,
   }));
 
-  return <NotificationsManagement initialNotifications={notifications} matches={matches} />;
+  return (
+    <NotificationsManagement
+      initialNotifications={notifications}
+      matches={matches}
+      allowedCategories={selectableCategories(access, AGE_CATEGORIES)}
+      canSendGlobal={access.categories === "ALL"}
+    />
+  );
 }

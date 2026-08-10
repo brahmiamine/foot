@@ -12,15 +12,26 @@ import type { TrainingInvitationResponse } from "@/entities/TrainingInvitation";
 
 function readTrainingForm(formData: FormData) {
   const dateStr = formData.get("date") as string;
+  const blocksJson = (formData.get("blocksJson") as string) || "[]";
+  let blocks: unknown[] = [];
+  try {
+    blocks = JSON.parse(blocksJson);
+  } catch {
+    blocks = [];
+  }
   return {
     category: (formData.get("category") as string) || "seniors",
     title: formData.get("title") as string,
+    objective: (formData.get("objective") as string) || null,
     trainingType: (formData.get("trainingType") as string) || "AUTRE",
+    intensity: (formData.get("intensity") as string) || null,
     date: dateStr ? new Date(dateStr) : new Date(),
     durationMinutes: formData.get("durationMinutes") ? parseInt(formData.get("durationMinutes") as string, 10) : null,
+    equipment: (formData.get("equipment") as string) || null,
     stadiumId: formData.get("stadiumId") ? parseInt(formData.get("stadiumId") as string, 10) : null,
     venueName: (formData.get("venueName") as string) || null,
     notes: (formData.get("notes") as string) || null,
+    blocks,
   };
 }
 
