@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { Stadium } from "@/entities/Stadium";
 import { getSponsorRequestUrl } from "@/lib/sponsor";
+import { PublicTeamSocialsService } from "@/services/PublicTeamSocialsService";
 import { ClubBadge } from "./ClubBadge";
 import styles from "./Footer.module.css";
 
-export function Footer({
+export async function Footer({
   teamId,
   teamName,
   stadium,
@@ -15,6 +16,7 @@ export function Footer({
 }) {
   const address = [stadium?.nameFr, stadium?.addressFr, stadium?.cityFr].filter(Boolean).join(", ");
   const sponsorUrl = getSponsorRequestUrl(teamId);
+  const socials = await new PublicTeamSocialsService().get(teamId);
 
   return (
     <div id="contact" className={styles.footer}>
@@ -32,24 +34,61 @@ export function Footer({
         <div>
           <div className={styles.heading}>Le club</div>
           <div className={styles.links}>
-            <Link href="/#histoire">Histoire</Link>
+            <Link href="/club">Le club</Link>
+            <Link href="/club/histoire">Histoire</Link>
+            <Link href="/formation">Formation</Link>
             <Link href="/#effectif">Effectif</Link>
             <Link href="/calendrier">Calendrier</Link>
             <Link href="/actualites">Actualités</Link>
             <Link href="/galerie">Galerie</Link>
             <Link href="/boutique">Boutique</Link>
+          </div>
+        </div>
+
+        <div>
+          <div className={styles.heading}>Le club et vous</div>
+          <div className={styles.links}>
+            <Link href="/communiques">Communiqués</Link>
+            <Link href="/recrutement">Recrutement</Link>
+            <Link href="/partenaires">Partenaires</Link>
             {sponsorUrl && <a href={sponsorUrl}>Devenir sponsor</a>}
+            <Link href="/contact">Contact</Link>
           </div>
         </div>
 
         <div>
           <div className={styles.heading}>Suivez-nous</div>
-          {/* Comptes réseaux sociaux non confirmés — à renseigner par le club. */}
-          <div className={styles.links}>
-            <a href="#">Facebook</a>
-            <a href="#">Instagram</a>
-            <a href="#">X (Twitter)</a>
-          </div>
+          {socials?.facebookUrl || socials?.instagramUrl || socials?.tiktokUrl || socials?.youtubeUrl || socials?.xUrl ? (
+            <div className={styles.links}>
+              {socials.facebookUrl && (
+                <a href={socials.facebookUrl} target="_blank" rel="noreferrer">
+                  Facebook
+                </a>
+              )}
+              {socials.instagramUrl && (
+                <a href={socials.instagramUrl} target="_blank" rel="noreferrer">
+                  Instagram
+                </a>
+              )}
+              {socials.tiktokUrl && (
+                <a href={socials.tiktokUrl} target="_blank" rel="noreferrer">
+                  TikTok
+                </a>
+              )}
+              {socials.youtubeUrl && (
+                <a href={socials.youtubeUrl} target="_blank" rel="noreferrer">
+                  YouTube
+                </a>
+              )}
+              {socials.xUrl && (
+                <a href={socials.xUrl} target="_blank" rel="noreferrer">
+                  X (Twitter)
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className={styles.address}>Réseaux sociaux à venir.</p>
+          )}
         </div>
       </div>
       <div className={styles.bottom}>© {new Date().getFullYear()} {teamName}. Tous droits réservés.</div>

@@ -194,6 +194,51 @@ export const PERMISSION_MODULES: PermissionModule[] = [
       { key: "tactics.manage", label: "Créer / gérer ses propres planches tactiques" },
     ],
   },
+  {
+    key: "club",
+    label: "Le club (présentation, histoire, palmarès)",
+    permissions: [
+      { key: "club.view", label: "Voir le contenu du club" },
+      { key: "club.manage", label: "Gérer présentation, histoire, palmarès et figures du club" },
+    ],
+  },
+  {
+    key: "academy",
+    label: "Formation / Académie",
+    permissions: [
+      { key: "academy.view", label: "Voir la formation" },
+      { key: "academy.manage", label: "Gérer catégories et contenu de la formation" },
+    ],
+  },
+  {
+    key: "playerApplications",
+    label: "Candidatures académie",
+    permissions: [
+      { key: "playerApplications.view", label: "Voir les candidatures d'inscription" },
+      { key: "playerApplications.manage", label: "Traiter les candidatures d'inscription" },
+    ],
+  },
+  {
+    key: "recruitment",
+    label: "Recrutement",
+    permissions: [
+      { key: "recruitment.view", label: "Voir le recrutement et les candidatures" },
+      { key: "recruitment.manage", label: "Gérer les postes recherchés et les candidatures" },
+    ],
+  },
+  {
+    key: "announcements",
+    label: "Communiqués officiels",
+    permissions: [
+      { key: "announcements.view", label: "Voir les communiqués" },
+      { key: "announcements.manage", label: "Créer / publier des communiqués" },
+    ],
+  },
+  {
+    key: "clubSettings",
+    label: "Réseaux sociaux & contact",
+    permissions: [{ key: "clubSettings.manage", label: "Gérer les réseaux sociaux et les coordonnées du club" }],
+  },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_MODULES.flatMap((m) => m.permissions.map((p) => p.key));

@@ -16,6 +16,8 @@ const urlOrPathSchema = z
 /**
  * Validation schema for creating a stadium
  */
+const facilityTypeSchema = z.enum(["STADIUM", "TRAINING_GROUND", "LOCKER_ROOM", "GYM", "SPORTS_CENTER", "OTHER"]);
+
 export const createStadiumSchema = z.object({
   nameFr: z.string().min(1, "Le nom en français est requis").max(200, "Le nom ne peut pas dépasser 200 caractères"),
   nameAr: z.string().max(200, "Le nom en arabe ne peut pas dépasser 200 caractères").optional().nullable(),
@@ -24,7 +26,10 @@ export const createStadiumSchema = z.object({
   cityFr: z.string().max(100, "La ville en français ne peut pas dépasser 100 caractères").optional().nullable(),
   cityAr: z.string().max(100, "La ville en arabe ne peut pas dépasser 100 caractères").optional().nullable(),
   isHome: z.boolean().default(false),
+  facilityType: facilityTypeSchema.default("STADIUM"),
   capacity: z.number().int().positive().optional().nullable(),
+  descriptionFr: z.string().optional().nullable(),
+  descriptionAr: z.string().optional().nullable(),
   imageUrl: urlOrPathSchema,
 });
 
@@ -39,7 +44,10 @@ export const updateStadiumSchema = z.object({
   cityFr: z.string().max(100).optional().nullable(),
   cityAr: z.string().max(100).optional().nullable(),
   isHome: z.boolean().optional(),
+  facilityType: facilityTypeSchema.optional(),
   capacity: z.number().int().positive().optional().nullable(),
+  descriptionFr: z.string().optional().nullable(),
+  descriptionAr: z.string().optional().nullable(),
   imageUrl: urlOrPathSchema,
 });
 

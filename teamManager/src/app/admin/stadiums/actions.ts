@@ -21,7 +21,10 @@ export async function createStadium(formData: FormData) {
       cityFr: (formData.get("cityFr") as string) || null,
       cityAr: (formData.get("cityAr") as string) || null,
       isHome: isHomeValue === "true" || isHomeValue === "on",
+      facilityType: (formData.get("facilityType") as string) || "STADIUM",
       capacity: capacityValue ? parseInt(capacityValue as string, 10) : null,
+      descriptionFr: (formData.get("descriptionFr") as string) || null,
+      descriptionAr: (formData.get("descriptionAr") as string) || null,
       imageUrl: (formData.get("imageUrl") as string) || null,
     };
 
@@ -56,7 +59,10 @@ export async function updateStadium(id: number, formData: FormData) {
       cityFr?: string | null;
       cityAr?: string | null;
       isHome?: boolean;
+      facilityType?: "STADIUM" | "TRAINING_GROUND" | "LOCKER_ROOM" | "GYM" | "SPORTS_CENTER" | "OTHER";
       capacity?: number | null;
+      descriptionFr?: string | null;
+      descriptionAr?: string | null;
       imageUrl?: string | null;
     } = {
       nameFr: formData.get("nameFr") as string,
@@ -65,6 +71,8 @@ export async function updateStadium(id: number, formData: FormData) {
       addressAr: (formData.get("addressAr") as string) || null,
       cityFr: (formData.get("cityFr") as string) || null,
       cityAr: (formData.get("cityAr") as string) || null,
+      descriptionFr: (formData.get("descriptionFr") as string) || null,
+      descriptionAr: (formData.get("descriptionAr") as string) || null,
       imageUrl: (formData.get("imageUrl") as string) || null,
     };
 
@@ -73,6 +81,10 @@ export async function updateStadium(id: number, formData: FormData) {
     }
     if (isHomeValue !== null) {
       data.isHome = isHomeValue === "true" || isHomeValue === "on";
+    }
+    const facilityTypeValue = formData.get("facilityType");
+    if (facilityTypeValue) {
+      data.facilityType = facilityTypeValue as typeof data.facilityType;
     }
 
     const validatedData = updateStadiumSchema.parse(data);

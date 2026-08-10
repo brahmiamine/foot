@@ -4,14 +4,16 @@ import shared from "./shared.module.css";
 import styles from "./Nav.module.css";
 
 const LINKS = [
+  { href: "/club", label: "Le club" },
   { href: "/calendrier", label: "Calendrier" },
   { href: "/actualites", label: "Actualités" },
   { href: "/#effectif", label: "Effectif" },
   { href: "/#classement", label: "Classement" },
-  { href: "/#histoire", label: "Histoire" },
+  { href: "/formation", label: "Formation" },
   { href: "/galerie", label: "Galerie" },
   { href: "/boutique", label: "Boutique" },
-  { href: "/#contact", label: "Contact" },
+  { href: "/partenaires", label: "Partenaires" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function Nav({ teamName }: { teamName: string }) {
