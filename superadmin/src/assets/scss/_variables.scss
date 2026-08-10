@@ -10,7 +10,7 @@ $sidebar-menu-item-color:                             #545a6d;
 $sidebar-menu-sub-item-color:                         #545a6d;
 $sidebar-menu-item-icon-color:                        #7f8387;
 $sidebar-menu-item-hover-color:                       #383c40;
-$sidebar-menu-item-active-color:                      #556ee6;
+$sidebar-menu-item-active-color:                      #c42221;
 $sidebar-width:                                       250px;
 $sidebar-collapsed-width:                             70px;
 $sidebar-width-sm:                                    160px;
@@ -106,16 +106,20 @@ $grays: (
 // fusv-enable
 
 // scss-docs-start color-variables
-$blue:    #556ee6;
+// Club-branded palette (matches teamManager's public site tokens:
+// #031521 navy / #C42221 red) instead of the stock Skote indigo — $blue
+// drives $primary below, $red drives $danger, kept as two distinct but
+// harmonious reds so interactive elements stay distinguishable from alerts.
+$blue:    #c42221;
 $indigo:  #564ab1;
 $purple:  #6f42c1;
 $pink:    #e83e8c;
-$red:     #f46a6a;
+$red:     #d6455a;
 $orange:  #f1734f;
-$yellow:  #f1b44c;
-$green:   #34c38f;
+$yellow:  #d99a3d;
+$green:   #3fa772;
 $teal:    #050505;
-$cyan:    #50a5f1;
+$cyan:    #4a90a4;
 // scss-docs-end color-variables
 
 // scss-docs-start colors-map
@@ -615,9 +619,9 @@ $border-color-translucent:    $gray-400;
 // scss-docs-end border-variables
 
 // scss-docs-start border-radius-variables
-$border-radius:               .25rem;
-$border-radius-sm:            .2rem;
-$border-radius-lg:            .4rem;
+$border-radius:               .4rem;
+$border-radius-sm:            .3rem;
+$border-radius-lg:            .65rem;
 $border-radius-xl:            1rem;
 $border-radius-xxl:           2rem;
 $border-radius-pill:          50rem;

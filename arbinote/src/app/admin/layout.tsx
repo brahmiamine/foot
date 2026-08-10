@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   if (!activeLeagueId) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[#0b1f2e] text-white flex items-center justify-center px-6">
         <div className="max-w-lg text-center space-y-4">
           <h1 className="text-2xl font-semibold">Configuration requise</h1>
           <p className="text-slate-200">
@@ -34,10 +34,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <FederationProvider federations={federations} initialLeagueId={activeLeagueId}>
       <AdminSidebarProvider>
-        <div className="min-h-screen bg-slate-950">
+        <div className="min-h-screen bg-[#0b1f2e]">
           <div className="flex min-h-screen">
             <AdminSidebar />
-            <div className="flex-1 bg-gray-50 text-gray-900 min-w-0">
+            <div className="flex-1 bg-[#f4f6f8] text-gray-900 min-w-0">
               <AdminHeader />
               <div className="p-4 sm:p-6 lg:p-8">{children}</div>
             </div>
