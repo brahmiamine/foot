@@ -1,0 +1,83 @@
+.group {
+  margin-bottom: 48px;
+}
+
+.groupLabel {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ob-red);
+  border-bottom: 2px solid var(--ob-card-border);
+  padding-bottom: 8px;
+  margin-bottom: 18px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.teams {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+  color: var(--ob-text);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.date {
+  font-size: 13px;
+  color: var(--ob-text-faint);
+  white-space: nowrap;
+}
+
+.score {
+  font-family: var(--ob-font-display);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--ob-text);
+  min-width: 48px;
+  text-align: center;
+}
+
+.badge {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  text-transform: uppercase;
+}
+
+.win {
+  background: var(--ob-win-bg);
+  color: var(--ob-win-text);
+}
+
+.loss {
+  background: var(--ob-loss-bg);
+  color: var(--ob-loss-text);
+}
+
+.draw {
+  background: var(--ob-card-border);
+  color: var(--ob-text-faint);
+}

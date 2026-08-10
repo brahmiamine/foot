@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm";
 
 /** Mappée sur `cms_media_galleries` (table teamManager), scopée par team_id. Lecture seule. */
 @Entity("cms_media_galleries")
@@ -9,6 +9,12 @@ export class MediaGallery {
   @Column({ type: "char", length: 36, name: "team_id" })
   teamId!: string;
 
+  @Column({ type: "varchar", length: 200, name: "title_fr" })
+  titleFr!: string;
+
   @Column({ type: "boolean", default: true, name: "is_public" })
   isPublic!: boolean;
+
+  @CreateDateColumn({ type: "datetime", name: "created_at" })
+  createdAt!: Date;
 }

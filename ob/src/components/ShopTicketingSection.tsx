@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Product } from "@/entities/Product";
 import { formatPriceTnd } from "@/lib/format";
 import shared from "./shared.module.css";
@@ -13,9 +14,9 @@ export function ShopTicketingSection({ products }: { products: Product[] }) {
             <p className={styles.ticketsText}>
               Réservez votre place au Stade Boujemaa Kmiti et venez encourager les Cigognes à domicile.
             </p>
-            <a href="#contact" className={shared.btnDark} style={{ alignSelf: "flex-start", marginTop: 8 }}>
+            <Link href="/#contact" className={shared.btnDark} style={{ alignSelf: "flex-start", marginTop: 8 }}>
               Contacter le club
-            </a>
+            </Link>
           </div>
 
           <div className={`${shared.card} ${styles.panel}`}>
@@ -30,13 +31,18 @@ export function ShopTicketingSection({ products }: { products: Product[] }) {
                     </div>
                   ))}
                 </div>
+                <Link href="/boutique" className={shared.btnLight} style={{ alignSelf: "flex-start", marginTop: 8 }}>
+                  Voir la boutique
+                </Link>
               </>
             ) : (
-              <p className={styles.shopText}>Boutique en cours de préparation, revenez bientôt.</p>
+              <>
+                <p className={styles.shopText}>Boutique en cours de préparation, revenez bientôt.</p>
+                <Link href="/#contact" className={shared.btnLight} style={{ alignSelf: "flex-start", marginTop: 8 }}>
+                  Contacter le club
+                </Link>
+              </>
             )}
-            <a href="#contact" className={shared.btnLight} style={{ alignSelf: "flex-start", marginTop: 8 }}>
-              Contacter le club
-            </a>
           </div>
         </div>
       </div>

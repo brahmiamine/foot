@@ -19,6 +19,14 @@ export function formatShortDate(date: Date): string {
   return capitalize(DATE_FORMATTER.format(date));
 }
 
+/** "21 nov. 2026 · 15h00" — utilisé partout où plusieurs dates coexistent (calendrier complet). */
+export function formatFullDateTime(date: Date): string {
+  const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis" })
+    .format(date)
+    .replace(":", "h");
+  return `${formatShortDate(date)} · ${time}`;
+}
+
 /** Product.price est stocké en `decimal` (donc en string côté TypeORM). */
 export function formatPriceTnd(price: string): string {
   const value = Number(price);

@@ -53,7 +53,7 @@ export default async function HomePage() {
       <HistorySection />
       <GallerySection photos={photos} />
       <ShopTicketingSection products={products} />
-      <Footer teamName={team.nom} logoUrl={team.logoUrl} stadium={homeStadium} />
+      <Footer teamId={team.id} teamName={team.nom} logoUrl={team.logoUrl} stadium={homeStadium} />
     </div>
   );
 }

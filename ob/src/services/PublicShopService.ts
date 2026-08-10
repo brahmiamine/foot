@@ -6,4 +6,10 @@ export class PublicShopService {
     const ds = await getDataSource();
     return ds.getRepository(Product).find({ where: { teamId, isActive: true }, order: { id: "DESC" }, take: limit });
   }
+
+  /** Catalogue complet, pour la page /boutique. */
+  async getAllActive(teamId: string): Promise<Product[]> {
+    const ds = await getDataSource();
+    return ds.getRepository(Product).find({ where: { teamId, isActive: true }, order: { id: "DESC" } });
+  }
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { GalleryPhoto } from "@/services/PublicGalleryService";
 import { resolveAssetUrl } from "@/lib/assets";
 import { PlaceholderImage } from "./PlaceholderImage";
@@ -8,9 +9,12 @@ export function GallerySection({ photos }: { photos: GalleryPhoto[] }) {
   return (
     <div id="galerie" className={`${styles.section} ${shared.sectionPad}`}>
       <div className={shared.container}>
-        <h2 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-          Galerie
-        </h2>
+        <div className={shared.sectionHeader}>
+          <h2 className={shared.sectionTitle}>Galerie</h2>
+          <Link href="/galerie" className={shared.sectionSubtitle}>
+            Toute la galerie →
+          </Link>
+        </div>
 
         {photos.length === 0 ? (
           <p className={shared.empty}>Galerie photo à venir.</p>

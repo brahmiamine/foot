@@ -15,4 +15,17 @@ export class PublicNewsService {
       take: limit,
     });
   }
+
+  async getAll(teamId: string): Promise<News[]> {
+    const repo = await this.repo();
+    return repo.find({
+      where: { teamId, isPublished: true },
+      order: { publishedAt: "DESC", createdAt: "DESC" },
+    });
+  }
+
+  async getById(id: number, teamId: string): Promise<News | null> {
+    const repo = await this.repo();
+    return repo.findOne({ where: { id, teamId, isPublished: true } });
+  }
 }

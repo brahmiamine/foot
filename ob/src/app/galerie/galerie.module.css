@@ -1,0 +1,23 @@
+.gallery {
+  margin-bottom: 48px;
+}
+
+.title {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 18px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-auto-rows: 200px;
+  gap: 12px;
+}
+
+.item {
+  width: 100%;
+  height: 100%;
+}

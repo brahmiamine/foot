@@ -1,16 +1,21 @@
+import Link from "next/link";
 import type { Stadium } from "@/entities/Stadium";
+import { getSponsorRequestUrl } from "@/lib/sponsor";
 import styles from "./Footer.module.css";
 
 export function Footer({
+  teamId,
   teamName,
   logoUrl,
   stadium,
 }: {
+  teamId: string;
   teamName: string;
   logoUrl?: string | null;
   stadium: Stadium | null;
 }) {
   const address = [stadium?.nameFr, stadium?.addressFr, stadium?.cityFr].filter(Boolean).join(", ");
+  const sponsorUrl = getSponsorRequestUrl(teamId);
 
   return (
     <div id="contact" className={styles.footer}>
@@ -31,10 +36,13 @@ export function Footer({
         <div>
           <div className={styles.heading}>Le club</div>
           <div className={styles.links}>
-            <a href="#histoire">Histoire</a>
-            <a href="#effectif">Effectif</a>
-            <a href="#classement">Classement</a>
-            <a href="#billetterie">Billetterie</a>
+            <Link href="/#histoire">Histoire</Link>
+            <Link href="/#effectif">Effectif</Link>
+            <Link href="/calendrier">Calendrier</Link>
+            <Link href="/actualites">Actualités</Link>
+            <Link href="/galerie">Galerie</Link>
+            <Link href="/boutique">Boutique</Link>
+            {sponsorUrl && <a href={sponsorUrl}>Devenir sponsor</a>}
           </div>
         </div>
 

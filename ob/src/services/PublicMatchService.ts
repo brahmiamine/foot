@@ -50,4 +50,17 @@ export class PublicMatchService {
       take: limit,
     });
   }
+
+  /** Calendrier complet (passés et à venir), pour la page /calendrier. */
+  async getAllPublic(teamId: string): Promise<Match[]> {
+    const repo = await this.repo();
+    return repo.find({
+      where: [
+        { equipeHome: teamId, isPublicVisible: true },
+        { equipeAway: teamId, isPublicVisible: true },
+      ],
+      relations: ["homeTeam", "awayTeam"],
+      order: { date: "ASC" },
+    });
+  }
 }
