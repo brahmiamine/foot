@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { Team } from "./Team";
+import type { AgeCategory } from "@/types/categories";
 
 /**
  * Staff Entity
@@ -48,6 +49,10 @@ export class Staff {
     name: "staff_type",
   })
   staffType!: "COACH" | "ADJOINT" | "KINE" | "MEDECIN" | "PREPARATEUR" | "ANALYSTE" | "EQUIPEMENTIER" | "COMMUNICATION" | "AUTRE";
+
+  /** Catégorie interne du club encadrée par ce membre du staff (Seniors, U17...). */
+  @Column({ type: "varchar", length: 10, default: "seniors" })
+  category!: AgeCategory;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

@@ -1,5 +1,7 @@
 import { PlayerService } from "@/services/PlayerService";
 import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, can, categoryAllowed, selectableCategories } from "@/lib/access";
+import { AGE_CATEGORIES } from "@/types/categories";
 import { PlayerForm } from "../../PlayerForm";
 import { notFound } from "next/navigation";
 
@@ -11,10 +13,11 @@ export default async function EditPlayerPage({ params }: { params: Promise<{ id:
   const { id } = await params;
 
   const teamId = await requireTeamId();
+  const access = await getUserAccess();
   const playerService = new PlayerService();
   const player = await playerService.findById(id, teamId);
 
-  if (!player) {
+  if (!player || !can(access, "players.edit") || !categoryAllowed(access, player.category)) {
     notFound();
   }
 
@@ -38,9 +41,10 @@ export default async function EditPlayerPage({ params }: { params: Promise<{ id:
     birthDate: player.birthDate ? new Date(player.birthDate).toISOString().split("T")[0] : null,
     position: player.position || null,
     imageUrl: player.imageUrl || null,
+    category: player.category,
     createdAt: createdAtStr,
     updatedAt: updatedAtStr,
   };
 
-  return <PlayerForm mode="edit" initialData={playerData} />;
+  return <PlayerForm mode="edit" initialData={playerData} allowedCategories={selectableCategories(access, AGE_CATEGORIES)} />;
 }

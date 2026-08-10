@@ -4,34 +4,56 @@ import { useAdminSidebar } from "./AdminSidebarContext";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
+import { canClient, type ClientAccess } from "@/lib/access-client";
 
 /**
  * Admin Sidebar Navigation Component
  * Même structure/couleurs que arbinote/superadmin (sidebar sombre, Bootstrap 5
  * + skote-admin.css), avec support des sous-menus et du mode compact desktop
- * (spécifiques à teamManager, qui a plus de sections qu'arbinote).
+ * (spécifiques à teamManager, qui a plus de sections qu'arbinote). Chaque
+ * item peut déclarer une `permission` requise : un compte OBSERVATEUR ne
+ * voit que les sections couvertes par ses rôles (ADMIN voit toujours tout).
  */
-export function AdminSidebar({ teamName }: { teamName: string }) {
+interface MenuChild {
+  title: string;
+  href: string;
+}
+
+interface MenuItem {
+  title: string;
+  icon: string;
+  href: string;
+  children: MenuChild[];
+  permission?: string;
+}
+
+interface MenuGroup {
+  title: string;
+  items: MenuItem[];
+}
+
+export function AdminSidebar({ teamName, access }: { teamName: string; access: ClientAccess }) {
   const { isOpen, isCollapsed, closeSidebar, openSidebar, toggleCollapse } = useAdminSidebar();
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  const menuGroups = useMemo(
+  const allMenuGroups: MenuGroup[] = useMemo(
     () => [
       {
         title: "Dashboards",
         items: [
-          { title: "Tableau de bord", icon: "fas fa-home", href: "/admin", children: [] as { title: string; href: string }[] },
+          { title: "Tableau de bord", icon: "fas fa-home", href: "/admin", children: [] },
         ],
       },
       {
         title: "Apps",
         items: [
-          { title: "Stades", icon: "fas fa-building", href: "/admin/stadiums", children: [] },
+          { title: "Stades", icon: "fas fa-building", href: "/admin/stadiums", children: [], permission: "stadiums.view" },
           {
             title: "Joueurs",
             icon: "fas fa-user-friends",
             href: "/admin/players",
+            permission: "players.view",
             children: [
               { title: "Liste", href: "/admin/players" },
               { title: "Ajouter", href: "/admin/players/create" },
@@ -41,17 +63,24 @@ export function AdminSidebar({ teamName }: { teamName: string }) {
             title: "Staff",
             icon: "fas fa-user-friends",
             href: "/admin/staff",
+            permission: "staff.view",
             children: [
               { title: "Liste", href: "/admin/staff" },
               { title: "Ajouter", href: "/admin/staff/create" },
             ],
           },
-          { title: "Membres", icon: "fas fa-users", href: "/admin/team-members", children: [] },
-          { title: "Matchs", icon: "fas fa-futbol", href: "/admin/matches", children: [] },
+          { title: "Membres", icon: "fas fa-users", href: "/admin/team-members", children: [], permission: "teamMembers.view" },
+          { title: "Matchs", icon: "fas fa-futbol", href: "/admin/matches", children: [], permission: "matches.view" },
+          { title: "Matchs amicaux", icon: "fas fa-people-arrows", href: "/admin/friendly-matches", children: [], permission: "friendlyMatches.view" },
+          { title: "Entraînements", icon: "fas fa-dumbbell", href: "/admin/trainings", children: [], permission: "trainings.view" },
+          { title: "Déplacements", icon: "fas fa-bus", href: "/admin/trips", children: [], permission: "trips.view" },
+          { title: "Planches tactiques", icon: "fas fa-chalkboard", href: "/admin/tactics", children: [], permission: "tactics.view" },
+          { title: "Blessures & santé", icon: "fas fa-notes-medical", href: "/admin/injuries", children: [], permission: "medical.view" },
           {
             title: "Discipline",
             icon: "fas fa-gavel",
             href: "/admin/cards",
+            permission: "discipline.view",
             children: [
               { title: "Cartons", href: "/admin/cards" },
               { title: "Suspensions", href: "/admin/suspensions" },
@@ -66,6 +95,7 @@ export function AdminSidebar({ teamName }: { teamName: string }) {
             title: "Actualités",
             icon: "fas fa-newspaper",
             href: "/admin/news",
+            permission: "news.view",
             children: [
               { title: "Liste", href: "/admin/news" },
               { title: "Créer", href: "/admin/news/create" },
@@ -75,6 +105,7 @@ export function AdminSidebar({ teamName }: { teamName: string }) {
             title: "Médias",
             icon: "fas fa-photo-video",
             href: "/admin/media/items",
+            permission: "media.view",
             children: [
               { title: "Éléments média", href: "/admin/media/items" },
               { title: "Galeries", href: "/admin/media/galleries" },
@@ -85,24 +116,44 @@ export function AdminSidebar({ teamName }: { teamName: string }) {
       {
         title: "Pages",
         items: [
-          { title: "Convocations", icon: "fas fa-calendar-check", href: "/admin/convocations", children: [] },
-          { title: "Galerie", icon: "fas fa-images", href: "/admin/media/items", children: [] },
+          { title: "Convocations", icon: "fas fa-calendar-check", href: "/admin/convocations", children: [], permission: "convocations.view" },
+          { title: "Galerie", icon: "fas fa-images", href: "/admin/media/items", children: [], permission: "media.view" },
           {
             title: "Boutique",
             icon: "fas fa-shopping-cart",
             href: "/admin/shop/products",
+            permission: "shop.view",
             children: [
               { title: "Produits", href: "/admin/shop/products" },
               { title: "Catégories", href: "/admin/shop/categories" },
             ],
           },
-          { title: "Sponsors", icon: "fas fa-handshake", href: "/admin/sponsors", children: [] },
-          { title: "Notifications", icon: "fas fa-bell", href: "/admin/notifications", children: [] },
-          { title: "Statistiques", icon: "fas fa-chart-bar", href: "/admin/stats", children: [] },
+          { title: "Sponsors", icon: "fas fa-handshake", href: "/admin/sponsors", children: [], permission: "sponsors.view" },
+          { title: "Communication", icon: "fas fa-bell", href: "/admin/notifications", children: [], permission: "notifications.view" },
+          { title: "Statistiques", icon: "fas fa-chart-bar", href: "/admin/stats", children: [], permission: "stats.view" },
+          { title: "Stats joueurs", icon: "fas fa-chart-line", href: "/admin/player-stats", children: [], permission: "stats.view" },
+        ],
+      },
+      {
+        title: "Administration",
+        items: [
+          { title: "Utilisateurs", icon: "fas fa-id-badge", href: "/admin/users", children: [], permission: "users.view" },
+          { title: "Rôles & permissions", icon: "fas fa-user-shield", href: "/admin/roles", children: [], permission: "roles.manage" },
         ],
       },
     ],
     []
+  );
+
+  const menuGroups: MenuGroup[] = useMemo(
+    () =>
+      allMenuGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => !item.permission || canClient(access, item.permission)),
+        }))
+        .filter((group) => group.items.length > 0),
+    [allMenuGroups, access]
   );
 
   const menuItems = useMemo(() => menuGroups.flatMap((group) => group.items), [menuGroups]);

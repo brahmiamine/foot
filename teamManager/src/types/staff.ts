@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AGE_CATEGORIES } from "./categories";
 
 /**
  * Staff type enum
@@ -18,6 +19,7 @@ export const createStaffSchema = z.object({
   imageUrl: z.string().max(255).optional().nullable(),
   staffType: z.enum(STAFF_TYPES),
   userId: z.number().int().positive().optional().nullable(),
+  category: z.enum(AGE_CATEGORIES).default("seniors"),
 });
 
 /**
@@ -33,6 +35,7 @@ export const updateStaffSchema = z.object({
   imageUrl: z.string().max(255).optional().nullable(),
   staffType: z.enum(STAFF_TYPES).optional(),
   userId: z.number().int().positive().optional().nullable(),
+  category: z.enum(AGE_CATEGORIES).optional(),
 });
 
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;

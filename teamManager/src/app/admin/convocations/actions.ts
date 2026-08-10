@@ -17,6 +17,7 @@ export async function createConvocation(formData: FormData) {
     }
 
     const data = createConvocationSchema.parse({
+      matchType: "OFFICIAL",
       matchId: formData.get("matchId") as string,
       playerIds: formData.getAll("playerIds") as string[],
       notes: (formData.get("notes") as string) || undefined,
@@ -24,7 +25,10 @@ export async function createConvocation(formData: FormData) {
 
     const teamId = await requireTeamId();
     const convocationService = new ConvocationService();
-    const convocations = await convocationService.createBulk(data, teamId);
+    const convocations = await convocationService.createBulk(
+      { ref: { matchType: "OFFICIAL", matchId: data.matchId }, playerIds: data.playerIds, notes: data.notes },
+      teamId
+    );
 
     const auditLogService = new AuditLogService();
     await auditLogService.create({

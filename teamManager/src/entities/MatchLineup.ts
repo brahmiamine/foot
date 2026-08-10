@@ -1,15 +1,20 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Team } from "./Team";
 import { Match } from "./Match";
+import { FriendlyMatch } from "./FriendlyMatch";
 import { Player } from "./Player";
 
 export type LineupRole = "STARTER" | "SUBSTITUTE";
+export type MatchKind = "OFFICIAL" | "FRIENDLY";
 
 /**
  * MatchLineup Entity — composition d'un match (titulaires / remplaçants)
- * pour l'équipe du club connecté. Consommée par le projet "matchsheet"
- * (feuille de match) pour afficher la composition avant le coup d'envoi.
- * Table propre à cette app, scopée par team_id.
+ * pour l'équipe du club connecté, match officiel (table partagée `matches`)
+ * ou amical (`cms_friendly_matches`, propre à teamManager) — jamais les
+ * deux à la fois (matchType + contrainte CHECK en base). Consommée par le
+ * projet "matchsheet" (feuille de match) pour les matchs officiels.
+ * `posX`/`posY` (0-100, pourcentage du terrain) permettent le placement
+ * libre par glisser-déposer sur le schéma tactique.
  */
 @Entity("cms_match_lineups")
 export class MatchLineup {
@@ -23,12 +28,22 @@ export class MatchLineup {
   @JoinColumn({ name: "team_id" })
   team!: Team;
 
-  @Column({ type: "char", length: 36, name: "match_id" })
-  matchId!: string;
+  @Column({ type: "char", length: 36, nullable: true, name: "match_id" })
+  matchId?: string | null;
 
-  @ManyToOne(() => Match, { onDelete: "CASCADE" })
+  @ManyToOne(() => Match, { onDelete: "CASCADE", nullable: true })
   @JoinColumn({ name: "match_id" })
-  match!: Match;
+  match?: Match | null;
+
+  @Column({ type: "enum", enum: ["OFFICIAL", "FRIENDLY"], default: "OFFICIAL", name: "match_type" })
+  matchType!: MatchKind;
+
+  @Column({ type: "bigint", nullable: true, name: "friendly_match_id" })
+  friendlyMatchId?: number | null;
+
+  @ManyToOne(() => FriendlyMatch, { onDelete: "CASCADE", nullable: true })
+  @JoinColumn({ name: "friendly_match_id" })
+  friendlyMatch?: FriendlyMatch | null;
 
   @Column({ type: "varchar", length: 191, name: "player_id" })
   playerId!: string;
@@ -45,6 +60,12 @@ export class MatchLineup {
 
   @Column({ type: "varchar", length: 50, nullable: true })
   position?: string | null;
+
+  @Column({ type: "decimal", precision: 5, scale: 2, nullable: true, name: "pos_x" })
+  posX?: number | null;
+
+  @Column({ type: "decimal", precision: 5, scale: 2, nullable: true, name: "pos_y" })
+  posY?: number | null;
 
   @Column({ type: "tinyint", default: 0, name: "is_captain" })
   isCaptain!: boolean;

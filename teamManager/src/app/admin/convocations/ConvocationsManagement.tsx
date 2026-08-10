@@ -15,9 +15,10 @@ interface ConvocationData {
   response: ConvocationResponseValue;
   notes: string | null;
   createdAt: string;
-  matchId: string;
+  groupKey: string;
   matchLabel: string;
   matchDate: string | null;
+  lineupRole: "STARTER" | "SUBSTITUTE" | null;
   playerId: string;
   playerLabel: string;
 }
@@ -45,7 +46,7 @@ const RESPONSE_BADGES: Record<ConvocationResponseValue, string> = {
 };
 
 interface MatchGroup {
-  matchId: string;
+  groupKey: string;
   matchLabel: string;
   matchDate: string | null;
   items: ConvocationData[];
@@ -142,11 +143,11 @@ export function ConvocationsManagement({
   const grouped: MatchGroup[] = [];
   const matchIndex = new Map<string, number>();
   for (const c of convocations) {
-    let idx = matchIndex.get(c.matchId);
+    let idx = matchIndex.get(c.groupKey);
     if (idx === undefined) {
       idx = grouped.length;
-      matchIndex.set(c.matchId, idx);
-      grouped.push({ matchId: c.matchId, matchLabel: c.matchLabel, matchDate: c.matchDate, items: [] });
+      matchIndex.set(c.groupKey, idx);
+      grouped.push({ groupKey: c.groupKey, matchLabel: c.matchLabel, matchDate: c.matchDate, items: [] });
     }
     grouped[idx].items.push(c);
   }
@@ -278,7 +279,7 @@ export function ConvocationsManagement({
         </div>
       ) : (
         visibleGroups.map((g) => (
-          <div className="card mb-4" key={g.matchId}>
+          <div className="card mb-4" key={g.groupKey}>
             <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
               <h5 className="card-title mb-0">{g.matchLabel}</h5>
               {g.matchDate && <span className="text-muted small">{new Date(g.matchDate).toLocaleDateString("fr-TN")}</span>}
@@ -298,7 +299,14 @@ export function ConvocationsManagement({
                   <tbody>
                     {g.items.map((c) => (
                       <tr key={c.id}>
-                        <td className="fw-medium">{c.playerLabel}</td>
+                        <td className="fw-medium">
+                          {c.playerLabel}
+                          {c.lineupRole && (
+                            <span className={`badge ms-2 ${c.lineupRole === "STARTER" ? "bg-success-subtle text-success" : "bg-info-subtle text-info"}`}>
+                              {c.lineupRole === "STARTER" ? "Titulaire" : "Remplaçant"}
+                            </span>
+                          )}
+                        </td>
                         <td>
                           <span className={`badge ${RESPONSE_BADGES[c.response]}`}>{RESPONSE_LABELS[c.response]}</span>
                         </td>

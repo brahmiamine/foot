@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { AGE_CATEGORY_LABELS, type AgeCategory } from "@/types/categories";
 import { createPlayer, updatePlayer } from "./actions";
 
 type PlayerStatus = "TITULAR" | "SUBSTITUTE" | "BLANK" | "ENTERING" | "OUT_OF_LIST" | "SUSPENDED";
@@ -34,6 +35,7 @@ interface PlayerData {
   birthDate: string | null;
   position: string | null;
   imageUrl: string | null;
+  category: AgeCategory;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -41,6 +43,7 @@ interface PlayerData {
 interface PlayerFormProps {
   initialData?: PlayerData | null;
   mode: "create" | "edit";
+  allowedCategories: readonly AgeCategory[];
 }
 
 /**
@@ -48,7 +51,7 @@ interface PlayerFormProps {
  * Handles creation and editing of players (fiche disciplinaire cardManager +
  * fiche site public teamManager, même ligne).
  */
-export function PlayerForm({ initialData, mode }: PlayerFormProps) {
+export function PlayerForm({ initialData, mode, allowedCategories }: PlayerFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
@@ -72,6 +75,7 @@ export function PlayerForm({ initialData, mode }: PlayerFormProps) {
     birthDate: formatDateForInput(initialData?.birthDate),
     position: initialData?.position || "",
     imageUrl: initialData?.imageUrl || "",
+    category: initialData?.category || allowedCategories[0] || "seniors",
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -91,6 +95,7 @@ export function PlayerForm({ initialData, mode }: PlayerFormProps) {
         birthDate: formatDateForInput(initialData.birthDate),
         position: initialData.position || "",
         imageUrl: initialData.imageUrl || "",
+        category: initialData.category || allowedCategories[0] || "seniors",
       });
       // Set image preview if image exists
       if (initialData.imageUrl) {
@@ -187,6 +192,7 @@ export function PlayerForm({ initialData, mode }: PlayerFormProps) {
       formDataObj.append("birthDate", formData.birthDate);
       formDataObj.append("position", formData.position);
       formDataObj.append("imageUrl", imageUrl || "");
+      formDataObj.append("category", formData.category);
 
       let result;
       if (mode === "create") {
@@ -400,6 +406,26 @@ export function PlayerForm({ initialData, mode }: PlayerFormProps) {
                       <option value="DEFENDER">Défenseur</option>
                       <option value="MIDFIELDER">Milieu</option>
                       <option value="FORWARD">Attaquant</option>
+                    </select>
+                  </div>
+
+                  <div className="col-md-3 mb-3">
+                    <label htmlFor="category" className="form-label">
+                      Catégorie <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      id="category"
+                      required
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value as AgeCategory })}
+                      disabled={loading || allowedCategories.length <= 1}
+                    >
+                      {allowedCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {AGE_CATEGORY_LABELS[c]}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -24,17 +24,29 @@ export default async function ConvocationsPage() {
   );
   const matchDates = new Map(matchesData.map((m) => [m.id, m.date ? m.date.toISOString() : null]));
 
-  const convocations = convocationsData.map((c) => ({
-    id: c.id,
-    response: c.response,
-    notes: c.notes ?? null,
-    createdAt: c.createdAt.toISOString(),
-    matchId: c.matchId,
-    matchLabel: matchLabels.get(c.matchId) ?? `${c.match?.homeTeam?.nom ?? ""} vs ${c.match?.awayTeam?.nom ?? ""}`,
-    matchDate: matchDates.get(c.matchId) ?? (c.match?.date ? c.match.date.toISOString() : null),
-    playerId: c.playerId,
-    playerLabel: c.player ? `#${c.player.number} ${c.player.firstNameFr} ${c.player.lastNameFr}` : "Joueur inconnu",
-  }));
+  const convocations = convocationsData.map((c) => {
+    const isFriendly = c.matchType === "FRIENDLY";
+    const groupKey = isFriendly ? `friendly:${c.friendlyMatchId}` : `official:${c.matchId}`;
+    const matchLabel = isFriendly
+      ? `Amical — ${c.friendlyMatch?.isHome ? "vs" : "@"} ${c.friendlyMatch?.opponentTeam?.nom ?? c.friendlyMatch?.opponentName ?? "Adversaire"}`
+      : (c.matchId ? matchLabels.get(c.matchId) : null) ?? `${c.match?.homeTeam?.nom ?? ""} vs ${c.match?.awayTeam?.nom ?? ""}`;
+    const matchDate = isFriendly
+      ? c.friendlyMatch?.date?.toISOString() ?? null
+      : (c.matchId ? matchDates.get(c.matchId) : null) ?? (c.match?.date ? c.match.date.toISOString() : null);
+
+    return {
+      id: c.id,
+      response: c.response,
+      notes: c.notes ?? null,
+      createdAt: c.createdAt.toISOString(),
+      groupKey,
+      matchLabel,
+      matchDate,
+      lineupRole: c.lineupRole ?? null,
+      playerId: c.playerId,
+      playerLabel: c.player ? `#${c.player.number} ${c.player.firstNameFr} ${c.player.lastNameFr}` : "Joueur inconnu",
+    };
+  });
 
   const players = playersData
     .filter((p) => p.isActive)

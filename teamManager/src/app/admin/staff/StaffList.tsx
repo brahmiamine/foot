@@ -8,6 +8,7 @@ import { ListSearchInput } from "@/components/admin/ListSearchInput";
 import { ListPagination } from "@/components/admin/ListPagination";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useListFilter } from "@/hooks/useListFilter";
+import { AGE_CATEGORY_LABELS, type AgeCategory } from "@/types/categories";
 import { deleteStaff } from "./actions";
 
 /**
@@ -24,19 +25,23 @@ interface StaffData {
   imageUrl: string | null;
   staffType: string;
   userId: number | null;
+  category: AgeCategory;
   createdAt: string;
   updatedAt: string | null;
 }
 
 interface StaffListProps {
   initialStaff: StaffData[];
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 /**
  * Staff List Component
  * Displays the list of staff members with actions
  */
-export function StaffList({ initialStaff }: StaffListProps) {
+export function StaffList({ initialStaff, canCreate, canEdit, canDelete }: StaffListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [staff] = useState<StaffData[]>(initialStaff);
@@ -119,10 +124,12 @@ export function StaffList({ initialStaff }: StaffListProps) {
       <div className="row mb-4">
         <div className="col-12 d-flex justify-content-between align-items-center">
           <h1 className="mb-0">Gestion du Staff</h1>
-          <Link href="/admin/staff/create" className="btn btn-primary">
-            <i className="fas fa-plus me-2" aria-hidden="true" />
-            Ajouter un membre du staff
-          </Link>
+          {canCreate && (
+            <Link href="/admin/staff/create" className="btn btn-primary">
+              <i className="fas fa-plus me-2" aria-hidden="true" />
+              Ajouter un membre du staff
+            </Link>
+          )}
         </div>
       </div>
 
@@ -164,9 +171,11 @@ export function StaffList({ initialStaff }: StaffListProps) {
               {staff.length === 0 ? (
                 <div className="text-center py-5">
                   <p className="text-muted mb-3">Aucun membre du staff enregistré</p>
-                  <Link href="/admin/staff/create" className="btn btn-primary">
-                    Ajouter le premier membre du staff
-                  </Link>
+                  {canCreate && (
+                    <Link href="/admin/staff/create" className="btn btn-primary">
+                      Ajouter le premier membre du staff
+                    </Link>
+                  )}
                 </div>
               ) : totalCount === 0 ? (
                 <p className="text-muted text-center py-5 mb-0">Aucun membre du staff ne correspond à votre recherche</p>
@@ -177,6 +186,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
                       <tr>
                         <th>Photo</th>
                         <th>Nom complet</th>
+                        <th>Catégorie</th>
                         <th>Type</th>
                         <th>Téléphone</th>
                         <th>Âge</th>
@@ -213,28 +223,35 @@ export function StaffList({ initialStaff }: StaffListProps) {
                             )}
                           </td>
                           <td>
+                            <span className="badge bg-primary-subtle text-primary">{AGE_CATEGORY_LABELS[staffMember.category]}</span>
+                          </td>
+                          <td>
                             <span className="badge bg-info">{getStaffTypeLabel(staffMember.staffType)}</span>
                           </td>
                           <td>{staffMember.phone || <span className="text-muted">-</span>}</td>
                           <td>{calculateAge(staffMember.birthDate)} ans</td>
                           <td className="text-end">
                             <div className="btn-group" role="group">
-                              <Link
-                                href={`/admin/staff/${staffMember.id}/edit`}
-                                className="btn btn-sm btn-outline-primary"
-                              >
-                                <i className="fas fa-edit" aria-hidden="true" />
-                                <span className="visually-hidden">Modifier</span>
-                              </Link>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleDelete(staffMember.id)}
-                                disabled={loading || isPending}
-                              >
-                                <i className="fas fa-trash" aria-hidden="true" />
-                                <span className="visually-hidden">Supprimer</span>
-                              </button>
+                              {canEdit && (
+                                <Link
+                                  href={`/admin/staff/${staffMember.id}/edit`}
+                                  className="btn btn-sm btn-outline-primary"
+                                >
+                                  <i className="fas fa-edit" aria-hidden="true" />
+                                  <span className="visually-hidden">Modifier</span>
+                                </Link>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleDelete(staffMember.id)}
+                                  disabled={loading || isPending}
+                                >
+                                  <i className="fas fa-trash" aria-hidden="true" />
+                                  <span className="visually-hidden">Supprimer</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

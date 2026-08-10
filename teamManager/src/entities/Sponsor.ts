@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { Team } from "./Team";
-import { SponsorRequest, SponsorLogoSize, SponsorLevel } from "./SponsorRequest";
+import { SponsorRequest } from "./SponsorRequest";
+import type { SponsorLogoSize, SponsorLevel } from "./SponsorRequest";
 
 /**
  * Sponsor Entity — dossier de sponsoring actif (contrat) une fois une

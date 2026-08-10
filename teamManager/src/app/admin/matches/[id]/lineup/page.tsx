@@ -1,29 +1,40 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, can } from "@/lib/access";
 import { MatchService } from "@/services/MatchService";
 import { PlayerService } from "@/services/PlayerService";
 import { MatchLineupService } from "@/services/MatchLineupService";
-import { LineupEditor } from "./LineupEditor";
+import { MatchFormationService } from "@/services/MatchFormationService";
+import { PitchLineupEditor } from "@/components/admin/PitchLineupEditor";
 
 export const dynamic = "force-dynamic";
 
-/** Page Composition — sélection des titulaires/remplaçants pour un match. */
+/** Page Composition — sélection des titulaires/remplaçants et formation pour un match officiel. */
 export default async function MatchLineupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: matchId } = await params;
   const teamId = await requireTeamId();
+  const access = await getUserAccess();
+  if (!can(access, "lineups.view")) {
+    redirect("/admin/matches");
+  }
 
   const matchService = new MatchService();
   const playerService = new PlayerService();
   const lineupService = new MatchLineupService();
+  const formationService = new MatchFormationService();
 
   const match = await matchService.findById(matchId, teamId);
   if (!match) {
     notFound();
   }
 
-  const [playersData, lineupData] = await Promise.all([
-    playerService.findAll(teamId),
-    lineupService.findByMatch(matchId, teamId),
+  const ref = { matchType: "OFFICIAL" as const, matchId };
+
+  const [playersData, lineupData, formation, isLocked] = await Promise.all([
+    playerService.findAll(teamId, access.categories),
+    lineupService.findByMatch(teamId, ref),
+    formationService.getOrCreate(teamId, ref),
+    formationService.isEffectivelyLocked(teamId, ref),
   ]);
 
   const players = playersData
@@ -40,6 +51,8 @@ export default async function MatchLineupPage({ params }: { params: Promise<{ id
     role: l.role,
     shirtNumber: l.shirtNumber ?? null,
     position: l.position ?? null,
+    posX: l.posX != null ? Number(l.posX) : null,
+    posY: l.posY != null ? Number(l.posY) : null,
     isCaptain: l.isCaptain,
   }));
 
@@ -47,12 +60,18 @@ export default async function MatchLineupPage({ params }: { params: Promise<{ id
   const isHome = match.equipeHome === teamId;
 
   return (
-    <LineupEditor
-      matchId={matchId}
+    <PitchLineupEditor
+      ref={ref}
       matchLabel={`${isHome ? "Domicile" : "Extérieur"} vs ${opponent ?? "?"}`}
       matchDate={match.date ? match.date.toISOString() : null}
       players={players}
       initialLineup={lineup}
+      initialFormation={formation.formation}
+      isLocked={isLocked}
+      canEdit={can(access, "lineups.edit")}
+      canSendConvocations={can(access, "convocations.send")}
+      backHref="/admin/matches"
+      backLabel="Retour aux matchs"
     />
   );
 }

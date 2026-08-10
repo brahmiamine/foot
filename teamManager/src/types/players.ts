@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AGE_CATEGORIES } from "./categories";
 
 /**
  * Player position enum (fiche site public, propre à teamManager)
@@ -25,6 +26,7 @@ export const createPlayerSchema = z.object({
   birthDate: z.date().optional().nullable(),
   position: z.enum(PLAYER_POSITIONS).optional().nullable(),
   imageUrl: z.string().max(255).optional().nullable(),
+  category: z.enum(AGE_CATEGORIES).default("seniors"),
 });
 
 /**
@@ -41,6 +43,7 @@ export const updatePlayerSchema = z.object({
   birthDate: z.date().optional().nullable(),
   position: z.enum(PLAYER_POSITIONS).optional().nullable(),
   imageUrl: z.string().max(255).optional().nullable(),
+  category: z.enum(AGE_CATEGORIES).optional(),
 });
 
 export type CreatePlayerInput = z.infer<typeof createPlayerSchema>;
