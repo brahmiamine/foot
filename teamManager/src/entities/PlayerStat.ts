@@ -4,6 +4,7 @@ import { Player } from "./Player";
 import { Match } from "./Match";
 import { FriendlyMatch } from "./FriendlyMatch";
 import { User } from "./User";
+import { Season } from "./Season";
 
 export type StatMatchKind = "OFFICIAL" | "FRIENDLY";
 
@@ -51,6 +52,13 @@ export class PlayerStat {
 
   @Column({ type: "varchar", length: 20, nullable: true })
   season?: string | null;
+
+  @Column({ type: "bigint", nullable: true, name: "internal_season_id" })
+  internalSeasonId?: number | null;
+
+  @ManyToOne(() => Season, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "internal_season_id" })
+  internalSeason?: Season | null;
 
   @Column({ type: "int", default: 0, name: "minutes_played" })
   minutesPlayed!: number;

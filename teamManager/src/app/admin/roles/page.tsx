@@ -1,6 +1,7 @@
 import { requireTeamId } from "@/lib/team-context";
 import { RoleService } from "@/services/RoleService";
 import { UserService } from "@/services/UserService";
+import { InternalTeamService } from "@/services/InternalTeamService";
 import { PERMISSION_MODULES } from "@/lib/permissions";
 import { RolesManagement } from "./RolesManagement";
 
@@ -19,10 +20,12 @@ export default async function RolesPage() {
   await roleService.ensureDefaultRoles(teamId);
 
   const userService = new UserService();
-  const [rolesData, assignmentsData, usersData] = await Promise.all([
+  const squadService = new InternalTeamService();
+  const [rolesData, assignmentsData, usersData, squadsData] = await Promise.all([
     roleService.findAll(teamId),
     roleService.findAssignmentsForTeam(teamId),
     userService.findAllByTeam(teamId),
+    squadService.findAll(teamId),
   ]);
 
   const roles = rolesData.map((r) => ({
@@ -41,11 +44,15 @@ export default async function RolesPage() {
     roleId: a.roleId,
     roleName: a.role?.name ?? "Rôle inconnu",
     category: a.category ?? null,
+    internalTeamId: a.internalTeamId ?? null,
+    internalTeamName: a.internalTeam?.name ?? null,
   }));
 
   const users = usersData
     .filter((u) => u.role === "OBSERVATEUR")
     .map((u) => ({ id: u.id, name: u.name, email: u.email }));
 
-  return <RolesManagement initialRoles={roles} initialAssignments={assignments} users={users} permissionModules={PERMISSION_MODULES} />;
+  const squads = squadsData.map((s) => ({ id: s.id, name: s.name, category: s.category }));
+
+  return <RolesManagement initialRoles={roles} initialAssignments={assignments} users={users} squads={squads} permissionModules={PERMISSION_MODULES} />;
 }

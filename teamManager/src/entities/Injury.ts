@@ -5,6 +5,7 @@ import { User } from "./User";
 
 export type InjurySeverity = "MINOR" | "MODERATE" | "SEVERE";
 export type InjuryStatus = "ONGOING" | "RECOVERING" | "RESOLVED";
+export type InjuryAvailability = "UNAVAILABLE" | "RECOVERY" | "PARTIAL" | "AVAILABLE";
 
 /**
  * Injury Entity — dossier de blessure d'un joueur (zone, gravité,
@@ -68,6 +69,10 @@ export class Injury {
 
   @Column({ type: "enum", enum: ["ONGOING", "RECOVERING", "RESOLVED"], default: "ONGOING" })
   status!: InjuryStatus;
+
+  /** Exploitée directement par EligibilityService (!= 'AVAILABLE' => indisponible). */
+  @Column({ type: "enum", enum: ["UNAVAILABLE", "RECOVERY", "PARTIAL", "AVAILABLE"], default: "UNAVAILABLE", name: "availability_status" })
+  availabilityStatus!: InjuryAvailability;
 
   @Column({ type: "text", nullable: true })
   notes?: string | null;

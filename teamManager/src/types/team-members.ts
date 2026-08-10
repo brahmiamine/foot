@@ -13,6 +13,8 @@ export const createTeamMemberSchema = z
   .object({
     playerId: z.string().min(1).optional().nullable(),
     staffId: z.number().int().positive().optional().nullable(),
+    seasonId: z.number().int().positive().optional().nullable(),
+    internalTeamId: z.number().int().positive().optional().nullable(),
     status: z.enum(TEAM_MEMBER_STATUSES).default("ACTIVE"),
     startDate: z.date({ error: "La date de début est requise" }),
     endDate: z.date().optional().nullable(),
@@ -33,6 +35,8 @@ export const createTeamMemberSchema = z
  * Validation schema for updating a team member
  */
 export const updateTeamMemberSchema = z.object({
+  seasonId: z.number().int().positive().optional().nullable(),
+  internalTeamId: z.number().int().positive().optional().nullable(),
   status: z.enum(TEAM_MEMBER_STATUSES).optional(),
   startDate: z.date().optional(),
   endDate: z.date().optional().nullable(),

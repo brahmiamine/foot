@@ -15,6 +15,7 @@ export const assignRoleSchema = z.object({
   userId: z.string().min(1, "Le compte est requis"),
   roleId: z.coerce.number().int().positive("Le rôle est requis"),
   category: z.enum(AGE_CATEGORIES).optional().nullable(),
+  internalTeamId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;

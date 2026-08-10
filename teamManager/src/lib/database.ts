@@ -45,6 +45,11 @@ import { Injury } from "@/entities/Injury";
 import { Trip } from "@/entities/Trip";
 import { TripVehicle } from "@/entities/TripVehicle";
 import { TripParticipant } from "@/entities/TripParticipant";
+import { Season } from "@/entities/Season";
+import { InternalTeam } from "@/entities/InternalTeam";
+import { License } from "@/entities/License";
+import { Guardian } from "@/entities/Guardian";
+import { PlayerGuardian } from "@/entities/PlayerGuardian";
 
 /**
  * Database connection configuration
@@ -78,7 +83,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Never use synchronize in production
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant], // Import entities directly instead of using glob patterns
+      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant, Season, InternalTeam, License, Guardian, PlayerGuardian], // Import entities directly instead of using glob patterns
       migrations: [], // Add migrations as needed
       charset: "utf8mb4",
       timezone: "Z",

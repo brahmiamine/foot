@@ -43,6 +43,7 @@ export default async function InjuriesPage() {
     progressiveReturnNotes: i.progressiveReturnNotes ?? null,
     documents: InjuryService.parseDocuments(i),
     status: i.status,
+    availabilityStatus: i.availabilityStatus,
     notes: i.notes ?? null,
     createdAt: i.createdAt.toISOString(),
   }));

@@ -24,6 +24,7 @@ function readInjuryForm(formData: FormData) {
     progressiveReturnNotes: (formData.get("progressiveReturnNotes") as string) || null,
     documents: JSON.parse((formData.get("documentsJson") as string) || "[]"),
     status: (formData.get("status") as string) || "ONGOING",
+    availabilityStatus: (formData.get("availabilityStatus") as string) || "UNAVAILABLE",
     notes: (formData.get("notes") as string) || null,
   };
 }

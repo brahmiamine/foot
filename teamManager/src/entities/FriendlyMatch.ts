@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Team } from "./Team";
 import { Stadium } from "./Stadium";
 import { User } from "./User";
+import { Season } from "./Season";
 import type { AgeCategory } from "@/types/categories";
 
 export type FriendlyMatchStatus = "UPCOMING" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
@@ -28,6 +29,13 @@ export class FriendlyMatch {
 
   @Column({ type: "varchar", length: 10, default: "seniors" })
   category!: AgeCategory;
+
+  @Column({ type: "bigint", nullable: true, name: "season_id" })
+  seasonId?: number | null;
+
+  @ManyToOne(() => Season, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "season_id" })
+  season?: Season | null;
 
   @Column({ type: "char", length: 36, nullable: true, name: "opponent_team_id" })
   opponentTeamId?: string | null;

@@ -5,6 +5,7 @@ import { FriendlyMatchService } from "@/services/FriendlyMatchService";
 import { PlayerService } from "@/services/PlayerService";
 import { MatchLineupService } from "@/services/MatchLineupService";
 import { MatchFormationService } from "@/services/MatchFormationService";
+import { EligibilityService } from "@/services/EligibilityService";
 import { PitchLineupEditor } from "@/components/admin/PitchLineupEditor";
 
 export const dynamic = "force-dynamic";
@@ -42,14 +43,24 @@ export default async function FriendlyMatchLineupPage({ params }: { params: Prom
     formationService.isEffectivelyLocked(teamId, ref),
   ]);
 
-  const players = playersData
-    .filter((p) => p.isActive && p.category === match.category)
-    .map((p) => ({
+  const activePlayers = playersData.filter((p) => p.isActive && p.category === match.category);
+  const eligibilityService = new EligibilityService();
+  const eligibilityMap = await eligibilityService.getEligibilityForPlayers(
+    activePlayers.map((p) => p.id),
+    teamId
+  );
+
+  const players = activePlayers.map((p) => {
+    const eligibility = eligibilityMap.get(p.id);
+    return {
       id: p.id,
       number: p.number,
       name: `${p.firstNameFr} ${p.lastNameFr}`,
       position: p.position ?? null,
-    }));
+      eligible: eligibility?.eligible,
+      eligibilityReasons: eligibility?.reasons.map((r) => r.label),
+    };
+  });
 
   const lineup = lineupData.map((l) => ({
     playerId: l.playerId,

@@ -32,6 +32,8 @@ interface AssignmentData {
   roleId: number;
   roleName: string;
   category: string | null;
+  internalTeamId: number | null;
+  internalTeamName: string | null;
 }
 
 interface UserOption {
@@ -40,15 +42,23 @@ interface UserOption {
   email: string;
 }
 
+interface SquadOption {
+  id: number;
+  name: string;
+  category: string;
+}
+
 export function RolesManagement({
   initialRoles,
   initialAssignments,
   users,
+  squads,
   permissionModules,
 }: {
   initialRoles: RoleData[];
   initialAssignments: AssignmentData[];
   users: UserOption[];
+  squads: SquadOption[];
   permissionModules: PermissionModule[];
 }) {
   const router = useRouter();
@@ -64,6 +74,7 @@ export function RolesManagement({
   const [success, setSuccess] = useState<string | null>(null);
 
   const [assignRoleId, setAssignRoleId] = useState<string>("");
+  const [assignCategory, setAssignCategory] = useState<string>("");
   const [assigning, setAssigning] = useState(false);
 
   const openCreateForm = () => {
@@ -360,7 +371,7 @@ export function RolesManagement({
             </p>
           ) : (
             <form onSubmit={handleAssignSubmit} className="row g-3 align-items-end">
-              <div className="col-md-4">
+              <div className="col-md-3">
                 <label htmlFor="userId" className="form-label">
                   Personne
                 </label>
@@ -375,7 +386,7 @@ export function RolesManagement({
                   ))}
                 </select>
               </div>
-              <div className="col-md-4">
+              <div className="col-md-3">
                 <label htmlFor="roleId" className="form-label">
                   Rôle
                 </label>
@@ -397,7 +408,7 @@ export function RolesManagement({
                   ))}
                 </select>
               </div>
-              <div className="col-md-3">
+              <div className="col-md-2">
                 <label htmlFor="category" className="form-label">
                   Catégorie
                 </label>
@@ -407,16 +418,38 @@ export function RolesManagement({
                   className="form-select"
                   disabled={!selectedRoleForAssign || selectedRoleForAssign.isGlobal}
                   required={!!selectedRoleForAssign && !selectedRoleForAssign.isGlobal}
-                  defaultValue=""
+                  value={assignCategory}
+                  onChange={(e) => setAssignCategory(e.target.value)}
                 >
                   <option value="" disabled>
-                    {selectedRoleForAssign?.isGlobal ? "Toutes catégories" : "Choisir une catégorie"}
+                    {selectedRoleForAssign?.isGlobal ? "Toutes catégories" : "Choisir"}
                   </option>
                   {AGE_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
                       {AGE_CATEGORY_LABELS[c]}
                     </option>
                   ))}
+                </select>
+              </div>
+              <div className="col-md-3">
+                <label htmlFor="internalTeamId" className="form-label">
+                  Équipe interne (optionnel)
+                </label>
+                <select
+                  id="internalTeamId"
+                  name="internalTeamId"
+                  className="form-select"
+                  disabled={!selectedRoleForAssign || selectedRoleForAssign.isGlobal}
+                  defaultValue=""
+                >
+                  <option value="">Toute la catégorie</option>
+                  {squads
+                    .filter((s) => !assignCategory || s.category === assignCategory)
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div className="col-md-1">
@@ -444,6 +477,7 @@ export function RolesManagement({
                     <th>Personne</th>
                     <th>Rôle</th>
                     <th>Catégorie</th>
+                    <th>Équipe interne</th>
                     <th className="text-end">Actions</th>
                   </tr>
                 </thead>
@@ -453,6 +487,7 @@ export function RolesManagement({
                       <td>{a.userName}</td>
                       <td>{a.roleName}</td>
                       <td>{a.category ? AGE_CATEGORY_LABELS[a.category as keyof typeof AGE_CATEGORY_LABELS] ?? a.category : <span className="badge bg-primary-subtle text-primary">Toutes</span>}</td>
+                      <td>{a.internalTeamName ?? <span className="text-muted small">Toute la catégorie</span>}</td>
                       <td className="text-end">
                         <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleRemoveAssignment(a)} disabled={isPending}>
                           <i className="fas fa-times" aria-hidden="true" />

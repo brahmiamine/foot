@@ -10,6 +10,7 @@ import { createInjury, updateInjury, deleteInjury } from "./actions";
 
 type Severity = "MINOR" | "MODERATE" | "SEVERE";
 type Status = "ONGOING" | "RECOVERING" | "RESOLVED";
+type Availability = "UNAVAILABLE" | "RECOVERY" | "PARTIAL" | "AVAILABLE";
 
 interface InjuryDocument {
   name: string;
@@ -32,6 +33,7 @@ interface InjuryData {
   progressiveReturnNotes: string | null;
   documents: InjuryDocument[];
   status: Status;
+  availabilityStatus: Availability;
   notes: string | null;
   createdAt: string;
 }
@@ -52,6 +54,18 @@ const STATUS_BADGES: Record<Status, string> = {
   ONGOING: "bg-danger-subtle text-danger",
   RECOVERING: "bg-warning-subtle text-warning",
   RESOLVED: "bg-success-subtle text-success",
+};
+const AVAILABILITY_LABELS: Record<Availability, string> = {
+  UNAVAILABLE: "Indisponible",
+  RECOVERY: "En soins",
+  PARTIAL: "Reprise partielle",
+  AVAILABLE: "Disponible",
+};
+const AVAILABILITY_BADGES: Record<Availability, string> = {
+  UNAVAILABLE: "bg-danger-subtle text-danger",
+  RECOVERY: "bg-warning-subtle text-warning",
+  PARTIAL: "bg-info-subtle text-info",
+  AVAILABLE: "bg-success-subtle text-success",
 };
 
 export function InjuriesManagement({ initialInjuries, players, canManage }: { initialInjuries: InjuryData[]; players: PlayerOption[]; canManage: boolean }) {
@@ -237,6 +251,18 @@ export function InjuriesManagement({ initialInjuries, players, canManage }: { in
                 </label>
                 <input type="number" id="unavailabilityDays" name="unavailabilityDays" className="form-control" min={0} defaultValue={editingInjury?.unavailabilityDays ?? ""} />
               </div>
+              <div className="col-md-4">
+                <label htmlFor="availabilityStatus" className="form-label">
+                  Disponibilité (moteur d&apos;éligibilité)
+                </label>
+                <select id="availabilityStatus" name="availabilityStatus" className="form-select" defaultValue={editingInjury?.availabilityStatus ?? "UNAVAILABLE"}>
+                  {(Object.keys(AVAILABILITY_LABELS) as Availability[]).map((a) => (
+                    <option key={a} value={a}>
+                      {AVAILABILITY_LABELS[a]}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="col-md-6">
                 <label htmlFor="diagnosis" className="form-label">
@@ -347,6 +373,7 @@ export function InjuriesManagement({ initialInjuries, players, canManage }: { in
                     <th>Zone</th>
                     <th>Gravité</th>
                     <th>Statut</th>
+                    <th>Disponibilité</th>
                     <th>Reprise prévue</th>
                     <th className="text-end">Actions</th>
                   </tr>
@@ -362,6 +389,9 @@ export function InjuriesManagement({ initialInjuries, players, canManage }: { in
                         </td>
                         <td>
                           <span className={`badge ${STATUS_BADGES[i.status]}`}>{STATUS_LABELS[i.status]}</span>
+                        </td>
+                        <td>
+                          <span className={`badge ${AVAILABILITY_BADGES[i.availabilityStatus]}`}>{AVAILABILITY_LABELS[i.availabilityStatus]}</span>
                         </td>
                         <td>{i.expectedReturnDate ? new Date(i.expectedReturnDate).toLocaleDateString("fr-FR") : "—"}</td>
                         <td className="text-end">
@@ -384,7 +414,7 @@ export function InjuriesManagement({ initialInjuries, players, canManage }: { in
                       </tr>
                       {expandedId === i.id && (
                         <tr>
-                          <td colSpan={6} className="bg-light-subtle">
+                          <td colSpan={7} className="bg-light-subtle">
                             <div className="p-2 small">
                               {i.description && <p className="mb-1">📋 {i.description}</p>}
                               {i.diagnosis && <p className="mb-1">🩺 Diagnostic : {i.diagnosis}</p>}

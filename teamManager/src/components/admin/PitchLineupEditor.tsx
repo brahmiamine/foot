@@ -13,6 +13,8 @@ interface PlayerOption {
   number: number;
   name: string;
   position: string | null;
+  eligible?: boolean;
+  eligibilityReasons?: string[];
 }
 
 interface LineupEntry {
@@ -415,7 +417,14 @@ export function PitchLineupEditor({
                                 max={99}
                               />
                             </td>
-                            <td className="text-truncate">{p.name}</td>
+                            <td className="text-truncate">
+                              {p.name}
+                              {p.eligible === false && (
+                                <span className="badge bg-danger-subtle text-danger ms-2" title={p.eligibilityReasons?.join(", ")}>
+                                  🔴 {p.eligibilityReasons?.[0] ?? "Non éligible"}
+                                </span>
+                              )}
+                            </td>
                             <td>
                               <div className="btn-group btn-group-sm" role="group">
                                 <button

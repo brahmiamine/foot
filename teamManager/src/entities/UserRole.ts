@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Team } from "./Team";
 import { User } from "./User";
 import { Role } from "./Role";
+import { InternalTeam } from "./InternalTeam";
 import { AgeCategory } from "@/types/categories";
 
 /**
@@ -38,6 +39,14 @@ export class UserRole {
 
   @Column({ type: "varchar", length: 10, nullable: true })
   category?: AgeCategory | null;
+
+  /** Précision optionnelle : "Coach" -> U17 A plutôt que U17 en général. */
+  @Column({ type: "bigint", nullable: true, name: "internal_team_id" })
+  internalTeamId?: number | null;
+
+  @ManyToOne(() => InternalTeam, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "internal_team_id" })
+  internalTeam?: InternalTeam | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

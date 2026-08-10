@@ -1,6 +1,8 @@
 import { TeamMemberService } from "@/services/TeamMemberService";
 import { PlayerService } from "@/services/PlayerService";
 import { StaffService } from "@/services/StaffService";
+import { SeasonService } from "@/services/SeasonService";
+import { InternalTeamService } from "@/services/InternalTeamService";
 import { requireTeamId } from "@/lib/team-context";
 import { TeamMembersManagement, type TeamMemberData, type PlayerData, type StaffData } from "./TeamMembersManagement";
 
@@ -27,6 +29,10 @@ export default async function TeamMembersPage() {
       id: member.id,
       playerId: member.playerId ?? null,
       staffId: member.staffId ?? null,
+      seasonId: member.seasonId ?? null,
+      internalTeamId: member.internalTeamId ?? null,
+      seasonName: member.season?.name ?? null,
+      squadName: member.internalTeam?.name ?? null,
       status: member.status || "ACTIVE",
       startDate: startDateStr,
       endDate: endDateStr,
@@ -74,5 +80,13 @@ export default async function TeamMembersPage() {
     staffType: staffMember.staffType,
   }));
 
-  return <TeamMembersManagement initialTeamMembers={teamMembers} players={players} staff={staff} />;
+  const seasonService = new SeasonService();
+  const seasonsData = await seasonService.findAll(teamId);
+  const seasons = seasonsData.map((s) => ({ id: s.id, name: s.name }));
+
+  const squadService = new InternalTeamService();
+  const squadsData = await squadService.findAll(teamId);
+  const squads = squadsData.map((s) => ({ id: s.id, name: s.name }));
+
+  return <TeamMembersManagement initialTeamMembers={teamMembers} players={players} staff={staff} seasons={seasons} squads={squads} />;
 }

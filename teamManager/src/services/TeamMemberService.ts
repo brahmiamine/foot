@@ -1,10 +1,13 @@
 import { getDataSource } from "@/lib/database";
 import { TeamMember } from "@/entities/TeamMember";
-import { Repository, Not, IsNull } from "typeorm";
+import { Repository, Not, IsNull, type FindOptionsWhere } from "typeorm";
 
 /**
  * Service for TeamMember operations
- * Handles all database operations for team members (scoped to a team)
+ * Handles all database operations for team members (scoped to a team).
+ * Devient la référence historique d'appartenance : `seasonId` +
+ * `internalTeamId` permettent à un même joueur d'avoir plusieurs lignes
+ * dans le temps (une par saison/équipe interne), jamais écrasées.
  */
 export class TeamMemberService {
   private async getRepository(): Promise<Repository<TeamMember>> {
@@ -19,7 +22,7 @@ export class TeamMemberService {
     const repository = await this.getRepository();
     return repository.find({
       where: { teamId },
-      relations: ["player", "staff"],
+      relations: ["player", "staff", "season", "internalTeam"],
       order: {
         startDate: "DESC",
         createdAt: "DESC",
@@ -36,10 +39,20 @@ export class TeamMemberService {
     const where = isPlayer ? { teamId, playerId: Not(IsNull()) } : { teamId, staffId: Not(IsNull()) };
     return repository.find({
       where,
-      relations: ["player", "staff"],
+      relations: ["player", "staff", "season", "internalTeam"],
       order: {
         startDate: "DESC",
       },
+    });
+  }
+
+  /** Historique complet d'appartenance d'un joueur (toutes saisons/équipes internes). */
+  async findHistoryByPlayer(playerId: string, teamId: string): Promise<TeamMember[]> {
+    const repository = await this.getRepository();
+    return repository.find({
+      where: { teamId, playerId },
+      relations: ["season", "internalTeam"],
+      order: { startDate: "DESC" },
     });
   }
 
@@ -50,7 +63,7 @@ export class TeamMemberService {
     const repository = await this.getRepository();
     return repository.findOne({
       where: { id, teamId },
-      relations: ["player", "staff"],
+      relations: ["player", "staff", "season", "internalTeam"],
     });
   }
 
@@ -61,6 +74,8 @@ export class TeamMemberService {
     data: {
       playerId?: string | null;
       staffId?: number | null;
+      seasonId?: number | null;
+      internalTeamId?: number | null;
       status?: "ACTIVE" | "SUSPENDED" | "ENDED";
       startDate: Date;
       endDate?: Date | null;
@@ -74,8 +89,13 @@ export class TeamMemberService {
       throw new Error("Vous devez spécifier soit un joueur, soit un membre du staff (pas les deux, pas aucun)");
     }
 
-    // Check if this player/staff is already in the team
-    const where: { teamId: string; playerId?: string; staffId?: number } = { teamId };
+    // Un même joueur/staff peut avoir plusieurs lignes dans le temps (saisons
+    // différentes) : on ne bloque que le doublon ACTIF sur la même saison.
+    const where: FindOptionsWhere<TeamMember> = {
+      teamId,
+      status: "ACTIVE",
+      seasonId: data.seasonId != null ? data.seasonId : IsNull(),
+    };
     if (data.playerId) {
       where.playerId = data.playerId;
     } else if (data.staffId) {
@@ -86,7 +106,7 @@ export class TeamMemberService {
 
     if (existing) {
       const type = data.playerId ? "joueur" : "membre du staff";
-      throw new Error(`Ce ${type} est déjà membre de l'équipe`);
+      throw new Error(`Ce ${type} est déjà membre actif de l'équipe pour cette saison`);
     }
 
     const teamMember = repository.create({ ...data, teamId });
@@ -100,6 +120,8 @@ export class TeamMemberService {
     id: number,
     teamId: string,
     data: {
+      seasonId?: number | null;
+      internalTeamId?: number | null;
       status?: "ACTIVE" | "SUSPENDED" | "ENDED";
       startDate?: Date;
       endDate?: Date | null;

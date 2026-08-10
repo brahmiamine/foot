@@ -15,6 +15,10 @@ export interface TeamMemberData {
   id: number;
   playerId: string | null;
   staffId: number | null;
+  seasonId: number | null;
+  internalTeamId: number | null;
+  seasonName: string | null;
+  squadName: string | null;
   status: "ACTIVE" | "SUSPENDED" | "ENDED";
   startDate: string;
   endDate: string | null;
@@ -56,10 +60,22 @@ export interface StaffData {
   staffType: string;
 }
 
+export interface SeasonOption {
+  id: number;
+  name: string;
+}
+
+export interface SquadOption {
+  id: number;
+  name: string;
+}
+
 interface TeamMembersManagementProps {
   initialTeamMembers: TeamMemberData[];
   players: PlayerData[];
   staff: StaffData[];
+  seasons: SeasonOption[];
+  squads: SquadOption[];
 }
 
 type FormMode = "add" | "edit" | null;
@@ -73,6 +89,8 @@ export function TeamMembersManagement({
   initialTeamMembers,
   players,
   staff,
+  seasons,
+  squads,
 }: TeamMembersManagementProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -93,6 +111,8 @@ export function TeamMembersManagement({
     memberType: "PLAYER" as "PLAYER" | "STAFF",
     playerId: "",
     staffId: "",
+    seasonId: "",
+    internalTeamId: "",
     status: "ACTIVE" as "ACTIVE" | "SUSPENDED" | "ENDED",
     startDate: new Date().toISOString().split("T")[0],
     endDate: "",
@@ -104,6 +124,8 @@ export function TeamMembersManagement({
       memberType: "PLAYER",
       playerId: "",
       staffId: "",
+      seasonId: "",
+      internalTeamId: "",
       status: "ACTIVE",
       startDate: new Date().toISOString().split("T")[0],
       endDate: "",
@@ -135,6 +157,8 @@ export function TeamMembersManagement({
       memberType: isPlayer ? "PLAYER" : "STAFF",
       playerId: member.playerId?.toString() || "",
       staffId: member.staffId?.toString() || "",
+      seasonId: member.seasonId?.toString() || "",
+      internalTeamId: member.internalTeamId?.toString() || "",
       status: member.status || "ACTIVE",
       startDate: formatDateForInput(member.startDate),
       endDate: formatDateForInput(member.endDate),
@@ -159,6 +183,8 @@ export function TeamMembersManagement({
       } else {
         formDataObj.append("staffId", formData.staffId);
       }
+      formDataObj.append("seasonId", formData.seasonId);
+      formDataObj.append("internalTeamId", formData.internalTeamId);
       formDataObj.append("status", formData.status);
       formDataObj.append("startDate", formData.startDate);
       formDataObj.append("endDate", formData.endDate);
@@ -420,6 +446,47 @@ export function TeamMembersManagement({
 
                   <div className="row">
                     <div className="col-md-6 mb-3">
+                      <label htmlFor="seasonId-add" className="form-label">
+                        Saison
+                      </label>
+                      <select
+                        className="form-select"
+                        id="seasonId-add"
+                        value={formData.seasonId}
+                        onChange={(e) => setFormData({ ...formData, seasonId: e.target.value })}
+                        disabled={loading}
+                      >
+                        <option value="">Non liée</option>
+                        {seasons.map((season) => (
+                          <option key={season.id} value={season.id}>
+                            {season.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label htmlFor="internalTeamId-add" className="form-label">
+                        Équipe interne
+                      </label>
+                      <select
+                        className="form-select"
+                        id="internalTeamId-add"
+                        value={formData.internalTeamId}
+                        onChange={(e) => setFormData({ ...formData, internalTeamId: e.target.value })}
+                        disabled={loading}
+                      >
+                        <option value="">Non liée</option>
+                        {squads.map((squad) => (
+                          <option key={squad.id} value={squad.id}>
+                            {squad.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
                       <label htmlFor="startDate-add" className="form-label">
                         Date de début <span className="text-danger">*</span>
                       </label>
@@ -505,6 +572,8 @@ export function TeamMembersManagement({
                       <tr>
                         <th>Membre</th>
                         <th>Type</th>
+                        <th>Saison</th>
+                        <th>Équipe interne</th>
                         <th>Statut</th>
                         <th>Date début</th>
                         <th>Date fin</th>
@@ -530,6 +599,8 @@ export function TeamMembersManagement({
                           <td>
                             <span className="badge bg-primary">{getMemberTypeLabel(member)}</span>
                           </td>
+                          <td>{member.seasonName ?? <span className="text-muted">-</span>}</td>
+                          <td>{member.squadName ?? <span className="text-muted">-</span>}</td>
                           <td>
                             <span
                               className={`badge ${
@@ -634,6 +705,46 @@ export function TeamMembersManagement({
                       <option value="ACTIVE">Actif</option>
                       <option value="SUSPENDED">Suspendu</option>
                       <option value="ENDED">Terminé</option>
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="seasonId" className="form-label">
+                      Saison
+                    </label>
+                    <select
+                      className="form-select"
+                      id="seasonId"
+                      value={formData.seasonId}
+                      onChange={(e) => setFormData({ ...formData, seasonId: e.target.value })}
+                      disabled={loading}
+                    >
+                      <option value="">Non liée</option>
+                      {seasons.map((season) => (
+                        <option key={season.id} value={season.id}>
+                          {season.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="internalTeamId" className="form-label">
+                      Équipe interne
+                    </label>
+                    <select
+                      className="form-select"
+                      id="internalTeamId"
+                      value={formData.internalTeamId}
+                      onChange={(e) => setFormData({ ...formData, internalTeamId: e.target.value })}
+                      disabled={loading}
+                    >
+                      <option value="">Non liée</option>
+                      {squads.map((squad) => (
+                        <option key={squad.id} value={squad.id}>
+                          {squad.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

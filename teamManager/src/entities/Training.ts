@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Team } from "./Team";
 import { Stadium } from "./Stadium";
 import { User } from "./User";
+import { Season } from "./Season";
 import type { AgeCategory } from "@/types/categories";
 
 export type TrainingType = "TECHNIQUE" | "PHYSIQUE" | "TACTIQUE" | "PREPARATION_MATCH" | "RECUPERATION" | "AUTRE";
@@ -27,6 +28,13 @@ export class Training {
 
   @Column({ type: "varchar", length: 10, default: "seniors" })
   category!: AgeCategory;
+
+  @Column({ type: "bigint", nullable: true, name: "season_id" })
+  seasonId?: number | null;
+
+  @ManyToOne(() => Season, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn({ name: "season_id" })
+  season?: Season | null;
 
   @Column({ type: "varchar", length: 200 })
   title!: string;

@@ -103,11 +103,12 @@ export async function assignRoleToUser(formData: FormData) {
       userId: formData.get("userId") as string,
       roleId: formData.get("roleId") as string,
       category: (formData.get("category") as string) || null,
+      internalTeamId: (formData.get("internalTeamId") as string) || null,
     });
 
     const teamId = await requireTeamId();
     const roleService = new RoleService();
-    await roleService.assignRole(teamId, data.userId, data.roleId, data.category ?? null);
+    await roleService.assignRole(teamId, data.userId, data.roleId, data.category ?? null, data.internalTeamId ?? null);
 
     const auditLogService = new AuditLogService();
     await auditLogService.create({

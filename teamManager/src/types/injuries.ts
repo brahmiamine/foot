@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const INJURY_SEVERITIES = ["MINOR", "MODERATE", "SEVERE"] as const;
 export const INJURY_STATUSES = ["ONGOING", "RECOVERING", "RESOLVED"] as const;
+export const INJURY_AVAILABILITIES = ["UNAVAILABLE", "RECOVERY", "PARTIAL", "AVAILABLE"] as const;
 
 export const injuryDocumentSchema = z.object({ name: z.string().max(200), url: z.string().max(500) });
 
@@ -19,6 +20,7 @@ export const createInjurySchema = z.object({
   progressiveReturnNotes: z.string().max(500).optional().nullable(),
   documents: z.array(injuryDocumentSchema).max(20).default([]),
   status: z.enum(INJURY_STATUSES).default("ONGOING"),
+  availabilityStatus: z.enum(INJURY_AVAILABILITIES).default("UNAVAILABLE"),
   notes: z.string().max(2000).optional().nullable(),
 });
 

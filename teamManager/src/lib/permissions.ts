@@ -171,6 +171,30 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     permissions: [{ key: "roles.manage", label: "Gérer les rôles & permissions" }],
   },
   {
+    key: "structure",
+    label: "Saisons & équipes internes",
+    permissions: [
+      { key: "structure.view", label: "Voir les saisons et équipes internes" },
+      { key: "structure.manage", label: "Gérer les saisons et équipes internes" },
+    ],
+  },
+  {
+    key: "licenses",
+    label: "Licences",
+    permissions: [
+      { key: "licenses.view", label: "Voir les licences" },
+      { key: "licenses.manage", label: "Gérer les licences" },
+    ],
+  },
+  {
+    key: "guardians",
+    label: "Parents & tuteurs",
+    permissions: [
+      { key: "guardians.view", label: "Voir les parents/tuteurs" },
+      { key: "guardians.manage", label: "Gérer les parents/tuteurs" },
+    ],
+  },
+  {
     key: "medical",
     label: "Blessures & santé (accès restreint)",
     permissions: [
@@ -240,6 +264,9 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "notifications.send",
       "trips.view",
       "trips.manage",
+      "structure.view",
+      "licenses.view",
+      "guardians.view",
     ],
   },
   {

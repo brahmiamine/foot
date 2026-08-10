@@ -126,7 +126,7 @@ export class RoleService {
 
   async findAssignmentsForTeam(teamId: string): Promise<UserRole[]> {
     const repository = await this.getUserRoleRepository();
-    return repository.find({ where: { teamId }, relations: ["role", "user"], order: { createdAt: "ASC" } });
+    return repository.find({ where: { teamId }, relations: ["role", "user", "internalTeam"], order: { createdAt: "ASC" } });
   }
 
   async findAssignmentsForUser(teamId: string, userId: string): Promise<UserRole[]> {
@@ -138,7 +138,8 @@ export class RoleService {
     teamId: string,
     userId: string,
     roleId: number,
-    category: AgeCategory | null
+    category: AgeCategory | null,
+    internalTeamId?: number | null
   ): Promise<UserRole> {
     const roleRepository = await this.getRoleRepository();
     const role = await roleRepository.findOne({ where: { id: roleId, teamId } });
@@ -155,7 +156,9 @@ export class RoleService {
       const existing = await repository.findOne({ where: { teamId, userId, roleId } });
       if (existing) return existing;
     } else {
-      const existing = await repository.findOne({ where: { teamId, userId, roleId, category: category ?? undefined } });
+      const existing = await repository.findOne({
+        where: { teamId, userId, roleId, category: category ?? undefined, internalTeamId: internalTeamId ?? undefined },
+      });
       if (existing) return existing;
     }
 
@@ -164,6 +167,7 @@ export class RoleService {
       userId,
       roleId,
       category: role.isGlobal ? null : category,
+      internalTeamId: role.isGlobal ? null : (internalTeamId ?? null),
     });
     return repository.save(assignment);
   }

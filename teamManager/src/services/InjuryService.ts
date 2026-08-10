@@ -1,5 +1,5 @@
 import { getDataSource } from "@/lib/database";
-import { Injury, InjuryStatus } from "@/entities/Injury";
+import { Injury, InjuryAvailability, InjuryStatus } from "@/entities/Injury";
 import { Repository } from "typeorm";
 import { AgeCategory } from "@/types/categories";
 import type { CreateInjuryInput, InjuryDocument, UpdateInjuryInput } from "@/types/injuries";
@@ -57,6 +57,7 @@ export class InjuryService {
       progressiveReturnNotes: data.progressiveReturnNotes ?? null,
       documents: JSON.stringify(data.documents ?? []),
       status: data.status,
+      availabilityStatus: data.availabilityStatus,
       notes: data.notes ?? null,
       createdBy,
     });
@@ -82,6 +83,7 @@ export class InjuryService {
     if (data.progressiveReturnNotes !== undefined) injury.progressiveReturnNotes = data.progressiveReturnNotes;
     if (data.documents !== undefined) injury.documents = JSON.stringify(data.documents);
     if (data.status !== undefined) injury.status = data.status as InjuryStatus;
+    if (data.availabilityStatus !== undefined) injury.availabilityStatus = data.availabilityStatus as InjuryAvailability;
     if (data.notes !== undefined) injury.notes = data.notes;
 
     return repository.save(injury);

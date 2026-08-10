@@ -21,10 +21,14 @@ export async function createTeamMember(formData: FormData) {
     const data: {
       playerId?: string | null;
       staffId?: number | null;
+      seasonId?: number | null;
+      internalTeamId?: number | null;
       status: "ACTIVE" | "SUSPENDED" | "ENDED";
       startDate: Date;
       endDate?: Date | null;
     } = {
+      seasonId: formData.get("seasonId") ? parseInt(formData.get("seasonId") as string, 10) : null,
+      internalTeamId: formData.get("internalTeamId") ? parseInt(formData.get("internalTeamId") as string, 10) : null,
       status: (formData.get("status") as "ACTIVE" | "SUSPENDED" | "ENDED") || "ACTIVE",
       startDate: startDateStr ? new Date(startDateStr) : new Date(),
       endDate: endDateStr ? new Date(endDateStr) : null,
@@ -73,11 +77,19 @@ export async function updateTeamMember(id: number, formData: FormData) {
     const endDateStr = formData.get("endDate") as string;
 
     const data: {
+      seasonId?: number | null;
+      internalTeamId?: number | null;
       status?: "ACTIVE" | "SUSPENDED" | "ENDED";
       startDate?: Date;
       endDate?: Date | null;
     } = {};
 
+    if (formData.has("seasonId")) {
+      data.seasonId = formData.get("seasonId") ? parseInt(formData.get("seasonId") as string, 10) : null;
+    }
+    if (formData.has("internalTeamId")) {
+      data.internalTeamId = formData.get("internalTeamId") ? parseInt(formData.get("internalTeamId") as string, 10) : null;
+    }
     if (formData.has("status")) {
       data.status = formData.get("status") as "ACTIVE" | "SUSPENDED" | "ENDED";
     }
