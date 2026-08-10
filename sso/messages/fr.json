@@ -1,0 +1,38 @@
+{
+  "common": {
+    "appTitle": "Connexion",
+    "appDescription": "Authentification centralisée",
+    "language": "Langue",
+    "french": "Français",
+    "arabic": "العربية"
+  },
+  "login": {
+    "heading": "Connexion",
+    "subheading": "Authentification centralisée — matchsheet, arbinote, superadmin, teamManager.",
+    "clubLabel": "Club",
+    "clubLoading": "Chargement...",
+    "clubPlaceholder": "Sélectionnez un club",
+    "emailLabel": "Email",
+    "passwordLabel": "Mot de passe",
+    "submit": "Se connecter",
+    "submitting": "Connexion...",
+    "switchToSuperadmin": "Connexion super-admin",
+    "switchToClub": "Retour à la connexion club",
+    "errors": {
+      "chooseClub": "Choisissez votre club.",
+      "invalidCredentials": "Identifiants incorrects",
+      "cannotConnect": "Impossible de se connecter"
+    }
+  },
+  "home": {
+    "connected": "Connecté",
+    "clubSuffix": "club {teamId}",
+    "returnToApp": "Revenez sur l'application souhaitée — vous êtes déjà authentifié."
+  },
+  "api": {
+    "tooManyAttempts": "Trop de tentatives échouées. Réessayez dans quelques minutes.",
+    "credentialsRequired": "Identifiants requis",
+    "invalidCredentials": "Email, mot de passe ou club incorrect",
+    "serverError": "Erreur serveur"
+  }
+}

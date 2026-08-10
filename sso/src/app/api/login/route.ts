@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { authenticate } from "@/lib/authenticate";
 import { issueSession } from "@/lib/session";
 import { sanitizeRedirect } from "@/lib/redirect";
@@ -8,14 +9,13 @@ import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const t = await getTranslations("api");
+
   try {
     const clientIP = getClientIP(request);
 
     if (isLoginRateLimited(clientIP)) {
-      return NextResponse.json(
-        { error: "Trop de tentatives échouées. Réessayez dans quelques minutes." },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: t("tooManyAttempts") }, { status: 429 });
     }
 
     const body = await request.json();
@@ -25,13 +25,13 @@ export async function POST(request: NextRequest) {
     const redirect = sanitizeRedirect(typeof body.redirect === "string" ? body.redirect : null);
 
     if (!email || !password) {
-      return NextResponse.json({ error: "Identifiants requis" }, { status: 400 });
+      return NextResponse.json({ error: t("credentialsRequired") }, { status: 400 });
     }
 
     const user = await authenticate({ email, password, teamId });
     if (!user) {
       recordFailedLoginAttempt(clientIP);
-      return NextResponse.json({ error: "Email, mot de passe ou club incorrect" }, { status: 401 });
+      return NextResponse.json({ error: t("invalidCredentials") }, { status: 401 });
     }
 
     clearFailedLoginAttempts(clientIP);
@@ -41,6 +41,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("SSO login error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: t("serverError") }, { status: 500 });
   }
 }

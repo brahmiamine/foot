@@ -1,0 +1,38 @@
+{
+  "common": {
+    "appTitle": "تسجيل الدخول",
+    "appDescription": "مصادقة موحدة",
+    "language": "اللغة",
+    "french": "Français",
+    "arabic": "العربية"
+  },
+  "login": {
+    "heading": "تسجيل الدخول",
+    "subheading": "مصادقة موحدة — matchsheet وarbinote وsuperadmin وteamManager.",
+    "clubLabel": "النادي",
+    "clubLoading": "جارٍ التحميل...",
+    "clubPlaceholder": "اختر ناديك",
+    "emailLabel": "البريد الإلكتروني",
+    "passwordLabel": "كلمة المرور",
+    "submit": "تسجيل الدخول",
+    "submitting": "جارٍ تسجيل الدخول...",
+    "switchToSuperadmin": "دخول المسؤول العام",
+    "switchToClub": "العودة إلى تسجيل دخول النادي",
+    "errors": {
+      "chooseClub": "الرجاء اختيار ناديك.",
+      "invalidCredentials": "بيانات الاعتماد غير صحيحة",
+      "cannotConnect": "تعذّر الاتصال"
+    }
+  },
+  "home": {
+    "connected": "متصل",
+    "clubSuffix": "نادي {teamId}",
+    "returnToApp": "عد إلى التطبيق المطلوب — أنت متصل بالفعل."
+  },
+  "api": {
+    "tooManyAttempts": "عدد كبير جدًا من المحاولات الفاشلة. أعد المحاولة خلال بضع دقائق.",
+    "credentialsRequired": "بيانات الاعتماد مطلوبة",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور أو النادي غير صحيح",
+    "serverError": "خطأ في الخادم"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface TeamOption {
   id: string;
@@ -10,6 +11,7 @@ interface TeamOption {
 }
 
 export default function LoginForm({ redirectTo }: { redirectTo: string }) {
+  const t = useTranslations("login");
   const [mode, setMode] = useState<"club" | "superadmin">("club");
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
@@ -32,7 +34,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
     setError(null);
 
     if (mode === "club" && !selectedTeamId) {
-      setError("Choisissez votre club.");
+      setError(t("errors.chooseClub"));
       return;
     }
 
@@ -51,12 +53,12 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Identifiants incorrects");
+        throw new Error(payload.error || t("errors.invalidCredentials"));
       }
 
       window.location.href = payload.redirect || "/";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de se connecter");
+      setError(err instanceof Error ? err.message : t("errors.cannotConnect"));
     } finally {
       setLoading(false);
     }
@@ -66,7 +68,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
     <form onSubmit={handleSubmit} className="sso-form">
       {mode === "club" && (
         <div className="sso-field">
-          <label htmlFor="teamId">Club</label>
+          <label htmlFor="teamId">{t("clubLabel")}</label>
           <select
             id="teamId"
             value={selectedTeamId}
@@ -74,7 +76,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
             required
           >
             <option value="">
-              {loadingTeams ? "Chargement..." : "Sélectionnez un club"}
+              {loadingTeams ? t("clubLoading") : t("clubPlaceholder")}
             </option>
             {teams.map((team) => (
               <option key={team.id} value={team.id}>
@@ -86,7 +88,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
       )}
 
       <div className="sso-field">
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{t("emailLabel")}</label>
         <input
           id="email"
           type="email"
@@ -98,7 +100,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
       </div>
 
       <div className="sso-field">
-        <label htmlFor="password">Mot de passe</label>
+        <label htmlFor="password">{t("passwordLabel")}</label>
         <input
           id="password"
           type="password"
@@ -112,7 +114,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
       {error && <p className="sso-error">{error}</p>}
 
       <button type="submit" disabled={loading} className="sso-submit">
-        {loading ? "Connexion..." : "Se connecter"}
+        {loading ? t("submitting") : t("submit")}
       </button>
 
       <button
@@ -123,7 +125,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
           setError(null);
         }}
       >
-        {mode === "club" ? "Connexion super-admin" : "Retour à la connexion club"}
+        {mode === "club" ? t("switchToSuperadmin") : t("switchToClub")}
       </button>
 
       <style jsx>{`
@@ -149,6 +151,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
           padding: 10px 12px;
           color: var(--sso-text);
           font-size: 0.9375rem;
+          text-align: start;
         }
         .sso-error {
           color: var(--sso-error);

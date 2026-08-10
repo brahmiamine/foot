@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getCurrentSession } from "@/lib/session";
 import { sanitizeRedirect } from "@/lib/redirect";
 import LoginForm from "@/components/LoginForm";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
+import type { Locale } from "@/i18n/locales";
 
 export default async function LoginPage({
   searchParams,
@@ -16,15 +19,20 @@ export default async function LoginPage({
     redirect(target);
   }
 
+  const t = await getTranslations("login");
+  const locale = (await getLocale()) as Locale;
+
   return (
     <div className="sso-page">
+      <LocaleSwitcher currentLocale={locale} />
       <div className="sso-card">
-        <h1>Connexion</h1>
-        <p className="sso-muted">Authentification centralisée — matchsheet, arbinote, superadmin, teamManager.</p>
+        <h1>{t("heading")}</h1>
+        <p className="sso-muted">{t("subheading")}</p>
         <LoginForm redirectTo={target} />
       </div>
       <style>{`
         .sso-page {
+          position: relative;
           min-height: 100vh;
           display: flex;
           align-items: center;
