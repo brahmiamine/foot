@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { databaseConfig } from './config/database.config';
 import { validateEnv } from './config/env.validation';
@@ -31,6 +32,7 @@ import { PaymentModule } from './payment/payment.module';
     NotificationsModule,
     PaymentModule,
   ],
+  controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

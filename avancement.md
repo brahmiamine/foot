@@ -25,7 +25,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | 4 | Middleware global sur chaque back-office (`superadmin`, `arbinote`, `teamManager`) | ✅ Fait | `src/middleware.ts` ajouté aux 3 apps, protège `/admin/*` + `/api/admin/*` — voir détail ci-dessous |
 | 5 | Machine d'état commune du match | ✅ Fait (recadré, voir détail) | `matches.status` existait déjà dans le schéma mais n'était écrit par aucune app — corrigé, pas remplacé par un nouveau système |
 | 6 | CI (lint + tests) sur les 10 apps | ✅ Fait | `.github/workflows/ci.yml` — voir détail ci-dessous |
-| 7 | `/api/health` partout + monitoring de base | ⬜ À faire | Seuls `arbinote` et `superadmin` l'exposent |
+| 7 | `/api/health` partout | ✅ Fait (10/10 apps) | Monitoring/alerting externe reste hors périmètre — voir détail |
 | 8 | Reset password + MFA + révocation de session dans `sso` | ⬜ À faire | |
 | 9 | Brancher `billetterie` sur `payment-api` et sur `ob` | ⬜ À faire | Achat aujourd'hui marqué `PAID` immédiatement (mock) |
 | 10 | Backup/restauration testée pour `foot` et les uploads | ⬜ À faire | |
@@ -38,16 +38,16 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 
 | Projet | Rôle | Type | Tests | Health | PWA | `.env.example` |
 |---|---|---|:---:|:---:|:---:|:---:|
-| `sso` | Authentification centralisée | Générique | ❌ | ❌ | ❌ | ✅ |
+| `sso` | Authentification centralisée | Générique | ❌ | ✅ | ❌ | ✅ |
 | `arbinote` | Notation publique des arbitres | Générique | ✅ | ✅ | ✅ | ✅ |
-| `matchsheet` | Feuille de match électronique (kiosque) | Générique | ❌ | ❌ | ✅ | ✅ |
+| `matchsheet` | Feuille de match électronique (kiosque) | Générique | ❌ | ✅ | ✅ | ✅ |
 | `superadmin` | Référentiels plateforme, audit | Générique | ✅ | ✅ | ✅ | ✅ |
-| `teamManager` | Back-office club | Générique | ❌ | ❌ | ✅ | ✅ |
-| `ob` | Vitrine + espace membre OB (lecture seule) | Custom | ❌ | ❌ | ❌ | ✅ |
-| `payment-api` | Paiement mutualisé (Konnect/Paymee/Flouci) | Service | ✅ | ❌ | — | ✅ |
-| `notification-api` | Centre de notifications | Service | ✅ | ❌ | — | ✅ |
-| `sellerPortal` | Portail vendeur marketplace | Générique | ❌ | ❌ | ❌ | ✅ |
-| `billetterie` | Billetterie multi-clubs (V1 mock) | Générique | ❌ | ❌ | ❌ | ✅ |
+| `teamManager` | Back-office club | Générique | ❌ | ✅ | ✅ | ✅ |
+| `ob` | Vitrine + espace membre OB (lecture seule) | Custom | ❌ | ✅ | ❌ | ✅ |
+| `payment-api` | Paiement mutualisé (Konnect/Paymee/Flouci) | Service | ✅ | ✅ | — | ✅ |
+| `notification-api` | Centre de notifications | Service | ✅ | ✅ | — | ✅ |
+| `sellerPortal` | Portail vendeur marketplace | Générique | ❌ | ✅ | ❌ | ✅ |
+| `billetterie` | Billetterie multi-clubs (V1 mock) | Générique | ❌ | ✅ | ❌ | ✅ |
 | `db` | Dump SQL de référence, pas une app | Référence | — | — | — | — |
 
 ---
@@ -105,9 +105,9 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
   - `arbinote` : 7 apostrophes non échappées (`d'Équipe` → `d&apos;Équipe`, même motif que `teamManager`) et un `let` jamais réassigné (`prefer-const`) corrigés — le reste de la dette (`any`, `setState` synchrone) laissé visible, voir ci-dessus.
 - Note : le script `lint` local de `payment-api`/`notification-api` inclut `--fix` (corrige et avale silencieusement les erreurs auto-fixables) — la CI appelle `eslint` directement sans `--fix` pour que le job échoue réellement en cas d'erreur, sans modifier le script local existant.
 
-### D. Observabilité au minimum — haute
-- `/api/health` n'existe que dans `arbinote` et `superadmin`.
-- Aucun monitoring/alerting transverse.
+### D. Observabilité au minimum — haute, healthcheck traité
+- ~~`/api/health` n'existe que dans `arbinote` et `superadmin`~~ → ajouté aux 8 apps qui n'en avaient pas (`sso`, `matchsheet`, `teamManager`, `sellerPortal`, `billetterie`, `ob` : `GET /api/health`, même format que `arbinote`/`superadmin` — statut + `SELECT 1` sur la base + temps de réponse ; `payment-api`, `notification-api` : `GET /health`, ajouté un `AppController` pour `payment-api` qui n'en avait aucun). `sso` vérifie en plus la présence de `SSO_JWT_SECRET`/`SSO_COOKIE_NAME`/`SSO_URL` (statut `degraded` si l'un manque, sans quoi une session émise ne serait vérifiable par aucune autre app) ; `notification-api` expose l'état de sa connexion optionnelle à la base partagée `foot` (`directoryDb: configured/not_configured`) en plus de sa propre base. Vérifié en conditions réelles (pas seulement `tsc`) : serveur `teamManager` démarré sans base disponible, `curl /api/health` répond bien `503 {"status":"error","database":"error",...}` plutôt que de planter.
+- **Non traité, hors périmètre code** : monitoring/alerting transversal (agréger ces endpoints, alerter si un `/health` répond en erreur) suppose un service externe (Datadog, Uptime Kuma, healthcheck Docker/Kubernetes…) à provisionner et configurer — rien à câbler côté dépôt tant que ce choix d'outillage n'est pas fait.
 - Pas de stratégie de sauvegarde documentée au-delà du volume Docker local.
 
 ### E. Gouvernance de la base partagée — critique, en partie traité
