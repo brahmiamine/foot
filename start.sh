@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 # ── Base de données partagée (mariadb_container) ────────────────────────────
 # Identifiants stockés dans arbinote/.env.local (base "foot" partagée par
-# arbinote, superadmin et teamManager).
+# arbinote, superadmin, teamManager et sso).
 if [ -f "$ROOT_DIR/arbinote/.env.local" ]; then
   set -a
   source "$ROOT_DIR/arbinote/.env.local"
@@ -100,6 +100,16 @@ fi
 
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
+
+# ── sso sur le port 3004 (authentification centralisée : émet le cookie JWT
+# partagé par toutes les autres apps — doit tourner avant qu'un login soit
+# possible ailleurs) ──────────────────────────────────────────────────────────
+if [ -f "$ROOT_DIR/sso/.env.local" ]; then
+  echo "🚀 Lancement de sso sur http://localhost:3004 ..."
+  (cd "$ROOT_DIR/sso" && PORT=3004 pnpm run dev 2>&1 | sed -u 's/^/[sso]        /') &
+else
+  echo "⚠️  sso/.env.local absent : sso n'est pas démarré (copier sso/env.example → sso/.env.local pour l'activer). Les autres apps ne pourront pas authentifier tant qu'il ne tourne pas."
+fi
 
 # ── arbinote sur le port 3000 (site public de notation des arbitres : votes,
 # critères, anomalies, alertes, messages — remplace l'ancien ArbiNote) ───────

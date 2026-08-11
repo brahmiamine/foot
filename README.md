@@ -19,11 +19,9 @@ Plateforme de gestion d'une ligue de football (fédérations, ligues, clubs, mat
 | [`db`](./db) | Dump SQL de référence du schéma partagé `foot`. | — | — |
 | [`skote`](./skote) | Template d'admin React (Themesbrand Skote) vendored à titre de référence visuelle — non branché au produit. | — | — |
 
-D'autres documents complètent ce README :
+Un autre document complète ce README :
 
-- [`roadmap.md`](./roadmap.md) — backlog produit/fonctionnel (API-Football live, notifications, PWA, espace supporter, boutique, sponsors, finance, RGPD).
-- [`manquants.md`](./manquants.md) — dette technique (infrastructure, sécurité, qualité, gouvernance des données).
-- [`NEXT_STEPS.md`](./NEXT_STEPS.md) — état d'avancement et TODO détaillé de la normalisation générique/custom (ce qui est fait, ce qui reste, comment reprendre dans une autre session).
+- [`avancement.md`](./avancement.md) — panorama des 11 apps, fonctionnalités manquantes par projet, processus manquants entre les projets (auth partagée, gouvernance des données, cycle de vie du match, CI/CD…) et suivi des actions au fil des sessions.
 
 ## Classification des projets — générique vs custom
 
@@ -140,7 +138,7 @@ au lieu de `payment-api.platform.tn`, `notification-api.platform.tn`, etc. Les s
 ./start.sh
 ```
 
-Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `3307`) et phpMyAdmin (port `9090`), applique un correctif de schéma idempotent, puis lance en parallèle `arbinote`, `matchsheet`, `superadmin` et `teamManager`. `sso` n'est pas encore intégré à ce script (voir `manquants.md` § 1.1) : il doit être démarré manuellement (`cd sso && pnpm run dev`, port `3004`) pour que la connexion fonctionne dans les autres apps. `ob`, `payment-api`, `notification-api` et `sellerPortal` sont des déploiements séparés, à démarrer indépendamment depuis leur propre dossier.
+Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `3307`) et phpMyAdmin (port `9090`), applique un correctif de schéma idempotent, puis lance en parallèle `sso`, `arbinote`, `matchsheet`, `superadmin` et `teamManager`. `sso` ne démarre que si `sso/.env.local` existe déjà (`cp sso/.env.example sso/.env.local` puis renseigner les secrets) — sans quoi le script continue mais les autres apps ne pourront pas authentifier. `ob`, `payment-api`, `notification-api`, `sellerPortal` et `billetterie` sont des déploiements séparés, à démarrer indépendamment depuis leur propre dossier.
 
 > ⚠️ Le README de `sellerPortal` indique le port `3004` comme exemple, alors que ce port est déjà celui de `sso`. Aucun port fixe n'est défini dans son `package.json` (Next.js démarre par défaut sur `3000`) : à clarifier/fixer avant un lancement simultané de toutes les apps.
 

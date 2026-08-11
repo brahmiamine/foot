@@ -15,12 +15,14 @@ Trois migrations SQL à exécuter (dans cet ordre, sur la base `foot` déjà uti
 ## Variables d'environnement
 
 ```
-DB_HOST=
-DB_PORT=3306
-DB_USER=
-DB_PASSWORD=
-DB_NAME=foot
+cp .env.example .env.local
 ```
+
+`matchsheet` est un kiosque sans écran de login, mais `src/middleware.ts` et
+`src/lib/ssoSession.ts` vérifient tout de même le cookie SSO partagé pour les
+routes qui en ont besoin — les variables `SSO_*` doivent être identiques aux
+autres apps (voir `sso/.env.example`). Voir `.env.example` pour la liste
+complète (DB, SSO, `notification-api`).
 
 ## Démarrage
 
