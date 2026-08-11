@@ -79,3 +79,42 @@ export async function resetPassword(rawToken: string, newPassword: string): Prom
 
   return { success: true };
 }
+
+export type ChangePasswordResult =
+  | { success: true; user: User }
+  | { success: false; error: "invalid_current_password" | "account_inactive" };
+
+/**
+ * Changement de mot de passe pour un compte déjà connecté (portail, `/account/password`)
+ * — distinct de resetPassword (lien email, compte non connecté). Exige le
+ * mot de passe actuel : une session volée ne suffit pas à en prendre le
+ * contrôle définitif. La longueur du nouveau mot de passe est validée par
+ * l'appelant (voir reset-password/route.ts pour la même convention). Comme
+ * resetPassword, incrémente tokenVersion (voir User.tokenVersion) — le
+ * caller doit réémettre une session à jour pour ne pas déconnecter
+ * l'utilisateur qui vient de faire l'action.
+ */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<ChangePasswordResult> {
+  const dataSource = await getDataSource();
+  const userRepo = dataSource.getRepository(User);
+
+  const user = await userRepo.findOne({ where: { id: userId } });
+  if (!user || !user.isActive) {
+    return { success: false, error: "account_inactive" };
+  }
+
+  const currentValid = await bcrypt.compare(currentPassword, user.password);
+  if (!currentValid) {
+    return { success: false, error: "invalid_current_password" };
+  }
+
+  user.password = await bcrypt.hash(newPassword, 12);
+  user.tokenVersion += 1;
+  await userRepo.save(user);
+
+  return { success: true, user };
+}

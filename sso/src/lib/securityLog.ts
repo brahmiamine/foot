@@ -1,6 +1,8 @@
 import { getDataSource } from "./db";
 import { SecurityEvent, type SecurityEventType } from "@/entities/SecurityEvent";
 
+export type { SecurityEventType };
+
 /**
  * Journal de sécurité — échecs de connexion, rate limit, échecs MFA,
  * réinitialisation de mot de passe (voir avancement.md, § 3.B). Ne doit
@@ -27,4 +29,34 @@ export function logSecurityEvent(input: {
     .catch((error) => {
       console.error(`Failed to record security event "${input.type}":`, error);
     });
+}
+
+export interface RecentSecurityEvent {
+  type: SecurityEventType;
+  ip: string | null;
+  createdAt: Date;
+}
+
+/**
+ * Activité récente d'un compte, pour l'afficher sur le portail (`/`) —
+ * matché sur `userId` (événements liés à une session déjà identifiée,
+ * MFA/reset/déconnexion) ET sur `email` (les tentatives de connexion
+ * échouées ne résolvent jamais de `userId`, seul l'email saisi est connu).
+ */
+export async function listRecentSecurityEvents(
+  userId: string,
+  email: string,
+  limit = 10,
+): Promise<RecentSecurityEvent[]> {
+  const dataSource = await getDataSource();
+  const events = await dataSource
+    .getRepository(SecurityEvent)
+    .createQueryBuilder("event")
+    .where("event.user_id = :userId", { userId })
+    .orWhere("event.email = :email", { email })
+    .orderBy("event.created_at", "DESC")
+    .limit(limit)
+    .getMany();
+
+  return events.map((event) => ({ type: event.type, ip: event.ip ?? null, createdAt: event.createdAt }));
 }

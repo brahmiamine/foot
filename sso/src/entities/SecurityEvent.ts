@@ -6,7 +6,9 @@ export type SecurityEventType =
   | "MFA_FAILED"
   | "PASSWORD_RESET_REQUESTED"
   | "PASSWORD_RESET_COMPLETED"
-  | "PASSWORD_RESET_FAILED";
+  | "PASSWORD_RESET_FAILED"
+  | "PASSWORD_CHANGED"
+  | "PASSWORD_CHANGE_FAILED";
 
 /**
  * Journal de sécurité — voir src/lib/securityLog.ts. Table propre à `sso`,
