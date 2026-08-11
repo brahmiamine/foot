@@ -2,20 +2,20 @@ import { getDataSource } from "@/lib/database";
 import { ObMember } from "@/entities/ObMember";
 import { ObMemberBadge } from "@/entities/ObMemberBadge";
 import { ObPrediction } from "@/entities/ObPrediction";
+import { ObStadiumCheckin } from "@/entities/ObStadiumCheckin";
 
 /**
  * Catalogue des 8 badges OB (voir seed dans
- * ob/sql/migration_community_phase1.sql pour le libellé/icône). Seuls les
- * critères mesurables avec les données de la phase 1 sont attribués
- * automatiquement ici :
+ * ob/sql/migration_community_phase1.sql pour le libellé/icône). Attribués
+ * automatiquement :
  * - premier-match / premier-déplacement / dix-pronostics : sur pronostic.
  * - fan-historique : à la création du profil (100 premiers membres).
  * - legende-ob : quand le total de points franchit 10 000.
+ * - dix-presences-stade : sur check-in stade (phase 5, #28).
  *
- * Les 3 autres badges (dix-matchs-suivis, dix-presences-stade,
- * supporter-fidele) dépendent de fonctionnalités pas encore construites
- * (check-in stade, suivi au long cours) : ils existent dans le catalogue
- * mais restent à attribution manuelle pour l'instant.
+ * Les 2 restants (dix-matchs-suivis, supporter-fidele) dépendent d'un
+ * suivi au long cours qu'on ne mesure pas encore : ils existent dans le
+ * catalogue mais restent à attribution manuelle pour l'instant.
  */
 
 async function awardBadge(userId: string, badgeId: string): Promise<void> {
@@ -79,5 +79,13 @@ export async function maybeAwardPredictionBadges(
     if (awayCount === 1) {
       await awardBadge(userId, "premier-deplacement");
     }
+  }
+}
+
+export async function maybeAwardStadiumBadge(userId: string): Promise<void> {
+  const dataSource = await getDataSource();
+  const count = await dataSource.getRepository(ObStadiumCheckin).count({ where: { userId } });
+  if (count >= 10) {
+    await awardBadge(userId, "dix-presences-stade");
   }
 }

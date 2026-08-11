@@ -1,0 +1,33 @@
+.form {
+  display: flex;
+  gap: 8px;
+  max-width: 400px;
+}
+
+.form input {
+  flex: 1;
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--ob-text);
+}
+
+.form button {
+  background: var(--ob-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.done {
+  color: var(--ob-win-text);
+}
+
+.error {
+  color: var(--ob-loss-text);
+  font-size: 13px;
+}

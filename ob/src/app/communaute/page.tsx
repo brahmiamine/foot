@@ -3,9 +3,11 @@ import { PostComposer } from "@/components/PostComposer";
 import { ReactionBar } from "@/components/ReactionBar";
 import { CommentSection } from "@/components/CommentSection";
 import { PollCard } from "@/components/PollCard";
+import { QuizCard } from "@/components/QuizCard";
 import { ReportButton } from "@/components/ReportButton";
 import { CommunityFeedService } from "@/services/CommunityFeedService";
 import { PollService } from "@/services/PollService";
+import { QuizService } from "@/services/QuizService";
 import { getSessionMember } from "@/lib/community/member";
 import { buildMemberLoginUrlForPath } from "@/lib/ssoSession";
 import { formatFullDateTime } from "@/lib/format";
@@ -22,9 +24,10 @@ export default async function CommunautePage() {
   const sessionMember = await getSessionMember();
   const userId = sessionMember?.session.id ?? null;
 
-  const [posts, polls, loginUrl] = await Promise.all([
+  const [posts, polls, quizzes, loginUrl] = await Promise.all([
     new CommunityFeedService().listPosts(userId),
     new PollService().listOpenPolls(userId),
+    new QuizService().listOpenQuizzes(userId),
     buildMemberLoginUrlForPath("/communaute"),
   ]);
 
@@ -43,6 +46,9 @@ export default async function CommunautePage() {
             <a href="/badges">🎖️ Badges</a>
             <a href="/tribune">📣 Tribune des supporters</a>
             <a href="/hall-of-fame">👑 Hall of Fame</a>
+            <a href="/statistiques">📊 Statistiques</a>
+            <a href="/newsletter">📰 OB News</a>
+            <a href="/recompenses">🎁 OB Fan Rewards</a>
             <a href="/espace-membre">Mon espace OB</a>
           </div>
 
@@ -70,6 +76,22 @@ export default async function CommunautePage() {
                   options={poll.options}
                   totalVotes={poll.totalVotes}
                   myVoteOptionId={poll.myVoteOptionId}
+                  loggedIn={!!sessionMember}
+                />
+              ))}
+            </div>
+          )}
+
+          {quizzes.length > 0 && (
+            <div className={styles.pollsSection}>
+              <h2 className={shared.sectionSubtitle}>Quiz OB</h2>
+              {quizzes.map((quiz) => (
+                <QuizCard
+                  key={quiz.id}
+                  quizId={quiz.id}
+                  question={quiz.question}
+                  options={quiz.options}
+                  myAnswer={quiz.myAnswer}
                   loggedIn={!!sessionMember}
                 />
               ))}

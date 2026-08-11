@@ -1,0 +1,50 @@
+.seasonTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.seasonTabs a {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--ob-text-muted);
+}
+
+.seasonTabs a.active,
+.active {
+  background: var(--ob-red);
+  color: white;
+  border-color: var(--ob-red);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--ob-divider);
+  white-space: nowrap;
+}
+
+.table th {
+  color: var(--ob-text-faint);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table td:not(:first-child),
+.table th:not(:first-child) {
+  text-align: center;
+}

@@ -27,6 +27,21 @@ import { CommunityUser } from "@/entities/CommunityUser";
 import { ObReport } from "@/entities/ObReport";
 import { ObModerationLog } from "@/entities/ObModerationLog";
 import { ObFanWallItem } from "@/entities/ObFanWallItem";
+import { MsGoal } from "@/entities/MsGoal";
+import { MsSubstitution } from "@/entities/MsSubstitution";
+import { MatchCard } from "@/entities/MatchCard";
+import { MatchLineup } from "@/entities/MatchLineup";
+import { PlayerSeasonStat } from "@/entities/PlayerSeasonStat";
+import { ObMatchStats } from "@/entities/ObMatchStats";
+import { ObNotificationPrefs } from "@/entities/ObNotificationPrefs";
+import { ObPushSubscription } from "@/entities/ObPushSubscription";
+import { ObKickoffNotified } from "@/entities/ObKickoffNotified";
+import { ObNotificationCursor } from "@/entities/ObNotificationCursor";
+import { ObNewsletterSubscriber } from "@/entities/ObNewsletterSubscriber";
+import { ObQuiz } from "@/entities/ObQuiz";
+import { ObQuizOption } from "@/entities/ObQuizOption";
+import { ObQuizAnswer } from "@/entities/ObQuizAnswer";
+import { ObStadiumCheckin } from "@/entities/ObStadiumCheckin";
 
 /**
  * Connexion à la base "foot" partagée avec arbinote, superadmin et
@@ -81,6 +96,21 @@ export async function getDataSource(): Promise<DataSource> {
         ObReport,
         ObModerationLog,
         ObFanWallItem,
+        MsGoal,
+        MsSubstitution,
+        MatchCard,
+        MatchLineup,
+        PlayerSeasonStat,
+        ObMatchStats,
+        ObNotificationPrefs,
+        ObPushSubscription,
+        ObKickoffNotified,
+        ObNotificationCursor,
+        ObNewsletterSubscriber,
+        ObQuiz,
+        ObQuizOption,
+        ObQuizAnswer,
+        ObStadiumCheckin,
       ],
       migrations: [],
       charset: "utf8mb4",

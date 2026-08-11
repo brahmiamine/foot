@@ -1,0 +1,85 @@
+.subtitle {
+  color: var(--ob-text-muted);
+  margin: 0 0 24px;
+}
+
+.loginPrompt {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.loginPrompt a {
+  color: var(--ob-red);
+  font-weight: 600;
+}
+
+.earnTable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 40px;
+  max-width: 400px;
+}
+
+.earnRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--ob-divider);
+  font-size: 14px;
+}
+
+.soon {
+  color: var(--ob-text-faint);
+  font-size: 12px;
+}
+
+.points {
+  color: var(--ob-red);
+  font-weight: 700;
+}
+
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.tier {
+  padding: 20px;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.tier.unlocked {
+  opacity: 1;
+  border-color: var(--ob-red);
+}
+
+.tierPoints {
+  font-family: var(--ob-font-display);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--ob-red);
+}
+
+.tierLabel {
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.tierStatus {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ob-text-faint);
+}
+
+.note {
+  color: var(--ob-text-muted);
+  font-size: 13px;
+  max-width: 500px;
+}

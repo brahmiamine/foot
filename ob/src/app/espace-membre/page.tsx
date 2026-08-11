@@ -8,6 +8,9 @@ import { getObTeams } from "@/lib/ob-team";
 import { PublicPlayerService } from "@/services/PublicPlayerService";
 import { BadgeService } from "@/services/BadgeService";
 import { FollowService } from "@/services/FollowService";
+import { NotificationPrefsService } from "@/services/NotificationPrefsService";
+import { NotificationPrefsForm } from "@/components/NotificationPrefsForm";
+import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import shared from "@/components/shared.module.css";
 import styles from "./espace-membre.module.css";
 
@@ -35,11 +38,12 @@ export default async function EspaceMembrePage() {
   const badgeService = new BadgeService();
   const followService = new FollowService();
 
-  const [badges, earnedBadgeIds, followedTeamIds, followedPlayerIds] = await Promise.all([
+  const [badges, earnedBadgeIds, followedTeamIds, followedPlayerIds, notificationPrefs] = await Promise.all([
     badgeService.listCatalog(),
     badgeService.getEarnedBadgeIds(session.id),
     followService.getFollowedIds(session.id, "TEAM"),
     followService.getFollowedIds(session.id, "PLAYER"),
+    new NotificationPrefsService().getForUser(session.id),
   ]);
 
   const earnedBadges = badges.filter((b) => earnedBadgeIds.has(b.id));
@@ -112,6 +116,12 @@ export default async function EspaceMembrePage() {
               </div>
             </>
           )}
+
+          <h2 className={shared.sectionSubtitle}>Notifications</h2>
+          <PushSubscribeButton />
+          <div style={{ marginTop: 16, marginBottom: 32 }}>
+            <NotificationPrefsForm initial={notificationPrefs} />
+          </div>
         </div>
       </div>
     </PageChrome>

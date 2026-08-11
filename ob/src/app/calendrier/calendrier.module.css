@@ -81,3 +81,23 @@
   background: var(--ob-card-border);
   color: var(--ob-text-faint);
 }
+
+.stats {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ob-divider);
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ob-text-muted);
+}
+
+.statsLabel {
+  color: var(--ob-red);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  width: 100%;
+}

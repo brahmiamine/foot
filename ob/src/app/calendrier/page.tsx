@@ -1,6 +1,9 @@
 import type { Match } from "@/entities/Match";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicMatchService } from "@/services/PublicMatchService";
+import { MatchStatsService } from "@/services/MatchStatsService";
+import { getDataSource } from "@/lib/database";
+import { MatchCard } from "@/entities/MatchCard";
 import { matchOutcomeForTeam, OUTCOME_LABELS } from "@/lib/match";
 import { formatFullDateTime, formatShortDate } from "@/lib/format";
 import { PageChrome } from "@/components/PageChrome";
@@ -25,6 +28,21 @@ function opponentLine(match: Match, obTeamId: string): string {
   return isHome ? `${match.homeTeam?.nom} vs ${opponent}` : `${opponent} vs ${match.awayTeam?.nom}`;
 }
 
+async function getCardCounts(matchIds: string[]): Promise<Map<string, number>> {
+  if (matchIds.length === 0) return new Map();
+  const dataSource = await getDataSource();
+  const rows = await dataSource
+    .getRepository(MatchCard)
+    .createQueryBuilder("c")
+    .select("c.matchId", "matchId")
+    .addSelect("COUNT(*)", "count")
+    .where("c.matchId IN (:...matchIds)", { matchIds })
+    .andWhere("c.isNeutralized = false")
+    .groupBy("c.matchId")
+    .getRawMany<{ matchId: string; count: string }>();
+  return new Map(rows.map((r) => [r.matchId, Number(r.count)]));
+}
+
 export default async function CalendrierPage() {
   const team = await getObTeam();
   const matches = team ? await new PublicMatchService().getAllPublic(team.id) : [];
@@ -33,6 +51,10 @@ export default async function CalendrierPage() {
   const finished = matches
     .filter((m) => m.status === "FINISHED")
     .sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
+
+  const finishedIds = finished.map((m) => m.id);
+  const statsByMatch = await new MatchStatsService().getForMatches(finishedIds);
+  const cardCountByMatch = await getCardCounts(finishedIds);
 
   return (
     <PageChrome>
@@ -66,20 +88,57 @@ export default async function CalendrierPage() {
                   <div className={styles.list}>
                     {finished.map((match) => {
                       const outcome = team ? matchOutcomeForTeam(match, team.id) : null;
+                      const stats = statsByMatch.get(match.id);
+                      const cards = cardCountByMatch.get(match.id);
                       return (
                         <div key={match.id} className={`${shared.card} ${styles.row}`}>
-                          <div>
-                            <div className={styles.teams}>
-                              {match.homeTeam?.nom} vs {match.awayTeam?.nom}
+                          <div style={{ width: "100%" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                              <div>
+                                <div className={styles.teams}>
+                                  {match.homeTeam?.nom} vs {match.awayTeam?.nom}
+                                </div>
+                                {match.date && <div className={styles.date}>{formatShortDate(match.date)}</div>}
+                              </div>
+                              <div className={styles.meta}>
+                                <div className={styles.score}>
+                                  {match.scoreHome} - {match.scoreAway}
+                                </div>
+                                {outcome && (
+                                  <div className={`${styles.badge} ${OUTCOME_CLASSES[outcome]}`}>{OUTCOME_LABELS[outcome]}</div>
+                                )}
+                              </div>
                             </div>
-                            {match.date && <div className={styles.date}>{formatShortDate(match.date)}</div>}
-                          </div>
-                          <div className={styles.meta}>
-                            <div className={styles.score}>
-                              {match.scoreHome} - {match.scoreAway}
-                            </div>
-                            {outcome && (
-                              <div className={`${styles.badge} ${OUTCOME_CLASSES[outcome]}`}>{OUTCOME_LABELS[outcome]}</div>
+                            {(stats || cards) && (
+                              <div className={styles.stats}>
+                                <div className={styles.statsLabel}>Statistiques</div>
+                                {stats?.possessionHome != null && (
+                                  <div>
+                                    Possession {stats.possessionHome}% - {stats.possessionAway}%
+                                  </div>
+                                )}
+                                {stats?.shotsHome != null && (
+                                  <div>
+                                    Tirs {stats.shotsHome} - {stats.shotsAway}
+                                  </div>
+                                )}
+                                {stats?.shotsOnTargetHome != null && (
+                                  <div>
+                                    Tirs cadrés {stats.shotsOnTargetHome} - {stats.shotsOnTargetAway}
+                                  </div>
+                                )}
+                                {stats?.cornersHome != null && (
+                                  <div>
+                                    Corners {stats.cornersHome} - {stats.cornersAway}
+                                  </div>
+                                )}
+                                {stats?.foulsHome != null && (
+                                  <div>
+                                    Fautes {stats.foulsHome} - {stats.foulsAway}
+                                  </div>
+                                )}
+                                {cards != null && <div>Cartons {cards}</div>}
+                              </div>
                             )}
                           </div>
                         </div>

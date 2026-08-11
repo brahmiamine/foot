@@ -1,12 +1,12 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm";
 
 /**
- * Barème repris du programme de fidélité (#28) : seuls les événements
- * listés là-bas créditent des points en phase 1. Poster/commenter n'en
- * rapporte pas (pas de valeur donnée dans la spec) — à revoir si le
- * programme de fidélité est étendu en phase 5.
+ * Barème repris du programme de fidélité "OB Fan Rewards" (#28). Poster/
+ * commenter ne rapporte pas de points (pas de valeur donnée dans la spec).
+ * "Achat boutique" (+100) n'est pas encore dans cette liste : la boutique
+ * n'a pas de paiement branché (phase 4, en attente de Stripe).
  */
-export type ObPointsReason = "SIGNUP" | "PREDICTION" | "PREDICTION_EXACT" | "VOTE";
+export type ObPointsReason = "SIGNUP" | "PREDICTION" | "PREDICTION_EXACT" | "VOTE" | "QUIZ" | "CHECKIN";
 
 @Entity("ob_points_ledger")
 export class ObPointsLedgerEntry {
