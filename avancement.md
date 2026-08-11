@@ -22,7 +22,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | 1 | `sso` dans `start.sh` ; `.env.example` harmonisé sur toutes les apps Next.js | ✅ Fait | `start.sh` lance désormais `sso` (port 3004) ; `.gitignore` de `arbinote`/`matchsheet`/`superadmin`/`teamManager`/`sso`/`sellerPortal` excepte `!.env.example` ; chaque app a maintenant un `.env.example` unique et complet (DB + SSO + notification, `SP_*`/SMTP pour `sellerPortal`, `API_FOOTBALL_KEY` pour `superadmin`) — les anciens `env.sso.example`/`env.notification.example` fragmentaires sont retirés d'`arbinote`/`matchsheet`/`superadmin`/`teamManager` |
 | 2 | Extraire un package `auth-shared` (session, rôles, cookies) | ✅ Fait | `packages/auth-shared/src/session.ts` centralise la vérification JWT (issuer, forme du payload, nom du cookie, secret) — voir détail ci-dessous |
 | 3 | Documenter la propriété des tables de `foot` + process de migration | ✅ Fait | `db/OWNERSHIP.md` — matrice de propriété par domaine + règles de migration, voir détail ci-dessous |
-| 4 | Middleware global sur chaque back-office (`superadmin`, `arbinote`, `teamManager`) | ⬜ À faire | Seul `matchsheet/src/middleware.ts` existe aujourd'hui |
+| 4 | Middleware global sur chaque back-office (`superadmin`, `arbinote`, `teamManager`) | ✅ Fait | `src/middleware.ts` ajouté aux 3 apps, protège `/admin/*` + `/api/admin/*` — voir détail ci-dessous |
 | 5 | Machine d'état commune du match | ⬜ À faire | 4 apps touchent le même match sans statut partagé |
 | 6 | CI (lint + tests) sur les 11 projets | ⬜ À faire | Aucun `.github/workflows` |
 | 7 | `/api/health` partout + monitoring de base | ⬜ À faire | Seuls `arbinote` et `superadmin` l'exposent |
@@ -89,9 +89,10 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 - Le port de `sellerPortal` (aucun port fixé dans `package.json`) entre en conflit avec celui documenté pour `sso` (3004) si tout est lancé en même temps — reste à corriger.
 - ~~`.env.example` absent pour `sso`, `superadmin`, `teamManager`, `sellerPortal`~~ → corrigé (rang 1 du suivi).
 
-### B. Sécurité transverse fragmentée — critique
-- Aucun package `auth-shared` — logique de session/cookie/rôles dupliquée dans chaque app cliente.
-- Un seul middleware global existe dans tout le dépôt (`matchsheet/src/middleware.ts`) ; les autres apps s'appuient sur des helpers appelés page par page.
+### B. Sécurité transverse fragmentée — critique, en grande partie traité
+- ~~Aucun package `auth-shared`~~ → `packages/auth-shared` (rang 2).
+- ~~Un seul middleware global existe dans tout le dépôt (`matchsheet/src/middleware.ts`) ; les autres apps s'appuient sur des helpers appelés page par page~~ → `arbinote/src/middleware.ts`, `superadmin/src/middleware.ts`, `teamManager/src/middleware.ts` ajoutés (rang 4). Chacun protège `/admin/:path*` + `/api/admin/:path*` en défense en profondeur (les pages/routes gardent leurs propres vérifications, `hasAdminSession()`/`ensureAdminAuth()` côté `arbinote`/`superadmin`, `auth()` dans `admin/layout.tsx` côté `teamManager`) : une nouvelle route qui oublierait cet appel individuel reste maintenant bloquée par le middleware. `arbinote`/`superadmin` excluent explicitement `/api/admin/logout` du filtre (sinon un cookie de session déjà expiré ne pourrait plus jamais être effacé). Importent `packages/auth-shared/src/session` directement plutôt que le `src/lib/ssoSession.ts` de l'app (qui importe `next/headers`, incompatible avec l'Edge Runtime du middleware). Vérifié avec un build complet (`next build --webpack`) sur les 3 apps : compilation et bundling Edge du middleware OK, `teamManager` a même fini un build complet vert (routes `force-dynamic`) ; `arbinote`/`superadmin` s'arrêtent plus loin sur la génération statique faute de base MariaDB dans cet environnement — limite déjà connue, sans rapport avec le middleware.
+  - Note en passant : Next.js 16 affiche `The "middleware" file convention is deprecated. Please use "proxy" instead` — pas bloquant, mais à anticiper le jour d'une montée de version Next majeure (renommage `middleware.ts` → `proxy.ts`, même convention dans les 4 apps qui l'utilisent).
 - Pas de politique CSRF formalisée pour les actions sensibles (le logout accepte encore `GET`).
 - Pas de journal de sécurité transverse (login échoué, rate limit, token invalide, reset password).
 
