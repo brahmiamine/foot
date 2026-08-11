@@ -143,7 +143,7 @@ au lieu de `payment-api.platform.tn`, `notification-api.platform.tn`, etc. Les s
 ./start.sh
 ```
 
-Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `3307`) et phpMyAdmin (port `9090`), applique un correctif de schéma idempotent, puis lance en parallèle `arbinote`, `matchsheet`, `superadmin` et `teamManager`. `sso` n'est pas encore intégré à ce script (voir `manquants.md` § 1.1) : il doit être démarré manuellement (`cd sso && pnpm run dev`, port `3004`) pour que la connexion fonctionne dans les autres apps. `ob`, `payment-api`, `notification-api` et `sellerPortal` sont des déploiements séparés, à démarrer indépendamment depuis leur propre dossier.
+Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `3307`) et phpMyAdmin (port `9090`), applique un correctif de schéma idempotent, puis lance en parallèle `arbinote`, `matchsheet`, `superadmin` et `teamManager`. `sso` n'est pas encore intégré à ce script (voir `manquants.md` § 1.1) : il doit être démarré manuellement (`cd sso && pnpm run dev`, port `3004`) pour que la connexion fonctionne dans les autres apps. `ob`, `payment-api`, `notification-api`, `sellerPortal` et `billetterie` sont des déploiements séparés, à démarrer indépendamment depuis leur propre dossier.
 
 > ⚠️ Le README de `sellerPortal` indique le port `3004` comme exemple, alors que ce port est déjà celui de `sso`. Aucun port fixe n'est défini dans son `package.json` (Next.js démarre par défaut sur `3000`) : à clarifier/fixer avant un lancement simultané de toutes les apps.
 
