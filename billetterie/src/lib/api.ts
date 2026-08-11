@@ -16,7 +16,15 @@ export function handleApiError(error: unknown): NextResponse {
 
   const status = (error as { status?: number })?.status;
   if (typeof status === "number") {
-    return NextResponse.json({ error: (error as Error).message }, { status });
+    // profileUrl : voir ProfileIncompleteError (lib/errors.ts) — porté par
+    // ce champ optionnel plutôt qu'un nouveau cas dans ce switch générique,
+    // pour rester extensible à d'autres erreurs qui voudraient transporter
+    // une donnée structurée en plus du message.
+    const profileUrl = (error as { profileUrl?: string }).profileUrl;
+    return NextResponse.json(
+      { error: (error as Error).message, ...(profileUrl ? { profileUrl } : {}) },
+      { status },
+    );
   }
 
   console.error("[api] Unhandled error", error);

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSsoSession } from "@/lib/ssoSession";
+import { getSsoSession, buildMemberProfileUrl } from "@/lib/ssoSession";
 import { purchaseTickets } from "@/lib/tickets";
-import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
+import { getActiveProvider } from "@/lib/paymentApiClient";
+import { fetchBuyerPaymentProfile } from "@/lib/memberProfile";
+import { UnauthorizedError, ForbiddenError, ProfileIncompleteError } from "@/lib/errors";
 import { handleApiError } from "@/lib/api";
 
 const purchaseSchema = z.object({
@@ -28,12 +30,39 @@ export async function POST(req: NextRequest) {
     }
 
     const body = purchaseSchema.parse(await req.json());
+
+    // Vérifié AVANT de réserver quoi que ce soit (pas après, au moment de
+    // payer) : Paymee exige firstName/lastName/phoneNumber, que le profil
+    // MEMBER de `sso` ne collecte pas toujours (voir lib/memberProfile.ts).
+    // Réserver puis échouer à l'initiation forcerait une compensation
+    // (libération immédiate) pour un cas qu'on peut détecter sans toucher
+    // à la capacité disponible.
+    let buyerFirstName: string | null = null;
+    let buyerLastName: string | null = null;
+    let buyerPhoneNumber: string | null = null;
+    if (getActiveProvider() === "paymee") {
+      const profile = await fetchBuyerPaymentProfile();
+      if (!profile?.firstName || !profile?.lastName || !profile?.phoneNumber) {
+        const currentUrl = req.headers.get("referer") || req.nextUrl.origin;
+        throw new ProfileIncompleteError(
+          "Merci de compléter votre profil (prénom, nom, téléphone) avant de payer par Paymee.",
+          buildMemberProfileUrl(currentUrl),
+        );
+      }
+      buyerFirstName = profile.firstName;
+      buyerLastName = profile.lastName;
+      buyerPhoneNumber = profile.phoneNumber;
+    }
+
     const { tickets, payUrl } = await purchaseTickets({
       purchaserId: session.id,
       purchaserEmail: session.email,
       matchTicketCategoryId: body.matchTicketCategoryId,
       quantity: body.quantity,
       audienceConfirmed: body.audienceConfirmed,
+      purchaserFirstName: buyerFirstName,
+      purchaserLastName: buyerLastName,
+      purchaserPhoneNumber: buyerPhoneNumber,
     });
 
     return NextResponse.json({ tickets, payUrl }, { status: 201 });

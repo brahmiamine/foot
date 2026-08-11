@@ -124,6 +124,35 @@ else
   echo "✅ Contrainte unique Card déjà présente."
 fi
 
+# billetterie a besoin de payer via Paymee (voir payment-api/src/payment/
+# providers/paymee/paymee.mapper.ts), qui exige firstName/lastName/
+# phoneNumber du payeur — des champs que le profil MEMBER de `sso` ne
+# collectait pas. Ajoutés NULL (optionnels : ne bloque ni l'inscription
+# email/mot de passe ni la connexion Google) — remplissables après coup sur
+# /membre/profil (sso).
+echo "🔧 Vérification du schéma (User.firstName/lastName/phoneNumber)..."
+USER_FIRSTNAME_EXISTS="$(docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -Nse "
+  SELECT 1
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'foot'
+    AND TABLE_NAME = 'User'
+    AND COLUMN_NAME = 'firstName'
+  LIMIT 1
+")"
+
+if [ "$USER_FIRSTNAME_EXISTS" != "1" ]; then
+  echo "🧱 Ajout des colonnes User.firstName/lastName/phoneNumber..."
+  docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+    ALTER TABLE User
+      ADD COLUMN firstName varchar(191) NULL AFTER teamId,
+      ADD COLUMN lastName varchar(191) NULL AFTER firstName,
+      ADD COLUMN phoneNumber varchar(30) NULL AFTER lastName;
+  "
+  echo "✅ Colonnes User.firstName/lastName/phoneNumber ajoutées."
+else
+  echo "✅ Colonnes User.firstName/lastName/phoneNumber déjà présentes."
+fi
+
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
 

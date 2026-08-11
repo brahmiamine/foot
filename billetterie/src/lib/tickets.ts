@@ -136,6 +136,13 @@ export interface PurchaseInput {
   // src/entities/TicketSaleRule.ts : ce n'est PAS une vérification
   // d'identité fiable, juste un garde-fou d'usage.
   audienceConfirmed: boolean;
+  // Renseignés uniquement quand PAYMENT_PROVIDER=paymee (voir
+  // app/api/tickets/route.ts, qui les lit auprès de `sso` et bloque déjà
+  // l'achat en amont s'ils manquent) — ignorés par payment-api pour les
+  // autres providers, voir lib/paymentApiClient.ts.
+  purchaserFirstName?: string | null;
+  purchaserLastName?: string | null;
+  purchaserPhoneNumber?: string | null;
 }
 
 export interface PurchaseResult {
@@ -275,6 +282,9 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
       amount: totalAmount,
       email: input.purchaserEmail,
       userId: input.purchaserId,
+      firstName: input.purchaserFirstName,
+      lastName: input.purchaserLastName,
+      phoneNumber: input.purchaserPhoneNumber,
     });
     paymentId = result.paymentId;
     payUrl = result.payUrl;

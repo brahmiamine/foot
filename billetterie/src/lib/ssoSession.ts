@@ -37,6 +37,15 @@ export function buildMemberLoginUrl(currentUrl: string): string {
 }
 
 /**
+ * Vers /membre/profil sur `sso` — page "compléter mon profil" (firstName/
+ * lastName/phoneNumber), utilisée quand un achat Paymee est bloqué faute de
+ * ces champs (voir lib/memberProfile.ts et app/api/tickets/route.ts).
+ */
+export function buildMemberProfileUrl(currentUrl: string): string {
+  return buildSsoRedirectUrl(currentUrl, "/membre/profil");
+}
+
+/**
  * Variante pour les Server Components (pas de NextRequest disponible) :
  * reconstruit l'URL absolue de l'app à partir des en-têtes de la requête
  * entrante, pour que `sso` puisse rediriger vers le bon hôte après connexion.

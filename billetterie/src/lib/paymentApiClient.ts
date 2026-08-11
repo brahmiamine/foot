@@ -1,16 +1,33 @@
 /**
  * Client HTTP serveur-à-serveur vers payment-api (voir ../../payment-api/README.md).
- * N'accepte que les providers dont le DTO d'initiation ne demande que
- * orderId/amount/email/userId (Konnect, Flouci) : Paymee exige en plus
- * firstName/lastName/phoneNumber, des champs que le profil MEMBER de `sso`
- * ne collecte pas aujourd'hui — non supporté ici tant que ce formulaire de
- * checkout n'existe pas (voir avancement.md, rang 9).
+ *
+ * payment-api monte les 3 providers (Konnect/Paymee/Flouci) simultanément,
+ * chacun sur sa propre route (`payments/konnect/init`,
+ * `payments/providers/paymee/init`, `payments/providers/flouci/init`) — le
+ * choix du provider n'est PAS un état process-wide côté payment-api, rien
+ * n'empêcherait d'appeler les trois depuis le même processus. `billetterie`
+ * choisit malgré tout un seul provider actif pour tout le déploiement via
+ * `PAYMENT_PROVIDER` (pas un choix par commande) : c'est un choix
+ * d'architecture propre à cette app, pas une limite de payment-api — voir
+ * avancement.md § billetterie.
+ *
+ * Konnect/Flouci partagent le DTO générique (orderId/amount/currency/email/
+ * userId, firstName/lastName/phoneNumber optionnels). Paymee exige en plus
+ * firstName/lastName/phoneNumber (voir paymee.mapper.ts/paymee.types.ts
+ * côté payment-api) : le profil MEMBER de `sso` ne les collecte pas
+ * toujours (voir sso/src/lib/members.ts) — vérifiés ici et jamais envoyés
+ * vides à Paymee.
  */
 
 const PROVIDER_INIT_PATHS: Record<string, string> = {
   konnect: "/payments/konnect/init",
   flouci: "/payments/providers/flouci/init",
+  paymee: "/payments/providers/paymee/init",
 };
+
+export function getActiveProvider(): string {
+  return process.env.PAYMENT_PROVIDER || "konnect";
+}
 
 function getConfig(): { baseUrl: string; apiKey: string } {
   const baseUrl = process.env.PAYMENT_API_URL;
@@ -21,12 +38,11 @@ function getConfig(): { baseUrl: string; apiKey: string } {
   return { baseUrl, apiKey };
 }
 
-function getProviderInitPath(): string {
-  const provider = process.env.PAYMENT_PROVIDER || "konnect";
+function getProviderInitPath(provider: string): string {
   const path = PROVIDER_INIT_PATHS[provider];
   if (!path) {
     throw new Error(
-      `PAYMENT_PROVIDER="${provider}" non supporté par billetterie (konnect ou flouci uniquement) — voir src/lib/paymentApiClient.ts.`
+      `PAYMENT_PROVIDER="${provider}" non supporté par billetterie (konnect, flouci ou paymee) — voir src/lib/paymentApiClient.ts.`
     );
   }
   return path;
@@ -37,6 +53,15 @@ export interface InitPaymentInput {
   amount: number;
   email?: string;
   userId: string;
+  /**
+   * Requis uniquement si PAYMENT_PROVIDER=paymee (voir
+   * fetchBuyerPaymentProfile dans lib/memberProfile.ts, appelé par
+   * app/api/tickets/route.ts avant même de réserver les billets). Ignorés
+   * pour konnect/flouci.
+   */
+  firstName?: string | null;
+  lastName?: string | null;
+  phoneNumber?: string | null;
 }
 
 export interface InitPaymentResult {
@@ -44,19 +69,48 @@ export interface InitPaymentResult {
   payUrl: string;
 }
 
-export async function initPayment(input: InitPaymentInput): Promise<InitPaymentResult> {
-  const { baseUrl, apiKey } = getConfig();
-
-  const response = await fetch(`${baseUrl}${getProviderInitPath()}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-    body: JSON.stringify({
+/**
+ * Construit le corps de la requête d'initiation, propre à chaque provider
+ * — `payment-api` rejette toute propriété non déclarée par le DTO ciblé
+ * (ValidationPipe `forbidNonWhitelisted: true`, voir payment-api/src/main.ts),
+ * jamais un simple objet fourre-tout partagé entre les trois.
+ */
+function buildInitPaymentBody(provider: string, input: InitPaymentInput): Record<string, unknown> {
+  if (provider === "paymee") {
+    if (!input.email || !input.firstName || !input.lastName || !input.phoneNumber) {
+      // Ne devrait jamais arriver : app/api/tickets/route.ts vérifie déjà le
+      // profil avant d'appeler initPayment. Filet de sécurité pour ne
+      // jamais envoyer de champ vide à Paymee.
+      throw new Error("firstName/lastName/phoneNumber/email requis pour initier un paiement Paymee.");
+    }
+    return {
       orderId: input.orderId,
       amount: input.amount,
-      currency: "TND",
+      firstName: input.firstName,
+      lastName: input.lastName,
       email: input.email,
+      phoneNumber: input.phoneNumber,
       userId: input.userId,
-    }),
+    };
+  }
+
+  return {
+    orderId: input.orderId,
+    amount: input.amount,
+    currency: "TND",
+    email: input.email,
+    userId: input.userId,
+  };
+}
+
+export async function initPayment(input: InitPaymentInput): Promise<InitPaymentResult> {
+  const { baseUrl, apiKey } = getConfig();
+  const provider = getActiveProvider();
+
+  const response = await fetch(`${baseUrl}${getProviderInitPath(provider)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+    body: JSON.stringify(buildInitPaymentBody(provider, input)),
   });
 
   if (!response.ok) {

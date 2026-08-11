@@ -7,6 +7,9 @@ export default function MemberRegisterForm({ redirectTo }: { redirectTo: string 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +27,15 @@ export default function MemberRegisterForm({ redirectTo }: { redirectTo: string 
       const response = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, redirect: redirectTo }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          phoneNumber: phoneNumber || undefined,
+          redirect: redirectTo,
+        }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -61,6 +72,42 @@ export default function MemberRegisterForm({ redirectTo }: { redirectTo: string 
           onChange={(event) => setName(event.target.value)}
           autoComplete="name"
           required
+        />
+      </div>
+
+      {/* Optionnels : requis seulement plus tard, par billetterie, si le
+          membre paie via Paymee (voir sso/src/entities/User.ts) — pas de
+          quoi bloquer l'inscription email/mot de passe ici. */}
+      <div className="sso-field">
+        <label htmlFor="firstName">Prénom (optionnel)</label>
+        <input
+          id="firstName"
+          type="text"
+          value={firstName}
+          onChange={(event) => setFirstName(event.target.value)}
+          autoComplete="given-name"
+        />
+      </div>
+
+      <div className="sso-field">
+        <label htmlFor="lastName">Nom de famille (optionnel)</label>
+        <input
+          id="lastName"
+          type="text"
+          value={lastName}
+          onChange={(event) => setLastName(event.target.value)}
+          autoComplete="family-name"
+        />
+      </div>
+
+      <div className="sso-field">
+        <label htmlFor="phoneNumber">Téléphone (optionnel)</label>
+        <input
+          id="phoneNumber"
+          type="tel"
+          value={phoneNumber}
+          onChange={(event) => setPhoneNumber(event.target.value)}
+          autoComplete="tel"
         />
       </div>
 

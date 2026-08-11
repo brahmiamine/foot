@@ -28,12 +28,18 @@ export async function POST(request: NextRequest) {
     const email = typeof body.email === "string" ? body.email : "";
     const password = typeof body.password === "string" ? body.password : "";
     const redirect = sanitizeRedirect(typeof body.redirect === "string" ? body.redirect : null);
+    // Optionnels à dessein (voir lib/members.ts) : ne pas bloquer
+    // l'inscription si non renseignés, requis seulement plus tard par
+    // billetterie si le membre paie via Paymee.
+    const firstName = typeof body.firstName === "string" ? body.firstName : undefined;
+    const lastName = typeof body.lastName === "string" ? body.lastName : undefined;
+    const phoneNumber = typeof body.phoneNumber === "string" ? body.phoneNumber : undefined;
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Nom, email et mot de passe requis" }, { status: 400 });
     }
 
-    const result = await createMemberAccount(name, email, password);
+    const result = await createMemberAccount(name, email, password, { firstName, lastName, phoneNumber });
     if (!result.ok) {
       recordFailedLoginAttempt(clientIP);
       return NextResponse.json({ error: ERROR_MESSAGES[result.error] }, { status: 400 });

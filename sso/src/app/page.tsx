@@ -29,6 +29,13 @@ export default async function Home() {
             </Link>
           </p>
         )}
+        {session.role === "MEMBER" && (
+          <p>
+            <Link href="/membre/profil" style={{ color: "var(--sso-accent)" }}>
+              Compléter mon profil
+            </Link>
+          </p>
+        )}
         <p>
           <LogoutEverywhereButton />
         </p>

@@ -34,6 +34,23 @@ export class User {
   teamId?: string | null;
 
   /**
+   * Optionnels : le profil MEMBER (achat de billets sur `billetterie`) ne
+   * les collectait pas à l'inscription. Requis par Paymee côté
+   * `payment-api` (voir paymee.mapper.ts/paymee.types.ts) mais volontairement
+   * pas obligatoires ici pour ne pas bloquer l'inscription email/mot de passe
+   * ni la connexion Google (qui ne fournit ni prénom/nom séparés ni
+   * téléphone) — remplissables après coup sur /membre/profil.
+   */
+  @Column({ type: "varchar", length: 191, nullable: true })
+  firstName?: string | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true })
+  lastName?: string | null;
+
+  @Column({ type: "varchar", length: 30, nullable: true })
+  phoneNumber?: string | null;
+
+  /**
    * MFA (TOTP) — voir src/lib/mfa.ts. `mfaSecret` reste NULL tant que
    * l'enrôlement n'est pas confirmé (voir /api/mfa/enable) : un secret
    * généré mais jamais confirmé par un code valide ne doit jamais pouvoir

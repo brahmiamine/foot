@@ -22,6 +22,11 @@ export function PurchaseForm({
   const [audienceConfirmed, setAudienceConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Renvoyé par /api/tickets quand le profil du membre manque de
+  // firstName/lastName/phoneNumber pour payer par Paymee (voir
+  // src/lib/errors.ts ProfileIncompleteError) : pointe vers /membre/profil
+  // sur `sso`, avec un retour vers cette page une fois complété.
+  const [profileUrl, setProfileUrl] = useState<string | null>(null);
 
   const requiresConfirmation = allowedAudience !== "PUBLIC";
   const maxQuantity = Math.max(1, Math.min(maxTicketsPerUser, remaining));
@@ -29,6 +34,7 @@ export function PurchaseForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setProfileUrl(null);
     setLoading(true);
     try {
       const res = await fetch("/api/tickets", {
@@ -39,6 +45,9 @@ export function PurchaseForm({
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
+        if (typeof body?.profileUrl === "string") {
+          setProfileUrl(body.profileUrl);
+        }
         throw new Error(body?.error ?? `Erreur ${res.status}`);
       }
       if (!body?.payUrl) {
@@ -60,7 +69,19 @@ export function PurchaseForm({
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
-      {error && <div style={{ color: "var(--tk-danger)", fontSize: "0.8rem" }}>{error}</div>}
+      {error && (
+        <div style={{ color: "var(--tk-danger)", fontSize: "0.8rem" }}>
+          {error}
+          {profileUrl && (
+            <>
+              {" "}
+              <a href={profileUrl} style={{ color: "var(--tk-primary)", textDecoration: "underline" }}>
+                Compléter mon profil
+              </a>
+            </>
+          )}
+        </div>
+      )}
       {requiresConfirmation && (
         <label style={{ fontSize: "0.78rem", display: "flex", gap: 6, alignItems: "flex-start", color: "var(--tk-text-muted)" }}>
           <input
