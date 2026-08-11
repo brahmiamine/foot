@@ -18,6 +18,7 @@ import "reflect-metadata";
 import { getDataSource } from "../src/lib/database";
 import { Seller } from "../src/entities/Seller";
 import { SellerUser } from "../src/entities/SellerUser";
+import { Team } from "../src/entities/Team";
 import { ProductCategory } from "../src/entities/ProductCategory";
 import { Product } from "../src/entities/Product";
 import { ProductVariant } from "../src/entities/ProductVariant";
@@ -42,10 +43,22 @@ import {
 async function main() {
   const ds = await getDataSource();
 
+  // La démo a besoin d'un club réel (base "foot" partagée) pour illustrer le
+  // scoping par club. On prend le premier club du référentiel plutôt que
+  // d'en coder un en dur — voir README racine, section « Classification des
+  // projets » (ne jamais hardcoder un club particulier).
+  const club = await ds.getRepository(Team).findOne({ where: { teamType: "club" }, order: { nom: "ASC" } });
+  if (!club) {
+    throw new Error(
+      "Aucun club dans `teams` (table partagée) : importer db/foot.sql ou créer un club depuis superadmin avant de lancer le seed.",
+    );
+  }
+  console.log(`Club de démo : ${club.nom} (${club.id})`);
+
   const categoryRepo = ds.getRepository(ProductCategory);
-  let category = await categoryRepo.findOne({ where: { slug: "maillots" } });
+  let category = await categoryRepo.findOne({ where: { clubId: club.id, slug: "maillots" } });
   if (!category) {
-    category = await categoryRepo.save(categoryRepo.create({ name: "Maillots", slug: "maillots" }));
+    category = await categoryRepo.save(categoryRepo.create({ clubId: club.id, name: "Maillots", slug: "maillots" }));
   }
 
   const sellerRepo = ds.getRepository(Seller);
@@ -53,6 +66,7 @@ async function main() {
   if (!seller) {
     seller = await sellerRepo.save(
       sellerRepo.create({
+        clubId: club.id,
         businessName: "Sport Shop Demo",
         ownerName: "Mohamed Exemple",
         email: "demo@vendeur.example",

@@ -4,6 +4,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { Seller } from "@/entities/Seller";
 import { SellerUser } from "@/entities/SellerUser";
+import { Team } from "@/entities/Team";
 import { ProductCategory } from "@/entities/ProductCategory";
 import { Product } from "@/entities/Product";
 import { ProductImage } from "@/entities/ProductImage";
@@ -46,6 +47,7 @@ export async function getDataSource(): Promise<DataSource> {
       entities: [
         Seller,
         SellerUser,
+        Team,
         ProductCategory,
         Product,
         ProductImage,

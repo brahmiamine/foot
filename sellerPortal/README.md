@@ -80,22 +80,39 @@ lecture : dans l'architecture cible, cette table appartient entièrement à
 la Marketplace API et `sellerPortal` n'expose jamais que la sous-commande
 d'un vendeur (`SellerOrder`), jamais la commande globale en entier.
 
-## Portée V1 — écart connu avec l'architecture cible multi-clubs
+## Multi-clubs
 
-⚠️ Le schéma actuel (`sql/schema.sql`, tables `sp_*`) ne porte **aucune**
-colonne de rattachement club (`clubId`/`teamId`) : la V1 a été construite en
-contexte mono-club (Olympique de Béja) et reste, en l'état, un déploiement
-par club plutôt qu'un vrai multi-tenant à déploiement unique. Le renommage
-`ob-seller-portal` → `sellerPortal` et la généralisation des textes de
-l'interface (qui ne mentionnent plus explicitement un club) préparent cette
-cible mais ne la réalisent pas : pour un vrai multi-clubs, il reste à :
+`Seller.clubId` (FK logique vers `teams.id`, base `foot` partagée) rattache
+chaque vendeur au marketplace d'un club donné, choisi à l'inscription
+(sélecteur alimenté par `GET /api/teams`). `clubId` est porté par le JWT de
+session (`src/lib/session.ts`) au même titre que `sellerId` — c'est la
+**seule** source de vérité pour le scoping club côté serveur, jamais une
+valeur envoyée par le frontend :
 
-1. ajouter `clubId` sur `sp_sellers` (et le propager aux entités liées) ;
-2. filtrer systématiquement les requêtes par le club du vendeur connecté
-   (jamais par un `clubId` envoyé par le frontend) ;
-3. faire porter le nom/logo/couleurs affichés par le portail par la
-   configuration du club du vendeur connecté (`ClubBranding`, voir README
-   racine).
+- `sp_product_categories` a désormais aussi un `clubId` (référentiel de
+  catégories par club, plus un catalogue global partagé) ; `GET
+  /api/categories` filtre par `session.clubId`.
+- La création/modification d'un produit valide que le `categoryId` fourni
+  appartient bien au club du vendeur connecté (`POST /api/products`, `PATCH
+  /api/products/[id]`) — sinon un vendeur pourrait référencer la catégorie
+  d'un autre club.
+- Pour une base déjà bootstrapée avant l'ajout de `clubId`, voir
+  `sql/migration_add_club_id.sql` (colonne nullable, à backfiller
+  manuellement avant de compter dessus).
+
+Reste non fait (voir README racine, section « Écarts connus ») :
+
+- **`ClubBranding`** : le nom/logo/couleurs affichés par le portail ne sont
+  pas encore résolus à partir du club du vendeur connecté (contrairement à
+  `teamManager`, voir `lib/clubBranding.ts` côté teamManager) — l'UI reste
+  neutre (pas de branding de club) plutôt que d'afficher un branding par
+  défaut incorrect.
+- Le scoping ne couvre que `sp_sellers`/`sp_product_categories` : les autres
+  tables (`sp_products`, `sp_market_orders`, …) restent scopées par
+  `sellerId` uniquement, ce qui reste correct tant qu'un vendeur n'appartient
+  qu'à un seul club (garanti aujourd'hui), mais ne permettrait pas par
+  exemple un reporting agrégé "tous les vendeurs d'un club" sans repasser
+  par une jointure sur `sp_sellers.clubId`.
 
 Ce chantier n'a pas été fait dans le cadre de cette normalisation pour ne
 pas modifier le schéma DB sans nécessité (voir README racine, section

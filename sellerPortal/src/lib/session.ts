@@ -16,6 +16,10 @@ const COOKIE_NAME = process.env.SP_COOKIE_NAME || "sp_seller_session";
 export interface SellerSessionUser {
   sellerUserId: string;
   sellerId: string;
+  // Club dont ce vendeur alimente le marketplace (Seller.clubId au moment
+  // de la connexion) — source de vérité pour tout filtrage par club côté
+  // API, jamais une valeur envoyée par le frontend.
+  clubId: string;
   email: string;
   name: string;
   role: "OWNER" | "MANAGER" | "STAFF";
@@ -32,6 +36,7 @@ function getJwtSecret(): Uint8Array {
 async function signSession(user: SellerSessionUser): Promise<string> {
   return new SignJWT({
     sellerId: user.sellerId,
+    clubId: user.clubId,
     email: user.email,
     name: user.name,
     role: user.role,
@@ -50,6 +55,7 @@ export async function verifySessionToken(token: string): Promise<SellerSessionUs
     if (
       !payload.sub ||
       typeof payload.sellerId !== "string" ||
+      typeof payload.clubId !== "string" ||
       typeof payload.email !== "string" ||
       typeof payload.role !== "string"
     ) {
@@ -58,6 +64,7 @@ export async function verifySessionToken(token: string): Promise<SellerSessionUs
     return {
       sellerUserId: payload.sub,
       sellerId: payload.sellerId,
+      clubId: payload.clubId,
       email: payload.email,
       name: typeof payload.name === "string" ? payload.name : payload.email,
       role: payload.role as SellerSessionUser["role"],

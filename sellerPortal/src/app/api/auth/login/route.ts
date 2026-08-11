@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     return issueSession(response, {
       sellerUserId: user.id,
       sellerId: seller.id,
+      clubId: seller.clubId,
       email: user.email,
       name: user.name,
       role: user.role,

@@ -3,11 +3,13 @@ import { z } from "zod";
 import { getDataSource } from "@/lib/database";
 import { Seller } from "@/entities/Seller";
 import { SellerUser } from "@/entities/SellerUser";
+import { Team } from "@/entities/Team";
 import { hashPassword } from "@/lib/password";
 import { handleApiError } from "@/lib/api";
 import { SellerStatus, SellerUserRole } from "@/entities/enums";
 
 const registerSchema = z.object({
+  clubId: z.string().min(1, "Le club du marketplace est requis."),
   businessName: z.string().min(2).max(191),
   ownerName: z.string().min(2).max(191),
   email: z.string().email(),
@@ -30,6 +32,11 @@ export async function POST(req: NextRequest) {
     const body = registerSchema.parse(await req.json());
     const ds = await getDataSource();
 
+    const club = await ds.getRepository(Team).findOne({ where: { id: body.clubId, teamType: "club" } });
+    if (!club) {
+      return NextResponse.json({ error: "Club introuvable." }, { status: 400 });
+    }
+
     const existingSeller = await ds.getRepository(Seller).findOne({ where: { email: body.email } });
     const existingUser = await ds.getRepository(SellerUser).findOne({ where: { email: body.email } });
     if (existingSeller || existingUser) {
@@ -40,6 +47,7 @@ export async function POST(req: NextRequest) {
 
     const result = await ds.transaction(async (manager) => {
       const seller = manager.create(Seller, {
+        clubId: body.clubId,
         businessName: body.businessName,
         ownerName: body.ownerName,
         email: body.email,

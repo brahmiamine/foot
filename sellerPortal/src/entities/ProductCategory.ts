@@ -7,14 +7,19 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
  * existante, il n'en crée pas.
  */
 @Entity({ name: "sp_product_categories" })
+@Index(["clubId", "slug"], { unique: true })
 export class ProductCategory {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  // FK logique vers teams.id : le référentiel de catégories est par club,
+  // pas global (deux clubs peuvent chacun avoir une catégorie "maillots").
+  @Column({ type: "varchar", length: 36 })
+  clubId!: string;
+
   @Column({ type: "varchar", length: 191 })
   name!: string;
 
-  @Index({ unique: true })
   @Column({ type: "varchar", length: 191 })
   slug!: string;
 

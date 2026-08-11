@@ -22,6 +22,14 @@ export class Seller {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  // FK logique vers teams.id (base "foot" partagée) : le club dont ce
+  // vendeur alimente le marketplace. Détermine le scoping de toutes les
+  // données du vendeur (catégories, etc.) — jamais un clubId envoyé par le
+  // frontend, toujours celui de la session (voir src/lib/session.ts).
+  @Index()
+  @Column({ type: "varchar", length: 36 })
+  clubId!: string;
+
   @Column({ type: "varchar", length: 191 })
   businessName!: string;
 

@@ -6,6 +6,7 @@
 
 CREATE TABLE IF NOT EXISTS sp_sellers (
   id CHAR(36) NOT NULL PRIMARY KEY,
+  clubId CHAR(36) NOT NULL COMMENT 'FK logique vers teams.id (base foot partagée, pas de contrainte FK cross-app)',
   businessName VARCHAR(191) NOT NULL,
   ownerName VARCHAR(191) NOT NULL,
   email VARCHAR(191) NOT NULL,
@@ -24,7 +25,8 @@ CREATE TABLE IF NOT EXISTS sp_sellers (
   commissionRate DECIMAL(5,2) NOT NULL DEFAULT 10.00,
   createdAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  UNIQUE KEY uq_sp_sellers_email (email)
+  UNIQUE KEY uq_sp_sellers_email (email),
+  KEY idx_sp_sellers_club (clubId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sp_seller_users (
@@ -47,11 +49,12 @@ CREATE TABLE IF NOT EXISTS sp_seller_users (
 
 CREATE TABLE IF NOT EXISTS sp_product_categories (
   id CHAR(36) NOT NULL PRIMARY KEY,
+  clubId CHAR(36) NOT NULL COMMENT 'Référentiel géré par l''administration du club, par club (pas global)',
   name VARCHAR(191) NOT NULL,
   slug VARCHAR(191) NOT NULL,
   parentId CHAR(36) NULL,
   commissionRate DECIMAL(5,2) NULL,
-  UNIQUE KEY uq_sp_product_categories_slug (slug)
+  UNIQUE KEY uq_sp_product_categories_club_slug (clubId, slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sp_products (
