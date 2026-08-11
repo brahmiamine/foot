@@ -27,6 +27,10 @@ export default async function Home() {
             <Link href="/account/mfa" style={{ color: "var(--sso-accent)" }}>
               Authentification à deux facteurs
             </Link>
+            {" · "}
+            <Link href="/admin/security-logs" style={{ color: "var(--sso-accent)" }}>
+              Journal de sécurité
+            </Link>
           </p>
         )}
         {session.role === "MEMBER" && (

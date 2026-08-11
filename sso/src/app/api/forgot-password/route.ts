@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Ne jamais laisser une erreur d'envoi d'email (ou toute autre) fuiter
     // d'information sur l'existence du compte — toujours le même message.
-    await requestPasswordReset(email).catch((error) => {
+    await requestPasswordReset(email, clientIP).catch((error) => {
       console.error("requestPasswordReset error:", error);
     });
 

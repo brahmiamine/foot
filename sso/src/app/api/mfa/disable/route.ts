@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { getCurrentSession, issueSession } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
+import { getClientIP } from "@/lib/getClientIP";
+import { logSecurityEvent } from "@/lib/securityLog";
 
 export const runtime = "nodejs";
 
@@ -41,6 +43,7 @@ export async function POST(request: NextRequest) {
   await userRepo.save(user);
 
   console.log(`[MFA] Désactivée pour le compte ${user.email} (${user.id}).`);
+  await logSecurityEvent({ eventType: "MFA_DISABLED", userId: user.id, email: user.email, ip: getClientIP(request) });
 
   const response = NextResponse.json({ success: true });
   await issueSession(response, {

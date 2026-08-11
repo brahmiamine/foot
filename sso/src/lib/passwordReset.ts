@@ -4,6 +4,7 @@ import { getDataSource } from "./db";
 import { User } from "@/entities/User";
 import { PasswordResetToken } from "@/entities/PasswordResetToken";
 import { sendEmail } from "./mailer";
+import { logSecurityEvent } from "./securityLog";
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
 
@@ -14,15 +15,25 @@ function hashToken(rawToken: string): string {
 /**
  * Ne renvoie jamais d'information sur l'existence du compte (anti-
  * énumération) : le caller (route API) répond toujours le même message
- * générique, que l'email corresponde à un compte ou non.
+ * générique, que l'email corresponde à un compte ou non. `ip` reste
+ * journalisée dans les deux cas (voir SecurityLog) : cette information reste
+ * interne, elle ne fuite jamais vers la réponse HTTP.
  */
-export async function requestPasswordReset(email: string): Promise<void> {
+export async function requestPasswordReset(email: string, ip?: string | null): Promise<void> {
   const dataSource = await getDataSource();
   const userRepo = dataSource.getRepository(User);
   const tokenRepo = dataSource.getRepository(PasswordResetToken);
 
   const user = await userRepo.findOne({ where: { email } });
-  if (!user || !user.isActive) return;
+  if (!user || !user.isActive) {
+    await logSecurityEvent({
+      eventType: "PASSWORD_RESET_REQUESTED",
+      email,
+      ip,
+      detail: "Compte introuvable ou inactif",
+    });
+    return;
+  }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
   const resetToken = tokenRepo.create({
@@ -31,6 +42,13 @@ export async function requestPasswordReset(email: string): Promise<void> {
     expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
   });
   await tokenRepo.save(resetToken);
+
+  await logSecurityEvent({
+    eventType: "PASSWORD_RESET_REQUESTED",
+    userId: user.id,
+    email: user.email,
+    ip,
+  });
 
   const appUrl = process.env.SSO_URL || "http://localhost:3004";
   const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;

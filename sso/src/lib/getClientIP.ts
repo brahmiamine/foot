@@ -4,6 +4,11 @@
  * (src/lib/utils.ts) qui l'utilisaient pour le même usage (rate-limit login).
  */
 
+/** Sous-ensemble de `Headers` : suffit pour `Request.headers` comme pour le `ReadonlyHeaders` de `next/headers`. */
+interface HeaderLike {
+  get(name: string): string | null;
+}
+
 function isValidIP(ip: string): boolean {
   const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
   const ipv6Regex = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
@@ -19,14 +24,14 @@ function isValidIP(ip: string): boolean {
   return ipv6Regex.test(ip);
 }
 
-export function getClientIP(request: Request): string {
+function extractClientIP(headers: HeaderLike): string {
   try {
-    const cfIP = request.headers.get("cf-connecting-ip");
+    const cfIP = headers.get("cf-connecting-ip");
     if (cfIP && isValidIP(cfIP)) {
       return cfIP;
     }
 
-    const forwarded = request.headers.get("x-forwarded-for");
+    const forwarded = headers.get("x-forwarded-for");
     if (forwarded) {
       const ips = forwarded.split(",").map((ip) => ip.trim()).filter(Boolean);
       for (let i = ips.length - 1; i >= 0; i--) {
@@ -36,12 +41,12 @@ export function getClientIP(request: Request): string {
       }
     }
 
-    const realIP = request.headers.get("x-real-ip");
+    const realIP = headers.get("x-real-ip");
     if (realIP && isValidIP(realIP)) {
       return realIP;
     }
 
-    const clientIP = request.headers.get("x-client-ip");
+    const clientIP = headers.get("x-client-ip");
     if (clientIP && isValidIP(clientIP)) {
       return clientIP;
     }
@@ -50,4 +55,18 @@ export function getClientIP(request: Request): string {
   } catch {
     return "unknown";
   }
+}
+
+export function getClientIP(request: Request): string {
+  return extractClientIP(request.headers);
+}
+
+/**
+ * Même extraction, mais depuis le `ReadonlyHeaders` de `next/headers()` —
+ * utilisé là où on n'a pas de `Request` sous la main (ex. `session.ts`,
+ * appelé depuis des Server Components). Voir `getClientIP` ci-dessus pour le
+ * cas standard (route API avec `NextRequest`).
+ */
+export function getClientIPFromHeaderList(headers: HeaderLike): string {
+  return extractClientIP(headers);
 }

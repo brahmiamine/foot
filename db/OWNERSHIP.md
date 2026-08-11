@@ -30,6 +30,7 @@ présence d'une entité.
 | Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `matchsheet` (seul à savoir, avec certitude, quand un match démarre/finit réellement — voir alerte ci-dessous) | `ob` (résultats, classement), `billetterie` (fenêtre de vente), `teamManager` (formations) |
 | Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `arbinote` | `superadmin` (consultation) |
 | Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens` | `sso` | `arbinote`, `superadmin`, `teamManager` (lecture/jointures) |
+| Journal de sécurité (authentification) | `security_logs` | `sso` | — |
 | Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `teamManager` | `matchsheet`, `ob` (lecture) |
 | **Cartons (`Card`) — écriture partagée, voir alerte ci-dessous** | `Card` | `teamManager` **et** `matchsheet` | `ob` (lecture) |
 | Compositions d'équipe | `cms_match_lineups` | `teamManager` | `matchsheet` (lecture, verrouillage au coup d'envoi) |
@@ -108,6 +109,19 @@ construire cet écran est une nouvelle fonctionnalité produit (qui prévient
 qui, un match peut-il être réactivé, etc.), pas une simple correction de
 câblage manquant comme le point ci-dessus. À faire séparément si le besoin
 se confirme.
+
+## Point d'attention : `security_logs` n'est pas `audit_logs`/`AuditLog`
+
+`sso` a désormais son propre journal (`security_logs`, entité `SecurityLog`)
+pour les événements d'authentification (login échoué, rate limit, jeton
+invalide/expiré, mot de passe oublié demandé, MFA activée/désactivée/code
+invalide, révocation de session — voir `sso/src/lib/securityLog.ts`). C'est
+un journal différent des `audit_logs` (`arbinote`/`superadmin`, actions de
+modération/CRUD) et `AuditLog` (`teamManager`, actions d'administration
+métier du club) : même s'ils se ressemblent, ce ne sont pas trois vues du
+même concept — `security_logs` journalise des événements *d'authentification*
+transverses à `sso`, pas des actions métier propres à chaque app. Ne pas les
+fusionner sans revoir les trois domaines ensemble.
 
 ## Ce que ce document corrige
 

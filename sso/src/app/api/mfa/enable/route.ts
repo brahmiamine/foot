@@ -3,6 +3,8 @@ import { getCurrentSession, issueSession } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
 import { generateRecoveryCodes, hashRecoveryCodes, verifyTotpCode } from "@/lib/mfa";
+import { getClientIP } from "@/lib/getClientIP";
+import { logSecurityEvent } from "@/lib/securityLog";
 
 export const runtime = "nodejs";
 
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
   await userRepo.save(user);
 
   console.log(`[MFA] Activée pour le compte ${user.email} (${user.id}).`);
+  await logSecurityEvent({ eventType: "MFA_ENABLED", userId: user.id, email: user.email, ip: getClientIP(request) });
 
   // Codes affichés une seule fois : jamais renvoyés ni consultables ensuite
   // (seul leur hash bcrypt est conservé).

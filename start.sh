@@ -153,6 +153,29 @@ else
   echo "✅ Colonnes User.firstName/lastName/phoneNumber déjà présentes."
 fi
 
+# `sso` lit/écrit `security_logs` (journal de sécurité transverse — login
+# échoué, rate limit, jeton invalide, MFA, révocation de session). `CREATE
+# TABLE IF NOT EXISTS` est déjà idempotent par construction (pas besoin du
+# détour par INFORMATION_SCHEMA utilisé ci-dessus pour Card.period, qui sert
+# à ajouter une colonne sur une table déjà existante et possédée par une
+# autre app).
+echo "🔧 Vérification du schéma (security_logs)..."
+docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+  CREATE TABLE IF NOT EXISTS security_logs (
+    id CHAR(36) NOT NULL DEFAULT uuid() PRIMARY KEY,
+    event_type VARCHAR(50) NOT NULL,
+    user_id VARCHAR(191) NULL,
+    email VARCHAR(191) NULL,
+    ip VARCHAR(45) NULL,
+    detail TEXT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_security_logs_event_type (event_type),
+    INDEX idx_security_logs_user_id (user_id),
+    INDEX idx_security_logs_created_at (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"
+echo "✅ Schéma security_logs à jour."
+
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
 

@@ -1,8 +1,10 @@
 import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getDataSource } from "./db";
 import { User } from "@/entities/User";
+import { getClientIPFromHeaderList } from "./getClientIP";
+import { logSecurityEvent } from "./securityLog";
 
 /**
  * Émission et vérification du cookie de session partagé entre les 6 apps
@@ -61,6 +63,11 @@ async function signSession(user: SsoUser): Promise<string> {
     .sign(getJwtSecret());
 }
 
+/** IP courante, lue depuis `next/headers()` — seul point d'appel restant sans `NextRequest` sous la main. */
+async function currentRequestIP(): Promise<string> {
+  return getClientIPFromHeaderList(await headers());
+}
+
 /**
  * Vérifie la signature/l'expiration du JWT, PUIS que sa génération
  * (`tokenVersion`) correspond toujours à celle en base — un jeton dont la
@@ -69,11 +76,24 @@ async function signSession(user: SsoUser): Promise<string> {
  * mécanisme n'a pas de claim `tokenVersion` : traité comme 0, la valeur
  * par défaut de tous les comptes existants, pour ne forcer aucune
  * déconnexion lors de la migration.
+ *
+ * Seul choix de point centralisé pour journaliser « jeton invalide/expiré
+ * présenté » (voir avancement.md § 4) : c'est la seule fonction qui vérifie
+ * un JWT côté `sso` lui-même (getCurrentSession() l'appelle systématiquement
+ * en pages/routes protégées). Les 6 apps clientes ont leur propre copie de
+ * vérification (packages/auth-shared) et ne journalisent pas ici.
  */
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecret(), { issuer: "foot-sso" });
     if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
+      await logSecurityEvent({
+        eventType: "INVALID_TOKEN",
+        userId: typeof payload.sub === "string" ? payload.sub : null,
+        email: typeof payload.email === "string" ? payload.email : null,
+        ip: await currentRequestIP(),
+        detail: "Forme du payload JWT invalide",
+      });
       return null;
     }
     const tokenVersion = typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0;
@@ -81,6 +101,17 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
     const dataSource = await getDataSource();
     const user = await dataSource.getRepository(User).findOne({ where: { id: payload.sub } });
     if (!user || !user.isActive || user.tokenVersion !== tokenVersion) {
+      await logSecurityEvent({
+        eventType: "INVALID_TOKEN",
+        userId: payload.sub,
+        email: payload.email,
+        ip: await currentRequestIP(),
+        detail: !user
+          ? "Compte introuvable"
+          : !user.isActive
+            ? "Compte désactivé"
+            : "Jeton d'une génération révoquée (tokenVersion)",
+      });
       return null;
     }
 
@@ -93,6 +124,11 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
       tokenVersion: user.tokenVersion,
     };
   } catch {
+    await logSecurityEvent({
+      eventType: "INVALID_TOKEN",
+      ip: await currentRequestIP(),
+      detail: "Signature ou expiration JWT invalide",
+    });
     return null;
   }
 }
