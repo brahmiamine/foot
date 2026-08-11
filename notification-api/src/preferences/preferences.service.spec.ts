@@ -1,0 +1,147 @@
+import { NotificationChannelType } from '../common/enums/channel.enum';
+import { NotificationLocale } from '../common/enums/locale.enum';
+import { PreferencesService } from './preferences.service';
+
+describe('PreferencesService', () => {
+  let preferenceRows: Array<{
+    userId: string;
+    category: string;
+    channel: NotificationChannelType;
+    enabled: boolean;
+  }>;
+  let localeRows: Array<{ userId: string; locale: NotificationLocale }>;
+  let service: PreferencesService;
+
+  beforeEach(() => {
+    preferenceRows = [];
+    localeRows = [];
+
+    const preferenceRepository = {
+      find: jest.fn(
+        (options: { where: { userId: string; category?: string } }) =>
+          Promise.resolve(
+            preferenceRows.filter(
+              (row) =>
+                row.userId === options.where.userId &&
+                (options.where.category === undefined ||
+                  row.category === options.where.category),
+            ),
+          ),
+      ),
+      findOne: jest.fn(
+        (options: {
+          where: {
+            userId: string;
+            category: string;
+            channel: NotificationChannelType;
+          };
+        }) =>
+          Promise.resolve(
+            preferenceRows.find(
+              (row) =>
+                row.userId === options.where.userId &&
+                row.category === options.where.category &&
+                row.channel === options.where.channel,
+            ) ?? null,
+          ),
+      ),
+      create: jest.fn((data: Partial<(typeof preferenceRows)[number]>) => ({
+        ...data,
+      })),
+      save: jest.fn((row: (typeof preferenceRows)[number]) => {
+        const existingIndex = preferenceRows.findIndex(
+          (candidate) =>
+            candidate.userId === row.userId &&
+            candidate.category === row.category &&
+            candidate.channel === row.channel,
+        );
+        if (existingIndex >= 0) preferenceRows[existingIndex] = row;
+        else preferenceRows.push(row);
+        return Promise.resolve(row);
+      }),
+    };
+
+    const localeRepository = {
+      findOne: jest.fn((options: { where: { userId: string } }) =>
+        Promise.resolve(
+          localeRows.find((row) => row.userId === options.where.userId) ?? null,
+        ),
+      ),
+      save: jest.fn((row: (typeof localeRows)[number]) => {
+        localeRows = localeRows.filter(
+          (candidate) => candidate.userId !== row.userId,
+        );
+        localeRows.push(row);
+        return Promise.resolve(row);
+      }),
+    };
+
+    service = new PreferencesService(
+      preferenceRepository as never,
+      localeRepository as never,
+    );
+  });
+
+  it('enables IN_APP/EMAIL/PUSH and disables SMS by default when no preference is stored', async () => {
+    const channels = await service.resolveEnabledChannels(
+      'user-1',
+      'MATCH_REMINDER',
+      [
+        NotificationChannelType.IN_APP,
+        NotificationChannelType.EMAIL,
+        NotificationChannelType.PUSH,
+        NotificationChannelType.SMS,
+      ],
+    );
+
+    expect(channels).toEqual([
+      NotificationChannelType.IN_APP,
+      NotificationChannelType.EMAIL,
+      NotificationChannelType.PUSH,
+    ]);
+  });
+
+  it('honours a stored override that disables a channel for a category', async () => {
+    await service.upsertMany('user-1', [
+      {
+        category: 'MATCH_REMINDER',
+        channel: NotificationChannelType.EMAIL,
+        enabled: false,
+      },
+    ]);
+
+    const channels = await service.resolveEnabledChannels(
+      'user-1',
+      'MATCH_REMINDER',
+      [NotificationChannelType.IN_APP, NotificationChannelType.EMAIL],
+    );
+
+    expect(channels).toEqual([NotificationChannelType.IN_APP]);
+  });
+
+  it('scopes preferences per category: disabling EMAIL for MARKETING does not affect PAYMENT', async () => {
+    await service.upsertMany('user-1', [
+      {
+        category: 'MARKETING',
+        channel: NotificationChannelType.EMAIL,
+        enabled: false,
+      },
+    ]);
+
+    const paymentChannels = await service.resolveEnabledChannels(
+      'user-1',
+      'PAYMENT',
+      [NotificationChannelType.EMAIL],
+    );
+
+    expect(paymentChannels).toEqual([NotificationChannelType.EMAIL]);
+  });
+
+  it('defaults to the French locale when none is set, and returns a stored override', async () => {
+    expect(await service.getLocale('user-1')).toBe(NotificationLocale.FR);
+
+    await service.setLocale('user-1', NotificationLocale.EN);
+
+    expect(await service.getLocale('user-1')).toBe(NotificationLocale.EN);
+  });
+});
