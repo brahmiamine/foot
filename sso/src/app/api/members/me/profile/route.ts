@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestSession } from "@/lib/requestSession";
 import { getMemberProfile, updateMemberProfile } from "@/lib/members";
+import { isTrustedOrigin } from "@/lib/csrf";
 
 /**
  * Profil étendu du membre connecté (firstName/lastName/phoneNumber),
@@ -25,6 +26,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  // Vérifié seulement pour l'auth par cookie : un appel Bearer (serveur-à-
+  // serveur, ex. billetterie/ob) n'est jamais rejouable par un navigateur
+  // via CSRF, voir lib/csrf.ts.
+  const isBearerAuth = request.headers.get("authorization")?.startsWith("Bearer ") ?? false;
+  if (!isBearerAuth && !isTrustedOrigin(request)) {
+    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+  }
+
   const session = await getRequestSession(request);
   if (!session || session.role !== "MEMBER") {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });

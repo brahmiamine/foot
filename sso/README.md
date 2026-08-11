@@ -12,6 +12,34 @@ Application Next.js dédiée à l'authentification : c'est la seule app du dép�
 - **Journal de sécurité** (table `security_events`, voir `src/lib/securityLog.ts`) : échec de connexion, rate limit atteint, échec MFA, réinitialisation/changement de mot de passe. Écriture best-effort (ne bloque et ne casse jamais le flux appelant) ; pas de viewer admin dédié dans cette app — interrogation directe de la base, ou via le portail (`/`, section « Activité récente », limité au compte connecté) — voir avancement.md, § 3.B pour la portée exacte de ce journal.
 - **Portail de compte** (`/`) : identité (nom/email/rôle/club), changement de mot de passe (`/account/password`, `POST /api/account/password` — exige le mot de passe actuel, distinct de la réinitialisation par email ; réémet la session courante après coup pour ne pas déconnecter l'appareil qui vient de faire l'action, comme `/api/mfa/enable`), MFA pour `SUPERADMIN` (`/account/mfa`), déconnexion globale, et activité récente (les 10 derniers `security_events` du compte).
 
+## CSRF
+
+`SameSite=Lax` sur le cookie de session bloque déjà le CSRF venant d'un
+site externe, mais pas entre sous-domaines de la même famille
+(`SSO_COOKIE_DOMAIN`) : un script compromis/XSS sur l'une des 6 apps
+clientes pourrait sinon forger une requête vers `sso` avec le cookie déjà
+présent. `src/lib/csrf.ts` (`isTrustedOrigin`) vérifie `Origin` (repli sur
+`Referer`) contre cette même famille — appliqué à toutes les actions
+authentifiées par cookie qui changent un état : `/api/login`,
+`/api/login/mfa` (le formulaire n'est rendu que par `sso`, ferme le "login
+CSRF" — forcer la connexion d'une victime à un compte choisi par
+l'attaquant), `/api/logout-everywhere`, `/api/account/password`,
+`/api/mfa/setup`/`/enable`/`/disable`, `/api/members/me/profile` (`PATCH`
+uniquement — jamais sur un appel `Authorization: Bearer`, qui n'est pas
+rejouable par un navigateur), `/api/members/me/affiliations`
+(`POST`/`DELETE`). Beaucoup de ces routes exigeaient déjà un secret que
+l'attaquant ne peut pas deviner en aveugle (mot de passe, code TOTP) : la
+vérification d'origine est une défense en profondeur ajoutée par
+cohérence, pas la seule protection.
+
+**Volontairement pas couvert** : `/api/register`, `/api/forgot-password`,
+`/api/reset-password` — aucune de ces routes ne s'appuie sur un cookie de
+session ambiant (la première ne fait qu'accepter les identifiants fournis
+par l'appelant, les deux autres reposent sur un jeton à usage unique connu
+seulement du destinataire de l'email) : le CSRF classique (rejouer une
+requête avec les identifiants déjà présents dans le navigateur de la
+victime) ne s'applique pas à ces flux.
+
 ## Mécanisme de session (JWT partagé)
 
 - Signature HS256 via `jose`, secret `SSO_JWT_SECRET` — **doit être strictement identique** dans les 6 apps du dépôt.

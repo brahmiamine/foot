@@ -3,6 +3,7 @@ import { getCurrentSession, issueSession } from "@/lib/session";
 import { changePassword } from "@/lib/passwordReset";
 import { getClientIP } from "@/lib/getClientIP";
 import { logSecurityEvent } from "@/lib/securityLog";
+import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,10 @@ const MIN_PASSWORD_LENGTH = 8;
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+    }
+
     const session = await getCurrentSession();
     if (!session) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });

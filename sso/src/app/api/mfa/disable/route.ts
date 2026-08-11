@@ -3,11 +3,20 @@ import bcrypt from "bcryptjs";
 import { getCurrentSession, issueSession } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
+import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
-/** Exige le mot de passe (pas seulement la session active) pour désactiver la MFA. */
+/**
+ * Exige le mot de passe (pas seulement la session active) pour désactiver
+ * la MFA — déjà résistant à un CSRF aveugle. Vérification d'origine ajoutée
+ * par cohérence avec le reste de cette revue (voir lib/csrf.ts).
+ */
 export async function POST(request: NextRequest) {
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+  }
+
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });

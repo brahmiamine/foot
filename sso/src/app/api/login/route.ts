@@ -7,10 +7,22 @@ import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt 
 import { isMfaEnabled } from "@/lib/mfa";
 import { signMfaPendingToken } from "@/lib/mfaPendingToken";
 import { logSecurityEvent } from "@/lib/securityLog";
+import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
+/**
+ * Le formulaire de login n'est rendu que par `sso` lui-même (les 5 autres
+ * apps redirigent le navigateur vers la page hébergée, jamais un fetch
+ * cross-origin direct) — vérifier l'origine ferme le "login CSRF" (un site
+ * tiers forçant la connexion d'une victime à un compte choisi par
+ * l'attaquant) sans casser aucun flux légitime.
+ */
 export async function POST(request: NextRequest) {
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+  }
+
   try {
     const clientIP = getClientIP(request);
 

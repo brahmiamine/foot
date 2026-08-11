@@ -8,10 +8,16 @@ import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt 
 import { consumeRecoveryCode, verifyTotpCode } from "@/lib/mfa";
 import { verifyMfaPendingToken } from "@/lib/mfaPendingToken";
 import { logSecurityEvent } from "@/lib/securityLog";
+import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
+/** Même raison que /api/login : formulaire rendu uniquement par `sso`. */
 export async function POST(request: NextRequest) {
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+  }
+
   try {
     const clientIP = getClientIP(request);
 

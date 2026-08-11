@@ -3,10 +3,21 @@ import { getCurrentSession, issueSession } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
 import { generateRecoveryCodes, hashRecoveryCodes, verifyTotpCode } from "@/lib/mfa";
+import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
+/**
+ * Exige `secret`+`code` valides : un CSRF aveugle ne peut déjà pas réussir
+ * (l'attaquant ne connaît pas le secret généré pour la victime par
+ * /api/mfa/setup, jamais lisible cross-origine). Vérification d'origine
+ * ajoutée par cohérence avec le reste de cette revue (voir lib/csrf.ts).
+ */
 export async function POST(request: NextRequest) {
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+  }
+
   const session = await getCurrentSession();
   if (!session || session.role !== "SUPERADMIN") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
