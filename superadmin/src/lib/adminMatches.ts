@@ -308,4 +308,51 @@ export async function deleteMatchAdmin(id: string, leagueId?: string | null) {
   return { success: true }
 }
 
+/**
+ * Annule un match (matches.status -> CANCELLED). Restreint aux matchs
+ * UPCOMING : annuler un match déjà IN_PROGRESS/FINISHED n'a pas de sens
+ * (le coup d'envoi a eu lieu), et un match déjà CANCELLED n'a pas besoin
+ * d'être réannulé — pas de réactivation possible depuis cette action
+ * (décision produit à part si le besoin se confirme, voir avancement.md).
+ * `matchsheet` ne mirrorera plus jamais IN_PROGRESS/FINISHED par-dessus un
+ * match CANCELLED (voir SheetService.mirrorMatchStatus).
+ */
+export async function cancelMatchAdmin(id: string, reason: string) {
+  const dataSource = await getDataSource()
+  const repo = dataSource.getRepository<Match>('matches')
+
+  const match = await repo.findOne({
+    where: { id },
+    relations: { equipe_home: true, equipe_away: true },
+  })
+  if (!match) {
+    throw new Error('Match introuvable')
+  }
+  if (match.status !== 'UPCOMING') {
+    throw new Error(`Impossible d'annuler un match au statut ${match.status}`)
+  }
+
+  await repo.update(id, { status: 'CANCELLED' })
+
+  const matchName = `${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'}`
+  const data = { matchId: match.id, matchName, reason }
+  for (const [side, teamId] of [
+    ['home', match.equipe_home_id],
+    ['away', match.equipe_away_id],
+  ] as const) {
+    await notify({
+      eventId: `match_cancelled:${match.id}:${side}`,
+      type: 'MATCH_CANCELLED',
+      target: { type: 'TEAM', teamId },
+      teamId,
+      category: 'MATCH_CANCELLED',
+      title: 'Match annulé',
+      body: `Le match ${matchName} a été annulé. Motif : ${reason}`,
+      data,
+    })
+  }
+
+  return { success: true }
+}
+
 

@@ -250,6 +250,20 @@ export const DEFAULT_TEMPLATES: DefaultTemplateSeed[] = [
     body: 'Hello {{firstName}},\n\nThe schedule for {{matchName}} has changed: new date on {{matchDate}}.\n\n{{clubName}}',
   },
   {
+    type: 'MATCH_CANCELLED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.FR,
+    subject: 'Match annulé - {{matchName}}',
+    body: 'Bonjour {{firstName}},\n\nLe match {{matchName}} a été annulé. Motif : {{reason}}.\n\n{{clubName}}',
+  },
+  {
+    type: 'MATCH_CANCELLED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.EN,
+    subject: 'Match cancelled - {{matchName}}',
+    body: 'Hello {{firstName}},\n\nThe match {{matchName}} has been cancelled. Reason: {{reason}}.\n\n{{clubName}}',
+  },
+  {
     type: 'NEW_EVENT',
     channel: NotificationChannelType.EMAIL,
     locale: NotificationLocale.FR,

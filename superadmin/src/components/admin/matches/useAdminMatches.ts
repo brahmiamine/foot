@@ -17,6 +17,7 @@ export function useAdminMatches() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [cancelingId, setCancelingId] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
   const [selectedSaisonId, setSelectedSaisonId] = useState<string>('')
   const [selectedJourneeId, setSelectedJourneeId] = useState<string>('')
@@ -370,6 +371,39 @@ export function useAdminMatches() {
     }
   }
 
+  async function handleCancel(match: Match) {
+    const reason = prompt(`Motif d'annulation du match ${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'} :`)
+    if (reason === null) return
+    if (!reason.trim()) {
+      setError("Un motif d'annulation est requis")
+      return
+    }
+    if (!confirm('Annuler ce match ? Cette action est irréversible.')) {
+      return
+    }
+
+    setCancelingId(match.id)
+    try {
+      const response = await fetch(`/api/admin/matches/${match.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason: reason.trim() }),
+      })
+      if (!response.ok) {
+        const result = await response.json().catch(() => null)
+        throw new Error(result?.error ?? "Annulation impossible")
+      }
+      setMatches((prev) => prev.map((m) => (m.id === match.id ? { ...m, status: 'CANCELLED' } : m)))
+      setError(null)
+    } catch (err) {
+      console.error('Error cancelling match:', err)
+      setError(err instanceof Error ? err.message : "Erreur lors de l'annulation")
+    } finally {
+      setCancelingId(null)
+    }
+  }
+
   return {
     locale,
     matches,
@@ -384,6 +418,7 @@ export function useAdminMatches() {
     savingId,
     creating,
     deletingId,
+    cancelingId,
     showNewForm,
     setShowNewForm,
     selectedSaisonId,
@@ -400,5 +435,6 @@ export function useAdminMatches() {
     handleSave,
     handleCreate,
     handleDelete,
+    handleCancel,
   }
 }

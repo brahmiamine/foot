@@ -1,7 +1,7 @@
 import { getDataSource } from "@/lib/db";
 import { Sheet, SheetStatus } from "@/entities/Sheet";
 import { Match } from "@/entities/Match";
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 
 /**
  * Service for Sheet operations (la feuille de match elle-même — statut,
@@ -70,6 +70,9 @@ export class SheetService {
     if (!matchStatus) return;
 
     const matchRepository = await this.getMatchRepository();
-    await matchRepository.update({ id: matchId }, { status: matchStatus });
+    // Un match CANCELLED (superadmin, voir avancement.md) ne doit jamais
+    // redevenir IN_PROGRESS/FINISHED parce qu'une feuille de match progresse
+    // encore côté opérateur — l'annulation n'est réversible depuis aucune app.
+    await matchRepository.update({ id: matchId, status: Not("CANCELLED") }, { status: matchStatus });
   }
 }

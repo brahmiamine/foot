@@ -15,10 +15,12 @@ interface MatchesTableProps {
   locale: Locale
   savingId: string | null
   deletingId: string | null
+  cancelingId: string | null
   updateEdit: (matchId: string, field: keyof MatchEdit, value: string) => void
   hasChanges: (match: Match) => boolean
   handleSave: (match: Match) => void
   handleDelete: (match: Match) => void
+  handleCancel: (match: Match) => void
 }
 
 export default function MatchesTable({
@@ -30,10 +32,12 @@ export default function MatchesTable({
   locale,
   savingId,
   deletingId,
+  cancelingId,
   updateEdit,
   hasChanges,
   handleSave,
   handleDelete,
+  handleCancel,
 }: MatchesTableProps) {
   if (loading) {
     return <p className="text-muted mb-0">Chargement...</p>
@@ -49,6 +53,7 @@ export default function MatchesTable({
             <th>Date</th>
             <th>Score</th>
             <th>Arbitre</th>
+            <th>Statut</th>
             <th className="text-end">Actions</th>
           </tr>
         </thead>
@@ -215,11 +220,26 @@ export default function MatchesTable({
                     )}
                   </div>
                 </td>
+                <td>
+                  {(() => {
+                    const status = match.status ?? 'UPCOMING'
+                    const badgeClass =
+                      status === 'CANCELLED'
+                        ? 'bg-danger-subtle text-danger'
+                        : status === 'FINISHED'
+                          ? 'bg-secondary-subtle text-secondary'
+                          : status === 'IN_PROGRESS'
+                            ? 'bg-success-subtle text-success'
+                            : 'bg-light text-muted'
+                    const statusLabel = { UPCOMING: 'À venir', IN_PROGRESS: 'En cours', FINISHED: 'Terminé', CANCELLED: 'Annulé' }[status]
+                    return <span className={`badge ${badgeClass}`}>{statusLabel}</span>
+                  })()}
+                </td>
                 <td className="text-end">
                   <div className="d-flex gap-2 justify-content-end">
                     <button
                       className="btn btn-sm btn-primary"
-                      disabled={!changed || savingId === match.id}
+                      disabled={!changed || savingId === match.id || match.status === 'CANCELLED'}
                       onClick={() => handleSave(match)}
                     >
                       {savingId === match.id ? (
@@ -231,6 +251,15 @@ export default function MatchesTable({
                         'Sauvegarder'
                       )}
                     </button>
+                    {(!match.status || match.status === 'UPCOMING') && (
+                      <button
+                        className="btn btn-sm btn-outline-warning"
+                        disabled={cancelingId === match.id}
+                        onClick={() => handleCancel(match)}
+                      >
+                        {cancelingId === match.id ? 'Annulation...' : 'Annuler'}
+                      </button>
+                    )}
                     <button
                       className="btn btn-sm btn-outline-danger"
                       disabled={deletingId === match.id || savingId === match.id}

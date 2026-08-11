@@ -77,7 +77,7 @@ export interface MatchDetail {
 export async function getMatchDetail(matchId: string): Promise<MatchDetail | null> {
   const ds = await getDataSource();
   const match = await ds.getRepository(Match).findOne({ where: { id: matchId }, relations: ["homeTeam", "awayTeam"] });
-  if (!match || !match.isPublicVisible) return null;
+  if (!match || !match.isPublicVisible || match.status === "CANCELLED") return null;
 
   const mtcs = await ds.getRepository(MatchTicketCategory).find({ where: { matchId } });
 
@@ -279,6 +279,9 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
 
     const match = await manager.findOne(Match, { where: { id: mtc.matchId } });
     if (!match || !match.isPublicVisible) throw new NotFoundError("Match introuvable.");
+    if (match.status === "CANCELLED") {
+      throw new ForbiddenError("Ce match a été annulé, achat impossible.");
+    }
 
     const category = await manager.findOne(TicketCategory, { where: { id: mtc.categoryId } });
     if (!category || !category.isActive) throw new NotFoundError("Catégorie de billet introuvable.");

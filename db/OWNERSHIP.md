@@ -27,7 +27,7 @@ présence d'une entité.
 | Équipes / clubs (référentiel) | `teams` | `superadmin` (CRUD complet) | `arbinote`, `matchsheet`, `ob`, `sso`, `sellerPortal`, `billetterie` |
 | Fiche du club connecté (paramètres, branding) | `teams` (sa propre ligne, `WHERE id = teamId`), `team_branding` | `teamManager` (sa ligne), `superadmin` (branding, toutes lignes) | `sellerPortal` |
 | Matchs — référentiel (équipes, date, score, arbitre) | `matches` (hors `status`, voir ligne suivante) | `superadmin` (création/programmation) | `arbinote`, `matchsheet`, `ob`, `billetterie`, `teamManager` (lecture pour préparation) |
-| Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `matchsheet` (seul à savoir, avec certitude, quand un match démarre/finit réellement — voir alerte ci-dessous) | `ob` (résultats, classement), `billetterie` (fenêtre de vente), `teamManager` (formations) |
+| Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `matchsheet` (`IN_PROGRESS`/`FINISHED`, seul à savoir avec certitude quand un match démarre/finit réellement) ; `superadmin` (`CANCELLED` uniquement, voir alerte ci-dessous) | `ob` (résultats, classement), `billetterie` (fenêtre de vente + refus d'achat sur `CANCELLED`), `teamManager` (formations) |
 | Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `arbinote` | `superadmin` (consultation) |
 | Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens`, `security_events` | `sso` | `arbinote`, `superadmin`, `teamManager` (lecture/jointures) |
 | Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `teamManager` | `matchsheet`, `ob` (lecture) |
@@ -91,13 +91,25 @@ voir `matchsheet/src/services/SheetService.ts`) :
 - feuille → `IN_PROGRESS` (coup d'envoi confirmé) ⇒ `matches.status = 'IN_PROGRESS'` ;
 - feuille → `CLOSED` (clôture après-match) ⇒ `matches.status = 'FINISHED'`.
 
-**Non traité, volontairement** : `CANCELLED` reste un état défini dans le
-schéma mais qu'aucune app ne permet de déclencher — annuler un match est
-une décision de `superadmin` (référentiel), pas de `matchsheet`, et
-construire cet écran est une nouvelle fonctionnalité produit (qui prévient
-qui, un match peut-il être réactivé, etc.), pas une simple correction de
-câblage manquant comme le point ci-dessus. À faire séparément si le besoin
-se confirme.
+**Corrigé** : `superadmin` peut désormais déclencher `CANCELLED`
+(`POST /api/admin/matches/[id]/cancel`, motif obligatoire, restreint aux
+matchs `UPCOMING` — voir `cancelMatchAdmin` dans `superadmin/src/lib/adminMatches.ts`),
+notifie les deux clubs (`notify()`, même client que `MATCH_CREATED`/
+`MATCH_RESCHEDULED`) et journalise l'action dans `/admin/audit`.
+`matchsheet` ne peut plus écraser un match `CANCELLED` par
+`IN_PROGRESS`/`FINISHED` (`mirrorMatchStatus` exclut désormais
+`status = 'CANCELLED'` de sa condition de mise à jour) — un match annulé
+reste annulé même si sa feuille de match progresse encore côté opérateur.
+`billetterie` refuse désormais l'achat sur un match `CANCELLED`
+(`purchaseTickets`, `getMatchDetail`), en plus du filtre déjà en place sur
+les listes (`listOpenMatches`).
+
+**Volontairement pas fait** : aucune réactivation possible depuis cette
+action (`CANCELLED` est un état terminal du point de vue de cette action),
+et aucun workflow multi-étapes (qui prévient qui au-delà de la notification
+aux deux clubs, remboursement des billets déjà vendus côté `billetterie`,
+etc.) — annuler reste une action simple, pas un processus métier complet.
+À étendre séparément si le besoin se confirme.
 
 ## Ce que ce document corrige
 

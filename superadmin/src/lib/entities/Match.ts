@@ -55,6 +55,16 @@ export class Match {
 
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
+
+  /**
+   * Écrit par `matchsheet` (IN_PROGRESS/FINISHED, seul endroit qui sait
+   * avec certitude quand un match démarre/finit) et par `superadmin`
+   * (CANCELLED uniquement, voir cancelMatchAdmin dans adminMatches.ts) —
+   * jamais IN_PROGRESS/FINISHED depuis cette app. Colonne déjà présente
+   * dans le schéma partagé (voir db/OWNERSHIP.md, "matches.status").
+   */
+  @Column({ type: 'enum', enum: ['UPCOMING', 'IN_PROGRESS', 'FINISHED', 'CANCELLED'], default: 'UPCOMING' })
+  status!: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
 }
 
 

@@ -10,7 +10,7 @@ Application Next.js (App Router) réservée au rôle `SUPERADMIN` : c'est l'outi
 - **Saisons** (`/admin/saisons`) : CRUD.
 - **Journées** (`/admin/journees`) : CRUD des journées de championnat.
 - **Équipes** (`/admin/teams`) : CRUD + import CSV en masse.
-- **Matchs** (`/admin/matches`) : CRUD.
+- **Matchs** (`/admin/matches`) : CRUD, plus **annulation** (`matches.status -> CANCELLED`, `POST /api/admin/matches/[id]/cancel`, motif obligatoire) — restreinte aux matchs `UPCOMING`, irréversible depuis cette action (pas de réactivation), notifie les deux clubs via `notification-api` et journalise dans `/admin/audit`. Voir `avancement.md` § « Cycle de vie du match — CANCELLED » pour les décisions volontairement pas prises (réactivation, workflow multi-étapes).
 - **Arbitres** (`/admin/arbitres`) : CRUD + import CSV en masse.
 - **Motifs de cartons** (`/admin/card-reasons`) : référentiel disciplinaire utilisé par `teamManager` et `matchsheet`.
 - **Comptes club** (`/admin/club`, `/admin/club/[teamId]`) : gestion des utilisateurs rattachés à une équipe (accès à `teamManager`).
