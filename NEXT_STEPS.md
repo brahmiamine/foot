@@ -14,55 +14,27 @@ redécouvrir le contexte.
 5. **`teamManager` : consommation de ClubBranding** (`src/lib/clubBranding.ts`, `src/entities/TeamBranding.ts` en lecture seule, `app/manifest.ts` dynamique remplaçant l'ancien `public/manifest.json` hardcodé OB, `generateMetadata`/`generateViewport` dynamiques, logo dans `AdminSidebar`, couleur d'accent de `PwaInstallPrompt` passée en prop). Défauts identiques à l'ancien hardcodage (`#c8102e`/`#0d0d0d`) tant qu'un club n'a pas de ligne dans `team_branding`.
 6. **`sellerPortal` : scoping multi-club réel** — `club_id` ajouté à `sp_sellers`/`sp_product_categories` (`sql/schema.sql`, `sql/migration_add_club_id.sql` pour les installs existantes), `src/entities/Seller.ts`/`ProductCategory.ts` avec `clubId`, `src/entities/Team.ts` en lecture seule + `GET /api/teams?type=club` (sélecteur de club sur l'écran d'inscription, `src/app/(auth)/register/page.tsx`), `POST /api/auth/register` exige et valide `clubId`, `clubId` porté par la session JWT (`src/lib/session.ts`, dérivé au login), `GET /api/categories` filtré par `session.clubId`, et `categoryId` revalidé comme appartenant au club du vendeur dans `POST /api/products` et `PATCH /api/products/[id]` (jamais fait confiance à un id de catégorie envoyé par le client sans vérifier son club). `scripts/seed.ts` mis à jour pour résoudre un club existant (`teams` partagée) avant de créer le vendeur/catégorie de démo.
 7. **`sellerPortal` : consommation de ClubBranding** — `src/lib/clubBranding.ts`, `src/entities/TeamBranding.ts` en lecture seule (mêmes tables que `superadmin`/`teamManager`), `generateMetadata` dynamique dans `(dashboard)/layout.tsx` (titre de page), logo/couleurs (`--sp-primary`/`--sp-sidebar-bg`/`--sp-accent`) injectés comme variables CSS scopées au `DashboardShell` et consommés par `Sidebar` (nom + logo du club). Défauts identiques au thème actuel (`globals.css`, vert `#0d6e4f`) tant qu'un club n'a pas de ligne dans `team_branding`. Les écrans publics (`/login`, `/register`) restent sur le thème générique, sans session pour résoudre un club.
+8. **`billetterie` : nouvelle app générique** — scaffold Next.js App Router + TypeORM/mariadb sur le modèle de `ob/` (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `.env.example` sans `OB_TEAM_ID`), `src/lib/ssoSession.ts` copié en lecture seule depuis `ob/`. Entités `Team`/`Match` en lecture seule (`matches` reste la table partagée, pas dupliquée) + `TicketCategory`/`MatchTicketCategory`/`TicketSaleRule`/`Ticket` en écriture (tables `tk_*`, `sql/schema.sql`). `src/lib/tickets.ts` centralise la logique métier (`listOpenMatches`, `getMatchDetail`, `purchaseTickets`, `listMyTickets`) — achat en transaction avec verrou pessimiste sur `tk_match_ticket_categories` pour éviter la survente, quota par utilisateur et fenêtre de vente appliqués serveur. Pages `/` (liste matchs à billetterie ouverte), `/match/[id]` (catégories + achat mock via `POST /api/tickets`, marque `PAID` immédiatement), `/mes-billets` (authentifié `MEMBER` via SSO, sinon redirection vers `sso`). Pas de scanner (`ticketing-scanner`, app séparée hors périmètre) ni d'UI d'admin pour créer les catégories/règles de vente (à faire en base directement pour cette V1). Voir `billetterie/README.md`, notamment sa note de sécurité sur `allowedAudience` HOME_SUPPORTERS/AWAY_SUPPORTERS (auto-déclaration à l'achat dans cette V1, **pas** vérifié via les affiliations `sso` — voir README racine § « Billetterie »).
 
-READMEs (racine + `sellerPortal/README.md` § « Portée V1 ») mis à jour en conséquence à chaque étape. Toutes ces briques ont été vérifiées avec `pnpm install && npx tsc --noEmit && npx eslint <fichiers touchés>` dans chaque app (pas de build complet ni de test contre une vraie base MariaDB — aucune base n'est disponible dans l'environnement d'exécution).
+READMEs (racine + `sellerPortal/README.md` § « Portée V1 » + `billetterie/README.md`) mis à jour en conséquence à chaque étape. Toutes ces briques ont été vérifiées avec `pnpm install && npx tsc --noEmit && npx eslint <fichiers touchés>` dans chaque app (pas de build complet ni de test contre une vraie base MariaDB — aucune base n'est disponible dans l'environnement d'exécution).
 
 > **Note process** : sur demande explicite de l'utilisateur, le travail de cette session a été poussé directement sur `main` (pas de branche de travail intermédiaire ni de PR) — écart volontaire par rapport aux sessions précédentes qui passaient par une branche `claude/...` fusionnée ensuite.
 
 ## Pas fait — à reprendre, dans cet ordre
 
-### A. `sellerPortal` multi-clubs — reste à faire (petit, avant de passer à B)
+### A. `sellerPortal` multi-clubs — reste à faire (petit)
 
 Le scoping serveur et le branding (points 6-7 ci-dessus) sont faits. Reste uniquement :
 
 1. **Backfill production** : pour une install déjà bootstrapée avant l'ajout de `club_id`, exécuter `sellerPortal/sql/migration_add_club_id.sql` puis renseigner manuellement `club_id` sur les lignes existantes de `sp_sellers`/`sp_product_categories` (nécessite une décision produit : quel club pour quelles lignes existantes) avant de pouvoir compter dessus pour filtrer une requête en prod. Pas une tâche de code — à traiter au moment du déploiement.
 
-### B. Billetterie générique — nouvelle app (le plus gros chantier, pas commencé)
+### B. `billetterie` — reste à faire (le scaffold V1 est fait, point 8 ci-dessus)
 
-**Ne pas dupliquer les matchs** : la table `matches` existe déjà (partagée, gérée par `superadmin`/`teamManager`, champs `equipe_home`/`equipe_away`/`date`/`status`, voir `superadmin/src/lib/entities/Match.ts`). L'« event » de billetterie, c'est cette table — pas la peine d'en créer une autre.
-
-Modèle cible détaillé dans le README racine, section « Billetterie : séparer l'identité du supporter de l'organisateur de l'événement ». Schéma proposé (à valider avant migration) :
-
-```sql
-tk_ticket_categories       -- catégories définies par club (Gradin/Chaise OB, Virage/Tribune/VIP EST)
-  id, club_id, name, slug, description, base_price, is_active, created_at, updated_at
-  UNIQUE(club_id, slug)
-
-tk_match_ticket_categories -- quelle catégorie est vendue pour quel match, à quel prix/quota
-  id, match_id, category_id, price, capacity, sold_count DEFAULT 0
-  UNIQUE(match_id, category_id)
-
-tk_ticket_sale_rules       -- restriction d'audience par match+catégorie (TicketSaleRule)
-  id, match_ticket_category_id, allowed_audience ENUM('PUBLIC','HOME_SUPPORTERS','AWAY_SUPPORTERS'),
-  max_tickets_per_user DEFAULT 4, starts_at, ends_at, created_at
-
-tk_tickets
-  id, match_id, match_ticket_category_id, organizer_team_id (= matches.equipe_home au moment de l'achat),
-  purchaser_id (User.id sso, role MEMBER), status ENUM('PENDING','PAID','CANCELLED','USED'),
-  reference VARCHAR(32) UNIQUE, price, created_at, paid_at, used_at
-```
-
-Règle de sécurité impérative (déjà documentée dans le README racine) : si l'URL expose un slug de club (`/tickets/ob`), le serveur DOIT résoudre `slug → teamId` et filtrer `WHERE team_id = teamId` — jamais faire confiance à un `clubId`/slug envoyé tel quel par le frontend pour une requête d'écriture ou de lecture sensible.
-
-Étapes concrètes :
-
-1. Scaffolder une nouvelle app Next.js `billetterie/` en copiant la structure de `ob/` (même stack : Next.js App Router, TypeORM/mariadb, `src/lib/ssoSession.ts` copié tel quel depuis `ob/src/lib/ssoSession.ts` — vérification en lecture seule du cookie `sso`, jamais d'émission). `.env.example` sur le modèle de `ob/.env.example` (DB_*, SSO_JWT_SECRET, SSO_COOKIE_NAME, SSO_URL) — **sans** `OB_TEAM_ID` (générique, pas de club par défaut).
-2. Entités TypeORM : `Match`/`Team` en lecture seule (copier `superadmin/src/lib/entities/Match.ts` et `Team.ts`, adaptés), + les 4 tables `tk_*` ci-dessus en écriture.
-3. Migration SQL `billetterie/sql/schema.sql` (tables `tk_*`, `CREATE TABLE IF NOT EXISTS`, cohérent avec le style `sellerPortal/sql/schema.sql`).
-4. Pages : liste des matchs à venir avec billetterie ouverte (`/`), détail d'un match avec catégories dynamiques + règles de vente (`/match/[id]`), achat (mock — pas d'intégration `payment-api` réelle dans cette itération, marquer directement `PAID` ou `PENDING` selon ce qui est raisonnable), « Mes billets » (`/mes-billets`, authentifié MEMBER via SSO).
-5. Pas de scanner/contrôle billetterie dans ce chantier — c'est une app séparée (`ticketing-scanner`), hors périmètre de cette normalisation.
-6. Vérifier avec `pnpm install && npx tsc --noEmit`.
-7. Mettre à jour le README racine : retirer la mention "n'existe pas encore" pour la billetterie une fois faite, ajouter la ligne dans le tableau `## Applications`.
+1. **UI d'admin pour les catégories/règles de vente** : `tk_ticket_categories`/`tk_match_ticket_categories`/`tk_ticket_sale_rules` n'ont aujourd'hui aucune interface — à créer manuellement en base pour tester, ou à brancher dans `superadmin`/`teamManager` (probablement `teamManager`, par club, comme le reste de l'admin club).
+2. **Intégration `payment-api` réelle** : remplacer le mock `PAID` immédiat de `purchaseTickets` (`billetterie/src/lib/tickets.ts`) par un vrai flux de paiement (créer le ticket `PENDING`, rediriger vers `payment-api`, webhook de confirmation → `PAID`).
+3. **Vérification fiable de `allowedAudience`** : la restriction HOME_SUPPORTERS/AWAY_SUPPORTERS reste une auto-déclaration de l'acheteur (case à cocher) — pas un mécanisme d'autorisation vérifié. À concevoir avant toute vente réelle sur une catégorie réservée (carte de membre/abonnement vérifié, pas les affiliations `sso` — voir la note de sécurité dans `billetterie/src/entities/TicketSaleRule.ts` et le README racine).
+4. **Lien depuis `ob`** : `ob/espace-membre/billets` reste un écran d'attente statique — le brancher vers `billetterie` (lien externe suffit, pas besoin de fusionner les deux apps).
+5. **Scanner/contrôle billetterie** : `ticketing-scanner`, app séparée, non commencée — hors périmètre de cette normalisation.
 
 ### C. Non prioritaire / infra (pas du code applicatif)
 

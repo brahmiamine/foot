@@ -1,0 +1,65 @@
+:root {
+  --tk-bg: #f4f6f9;
+  --tk-surface: #ffffff;
+  --tk-surface-alt: #f8fafc;
+  --tk-border: #e2e8f0;
+  --tk-text: #0f172a;
+  --tk-text-muted: #64748b;
+  --tk-text-subtle: #94a3b8;
+
+  --tk-primary: #1d4ed8;
+  --tk-primary-dark: #1e3a8a;
+  --tk-primary-soft: #dbeafe;
+
+  --tk-danger: #dc2626;
+  --tk-danger-soft: #fee2e2;
+  --tk-warning: #d97706;
+  --tk-warning-soft: #fef3c7;
+  --tk-success: #16a34a;
+  --tk-success-soft: #dcfce7;
+
+  --tk-radius-sm: 6px;
+  --tk-radius-md: 10px;
+  --tk-radius-lg: 14px;
+  --tk-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --tk-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  --tk-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--tk-bg);
+  color: var(--tk-text);
+  font-family: var(--tk-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+::selection {
+  background: var(--tk-primary-soft);
+}
