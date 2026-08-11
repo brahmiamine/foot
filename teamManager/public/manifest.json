@@ -1,7 +1,7 @@
 {
-  "name": "TeamManager — Olympique de Béja",
+  "name": "TeamManager",
   "short_name": "TeamManager",
-  "description": "Gestion du club Olympique de Béja : effectif, convocations, discipline, actualités, boutique et sponsors.",
+  "description": "Gestion de club : effectif, convocations, discipline, actualités, boutique et sponsors.",
   "start_url": "/admin",
   "id": "/admin",
   "display": "standalone",

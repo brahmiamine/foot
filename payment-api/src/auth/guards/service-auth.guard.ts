@@ -11,7 +11,7 @@ import { AuthenticatedService } from '../interfaces/authenticated-service.interf
 /**
  * Authentification service-à-service des endpoints internes de
  * payment-api (initiation de paiement, lecture d'un paiement). Chaque
- * application backend de l'écosystème (ob, teamManager, ob-seller-portal, …)
+ * application backend de l'écosystème (ob, teamManager, sellerPortal, …)
  * possède sa propre clé API, jamais partagée, transmise via le header
  * `x-api-key`. Ne protège jamais les webhooks providers : ceux-ci sont
  * authentifiés par re-vérification serveur-à-serveur / checksum (Konnect,

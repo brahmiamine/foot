@@ -1,9 +1,18 @@
+> **Note (normalisation d'architecture) :** ce cahier des charges est le
+> document fondateur historique de `teamManager`, rédigé avec l'Olympique de
+> Béja comme club pilote. `teamManager` est depuis devenu une application
+> **générique multi-clubs** (voir README racine, section « Classification des
+> projets ») : le club connecté est déterminé dynamiquement par le contexte
+> d'authentification (`teamId`), et aucune référence à un club particulier ne
+> doit être hardcodée dans le code. Ce document est conservé tel quel pour sa
+> valeur de spécification fonctionnelle d'origine ; les mentions de
+> l'Olympique de Béja ci-dessous décrivent le contexte initial du projet, pas
+> une contrainte du produit actuel.
+
 <div align="center">
 
-![Logo Club Olympique de Béja](https://upload.wikimedia.org/wikipedia/fr/e/e7/Olympique_de_Beja-1-.gif?20080513143915)
-
 # CAHIER DES CHARGES
-## Application Web Responsive PWA - Club Olympique de Béja
+## Application Web Responsive PWA - Gestion de club (club pilote : Olympique de Béja)
 
 **Version:** 1.0  
 **Date:** 2024  
