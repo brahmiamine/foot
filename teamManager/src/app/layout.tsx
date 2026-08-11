@@ -1,14 +1,22 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { TemplateAssets } from "@/components/TemplateAssets";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Footclub - Soccer and Football Club",
   description: "Site vitrine du club avec le template Footclub (Next.js + TypeScript).",
+  manifest: "/manifest.json",
   icons: {
     icon: "/images/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#c8102e",
 };
 
 export default function RootLayout({
@@ -184,6 +192,9 @@ export default function RootLayout({
         <TemplateAssets />
 
         {children}
+
+        <ServiceWorkerRegistration />
+        <PwaInstallPrompt />
       </body>
     </html>
   );

@@ -1,0 +1,60 @@
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.itemUnread {
+  border-color: var(--ob-red);
+}
+
+.title {
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.body {
+  margin: 0 0 6px;
+  color: var(--ob-text-muted);
+  font-size: 14px;
+}
+
+.date {
+  color: var(--ob-text-faint);
+  font-size: 12px;
+}
+
+.markBtn {
+  background: transparent;
+  border: 1px solid var(--ob-card-border);
+  color: var(--ob-text-muted);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.markBtn:hover {
+  border-color: var(--ob-red);
+  color: var(--ob-text);
+}
+
+.markBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

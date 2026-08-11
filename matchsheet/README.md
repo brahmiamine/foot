@@ -39,6 +39,16 @@ L'accueil (`/`) affiche la barre horizontale des matchs des ±3 jours autour d'a
 
 Les cartons enregistrés ici écrivent directement dans la table `Card` partagée : ils sont immédiatement visibles dans le module discipline de `teamManager`.
 
+## PWA
+
+`manifest.json` + `public/sw.js` (app shell : cache des assets statiques,
+page `offline.html` de secours pour la navigation — les appels `/api/*` ne
+sont jamais mis en cache, le live doit toujours venir du réseau), icônes
+dans `public/icons/`, bannière d'installation (`PwaInstallPrompt.tsx`) —
+voir [`../roadmap.md`](../roadmap.md) § 3. Pas de synchronisation offline
+des écritures (composition, événements live, signatures) : la saisie
+nécessite toujours une connexion active (voir `../manquants.md`).
+
 ## Charte graphique et bilinguisme
 
 Couleur primaire rouge/blanc (FTF) : `$primary` pointe vers `$ftf-red` (`#ce1126`) dans `src/assets/scss/_variables.scss`, ce qui rebranding automatiquement boutons, badges et liens Bootstrap dérivés.

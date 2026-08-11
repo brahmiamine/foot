@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "@/assets/scss/skote-theme.scss";
 import "./matchsheet.css";
@@ -6,11 +6,21 @@ import { MatchService } from "@/services/MatchService";
 import { MatchesBottomBar } from "@/components/MatchesBottomBar";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 export const metadata: Metadata = {
   title: "FTF — Feuille de Match Électronique",
   description: "Fédération Tunisienne de Football — feuille de match électronique : composition, événements et signatures.",
   robots: { index: false, follow: false },
+  manifest: "/manifest.json",
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1f2530",
 };
 
 export const dynamic = "force-dynamic";
@@ -41,6 +51,9 @@ export default async function RootLayout({
             <MatchesBottomBar matches={matchOptions} />
           </div>
         </LanguageProvider>
+
+        <ServiceWorkerRegistration />
+        <PwaInstallPrompt />
       </body>
     </html>
   );
