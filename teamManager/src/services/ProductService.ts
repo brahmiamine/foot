@@ -34,6 +34,16 @@ export class ProductService {
     return repository.findOne({ where: { id, teamId }, relations: ["category"] });
   }
 
+  /**
+   * Catalogue affiché sur la boutique publique (/boutique/[teamId]) :
+   * uniquement les produits actifs — contrairement à `findAll`, utilisé par
+   * l'admin, qui liste aussi les produits désactivés.
+   */
+  async findActiveByTeam(teamId: string): Promise<Product[]> {
+    const repository = await this.getRepository();
+    return repository.find({ where: { teamId, isActive: true }, relations: ["category"], order: { createdAt: "DESC" } });
+  }
+
   async create(data: ProductInput, teamId: string): Promise<Product> {
     const repository = await this.getRepository();
     const product = repository.create({

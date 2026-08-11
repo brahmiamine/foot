@@ -10,10 +10,13 @@ import type { SessionUser } from "@/types/auth";
  *
  * Règle métier conservée : SUPERADMIN (sans club) n'a jamais accès à
  * teamManager — un compte sans teamId ne produit pas de session ici.
+ * MEMBER (espace supporter, voir src/app/boutique/[teamId]) n'a pas non
+ * plus accès à /admin : exclu explicitement ici, pas seulement parce qu'un
+ * compte MEMBER n'a en pratique pas de `teamId` staff.
  */
 export async function auth(): Promise<{ user: SessionUser } | null> {
   const session = await getSsoSession();
-  if (!session || session.role === "SUPERADMIN" || !session.teamId) {
+  if (!session || session.role === "SUPERADMIN" || session.role === "MEMBER" || !session.teamId) {
     return null;
   }
 
