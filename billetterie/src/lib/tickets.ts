@@ -146,10 +146,12 @@ export interface PurchaseResult {
 }
 
 // Une réservation PENDING sans paiement confirmé passé ce délai est
-// considérée abandonnée et sa capacité libérée (voir releaseTickets ci-
-// dessous) — sans ça, un panier jamais payé bloquerait des places
-// indéfiniment (pas de tâche planifiée dans ce dépôt pour un nettoyage
-// périodique, voir avancement.md § C : CI/observabilité, pas de cron).
+// considérée abandonnée et sa capacité libérée (voir releaseTickets et
+// purgeStalePendingTickets ci-dessous) — sans ça, un panier jamais payé
+// bloquerait des places indéfiniment. purchaseTickets applique un
+// rattrapage opportuniste limité à la catégorie achetée ;
+// purgeStalePendingTickets couvre toutes les catégories, pour un
+// ordonnanceur externe (voir POST /api/cron/purge-pending-reservations).
 const PENDING_RESERVATION_TTL_MS = 30 * 60 * 1000;
 
 async function releaseTickets(manager: EntityManager, ticketIds: string[]): Promise<void> {
@@ -167,6 +169,45 @@ async function releaseTickets(manager: EntityManager, ticketIds: string[]): Prom
       await manager.save(mtc);
     }
   }
+}
+
+export interface PurgeStaleReservationsResult {
+  releasedTickets: number;
+  releasedCategories: number;
+}
+
+/**
+ * Libère toutes les réservations PENDING abandonnées depuis plus de
+ * PENDING_RESERVATION_TTL_MS, toutes catégories/matchs confondus — pas
+ * seulement celle en cours d'achat (voir le rattrapage opportuniste dans
+ * purchaseTickets, limité à la catégorie visée). Destinée à être appelée
+ * périodiquement par un ordonnanceur externe (pas de scheduler in-process
+ * dans ce dépôt, voir avancement.md § C) via POST
+ * /api/cron/purge-pending-reservations. Idempotente : ré-exécuter sur des
+ * billets déjà CANCELLED ne les affecte pas (le WHERE ne cible que PENDING).
+ */
+export async function purgeStalePendingTickets(): Promise<PurgeStaleReservationsResult> {
+  const ds = await getDataSource();
+  const staleCutoff = new Date(Date.now() - PENDING_RESERVATION_TTL_MS);
+
+  return ds.transaction(async (manager) => {
+    const staleTickets = await manager.find(Ticket, {
+      where: { status: "PENDING", createdAt: LessThan(staleCutoff) },
+    });
+
+    const byCategory = new Map<string, string[]>();
+    for (const ticket of staleTickets) {
+      const ids = byCategory.get(ticket.matchTicketCategoryId) ?? [];
+      ids.push(ticket.id);
+      byCategory.set(ticket.matchTicketCategoryId, ids);
+    }
+
+    for (const ticketIds of byCategory.values()) {
+      await releaseTickets(manager, ticketIds);
+    }
+
+    return { releasedTickets: staleTickets.length, releasedCategories: byCategory.size };
+  });
 }
 
 /**

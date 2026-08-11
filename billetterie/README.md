@@ -58,9 +58,19 @@ sur le site ne verra simplement pas la confirmation avant sa prochaine
 visite).
 
 Une réservation `PENDING` sans confirmation après 30 minutes est traitée
-comme abandonnée et sa capacité libérée automatiquement à la prochaine
-tentative d'achat sur la même catégorie (pas de tâche planifiée dans ce
-dépôt — voir `PENDING_RESERVATION_TTL_MS` dans `src/lib/tickets.ts`).
+comme abandonnée (`PENDING_RESERVATION_TTL_MS` dans `src/lib/tickets.ts`) et
+sa capacité libérée de deux façons complémentaires : opportunément à la
+prochaine tentative d'achat sur la même catégorie (`purchaseTickets`), et
+globalement (toutes catégories) via `POST /api/cron/purge-pending-reservations`
+(`purgeStalePendingTickets`), à appeler périodiquement par un ordonnanceur
+externe — ce dépôt n'a pas de scheduler in-process (voir avancement.md § C).
+Protégée par un secret partagé (`CRON_SECRET`, header `x-cron-secret`),
+jamais par une session : ce n'est pas un endpoint destiné à un navigateur.
+Exemple de crontab (toutes les 10 minutes) :
+
+```cron
+*/10 * * * * curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET" https://billetterie.example.com/api/cron/purge-pending-reservations
+```
 
 **Konnect**, **Flouci** et **Paymee** sont supportés (`PAYMENT_PROVIDER`).
 Paymee exige `firstName`/`lastName`/`phoneNumber` à l'initiation (DTO dédié
