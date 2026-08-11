@@ -30,7 +30,12 @@ export default async function Layout({
   const access = toClientAccess(await getUserAccess());
 
   return (
-    <AdminLayout teamName={team?.nom ?? "Club"} userName={session.user.name ?? session.user.email ?? ""} access={access}>
+    <AdminLayout
+      teamName={team?.nom ?? "Club"}
+      teamLogoUrl={team?.logoUrl}
+      userName={session.user.name ?? session.user.email ?? ""}
+      access={access}
+    >
       {children}
     </AdminLayout>
   );

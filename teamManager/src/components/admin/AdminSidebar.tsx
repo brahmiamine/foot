@@ -32,7 +32,15 @@ interface MenuGroup {
   items: MenuItem[];
 }
 
-export function AdminSidebar({ teamName, access }: { teamName: string; access: ClientAccess }) {
+export function AdminSidebar({
+  teamName,
+  teamLogoUrl,
+  access,
+}: {
+  teamName: string;
+  teamLogoUrl?: string | null;
+  access: ClientAccess;
+}) {
   const { isOpen, isCollapsed, closeSidebar, openSidebar, toggleCollapse } = useAdminSidebar();
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -243,7 +251,12 @@ export function AdminSidebar({ teamName, access }: { teamName: string; access: C
       >
         <div className="navbar-brand-box">
           <Link href="/admin" className="logo logo-dark" onClick={closeSidebar}>
-            <span className="logo-sm fw-bold">TM</span>
+            {teamLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={teamLogoUrl} alt={teamName} className="logo-sm" style={{ height: 24, objectFit: "contain" }} />
+            ) : (
+              <span className="logo-sm fw-bold">TM</span>
+            )}
             <span className="logo-lg fw-semibold text-truncate">{teamName}</span>
           </Link>
         </div>

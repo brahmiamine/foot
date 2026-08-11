@@ -3,27 +3,50 @@ import Script from "next/script";
 import { TemplateAssets } from "@/components/TemplateAssets";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import { getSsoSession } from "@/lib/ssoSession";
+import { getClubBranding } from "@/lib/clubBranding";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Footclub - Soccer and Football Club",
-  description: "Site vitrine du club avec le template Footclub (Next.js + TypeScript).",
-  manifest: "/manifest.json",
-  icons: {
-    icon: "/images/favicon.png",
-    apple: "/icons/apple-touch-icon.png",
-  },
-};
+/**
+ * Titre/favicon/theme-color résolus dynamiquement par club connecté (voir
+ * lib/clubBranding.ts) — jamais hardcodés à un club en particulier. Sans
+ * session (visiteur non authentifié, ex. le temps d'une redirection vers
+ * /admin ou /login), on retombe sur un intitulé générique "TeamManager".
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await getSsoSession();
+  const branding = session?.teamId ? await getClubBranding(session.teamId) : null;
 
-export const viewport: Viewport = {
-  themeColor: "#c8102e",
-};
+  return {
+    title: branding ? `${branding.name} — TeamManager` : "TeamManager",
+    description: branding
+      ? `Gestion de club : effectif, staff, discipline, actualités, boutique et sponsors — ${branding.name}.`
+      : "Gestion de club : effectif, staff, discipline, actualités, boutique et sponsors.",
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: branding?.faviconUrl || "/images/favicon.png",
+      apple: "/icons/apple-touch-icon.png",
+    },
+  };
+}
 
-export default function RootLayout({
+export async function generateViewport(): Promise<Viewport> {
+  const session = await getSsoSession();
+  const branding = session?.teamId ? await getClubBranding(session.teamId) : null;
+
+  return {
+    themeColor: branding?.primaryColor || "#c8102e",
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSsoSession();
+  const branding = session?.teamId ? await getClubBranding(session.teamId) : null;
+
   return (
     <html lang="en" className="css-loading" suppressHydrationWarning>
       <body>
@@ -194,7 +217,7 @@ export default function RootLayout({
         {children}
 
         <ServiceWorkerRegistration />
-        <PwaInstallPrompt />
+        <PwaInstallPrompt accentColor={branding?.primaryColor || "#c8102e"} />
       </body>
     </html>
   );

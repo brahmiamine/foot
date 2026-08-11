@@ -15,7 +15,12 @@ const DISMISSED_KEY = "tm_pwa_install_dismissed";
  * N'affiche rien sur les navigateurs qui ne déclenchent jamais cet évènement
  * (Safari/iOS notamment).
  */
-export default function PwaInstallPrompt() {
+interface PwaInstallPromptProps {
+  /** Couleur d'accent du club connecté (résolue par lib/clubBranding.ts) — jamais hardcodée ici. */
+  accentColor?: string;
+}
+
+export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstallPromptProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -81,7 +86,7 @@ export default function PwaInstallPrompt() {
       <button
         onClick={install}
         style={{
-          background: "#c8102e",
+          background: accentColor,
           border: "none",
           color: "#fff",
           borderRadius: 6,
