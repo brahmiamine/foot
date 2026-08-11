@@ -1,6 +1,7 @@
 import { getDataSource } from './db'
 import { Match, Journee } from './entities'
 import { toPlain, toPlainArray } from './serialization'
+import { notify } from './notificationClient'
 
 export interface MatchCreateInput {
   journee_id: string
@@ -157,12 +158,50 @@ export async function updateMatchAdmin(id: string, payload: MatchUpdateInput, le
       arbitre: true,
     },
   })
-  
+
   if (!updated) {
     throw new Error('Match introuvable après mise à jour')
   }
-  
+
+  const oldTime = match.date ? new Date(match.date).getTime() : null
+  const newTime = updated.date ? new Date(updated.date).getTime() : null
+  if (payload.date !== undefined && oldTime !== newTime) {
+    await notifyMatchEvent(updated, 'MATCH_RESCHEDULED')
+  }
+
   return toPlain(updated)
+}
+
+/**
+ * Notifie les deux clubs (staff ADMIN/OBSERVATEUR via notification-api)
+ * qu'un match a été créé ou reprogrammé. N'échoue jamais l'opération
+ * d'origine : une erreur ici est journalisée et avalée par notificationClient.
+ */
+async function notifyMatchEvent(match: Match, type: 'MATCH_CREATED' | 'MATCH_RESCHEDULED') {
+  const matchName = `${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'}`
+  const matchDate = match.date ? new Date(match.date).toISOString() : null
+  const data = { matchId: match.id, matchName, matchDate }
+  const title = type === 'MATCH_CREATED' ? 'Nouveau match programmé' : "Changement d'horaire"
+  const body =
+    type === 'MATCH_CREATED'
+      ? `Un nouveau match a été programmé : ${matchName}.`
+      : `L'horaire de ${matchName} a changé.`
+
+  for (const [side, teamId] of [
+    ['home', match.equipe_home_id],
+    ['away', match.equipe_away_id],
+  ] as const) {
+    await notify({
+      eventId: `${type.toLowerCase()}:${match.id}:${side}:${matchDate ?? 'no-date'}`,
+      type,
+      target: { type: 'TEAM', teamId },
+      teamId,
+      category: type,
+      title,
+      body,
+      data,
+    })
+  }
 }
 
 export async function createMatchAdmin(payload: MatchCreateInput, leagueId?: string | null) {
@@ -234,6 +273,8 @@ export async function createMatchAdmin(payload: MatchCreateInput, leagueId?: str
   if (!match) {
     throw new Error('Erreur lors de la création du match')
   }
+
+  await notifyMatchEvent(match, 'MATCH_CREATED')
 
   return toPlain(match)
 }

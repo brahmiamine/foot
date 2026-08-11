@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { SheetService } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
+import { MatchService } from "@/services/MatchService";
+import { notify } from "@/lib/notificationClient";
 import type { ActorRole, SignaturePhase } from "@/entities/Signature";
 
 /** Enregistre (ou remplace) la signature d'un acteur pour une phase donnée. */
@@ -116,11 +118,41 @@ export async function confirmPostMatch(sheetId: number, matchId: string) {
 
     revalidatePath(`/${matchId}/post-match`);
     revalidatePath(`/${matchId}`);
+    await notifyMatchSheetClosed(matchId);
     return { success: true, message: "Feuille de match clôturée." };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors de la clôture.",
     };
+  }
+}
+
+/**
+ * Notifie les deux clubs (staff ADMIN/OBSERVATEUR via notification-api) que
+ * la feuille de match est désormais scellée. N'échoue jamais l'action de
+ * clôture : une erreur ici est journalisée et avalée.
+ */
+async function notifyMatchSheetClosed(matchId: string): Promise<void> {
+  const match = await new MatchService().findById(matchId);
+  if (!match) return;
+
+  const matchName = `${match.homeTeam?.nom ?? "?"} - ${match.awayTeam?.nom ?? "?"}`;
+  const data = { matchId, matchName };
+
+  for (const [side, teamId] of [
+    ["home", match.equipeHome],
+    ["away", match.equipeAway],
+  ] as const) {
+    await notify({
+      eventId: `match-sheet-closed:${matchId}:${side}`,
+      type: "MATCH_SHEET_CLOSED",
+      target: { type: "TEAM", teamId },
+      teamId,
+      category: "MATCH_SHEET_CLOSED",
+      title: "Feuille de match clôturée",
+      body: `La feuille de match de ${matchName} a été signée et clôturée.`,
+      data,
+    });
   }
 }

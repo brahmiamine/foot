@@ -183,6 +183,21 @@ export const DEFAULT_TEMPLATES: DefaultTemplateSeed[] = [
     subject: 'Versement effectué',
     body: 'Bonjour {{firstName}},\n\nUn versement de {{amount}} a été effectué sur votre compte vendeur.\n\n{{clubName}}',
   },
+  // --- Matchsheet ---
+  {
+    type: 'MATCH_SHEET_CLOSED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.FR,
+    subject: 'Feuille de match clôturée - {{matchName}}',
+    body: 'Bonjour {{firstName}},\n\nLa feuille de match de {{matchName}} a été signée et clôturée. Elle ne peut plus être modifiée.\n\n{{clubName}}',
+  },
+  {
+    type: 'MATCH_SHEET_CLOSED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.EN,
+    subject: 'Match sheet closed - {{matchName}}',
+    body: 'Hello {{firstName}},\n\nThe match sheet for {{matchName}} has been signed and closed. It can no longer be modified.\n\n{{clubName}}',
+  },
   // --- Supporter / OB ---
   {
     type: 'NEWS_PUBLISHED',
@@ -205,12 +220,49 @@ export const DEFAULT_TEMPLATES: DefaultTemplateSeed[] = [
     subject: 'Résultat du match',
     body: 'Bonjour {{firstName}},\n\nRésultat de {{matchName}} : {{matchScore}}.\n\n{{clubName}}',
   },
+  // --- SuperAdmin ---
+  {
+    type: 'MATCH_CREATED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.FR,
+    subject: 'Nouveau match programmé - {{matchName}}',
+    body: 'Bonjour {{firstName}},\n\nUn nouveau match a été programmé : {{matchName}}, le {{matchDate}}.\n\n{{clubName}}',
+  },
+  {
+    type: 'MATCH_CREATED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.EN,
+    subject: 'New match scheduled - {{matchName}}',
+    body: 'Hello {{firstName}},\n\nA new match has been scheduled: {{matchName}}, on {{matchDate}}.\n\n{{clubName}}',
+  },
+  {
+    type: 'MATCH_RESCHEDULED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.FR,
+    subject: "Changement d'horaire - {{matchName}}",
+    body: "Bonjour {{firstName}},\n\nL'horaire de {{matchName}} a changé : nouvelle date le {{matchDate}}.\n\n{{clubName}}",
+  },
+  {
+    type: 'MATCH_RESCHEDULED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.EN,
+    subject: 'Schedule change - {{matchName}}',
+    body: 'Hello {{firstName}},\n\nThe schedule for {{matchName}} has changed: new date on {{matchDate}}.\n\n{{clubName}}',
+  },
   {
     type: 'NEW_EVENT',
     channel: NotificationChannelType.EMAIL,
     locale: NotificationLocale.FR,
     subject: 'Nouvel événement - {{clubName}}',
     body: 'Bonjour {{firstName}},\n\nUn nouvel événement a été publié : {{eventTitle}}.\n\n{{clubName}}',
+  },
+  // --- ArbiNote ---
+  {
+    type: 'VOTE_ANOMALY_DETECTED',
+    channel: NotificationChannelType.EMAIL,
+    locale: NotificationLocale.FR,
+    subject: 'Anomalie de vote détectée - {{arbitreName}}',
+    body: 'Bonjour {{firstName}},\n\nUne anomalie a été détectée sur les votes de {{arbitreName}} (match {{matchName}}, score de suspicion {{suspicionScore}}). Merci de vérifier dans le back-office ArbiNote.\n\nArbiNote',
   },
   // --- Auth / sécurité ---
   {

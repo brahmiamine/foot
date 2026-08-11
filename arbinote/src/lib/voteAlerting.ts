@@ -9,6 +9,7 @@ import { VoteAlert, AlertType, AlertStatus } from './entities'
 import { Vote, Match } from './entities'
 import { detectVoteAnomalies, calculateVoteCredibility } from './voteAnomalyDetection'
 import { toPlainArray } from './serialization'
+import { notify } from './notificationClient'
 
 const CRITICAL_THRESHOLD = 0.7 // 70% de confiance = alerte critique
 const IMPORTANT_THRESHOLD = 0.5 // 50% de confiance = alerte importante
@@ -97,6 +98,9 @@ export async function createOrUpdateVoteAlert(matchId: string): Promise<VoteAler
         existingAlert.status = 'new'
       }
       await alertRepo.save(existingAlert)
+      if (alertType === 'critical' && wasImportant) {
+        await notifyCriticalVoteAlert(existingAlert.id, matchId, existingAlert.confidence)
+      }
       return existingAlert
     }
     // Si la situation s'améliore mais reste au-dessus du seuil, on garde l'alerte
@@ -114,7 +118,42 @@ export async function createOrUpdateVoteAlert(matchId: string): Promise<VoteAler
   })
 
   await alertRepo.save(alert)
+  if (alertType === 'critical') {
+    await notifyCriticalVoteAlert(alert.id, matchId, alert.confidence)
+  }
   return alert
+}
+
+/**
+ * Notifie les SUPERADMIN (toutes fédérations confondues) via notification-api
+ * quand une alerte atteint le niveau critique — jamais pour les alertes
+ * "important", pour ne pas noyer les admins. Idempotent par `alertId` : une
+ * alerte déjà critique ne renotifie pas à chaque recalcul de confiance.
+ * N'a aucun effet si NOTIFICATION_API_URL/NOTIFICATION_API_KEY ne sont pas
+ * configurés.
+ */
+async function notifyCriticalVoteAlert(alertId: string, matchId: string, confidence: number): Promise<void> {
+  const dataSource = await getDataSource()
+  const matchRepo = dataSource.getRepository<Match>('matches')
+  const match = await matchRepo.findOne({
+    where: { id: matchId },
+    relations: ['arbitre'],
+  })
+  const arbitreName = match?.arbitre?.nom ?? 'un arbitre'
+
+  await notify({
+    eventId: `vote-anomaly:${alertId}:critical`,
+    type: 'VOTE_ANOMALY_DETECTED',
+    target: { type: 'ROLE', role: 'SUPERADMIN' },
+    category: 'VOTE_ANOMALY_DETECTED',
+    title: 'Anomalie de vote détectée',
+    body: `Une anomalie critique a été détectée sur les votes de ${arbitreName}.`,
+    data: {
+      matchId,
+      arbitreName,
+      suspicionScore: Math.round(confidence * 100),
+    },
+  })
 }
 
 /**

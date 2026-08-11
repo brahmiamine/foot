@@ -7,7 +7,9 @@ import {
   Post,
   Query,
   Body,
+  UseGuards,
 } from '@nestjs/common';
+import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
 import { PaymentService } from '../../payment.service';
 import { InitPaymentDto } from '../../dto/init-payment.dto';
 import { InitPaymentResultDto } from '../../dto/init-payment-result.dto';
@@ -24,7 +26,9 @@ export class KonnectController {
 
   constructor(private readonly paymentService: PaymentService) {}
 
+  /** Reserved to backend applications of the ecosystem. */
   @Post('init')
+  @UseGuards(ServiceAuthGuard)
   async init(@Body() dto: InitPaymentDto): Promise<InitPaymentResultDto> {
     try {
       return await this.paymentService.initiateKonnectPayment(dto);

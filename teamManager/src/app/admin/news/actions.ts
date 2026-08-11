@@ -4,6 +4,25 @@ import { NewsService } from "@/services/NewsService";
 import { requireTeamId } from "@/lib/team-context";
 import { createNewsSchema, updateNewsSchema } from "@/types/news";
 import { revalidatePath } from "next/cache";
+import { notify } from "@/lib/notificationClient";
+
+/**
+ * Notifie les supporters (comptes MEMBER du club) via notification-api
+ * qu'une actualité vient d'être publiée. N'échoue jamais l'opération
+ * d'origine : une erreur ici est journalisée et avalée par notificationClient.
+ */
+async function notifyNewsPublished(newsId: number, title: string, teamId: string) {
+  await notify({
+    eventId: `news-published:${newsId}`,
+    type: "NEWS_PUBLISHED",
+    target: { type: "MEMBERS", teamId },
+    teamId,
+    category: "NEWS_PUBLISHED",
+    title: "Nouvelle actualité",
+    body: title,
+    data: { newsId, newsTitle: title },
+  });
+}
 
 /**
  * Server Actions for News CRUD operations
@@ -44,6 +63,9 @@ export async function createNews(formData: FormData) {
     }
 
     revalidatePath("/admin/news");
+    if (validatedData.status === "PUBLISHED") {
+      await notifyNewsPublished(news.id, validatedData.title, teamId);
+    }
     return { success: true, message: "Actualité créée avec succès", id: news.id };
   } catch (error) {
     return {
@@ -74,9 +96,13 @@ export async function updateNews(id: number, formData: FormData) {
     const validatedData = updateNewsSchema.parse(cleanData);
     const teamId = await requireTeamId();
     const newsService = new NewsService();
-    await newsService.update(id, teamId, validatedData);
+    const before = await newsService.findById(id, teamId);
+    const updated = await newsService.update(id, teamId, validatedData);
 
     revalidatePath("/admin/news");
+    if (before?.status !== "PUBLISHED" && updated.status === "PUBLISHED") {
+      await notifyNewsPublished(id, updated.title, teamId);
+    }
     return { success: true, message: "Actualité modifiée avec succès" };
   } catch (error) {
     return {

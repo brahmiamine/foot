@@ -48,6 +48,7 @@ describe('PaymentService', () => {
     return {
       id: 'payment-1',
       orderId: 'ORDER-1',
+      userId: null,
       provider: PaymentProviderName.KONNECT,
       amount: '25.500',
       currency: 'TND',

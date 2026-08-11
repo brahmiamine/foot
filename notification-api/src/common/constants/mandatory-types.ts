@@ -16,6 +16,7 @@ export const MANDATORY_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
   'SECURITY_ALERT',
   'ACCOUNT_SUSPENDED',
   'PASSWORD_RESET',
+  'VOTE_ANOMALY_DETECTED',
 ]);
 
 export function isMandatoryNotificationType(type: string): boolean {

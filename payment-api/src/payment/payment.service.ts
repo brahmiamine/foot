@@ -26,6 +26,9 @@ export interface PaymentPaidEvent {
   orderId: string;
   provider: PaymentProviderName;
   providerRef: string;
+  userId: string | null;
+  amount: string;
+  currency: string;
 }
 
 @Injectable()
@@ -54,6 +57,7 @@ export class PaymentService {
   ): Promise<InitPaymentResultDto> {
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
+      userId: dto.userId ?? null,
       provider: PaymentProviderName.KONNECT,
       amount: dto.amount.toFixed(3),
       currency: dto.currency ?? 'TND',
@@ -141,6 +145,9 @@ export class PaymentService {
           orderId: payment.orderId,
           provider: payment.provider,
           providerRef,
+          userId: payment.userId,
+          amount: payment.amount,
+          currency: payment.currency,
         };
         this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
         this.logger.log(
@@ -163,6 +170,7 @@ export class PaymentService {
 
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
+      userId: dto.userId ?? null,
       provider: PaymentProviderName.PAYMEE,
       amount: formatPaymeeAmount(dto.amount),
       currency: 'TND',
@@ -261,6 +269,9 @@ export class PaymentService {
           orderId: payment.orderId,
           provider: payment.provider,
           providerRef: payload.token,
+          userId: payment.userId,
+          amount: payment.amount,
+          currency: payment.currency,
         };
         this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
         this.logger.log(
@@ -281,6 +292,7 @@ export class PaymentService {
   ): Promise<InitPaymentResultDto> {
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
+      userId: dto.userId ?? null,
       provider: PaymentProviderName.FLOUCI,
       amount: dto.amount.toFixed(3),
       currency: dto.currency ?? 'TND',
@@ -369,6 +381,9 @@ export class PaymentService {
           orderId: payment.orderId,
           provider: payment.provider,
           providerRef: paymentId,
+          userId: payment.userId,
+          amount: payment.amount,
+          currency: payment.currency,
         };
         this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
         this.logger.log(
