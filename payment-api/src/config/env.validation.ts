@@ -81,6 +81,41 @@ class EnvironmentVariables {
   )
   PAYMEE_CANCEL_URL: string;
 
+  // --- Flouci ---
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'FLOUCI_BASE_URL must be a valid HTTPS URL' },
+  )
+  FLOUCI_BASE_URL: string;
+
+  @IsNotEmpty({ message: 'FLOUCI_PUBLIC_KEY is required' })
+  FLOUCI_PUBLIC_KEY: string;
+
+  @IsNotEmpty({ message: 'FLOUCI_PRIVATE_KEY is required' })
+  FLOUCI_PRIVATE_KEY: string;
+
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'FLOUCI_WEBHOOK_URL must be a valid HTTPS URL' },
+  )
+  FLOUCI_WEBHOOK_URL: string;
+
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'FLOUCI_SUCCESS_URL must be a valid HTTPS URL' },
+  )
+  FLOUCI_SUCCESS_URL: string;
+
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'FLOUCI_FAIL_URL must be a valid HTTPS URL' },
+  )
+  FLOUCI_FAIL_URL: string;
+
   // --- Database ---
   @IsNotEmpty()
   DB_HOST: string;

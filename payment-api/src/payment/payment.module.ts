@@ -7,10 +7,22 @@ import { KonnectController } from './providers/konnect/konnect.controller';
 import { KonnectModule } from './providers/konnect/konnect.module';
 import { PaymeeController } from './providers/paymee/paymee.controller';
 import { PaymeeModule } from './providers/paymee/paymee.module';
+import { FlouciController } from './providers/flouci/flouci.controller';
+import { FlouciModule } from './providers/flouci/flouci.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Payment]), KonnectModule, PaymeeModule],
-  controllers: [PaymentController, KonnectController, PaymeeController],
+  imports: [
+    TypeOrmModule.forFeature([Payment]),
+    KonnectModule,
+    PaymeeModule,
+    FlouciModule,
+  ],
+  controllers: [
+    PaymentController,
+    KonnectController,
+    PaymeeController,
+    FlouciController,
+  ],
   providers: [PaymentService],
   exports: [PaymentService],
 })

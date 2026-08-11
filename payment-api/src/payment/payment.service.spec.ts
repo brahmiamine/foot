@@ -15,6 +15,8 @@ import {
 } from './providers/paymee/paymee.exceptions';
 import { PaymeeProvider } from './providers/paymee/paymee.provider';
 import { PaymeeWebhookPayload } from './providers/paymee/paymee.types';
+import { FlouciProvider } from './providers/flouci/flouci.provider';
+import { FlouciPaymentMismatchError } from './providers/flouci/flouci.exceptions';
 
 describe('PaymentService', () => {
   let repository: jest.Mocked<
@@ -35,6 +37,9 @@ describe('PaymentService', () => {
   >;
   let paymeeProvider: jest.Mocked<
     Pick<PaymeeProvider, 'initiatePayment' | 'verifyChecksum' | 'verifyPayment'>
+  >;
+  let flouciProvider: jest.Mocked<
+    Pick<FlouciProvider, 'initiatePayment' | 'verifyPayment'>
   >;
   let eventEmitter: jest.Mocked<Pick<EventEmitter2, 'emit'>>;
   let service: PaymentService;
@@ -94,12 +99,18 @@ describe('PaymentService', () => {
       verifyPayment: jest.fn(),
     };
 
+    flouciProvider = {
+      initiatePayment: jest.fn(),
+      verifyPayment: jest.fn(),
+    };
+
     eventEmitter = { emit: jest.fn() };
 
     service = new PaymentService(
       repository as unknown as Repository<Payment>,
       konnectProvider as unknown as KonnectProvider,
       paymeeProvider as unknown as PaymeeProvider,
+      flouciProvider as unknown as FlouciProvider,
       eventEmitter as unknown as EventEmitter2,
     );
   });
@@ -425,6 +436,169 @@ describe('PaymentService', () => {
       await expect(
         service.handlePaymeeWebhook(buildPaymeeWebhookPayload({ amount: 1 })),
       ).rejects.toThrow(PaymeePaymentMismatchError);
+      expect(queryBuilder.execute).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('initiateFlouciPayment', () => {
+    it('creates a pending payment, then records payUrl/providerRef from Flouci, tracked by the internal id', async () => {
+      flouciProvider.initiatePayment.mockResolvedValue({
+        payUrl: 'https://flouci.com/pay/FoPKKHqfQIKfBqhEj8M47A',
+        providerRef: 'FoPKKHqfQIKfBqhEj8M47A',
+      });
+
+      const result = await service.initiateFlouciPayment({
+        orderId: 'ORDER-1',
+        amount: 25.5,
+        currency: 'TND',
+      });
+
+      expect(result).toEqual({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        paymentId: expect.any(String),
+        payUrl: 'https://flouci.com/pay/FoPKKHqfQIKfBqhEj8M47A',
+        providerRef: 'FoPKKHqfQIKfBqhEj8M47A',
+      });
+      expect(flouciProvider.initiatePayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          trackingId: result.paymentId,
+          amount: 25.5,
+        }),
+      );
+      expect(repository.save).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('handleFlouciWebhook', () => {
+    function buildFlouciPayment(overrides: Partial<Payment> = {}): Payment {
+      return buildPayment({
+        provider: PaymentProviderName.FLOUCI,
+        providerRef: 'FoPKKHqfQIKfBqhEj8M47A',
+        amount: '25.500',
+        payUrl: 'https://flouci.com/pay/FoPKKHqfQIKfBqhEj8M47A',
+        ...overrides,
+      });
+    }
+
+    it('throws NotFoundException when no payment matches the payment_id', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.handleFlouciWebhook('unknown-payment-id'),
+      ).rejects.toThrow(NotFoundException);
+      expect(flouciProvider.verifyPayment).not.toHaveBeenCalled();
+    });
+
+    it('marks the payment PAID and emits payment.paid for a SUCCESS verification', async () => {
+      const payment = buildFlouciPayment({ status: PaymentStatus.PENDING });
+      repository.findOne.mockResolvedValue(payment);
+      flouciProvider.verifyPayment.mockResolvedValue({
+        providerStatus: 'SUCCESS',
+        internalStatus: PaymentStatus.PAID,
+      });
+
+      await service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(flouciProvider.verifyPayment).toHaveBeenCalledWith(
+        'FoPKKHqfQIKfBqhEj8M47A',
+        { trackingId: payment.id, amount: '25.500' },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        PAYMENT_PAID_EVENT,
+        expect.objectContaining({ paymentId: payment.id, orderId: 'ORDER-1' }),
+      );
+    });
+
+    it('updates the payment to PENDING (no event) for a PENDING verification', async () => {
+      const payment = buildFlouciPayment({ status: PaymentStatus.PENDING });
+      repository.findOne.mockResolvedValue(payment);
+      flouciProvider.verifyPayment.mockResolvedValue({
+        providerStatus: 'PENDING',
+        internalStatus: PaymentStatus.PENDING,
+      });
+
+      await service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(repository.update).toHaveBeenCalledWith(
+        payment.id,
+        expect.objectContaining({
+          status: PaymentStatus.PENDING,
+          lastProviderStatus: 'PENDING',
+        }),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('updates the payment to EXPIRED for an EXPIRED verification', async () => {
+      const payment = buildFlouciPayment({ status: PaymentStatus.PENDING });
+      repository.findOne.mockResolvedValue(payment);
+      flouciProvider.verifyPayment.mockResolvedValue({
+        providerStatus: 'EXPIRED',
+        internalStatus: PaymentStatus.EXPIRED,
+      });
+
+      await service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(repository.update).toHaveBeenCalledWith(
+        payment.id,
+        expect.objectContaining({ status: PaymentStatus.EXPIRED }),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('updates the payment to FAILED for a FAILURE verification', async () => {
+      const payment = buildFlouciPayment({ status: PaymentStatus.PENDING });
+      repository.findOne.mockResolvedValue(payment);
+      flouciProvider.verifyPayment.mockResolvedValue({
+        providerStatus: 'FAILURE',
+        internalStatus: PaymentStatus.FAILED,
+      });
+
+      await service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(repository.update).toHaveBeenCalledWith(
+        payment.id,
+        expect.objectContaining({ status: PaymentStatus.FAILED }),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('is idempotent: a second webhook for an already-PAID payment is a no-op and skips verify_payment', async () => {
+      const payment = buildFlouciPayment({
+        status: PaymentStatus.PAID,
+        paidAt: new Date(),
+      });
+      repository.findOne.mockResolvedValue(payment);
+
+      await service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(flouciProvider.verifyPayment).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('always records the webhook delivery, even before checking idempotency', async () => {
+      const payment = buildFlouciPayment({ status: PaymentStatus.PAID });
+      repository.findOne.mockResolvedValue(payment);
+
+      await service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(repository.update).toHaveBeenCalledWith(
+        payment.id,
+        expect.objectContaining({ webhookReceivedCount: 1 }),
+      );
+    });
+
+    it('propagates a mismatch and never flips the payment to PAID', async () => {
+      const payment = buildFlouciPayment({ status: PaymentStatus.PENDING });
+      repository.findOne.mockResolvedValue(payment);
+      flouciProvider.verifyPayment.mockRejectedValue(
+        new FlouciPaymentMismatchError('amount mismatch'),
+      );
+
+      await expect(
+        service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A'),
+      ).rejects.toThrow(FlouciPaymentMismatchError);
       expect(queryBuilder.execute).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });

@@ -1,0 +1,56 @@
+import 'reflect-metadata';
+import { validateEnv } from './env.validation';
+
+describe('validateEnv', () => {
+  function validEnv(
+    overrides: Record<string, string> = {},
+  ): Record<string, string> {
+    return {
+      KONNECT_BASE_URL: 'https://api.sandbox.konnect.network/api/v2',
+      KONNECT_API_KEY: 'konnect-key',
+      KONNECT_WALLET_ID: 'wallet-123',
+      KONNECT_WEBHOOK_URL: 'https://api.example.com/payments/konnect/webhook',
+      PAYMEE_BASE_URL: 'https://sandbox.paymee.tn/api/v2',
+      PAYMEE_API_KEY: 'paymee-key',
+      PAYMEE_WEBHOOK_URL:
+        'https://api.example.com/payments/providers/paymee/webhook',
+      PAYMEE_RETURN_URL: 'https://example.com/payment/return',
+      PAYMEE_CANCEL_URL: 'https://example.com/payment/cancel',
+      FLOUCI_BASE_URL: 'https://developers.flouci.com',
+      FLOUCI_PUBLIC_KEY: 'flouci-public-key',
+      FLOUCI_PRIVATE_KEY: 'flouci-private-key',
+      FLOUCI_WEBHOOK_URL:
+        'https://api.example.com/payments/providers/flouci/webhook',
+      FLOUCI_SUCCESS_URL: 'https://example.com/payment/success',
+      FLOUCI_FAIL_URL: 'https://example.com/payment/fail',
+      DB_HOST: 'localhost',
+      DB_USERNAME: 'payment_api',
+      DB_DATABASE: 'payment_api',
+      ...overrides,
+    };
+  }
+
+  it('accepts a fully populated, valid environment', () => {
+    expect(() => validateEnv(validEnv())).not.toThrow();
+  });
+
+  it('rejects an environment missing FLOUCI_PUBLIC_KEY (absent credentials)', () => {
+    const env = validEnv();
+    delete (env as Record<string, string | undefined>).FLOUCI_PUBLIC_KEY;
+
+    expect(() => validateEnv(env)).toThrow(/FLOUCI_PUBLIC_KEY/);
+  });
+
+  it('rejects an environment missing FLOUCI_PRIVATE_KEY (absent credentials)', () => {
+    const env = validEnv();
+    delete (env as Record<string, string | undefined>).FLOUCI_PRIVATE_KEY;
+
+    expect(() => validateEnv(env)).toThrow(/FLOUCI_PRIVATE_KEY/);
+  });
+
+  it('rejects an environment with an invalid FLOUCI_BASE_URL', () => {
+    const env = validEnv({ FLOUCI_BASE_URL: 'not a url' });
+
+    expect(() => validateEnv(env)).toThrow(/FLOUCI_BASE_URL/);
+  });
+});
