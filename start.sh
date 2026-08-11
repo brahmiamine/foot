@@ -98,6 +98,32 @@ else
   echo "✅ Colonne Card.period déjà présente."
 fi
 
+# Un carton par joueur/match/type au plus : ferme la course entre les deux
+# écrivains de Card (teamManager en discipline, matchsheet en live — voir
+# db/OWNERSHIP.md § « Card a deux écrivains »). CardService (teamManager) et
+# CardEventService (matchsheet) traduisent déjà la violation de contrainte
+# en erreur utilisateur (DuplicateCardError).
+echo "🔧 Vérification du schéma (Card unique playerId+matchId+type)..."
+CARD_UNIQUE_EXISTS="$(docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -Nse "
+  SELECT 1
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'foot'
+    AND TABLE_NAME = 'Card'
+    AND INDEX_NAME = 'uq_card_player_match_type'
+  LIMIT 1
+")"
+
+if [ "$CARD_UNIQUE_EXISTS" != "1" ]; then
+  echo "🧱 Ajout de la contrainte unique Card(playerId, matchId, type)..."
+  docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+    ALTER TABLE Card
+      ADD UNIQUE INDEX uq_card_player_match_type (playerId, matchId, type);
+  "
+  echo "✅ Contrainte unique Card ajoutée."
+else
+  echo "✅ Contrainte unique Card déjà présente."
+fi
+
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
 

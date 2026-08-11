@@ -28,6 +28,26 @@ export class DoubleYellowRequiredError extends Error {
 }
 
 /**
+ * Levée quand la contrainte unique `Card(playerId, matchId, type)` refuse
+ * l'insertion — deux écritures concurrentes pour le même joueur/match/type
+ * (ex. saisie simultanée dans teamManager et matchsheet, ou double clic) :
+ * voir db/OWNERSHIP.md § « Card a deux écrivains ». Le contrôle applicatif
+ * `existingYellow` ci-dessous reste utile pour un message immédiat sans
+ * aller-retour DB, mais seule la contrainte SQL ferme réellement la course.
+ */
+export class DuplicateCardError extends Error {
+  constructor() {
+    super("Un carton de ce type existe déjà pour ce joueur sur ce match (écriture concurrente détectée).");
+    this.name = "DuplicateCardError";
+  }
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  const code = (error as { code?: string } | undefined)?.code;
+  return code === "ER_DUP_ENTRY";
+}
+
+/**
  * Service for Card operations — port de cardManager/app/api/cards. Crée
  * automatiquement l'amende associée (règlement FTF) et déclenche
  * `SuspensionService.checkAndCreateSuspension`.
@@ -96,7 +116,12 @@ export class CardService {
       createdBy,
       isNeutralized: false,
     });
-    await repository.save(card);
+    try {
+      await repository.save(card);
+    } catch (error) {
+      if (isDuplicateKeyError(error)) throw new DuplicateCardError();
+      throw error;
+    }
 
     const fine = fineRepo.create({
       id: randomUUID(),

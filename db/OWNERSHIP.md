@@ -60,10 +60,20 @@ peu importe qui les saisit), mais ça veut dire concrètement :
 - toute évolution du schéma de `Card` (colonne ajoutée/renommée/supprimée)
   doit être validée côté `teamManager` **et** `matchsheet`, jamais l'un
   sans l'autre ;
-- un futur conflit d'écriture concurrente (ex. correction manuelle dans
-  `teamManager` pendant qu'un match est en direct sur `matchsheet`) n'est
-  géré par aucun verrou aujourd'hui — à surveiller si ce cas se produit en
-  pratique.
+- ~~un futur conflit d'écriture concurrente... n'est géré par aucun verrou
+  aujourd'hui~~ — **corrigé** : une contrainte unique `Card(playerId,
+  matchId, type)` (voir `start.sh`, bloc idempotent après `Card.period`)
+  empêche désormais deux insertions concurrentes pour le même joueur/match/
+  type de créer un doublon, que ce soit une vraie course entre les deux
+  écrivains ou un double clic/retry réseau côté client. `CardService`
+  (`teamManager`) et `CardEventService` (`matchsheet`) traduisent la
+  violation de contrainte SQL (`ER_DUP_ENTRY`) en `DuplicateCardError`
+  plutôt que de laisser planter la requête. Un verrou applicatif
+  (`SELECT ... FOR UPDATE`) n'aurait pas suffi ici : sur une première
+  insertion (aucune ligne existante à verrouiller), il ne protège pas
+  contre la « phantom row » — seule une contrainte au niveau de la base,
+  imposée par MariaDB indépendamment du process qui écrit, ferme réellement
+  la course entre deux apps distinctes.
 
 ## Point d'attention : `matches.status` — la machine d'état commune du match
 

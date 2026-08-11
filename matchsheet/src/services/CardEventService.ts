@@ -14,6 +14,27 @@ interface CreateCardInput {
 }
 
 /**
+ * Levée quand la contrainte unique `Card(playerId, matchId, type)` refuse
+ * l'insertion — même carton déjà saisi pour ce joueur/match, que ce soit
+ * côté teamManager (discipline) ou ici en live : voir db/OWNERSHIP.md §
+ * « Card a deux écrivains ». matchsheet ne fait aucun contrôle applicatif
+ * préalable (contrairement à teamManager/CardService), la contrainte SQL
+ * est donc ici le seul garde-fou contre un double clic ou une course avec
+ * l'autre écrivain.
+ */
+export class DuplicateCardError extends Error {
+  constructor() {
+    super("Un carton de ce type a déjà été saisi pour ce joueur sur ce match.");
+    this.name = "DuplicateCardError";
+  }
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  const code = (error as { code?: string } | undefined)?.code;
+  return code === "ER_DUP_ENTRY";
+}
+
+/**
  * Service for Card operations. matchsheet écrit directement dans la table
  * `Card` partagée avec cardManager/teamManager : un carton donné pendant le
  * match reste ainsi immédiatement visible dans le module discipline du
@@ -50,7 +71,12 @@ export class CardEventService {
       createdBy: "matchsheet",
       isNeutralized: false,
     });
-    return repository.save(card);
+    try {
+      return await repository.save(card);
+    } catch (error) {
+      if (isDuplicateKeyError(error)) throw new DuplicateCardError();
+      throw error;
+    }
   }
 
   async delete(id: string): Promise<void> {

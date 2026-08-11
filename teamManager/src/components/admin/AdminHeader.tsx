@@ -35,8 +35,9 @@ export function AdminHeader({ userName }: { userName: string }) {
         <div className="d-flex align-items-center gap-2 gap-sm-3">
           {userName && <span className="d-none d-sm-inline text-muted small">{userName}</span>}
           <button
-            onClick={() => {
-              window.location.href = "/api/logout";
+            onClick={async () => {
+              await fetch("/api/logout", { method: "POST" });
+              window.location.reload();
             }}
             className="btn btn-outline-secondary btn-sm"
           >
