@@ -1,21 +1,16 @@
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { PageChrome } from "@/components/PageChrome";
-import { getSsoSession, buildMemberLoginUrlForPath, buildLogoutUrl } from "@/lib/ssoSession";
+import { getSsoSession, buildLogoutUrl } from "@/lib/ssoSession";
 import shared from "@/components/shared.module.css";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Espace membre — Olympique de Béja",
+  title: "Mon profil — Espace membre — Olympique de Béja",
 };
 
-export default async function EspaceMembrePage() {
+export default async function ProfilPage() {
   const session = await getSsoSession();
-
-  if (!session) {
-    redirect(await buildMemberLoginUrlForPath("/espace-membre"));
-  }
+  if (!session) return null; // garde déjà assurée par le layout parent
 
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
@@ -23,23 +18,17 @@ export default async function EspaceMembrePage() {
   const logoutUrl = buildLogoutUrl(`${proto}://${host}/`);
 
   return (
-    <PageChrome>
-      <div className={shared.sectionPad}>
-        <div className={shared.container}>
-          <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-            Espace membre
-          </h1>
-          <div className={shared.card} style={{ padding: 24 }}>
-            <p>
-              Bienvenue, <strong>{session.name}</strong>.
-            </p>
-            <p>{session.email}</p>
-            <a href={logoutUrl} className={shared.btnPrimary} style={{ marginTop: 16, display: "inline-block" }}>
-              Se déconnecter
-            </a>
-          </div>
-        </div>
-      </div>
-    </PageChrome>
+    <div className={shared.card} style={{ padding: 24, maxWidth: 480 }}>
+      <h2 style={{ marginTop: 0 }}>Profil</h2>
+      <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", margin: "16px 0" }}>
+        <dt style={{ color: "var(--ob-text-faint)" }}>Nom</dt>
+        <dd style={{ margin: 0 }}>{session.name}</dd>
+        <dt style={{ color: "var(--ob-text-faint)" }}>Email</dt>
+        <dd style={{ margin: 0 }}>{session.email}</dd>
+      </dl>
+      <a href={logoutUrl} className={shared.btnPrimary} style={{ display: "inline-block" }}>
+        Se déconnecter
+      </a>
+    </div>
   );
 }

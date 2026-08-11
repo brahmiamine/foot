@@ -25,8 +25,17 @@ Hiérarchie définie dans la spec et reflétée par `roles`/`users` : `ADMIN`, `
 
 - **Boutique multi-vendeurs** avec commissions et paiement en ligne (côté produit/client, pas seulement gestion admin).
 - **Espace supporter/communauté** : fil d'actualité, vote homme du match, sondages, pronostics, points de fidélité, badges, mur des supporters, contenus exclusifs, live texte, QR code de présence stade, résumé de match généré par IA.
-- **PWA** complète (manifest, service worker, notifications push) — voir [`../roadmap.md`](../roadmap.md) § 3.
-- **Notifications centralisées** (email + push, ciblage par club/rôle/joueur/supporter) — voir [`../roadmap.md`](../roadmap.md) § 2.
+- **Notifications centralisées** (email + push, ciblage par club/rôle/joueur/supporter) — voir [`../roadmap.md`](../roadmap.md) § 2. Le module `notifications` interne (`entities/Notification.ts`) reste indépendant de `notification-api` ; le câblage vers ce dernier n'est pas encore fait.
+
+## PWA
+
+`manifest.json` + `public/sw.js` (app shell : cache des assets statiques,
+page `offline.html` de secours pour la navigation), icônes dans
+`public/icons/`, bannière d'installation (`PwaInstallPrompt.tsx`,
+évènement `beforeinstallprompt`) — voir [`../roadmap.md`](../roadmap.md) § 3.
+Pas de synchronisation offline des écritures (formulaires/CRUD) ni de
+notifications push (dépend du câblage `notification-api` ci-dessus) : hors
+périmètre de ce chantier.
 
 Voir [`../roadmap.md`](../roadmap.md) pour le détail et les priorités de ce backlog.
 

@@ -22,6 +22,10 @@ import { Announcement } from "@/entities/Announcement";
 import { TeamSocials } from "@/entities/TeamSocials";
 import { ContactInfo } from "@/entities/ContactInfo";
 import { Sponsor } from "@/entities/Sponsor";
+import { Goal } from "@/entities/Goal";
+import { Substitution } from "@/entities/Substitution";
+import { Injury } from "@/entities/Injury";
+import { Card } from "@/entities/Card";
 
 /**
  * Connexion en lecture seule à la base "foot" partagée avec arbinote,
@@ -68,6 +72,10 @@ export async function getDataSource(): Promise<DataSource> {
         TeamSocials,
         ContactInfo,
         Sponsor,
+        Goal,
+        Substitution,
+        Injury,
+        Card,
       ],
       migrations: [],
       charset: "utf8mb4",

@@ -7,9 +7,11 @@ import { PublicStandingsService } from "@/services/PublicStandingsService";
 import { PublicGalleryService } from "@/services/PublicGalleryService";
 import { PublicShopService } from "@/services/PublicShopService";
 import { PublicStadiumService } from "@/services/PublicStadiumService";
+import { LiveMatchService } from "@/services/LiveMatchService";
 import { Nav } from "@/components/Nav";
 import { Hero } from "@/components/Hero";
 import { NextMatchBar } from "@/components/NextMatchBar";
+import { LiveMatchSection } from "@/components/LiveMatchSection";
 import { RecentResults } from "@/components/RecentResults";
 import { NewsSection } from "@/components/NewsSection";
 import { SquadSection } from "@/components/SquadSection";
@@ -42,11 +44,30 @@ export default async function HomePage() {
     stadiumService.getHomeStadium(team.id),
   ]);
 
+  const isLive = nextMatch?.status === "IN_PROGRESS";
+  const [liveEvents, liveScore] = isLive
+    ? await Promise.all([
+        new LiveMatchService().getEvents(nextMatch.id),
+        new LiveMatchService().getLiveScore(nextMatch.id, nextMatch.equipeHome, nextMatch.equipeAway),
+      ])
+    : [null, null];
+
   return (
     <div style={{ minHeight: "100vh" }}>
       <Nav teamName={team.nom} />
       <Hero />
-      <NextMatchBar match={nextMatch} obTeamId={team.id} homeStadium={homeStadium} />
+      {isLive && nextMatch && liveEvents && liveScore ? (
+        <LiveMatchSection
+          matchId={nextMatch.id}
+          homeTeamName={nextMatch.homeTeam?.nom ?? "?"}
+          awayTeamName={nextMatch.awayTeam?.nom ?? "?"}
+          initialStatus={nextMatch.status}
+          initialScore={liveScore}
+          initialEvents={liveEvents}
+        />
+      ) : (
+        <NextMatchBar match={nextMatch} obTeamId={team.id} homeStadium={homeStadium} />
+      )}
       <Reveal variant="left">
         <RecentResults results={recentResults} obTeamId={team.id} />
       </Reveal>
