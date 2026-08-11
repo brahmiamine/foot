@@ -15,7 +15,8 @@ export interface Credentials {
  * de teamManager (src/lib/auth.ts) :
  * - un compte ADMIN/OBSERVATEUR n'est valide que pour SON club (teamId doit
  *   correspondre au club sélectionné à l'écran de connexion) ;
- * - SUPERADMIN n'a pas de club (teamId doit être absent).
+ * - SUPERADMIN n'a pas de club (teamId doit être absent) ;
+ * - MEMBER (espace membre public de `ob`) n'est pas scopé par club non plus.
  */
 export async function authenticate(credentials: Credentials): Promise<SsoUser | null> {
   const dataSource = await getDataSource();
@@ -27,7 +28,7 @@ export async function authenticate(credentials: Credentials): Promise<SsoUser | 
   const valid = await bcrypt.compare(credentials.password, user.password);
   if (!valid) return null;
 
-  if (user.role === "SUPERADMIN") {
+  if (user.role === "SUPERADMIN" || user.role === "MEMBER") {
     if (credentials.teamId) return null;
   } else {
     if (!user.teamId || user.teamId !== credentials.teamId) return null;

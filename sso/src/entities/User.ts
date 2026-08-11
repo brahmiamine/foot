@@ -3,8 +3,8 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } fro
 /**
  * Mappée sur la table `User` partagée par matchsheet/arbinote/superadmin/
  * teamManager (même base "foot"). Le SSO est le seul endroit qui vérifie un
- * mot de passe : les 4 autres apps ne font que valider le cookie de session
- * qu'il émet.
+ * mot de passe : les 5 autres apps (dont `ob`, pour l'espace membre) ne
+ * font que valider le cookie de session qu'il émet.
  */
 @Entity("User")
 export class User {
@@ -22,10 +22,10 @@ export class User {
 
   @Column({
     type: "enum",
-    enum: ["ADMIN", "OBSERVATEUR", "SUPERADMIN"],
+    enum: ["ADMIN", "OBSERVATEUR", "SUPERADMIN", "MEMBER"],
     default: "OBSERVATEUR",
   })
-  role!: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN";
+  role!: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER";
 
   @Column({ type: "tinyint" })
   isActive!: boolean;
