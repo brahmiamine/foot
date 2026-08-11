@@ -71,12 +71,49 @@ Aucun de ces domaines n'est actuellement configuré (DNS/SSL/reverse proxy) — 
 | `api.platform.tn` | Passerelle API générique — **n'existe pas encore** ; `payment-api` et `notification-api` sont aujourd'hui exposées séparément |
 | `superadmin.platform.tn` | `superadmin` |
 
+#### Principe : un seul domaine par appli générique, jamais un sous-domaine par club
+
+`admin.platform.tn`, `sellers.platform.tn`, `tickets.platform.tn` et `scanner.platform.tn` servent **tous les clubs à la fois** — il ne faut jamais créer `admin-ob.platform.tn` ou `admin-est.platform.tn`. Ce qui change n'est pas l'URL mais le **contexte authentifié** (`teamId` résolu par le SSO) :
+
+| Application | Olympique de Béja | Espérance de Tunis |
+|---|---|---|
+| Site public custom | `www.ob.tn` | — (pas de projet custom EST tant qu'il n'est pas développé) |
+| TeamManager | `admin.platform.tn` | `admin.platform.tn` |
+| Seller Portal | `sellers.platform.tn` | `sellers.platform.tn` |
+| Billetterie | `tickets.platform.tn` | `tickets.platform.tn` |
+| Contrôle billets | `scanner.platform.tn` | `scanner.platform.tn` |
+
+```
+admin.platform.tn/login → SSO → teamId=OB  → branding/joueurs/couleurs OB
+                                → teamId=EST → branding/joueurs/couleurs EST
+```
+
+Même URL, contenu différent selon le club authentifié — c'est exactement le rôle du `ClubBranding` décrit plus haut. `ob` reste le seul cas différent : c'est un **second projet, custom**, pas un tenant de plus dans une appli générique. Si l'Espérance de Tunis commande un jour un site vitrine équivalent, ce serait un nouveau projet custom (`est`, `www.est.tn`) indépendant de `ob`, pas une évolution de `ob` ni de `teamManager`.
+
+Pour la billetterie, le club peut aussi apparaître dans le chemin plutôt qu'être déduit uniquement de la session (`tickets.platform.tn/ob`, `tickets.platform.tn/est`) : `/ob` et `/est` ne sont pas deux déploiements différents, seulement deux contextes de la même application. **Règle de sécurité** : le slug d'URL ne doit jamais servir directement de filtre de données. Le serveur doit toujours le résoudre en `teamId` (`resolveTeam("ob") → teamId`), vérifier l'autorisation, puis filtrer `WHERE team_id = teamId` — jamais `WHERE team_slug = request.params.slug` sans ce contrôle, qui laisserait n'importe quel appelant changer de club en changeant l'URL.
+
+Dans la même logique, les catégories de billets ne doivent pas être un enum fixe dans le code (`GRADIN`, `CHAISE`, …) : chaque club doit pouvoir définir les siennes (ex. OB : Gradin/Chaise ; EST : Virage/Tribune/VIP) via une configuration par club, pas via une modification de code.
+
+#### Passerelle API : un domaine, des chemins par service — pas un sous-domaine par service
+
+`api.platform.tn` doit rester un point d'entrée unique routé par chemin vers les services internes, plutôt qu'un sous-domaine par service :
+
+```
+api.platform.tn/payment/*        → payment-api
+api.platform.tn/notifications/*  → notification-api
+api.platform.tn/marketplace/*    → marketplace-api (futur)
+api.platform.tn/ticketing/*      → ticketing (futur)
+```
+
+au lieu de `payment-api.platform.tn`, `notification-api.platform.tn`, etc. Les services (`payment-api`, `notification-api`, …) peuvent rester des projets et des déploiements totalement séparés en interne ; seul le préfixe de chemin derrière la passerelle/reverse proxy est public. Cela permet de changer l'infrastructure (Docker, Kubernetes, autre hébergeur) sans jamais changer les URLs consommées par les frontends. **Nom de projet Git ≠ nom de service interne ≠ URL publique** : par exemple le projet `payment-api` peut rester `payment-api` en interne tout en étant exposé publiquement sous `api.platform.tn/payment`.
+
 ### Écarts connus avec l'architecture cible
 
 - **`sellerPortal`** : le renommage (`ob-seller-portal` → `sellerPortal`) et la généralisation des textes d'interface sont faits, mais le schéma (`sp_*`) n'a pas de colonne `clubId`/`teamId` — c'est encore un déploiement mono-club en pratique. Voir `sellerPortal/README.md` § « Portée V1 ».
 - **`teamManager`** : le nom/branding par défaut (manifest PWA, couleur de thème) a été neutralisé, mais il n'y a pas encore de mécanisme `ClubBranding` dynamique (logo/couleurs/favicon résolus par club) — actuellement une seule identité visuelle par défaut pour tous les clubs.
 - **Billetterie / contrôle billetterie** : n'existent pas comme services génériques indépendants dans ce repo. La billetterie vécue aujourd'hui (`ob/espace-membre/billets`) est intégrée à l'app custom `ob`. L'extraction en service générique multi-clubs est un chantier de roadmap, pas fait dans le cadre de cette normalisation (pas de réécriture non nécessaire, cf. contrainte de la mission).
-- **API Gateway** : pas de domaine `api.platform.tn` unifié ; `payment-api`/`notification-api` restent des services distincts avec leurs propres bases.
+- **API Gateway** : pas de domaine `api.platform.tn` unifié ; `payment-api`/`notification-api` restent des services distincts avec leurs propres bases. Le routage par chemin (`/payment`, `/notifications`, …) décrit ci-dessus n'est pas encore en place — c'est une tâche d'infrastructure (reverse proxy), pas de code applicatif.
+- **Base de données par domaine** : `payment-api` et `notification-api` ont déjà leur propre base, mais les applications métier (`teamManager`, `sellerPortal`, `arbinote`, `matchsheet`, `ob`) partagent encore la base `foot`. Une séparation en bases par domaine (référentiel/clubs/matchs, marketplace, …) est une évolution possible à moyen terme, à ne déclencher que lorsque ces domaines évoluent réellement de façon indépendante — pas une priorité de cette normalisation.
 
 ## Démarrage local
 
@@ -101,7 +138,7 @@ Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `330
 Ce qui suit ne peut pas être fait depuis ce repo seul et doit être traité séparément (infra/DNS/secrets) :
 
 - **DNS / SSL / reverse proxy** : aucun des domaines cibles (`www.ob.tn`, `sso.platform.tn`, `admin.platform.tn`, `sellers.platform.tn`, `tickets.platform.tn`, `scanner.platform.tn`, `api.platform.tn`, `superadmin.platform.tn`) n'existe aujourd'hui — achat/délégation de domaine, certificats et configuration Nginx/Traefik sont à faire hors repo.
-- **`SSO_COOKIE_DOMAIN`** : pour un cookie SSO partagé entre plusieurs sous-domaines `*.platform.tn`, cette variable (déjà supportée par `sso`, voir son README) doit être positionnée en production sur le domaine parent (`.platform.tn`) — vérifier aussi le domaine séparé `ob.tn`, hors du périmètre `*.platform.tn`, qui ne peut pas partager ce cookie sans mécanisme dédié (SSO cross-domaine, à concevoir si le besoin apparaît).
+- **`SSO_COOKIE_DOMAIN`** : pour un cookie SSO partagé entre plusieurs sous-domaines `*.platform.tn` (`admin.`, `sellers.`, `tickets.`, `scanner.`, `superadmin.`, …), cette variable (déjà supportée par `sso`, voir son README) doit être positionnée en production sur le domaine parent (`.platform.tn`), avec `HttpOnly`, `Secure` et `SameSite=Lax`. Vérifier aussi le domaine séparé `ob.tn`, hors du périmètre `*.platform.tn`, qui ne peut pas partager ce cookie sans mécanisme dédié (SSO cross-domaine, à concevoir si le besoin apparaît). Ne pas mélanger ce cookie avec celui de `sellerPortal` (`SP_JWT_SECRET`, cookie propre) : un vendeur n'est pas un utilisateur `sso`, les deux identités et les deux cookies doivent rester indépendants même une fois tous les sous-domaines déployés sous `.platform.tn`.
 - **CORS** : chaque app back-end (`payment-api`, `notification-api`, `sso`) doit avoir ses origines autorisées mises à jour avec les domaines de production définitifs une fois connus.
 - **Callback OAuth (Google)** : `sso` gère la connexion Google — les URIs de redirection autorisées côté Google Cloud Console devront être mises à jour pour `https://sso.platform.tn/...` en production.
 - **Secrets/variables d'environnement** : `SSO_JWT_SECRET`, `SP_JWT_SECRET`, `SERVICE_API_KEYS`, clés des providers de paiement (Konnect/Paymee/Flouci) et clés push (VAPID) doivent être générées/gérées via un secret manager en production — aucune valeur réelle n'est commitée (seuls des `*.env.example` existent), mais leur provisioning reste une action manuelle par environnement.
