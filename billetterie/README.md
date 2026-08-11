@@ -46,13 +46,16 @@ auprès de `payment-api` (`PAYMENT_PROVIDER`, `konnect` par défaut — voir
 redirection — opportunément à chaque chargement de `/mes-billets` (voir
 `reconcileTicketPayment` dans `src/lib/tickets.ts`).
 
-⚠️ **Limite connue avec le provider par défaut (Konnect)** : l'intégration
-Konnect de `payment-api` ne transmet pas de `successUrl`/`failUrl` à
-Konnect (voir `payment-api/src/payment/providers/konnect/konnect.types.ts`) —
-le payeur n'est donc **pas** automatiquement redirigé vers
-`/paiement/retour` après paiement. Ça fonctionne quand même grâce au
-rattrapage sur `/mes-billets`, mais un supporter qui ne revient jamais sur
-le site ne verra jamais la confirmation avant sa prochaine visite.
+L'intégration Konnect de `payment-api` transmet `successUrl`/`failUrl` (avec
+`?paymentId=...` ajouté automatiquement, voir `konnect.mapper.ts`,
+`withPaymentId`), construits à partir de `KONNECT_SUCCESS_URL`/
+`KONNECT_FAIL_URL` côté `payment-api` — à pointer vers
+`{BILLETTERIE_URL}/paiement/retour` en production pour que le payeur soit
+redirigé automatiquement. Si ces variables ne sont pas configurées, le
+payeur n'est pas redirigé automatiquement, mais ça fonctionne quand même
+grâce au rattrapage sur `/mes-billets` (un supporter qui ne revient jamais
+sur le site ne verra simplement pas la confirmation avant sa prochaine
+visite).
 
 Une réservation `PENDING` sans confirmation après 30 minutes est traitée
 comme abandonnée et sa capacité libérée automatiquement à la prochaine

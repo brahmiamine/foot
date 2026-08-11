@@ -46,6 +46,8 @@ describe('KonnectClient', () => {
     apiKey: 'test-api-key',
     walletId: 'wallet-123',
     webhookUrl: 'https://payment-api.example.com/payments/konnect/webhook',
+    successUrl: 'https://payment-api.example.com/payment/success',
+    failUrl: 'https://payment-api.example.com/payment/fail',
   };
 
   let request: jest.Mock<Observable<AxiosResponse>, [AxiosRequestConfig]>;

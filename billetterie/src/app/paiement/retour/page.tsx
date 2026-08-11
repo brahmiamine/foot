@@ -4,15 +4,15 @@ import { reconcileTicketPayment } from "@/lib/tickets";
 export const dynamic = "force-dynamic";
 
 // Page de statut atteignable à la main (ex: lien envoyé par email) ou par
-// redirection automatique du provider si configurée. Limite connue :
-// l'intégration Konnect de payment-api ne transmet pas de successUrl/
-// failUrl à Konnect (voir konnect.types.ts, KonnectInitPaymentRequest —
-// champ absent) : avec le provider par défaut (Konnect), le payeur n'est
-// PAS automatiquement redirigé ici après paiement. Le vrai filet de
-// sécurité pour ce cas est le rattrapage opportuniste dans
-// listMyTickets (voir src/lib/tickets.ts), qui ne dépend d'aucune
-// redirection — un supporter qui revient sur "Mes billets" verra son
-// billet passer PENDING -> PAID même sans jamais atteindre cette page.
+// redirection automatique du provider. Konnect redirige ici automatiquement
+// si KONNECT_SUCCESS_URL/KONNECT_FAIL_URL sont configurées côté payment-api
+// (voir konnect.mapper.ts, withPaymentId — paymentId ajouté en query string
+// par payment-api lui-même) ; sans ces variables d'environnement, le payeur
+// n'est pas redirigé automatiquement. Dans tous les cas, le vrai filet de
+// sécurité est le rattrapage opportuniste dans listMyTickets (voir
+// src/lib/tickets.ts), qui ne dépend d'aucune redirection — un supporter qui
+// revient sur "Mes billets" verra son billet passer PENDING -> PAID même
+// sans jamais atteindre cette page.
 export default async function PaymentReturnPage({
   searchParams,
 }: {

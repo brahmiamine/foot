@@ -69,6 +69,22 @@ export interface KonnectInitPaymentInput {
   lastName?: string;
   email?: string;
   phoneNumber?: string;
+  /** Our internal Payment.id, appended as ?paymentId=... to the configured
+   *  successUrl/failUrl so the calling app's return page (e.g. billetterie's
+   *  /paiement/retour) knows which payment to reconcile. */
+  paymentId: string;
+}
+
+/**
+ * Appends `paymentId` as a query parameter to `baseUrl`. Returns undefined
+ * when `baseUrl` is unset (KONNECT_SUCCESS_URL/KONNECT_FAIL_URL not
+ * configured) rather than sending Konnect a query-string-only URL.
+ */
+function withPaymentId(baseUrl: string, paymentId: string): string | undefined {
+  if (!baseUrl) return undefined;
+  const url = new URL(baseUrl);
+  url.searchParams.set('paymentId', paymentId);
+  return url.toString();
 }
 
 /**
@@ -92,6 +108,8 @@ export function buildKonnectInitPaymentRequest(
     webhook: config.webhookUrl,
     lifespan: DEFAULT_LIFESPAN_MINUTES,
     acceptedPaymentMethods: DEFAULT_ACCEPTED_PAYMENT_METHODS,
+    successUrl: withPaymentId(config.successUrl, input.paymentId),
+    failUrl: withPaymentId(config.failUrl, input.paymentId),
   };
 }
 

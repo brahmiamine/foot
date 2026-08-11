@@ -59,6 +59,7 @@ describe('konnect.mapper', () => {
           lastName: 'Brahmi',
           email: 'amine@example.com',
           phoneNumber: '20000000',
+          paymentId: 'payment-uuid-1',
         },
         {
           baseUrl: 'https://api.sandbox.konnect.network/api/v2',
@@ -66,6 +67,8 @@ describe('konnect.mapper', () => {
           walletId: 'wallet-123',
           webhookUrl:
             'https://payment-api.example.com/payments/konnect/webhook',
+          successUrl: 'https://payment-api.example.com/payment/success',
+          failUrl: 'https://payment-api.example.com/payment/fail',
         },
       );
 
@@ -79,12 +82,38 @@ describe('konnect.mapper', () => {
         email: 'amine@example.com',
         phoneNumber: '20000000',
         webhook: 'https://payment-api.example.com/payments/konnect/webhook',
+        successUrl:
+          'https://payment-api.example.com/payment/success?paymentId=payment-uuid-1',
+        failUrl:
+          'https://payment-api.example.com/payment/fail?paymentId=payment-uuid-1',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         lifespan: expect.any(Number),
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         acceptedPaymentMethods: expect.any(Array),
       });
       expect(JSON.stringify(request)).not.toContain('super-secret-key');
+    });
+
+    it('omits successUrl/failUrl when not configured, instead of sending a query-string-only URL', () => {
+      const request = buildKonnectInitPaymentRequest(
+        {
+          orderId: 'ORDER-1',
+          amount: 25.5,
+          paymentId: 'payment-uuid-1',
+        },
+        {
+          baseUrl: 'https://api.sandbox.konnect.network/api/v2',
+          apiKey: 'super-secret-key',
+          walletId: 'wallet-123',
+          webhookUrl:
+            'https://payment-api.example.com/payments/konnect/webhook',
+          successUrl: '',
+          failUrl: '',
+        },
+      );
+
+      expect(request.successUrl).toBeUndefined();
+      expect(request.failUrl).toBeUndefined();
     });
   });
 

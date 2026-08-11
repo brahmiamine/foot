@@ -136,7 +136,11 @@ describe('PaymentService', () => {
         providerRef: 'ref-123',
       });
       expect(konnectProvider.initiatePayment).toHaveBeenCalledWith(
-        expect.objectContaining({ orderId: 'ORDER-1', amount: 25.5 }),
+        expect.objectContaining({
+          orderId: 'ORDER-1',
+          amount: 25.5,
+          paymentId: result.paymentId,
+        }),
       );
       expect(repository.save).toHaveBeenCalledTimes(2);
     });

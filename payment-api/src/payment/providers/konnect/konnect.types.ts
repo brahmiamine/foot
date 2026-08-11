@@ -24,6 +24,10 @@ export interface KonnectInitPaymentRequest {
   /** Link expiration in minutes. */
   lifespan?: number;
   acceptedPaymentMethods?: KonnectAcceptedPaymentMethod[];
+  /** Where the payer's browser is redirected after a successful payment. */
+  successUrl?: string;
+  /** Where the payer's browser is redirected after a failed/cancelled payment. */
+  failUrl?: string;
 }
 
 /** POST /payments/init-payment response body. */

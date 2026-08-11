@@ -62,6 +62,8 @@ Copier `.env.example` vers `.env` et renseigner les valeurs. Toute la configurat
 | `KONNECT_API_KEY` | Clé API Konnect. **Jamais** exposée au frontend, jamais loggée, jamais committée. |
 | `KONNECT_WALLET_ID` | Wallet Konnect receveur des paiements (`receiverWalletId`). |
 | `KONNECT_WEBHOOK_URL` | URL HTTPS publique de `GET /payments/konnect/webhook`. |
+| `KONNECT_SUCCESS_URL` | URL de retour du payeur après un paiement réussi (transmise à Konnect comme `successUrl`). |
+| `KONNECT_FAIL_URL` | URL de retour du payeur après un paiement échoué/annulé (transmise à Konnect comme `failUrl`). |
 | `PAYMEE_BASE_URL` | `https://sandbox.paymee.tn/api/v2` (sandbox) ou `https://app.paymee.tn/api/v2` (production) |
 | `PAYMEE_API_KEY` | Clé API Paymee (`Authorization: Token <clé>`). **Jamais** exposée au frontend, jamais loggée, jamais committée. |
 | `PAYMEE_WEBHOOK_URL` | URL HTTPS publique de `POST /payments/providers/paymee/webhook`. |

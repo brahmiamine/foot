@@ -72,6 +72,7 @@ export class PaymentService {
       lastName: dto.lastName,
       email: dto.email,
       phoneNumber: dto.phoneNumber,
+      paymentId: payment.id,
     });
 
     payment.providerRef = initiated.providerRef;

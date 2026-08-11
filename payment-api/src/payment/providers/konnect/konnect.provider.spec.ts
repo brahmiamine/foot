@@ -9,6 +9,8 @@ describe('KonnectProvider', () => {
     apiKey: 'test-api-key',
     walletId: 'wallet-123',
     webhookUrl: 'https://payment-api.example.com/payments/konnect/webhook',
+    successUrl: 'https://payment-api.example.com/payment/success',
+    failUrl: 'https://payment-api.example.com/payment/fail',
   };
 
   let client: jest.Mocked<
@@ -35,6 +37,7 @@ describe('KonnectProvider', () => {
         orderId: 'ORDER-1',
         amount: 25.5,
         email: 'amine@example.com',
+        paymentId: 'payment-uuid-1',
       });
 
       expect(result).toEqual({
@@ -48,6 +51,8 @@ describe('KonnectProvider', () => {
           orderId: 'ORDER-1',
           email: 'amine@example.com',
           webhook: config.webhookUrl,
+          successUrl: `${config.successUrl}?paymentId=payment-uuid-1`,
+          failUrl: `${config.failUrl}?paymentId=payment-uuid-1`,
         }),
       );
     });
