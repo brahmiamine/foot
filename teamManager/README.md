@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# teamManager — back-office de gestion d'un club
 
-## Getting Started
+Application Next.js (App Router) qui centralise la gestion d'un club de football : effectif, staff, discipline, actualités/médias, boutique, sponsors, académie/recrutement, exports et réglages. Un seul déploiement partagé pour tous les clubs : chaque utilisateur se connecte avec son propre compte `User`, rattaché à son club (`teamId`) via le SSO commun au dépôt `foot`. Issue de la fusion de l'ancien "cardManager" (module discipline) avec la gestion de club.
 
-First, run the development server:
+Le cahier des charges complet vit dans [`doc/cahier-des-charges.md`](./doc/cahier-des-charges.md) et le suivi fonctionnel dans [`doc/plan.md`](./doc/plan.md) ; [`rules.md`](./rules.md)/[`.cursorrules`](./.cursorrules) documentent les conventions techniques du projet (TypeScript strict, TypeORM, RBAC, sécurité, design system Bootstrap 5, i18n FR/AR/EN) plutôt que les fonctionnalités. [`olympique-de-béja.md`](./olympique-de-béja.md) est un contenu éditorial (histoire, palmarès, stade) servant de données d'amorçage pour un club en particulier, pas une spécification.
+
+## Fonctionnalités implémentées (`src/app/admin`)
+
+- **Effectif & staff** : joueurs (`players`), membres d'encadrement (`team-members`, `staff`), statistiques joueurs (`player-stats`), tactiques/formations (`tactics`), convocations (`convocations`), entraînements et présence (`trainings`), déplacements (`trips`), blessures (`injuries`).
+- **Discipline** (ex-cardManager) : cartons (`cards`), motifs de cartons paramétrables (`settings` → `card-reasons`), suspensions (`suspensions`), amendes (`fines`), notes internes (`notes`).
+- **Matchs** : matchs officiels et amicaux (`matches`, `friendly-matches`).
+- **Actualités & médias (CMS)** : actualités (`news`), galeries et fichiers médias (`media`), histoire/figures/palmarès du club (`club`), informations stade (`stadiums`).
+- **Boutique & sponsors** (gestion côté admin) : catégories et produits (`shop`), sponsors (`sponsors`).
+- **Académie & recrutement** : candidatures académie (`academy`), besoins de recrutement (`recruitment`).
+- **Administration** : utilisateurs et rôles/permissions (`users`, `roles`), réglages club (`club-settings`), communiqués (`announcements`), notifications internes (`notifications`), journal d'audit (`audit`), tableau de bord (`stats`), exports Excel/PDF (`exports`, via `exceljs`/`jspdf`).
+- **Formulaires publics** (hors `/admin`, un par club via `[teamId]`) : contact (`/contact/[teamId]`), devenir sponsor (`/devenir-sponsor/[teamId]`), inscription académie (`/inscription/[teamId]`), recrutement (`/recrutement/[teamId]`) — ces formulaires sont aussi consommés par le site vitrine `ob` en lecture seule.
+
+La racine (`/`) redirige directement vers `/admin` (ou vers la connexion SSO) : il n'existe pas encore de site public par club servi par `teamManager` lui-même (chaque club aura son propre site public plus tard, sur le modèle de `ob`).
+
+## Rôles
+
+Hiérarchie définie dans la spec et reflétée par `roles`/`users` : `ADMIN`, `SOUS-ADMIN`, `COACH`, `ADJOINT`, `STAFF`, `JOUEUR`, `SUPPORTER`, avec des acteurs additionnels prévus (directeur sportif, analyste performance, préparateur physique, médecin, kiné, préparateur mental, community manager, responsable sécurité, responsable billetterie, secrétaire général, trésorier, responsable juridique, responsable infrastructures).
+
+## Fonctionnalités décrites au cahier des charges mais pas encore implémentées
+
+- **Boutique multi-vendeurs** avec commissions et paiement en ligne (côté produit/client, pas seulement gestion admin).
+- **Espace supporter/communauté** : fil d'actualité, vote homme du match, sondages, pronostics, points de fidélité, badges, mur des supporters, contenus exclusifs, live texte, QR code de présence stade, résumé de match généré par IA.
+- **PWA** complète (manifest, service worker, notifications push) — voir [`../roadmap.md`](../roadmap.md) § 3.
+- **Notifications centralisées** (email + push, ciblage par club/rôle/joueur/supporter) — voir [`../roadmap.md`](../roadmap.md) § 2.
+
+Voir [`../roadmap.md`](../roadmap.md) pour le détail et les priorités de ce backlog.
+
+## Base de données
+
+MySQL/MariaDB (`mariadb`, `mysql2`, TypeORM), base `foot` partagée avec `arbinote`, `matchsheet`, `superadmin`, `sso` et `ob`. Migrations dans [`sql/`](./sql) : matchs et équipes externes, pages club/candidatures académie, blessures, compositions d'équipe (`match_lineups`, prérequis de `matchsheet`), périmètre des notifications, statistiques joueurs, rôles/planning/formations, boutique + sponsors + notifications, tableaux tactiques, catégories jeunes/genre, détails et présence des entraînements, déplacements, unification CMS, unification des joueurs — plus un jeu de données complet (`olympique_beja_db_complete.sql`) et des exemples de seed (joueurs, boutique, sponsors).
+
+## Authentification
+
+Session SSO partagée (cookie JWT `foot_sso_session`, secret `SSO_JWT_SECRET`, issuer `foot-sso`, vérifié via `jose`) — voir [`../sso/README.md`](../sso/README.md). `teamManager` ne fait que vérifier le cookie, il ne l'émet jamais.
+
+## Démarrage
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp env.sso.example .env.local   # renseigner DB_*, SSO_JWT_SECRET, SSO_COOKIE_NAME, etc.
+pnpm install
+pnpm run dev   # http://localhost:3003 (voir aussi ../start.sh à la racine du repo)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Interface
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+UI Bootstrap 5 (thème SCSS porté du template Skote), édition riche via Tiptap, exports Excel (`exceljs`) et PDF (`jspdf`/`jspdf-autotable`), emails via `nodemailer`, validation des données via `zod`.

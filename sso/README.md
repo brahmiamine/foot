@@ -1,0 +1,47 @@
+# sso — authentification centralisée
+
+Application Next.js dédiée à l'authentification : c'est la seule app du dépôt `foot` qui **émet** la session partagée. Toutes les autres (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob`) se contentent de **vérifier** le cookie qu'elle produit, avec une copie en lecture seule de la même logique (`src/lib/ssoSession.ts`).
+
+## Fonctionnalités
+
+- **Connexion staff/club** (`/login`) : email + mot de passe, avec sélecteur de club pour les rôles rattachés à une équipe (`ADMIN`, `OBSERVATEUR`) ; endpoint `POST /api/login`, limité en débit par IP.
+- **Espace membre public** (`/membre/login`, `/membre/register`) : création de compte et connexion pour le rôle `MEMBER` (espace supporter), y compris connexion Google (`GET /api/auth/google` puis `GET /api/auth/google/callback`, validation d'état signé, email vérifié requis).
+- **Déconnexion** (`GET`/`POST /api/logout`) : supprime le cookie de session.
+- **`GET /api/teams`** : liste publique en lecture seule des clubs (id, nom, nom arabe, logo) pour alimenter le sélecteur de club au login.
+- Pas encore de réinitialisation de mot de passe ni de gestion de compte (non implémenté).
+
+## Mécanisme de session (JWT partagé)
+
+- Signature HS256 via `jose`, secret `SSO_JWT_SECRET` — **doit être strictement identique** dans les 6 apps du dépôt.
+- Cookie `SSO_COOKIE_NAME` (par défaut `foot_sso_session`), `httpOnly`, `sameSite=lax`, `secure` en production, `Domain=SSO_COOKIE_DOMAIN` (ex. `.foot.tn`) pour un partage multi-sous-domaines ; vide en local.
+- Durée de vie : 12 heures.
+- Claims du token : `sub` (id utilisateur), `email`, `name`, `role`, `teamId` (nullable) ; issuer `foot-sso`.
+- Rôles gérés (`User.role`) : `ADMIN`, `OBSERVATEUR`, `SUPERADMIN`, `MEMBER`. `ADMIN`/`OBSERVATEUR` sont rattachés à un club (`teamId` obligatoire), `SUPERADMIN` et `MEMBER` n'ont pas de club.
+
+## Base de données
+
+Base MySQL/MariaDB `foot` partagée avec les autres apps (table `User` commune). Migration dans `sql/` :
+
+- `migration_add_member_role.sql` — ajoute la valeur `MEMBER` à l'énumération `role` (changement additif, sans impact sur les autres apps).
+
+## Script d'amorçage
+
+```bash
+pnpm seed:superadmin
+```
+
+Script manuel (`scripts/seed-superadmin.ts`) qui lit `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD`/`SUPERADMIN_NAME` et les variables `DB_*`, hache le mot de passe (bcrypt, coût 12, 12 caractères minimum) et crée ou met à jour un utilisateur `SUPERADMIN` directement en base. Jamais exécuté automatiquement.
+
+## Variables d'environnement
+
+Voir [`env.example`](./env.example) : `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` (base partagée), `SSO_JWT_SECRET`, `SSO_COOKIE_NAME`, `SSO_COOKIE_DOMAIN`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD`/`SUPERADMIN_NAME`.
+
+## Démarrage
+
+```bash
+cp env.example .env.local
+pnpm install
+pnpm run dev   # http://localhost:3004
+```
+
+> `sso` n'est pas encore intégré à `../start.sh` (voir `../manquants.md` § 1.1) : il doit être démarré manuellement pour que la connexion fonctionne dans les autres apps.
