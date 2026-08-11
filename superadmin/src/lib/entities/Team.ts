@@ -79,6 +79,17 @@ export class Team {
   @Column({ type: 'text', nullable: true })
   logo_url?: string | null
 
+  /**
+   * Id de l'équipe côté API-Football (endpoint `teams`), renseigné
+   * manuellement depuis l'écran de mapping (/admin/api-football) — jamais
+   * déduit automatiquement du nom (trop de variantes/accents pour être
+   * fiable, voir matching.md). Sert de clé stable pour la synchro live
+   * (src/lib/liveScoreSync.ts) une fois le match associé lui aussi mappé
+   * (Match.api_football_fixture_id).
+   */
+  @Column({ type: 'int', nullable: true, unique: true })
+  api_football_id?: number | null
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 }

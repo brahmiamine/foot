@@ -67,6 +67,8 @@ export interface Team {
   stadium_ar?: string | null
   logo_url?: string | null
   created_at?: string
+  /** Id API-Football de l'équipe, voir /admin/api-football. */
+  api_football_id?: number | null
 }
 
 export interface Saison {
@@ -129,6 +131,8 @@ export interface Match {
   voteSummary?: MatchVoteSummary | null
   credibility?: number | null
   totalVotes?: number
+  /** Id du fixture API-Football, voir /admin/api-football. */
+  api_football_fixture_id?: number | null
 }
 
 export interface MatchVoteSummary {

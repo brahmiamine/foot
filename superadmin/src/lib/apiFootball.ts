@@ -227,3 +227,98 @@ export async function getTunisiaFixtureDetail(fixtureId: string): Promise<Tunisi
     lineups: (lineupsResult.body as { response?: FixtureLineup[] } | null)?.response ?? [],
   }
 }
+
+// ── Mapping équipes/matchs (/admin/api-football) ────────────────────────────
+// Recherches assistées pour que l'opérateur choisisse manuellement le bon
+// id API-Football (teams.api_football_id / matches.api_football_fixture_id).
+// Jamais de rapprochement automatique par nom : les noms libres divergent
+// trop souvent (accents, abréviations, variantes) pour être fiables — voir
+// superadmin/matching.md.
+
+const TEAM_SEARCH_TTL_MS = 5 * 60 * 1000
+const FIXTURE_SEARCH_TTL_MS = 60 * 1000
+const LIVE_FIXTURES_SEARCH_TTL_MS = 15 * 1000
+
+export interface ApiFootballTeamSearchResult {
+  id: number
+  name: string
+  logo: string
+  country: string | null
+}
+
+interface RawTeamSearchResponse {
+  response?: Array<{
+    team: { id: number; name: string; logo: string; country?: string | null }
+  }>
+}
+
+/**
+ * Recherche d'équipes API-Football par nom (endpoint `teams`, déjà dans la
+ * liste blanche `API_FOOTBALL_ENDPOINTS`). L'API exige au moins 3 caractères
+ * pour `search` — vérifié côté appelant (route API), pas ici.
+ */
+export async function searchApiFootballTeams(query: string): Promise<ApiFootballTeamSearchResult[]> {
+  const result = await callApiFootballCached('teams', { search: query }, TEAM_SEARCH_TTL_MS)
+  if (!result.ok) return []
+  const body = result.body as RawTeamSearchResponse | null
+  return (body?.response ?? []).map((entry) => ({
+    id: entry.team.id,
+    name: entry.team.name,
+    logo: entry.team.logo,
+    country: entry.team.country ?? null,
+  }))
+}
+
+export interface ApiFootballFixtureSearchResult {
+  id: number
+  date: string
+  statusShort: string
+  homeTeam: string
+  awayTeam: string
+  leagueName: string
+}
+
+interface RawFixtureSearchResponse {
+  response?: Array<{
+    fixture: { id: number; date: string; status: { short: string } }
+    teams: { home: { name: string }; away: { name: string } }
+    league: { name: string }
+  }>
+}
+
+function mapFixtureSearchResults(body: RawFixtureSearchResponse | null): ApiFootballFixtureSearchResult[] {
+  return (body?.response ?? []).map((entry) => ({
+    id: entry.fixture.id,
+    date: entry.fixture.date,
+    statusShort: entry.fixture.status.short,
+    homeTeam: entry.teams.home.name,
+    awayTeam: entry.teams.away.name,
+    leagueName: entry.league.name,
+  }))
+}
+
+/**
+ * Recherche de fixtures API-Football à une date donnée (YYYY-MM-DD),
+ * toutes compétitions confondues. Contrairement à `fixtures?league=+season=`
+ * (bloqué en saison en cours sur le plan Free, voir TUNISIA_LATEST_SEASON
+ * plus haut), une recherche par date seule reste accessible — mais un match
+ * à venir peut malgré tout ne pas encore apparaître selon la couverture du
+ * plan : à vérifier au cas par cas, pas une garantie.
+ */
+export async function searchApiFootballFixturesByDate(date: string): Promise<ApiFootballFixtureSearchResult[]> {
+  const result = await callApiFootballCached('fixtures', { date }, FIXTURE_SEARCH_TTL_MS)
+  if (!result.ok) return []
+  return mapFixtureSearchResults(result.body as RawFixtureSearchResponse | null)
+}
+
+/**
+ * Fixtures en direct, toutes compétitions confondues (`fixtures?live=all`) —
+ * seul moyen fiable de retrouver le fixture_id d'un match une fois qu'il a
+ * démarré, quand la recherche par date/saison ne le donne pas encore (voir
+ * matching.md).
+ */
+export async function searchApiFootballLiveFixtures(): Promise<ApiFootballFixtureSearchResult[]> {
+  const result = await callApiFootballCached('fixtures', { live: 'all' }, LIVE_FIXTURES_SEARCH_TTL_MS)
+  if (!result.ok) return []
+  return mapFixtureSearchResults(result.body as RawFixtureSearchResponse | null)
+}

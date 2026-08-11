@@ -27,6 +27,7 @@ présence d'une entité.
 | Équipes / clubs (référentiel) | `teams` | `superadmin` (CRUD complet) | `arbinote`, `matchsheet`, `ob`, `sso`, `sellerPortal`, `billetterie` |
 | Fiche du club connecté (paramètres, branding) | `teams` (sa propre ligne, `WHERE id = teamId`), `team_branding` | `teamManager` (sa ligne), `superadmin` (branding, toutes lignes) | `sellerPortal` |
 | Matchs — référentiel (équipes, date, score, arbitre) | `matches` (hors `status`, voir ligne suivante) | `superadmin` (création/programmation) | `arbinote`, `matchsheet`, `ob`, `billetterie`, `teamManager` (lecture pour préparation) |
+| Mapping API-Football (équipes/matchs) et synchro live | `teams.api_football_id`, `matches.api_football_fixture_id` (`score_home`/`score_away` de la ligne ci-dessus, mis à jour par le job de synchro sur les matchs mappés) | `superadmin` (écran `/admin/api-football` + job `GET/POST /api/cron/live-scores`) | — |
 | Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `matchsheet` (seul à savoir, avec certitude, quand un match démarre/finit réellement — voir alerte ci-dessous) | `ob` (résultats, classement), `billetterie` (fenêtre de vente), `teamManager` (formations) |
 | Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `arbinote` | `superadmin` (consultation) |
 | Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens` | `sso` | `arbinote`, `superadmin`, `teamManager` (lecture/jointures) |
@@ -141,6 +142,50 @@ publique protégée par le jeton). Pas de trigger UI ajouté côté
 et évite un appel réseau cross-app depuis une Server Action `teamManager`
 vers `sso` ; à réévaluer si l'expérience « tout dans `teamManager` » devient
 un besoin produit confirmé.
+
+## Point d'attention : synchro live API-Football (`superadmin`) et `matchsheet`
+
+`superadmin` a désormais un job de synchro (`GET`/`POST
+/api/cron/live-scores`, voir `superadmin/src/lib/liveScoreSync.ts`) qui
+interroge API-Football pour les matchs explicitement mappés par un
+opérateur (`matches.api_football_fixture_id` renseigné depuis l'écran
+`/admin/api-football`) et met à jour `matches.score_home`/`score_away` —
+des colonnes déjà possédées par `superadmin` (voir ligne « Matchs —
+référentiel » ci-dessus), pas une nouvelle propriété. **Ce job n'écrit
+jamais `matches.status`** : cette colonne reste exclusivement pilotée par
+`matchsheet` (`SheetService.mirrorMatchStatus`, voir ci-dessus), aucune
+exception.
+
+Pour ne jamais concurrencer `matchsheet` sur un match qu'il couvre déjà en
+direct, le job lit (en lecture seule, `dataSource.query` brut, aucune
+entité déclarée côté `superadmin`) la table `ms_sheets` avant de
+synchroniser un match : s'il existe une ligne `ms_sheets` pour ce
+`match_id` avec un `status` différent de `CLOSED`, le match est ignoré
+(`matchsheet` est en train de le couvrir ou va le couvrir, c'est lui la
+source de vérité). Le job ne synchronise donc que les matchs :
+
+- explicitement mappés à un `fixture_id` API-Football (jamais de
+  rapprochement automatique par nom/date) ;
+- sans feuille de match `matchsheet` active (pas de ligne `ms_sheets`, ou
+  une ligne déjà `CLOSED`) — typiquement les matchs à l'extérieur ou d'une
+  autre compétition que le kiosque de ce club ne couvre jamais.
+
+C'est un lecteur supplémentaire de `ms_sheets` (aux côtés d'`ob`, voir la
+ligne « Feuille de match électronique » ci-dessus), jamais un écrivain.
+Si `matchsheet` renomme/supprime un jour la colonne `ms_sheets.status` ou
+la sémantique de `CLOSED`, ce job doit être revu en même temps (même règle
+que le reste de ce document : toute évolution d'une table lue par une
+autre app est un changement cross-app, voir « Processus de migration »
+ci-dessous).
+
+Le job est sans effet si `API_FOOTBALL_KEY` n'est pas configuré (log +
+réponse `inactive`, aucun appel réseau ni écriture) et refuse toute requête
+sans `LIVE_SCORE_SYNC_SECRET` correctement présenté (401) — voir
+`superadmin/.env.example`. Aucun process Node planificateur n'est ajouté à
+ce dépôt : comme pour le monitoring/alerting externe (voir `avancement.md`
+§ « Infra cible non branchée »), déclencher cette route à intervalle
+régulier est un choix de déploiement (cron système, cron du PaaS…), pas une
+responsabilité du code applicatif.
 
 ## Ce que ce document corrige
 

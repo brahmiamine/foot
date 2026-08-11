@@ -196,6 +196,51 @@ docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 "
 echo "✅ Schéma club_invitations à jour."
+# superadmin lit/écrit teams.api_football_id et matches.api_football_fixture_id
+# (mapping API-Football + synchro live, purement additif — voir
+# db/OWNERSHIP.md et superadmin/matching.md). Colonnes nullables : aucune
+# app existante n'est affectée tant qu'un opérateur n'a rien mappé.
+echo "🔧 Vérification du schéma (teams.api_football_id)..."
+TEAMS_API_FOOTBALL_ID_EXISTS="$(docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -Nse "
+  SELECT 1
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'foot'
+    AND TABLE_NAME = 'teams'
+    AND COLUMN_NAME = 'api_football_id'
+  LIMIT 1
+")"
+
+if [ "$TEAMS_API_FOOTBALL_ID_EXISTS" != "1" ]; then
+  echo "🧱 Ajout de la colonne teams.api_football_id..."
+  docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+    ALTER TABLE teams
+      ADD COLUMN api_football_id INT NULL UNIQUE;
+  "
+  echo "✅ Colonne teams.api_football_id ajoutée."
+else
+  echo "✅ Colonne teams.api_football_id déjà présente."
+fi
+
+echo "🔧 Vérification du schéma (matches.api_football_fixture_id)..."
+MATCHES_API_FOOTBALL_FIXTURE_ID_EXISTS="$(docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -Nse "
+  SELECT 1
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'foot'
+    AND TABLE_NAME = 'matches'
+    AND COLUMN_NAME = 'api_football_fixture_id'
+  LIMIT 1
+")"
+
+if [ "$MATCHES_API_FOOTBALL_FIXTURE_ID_EXISTS" != "1" ]; then
+  echo "🧱 Ajout de la colonne matches.api_football_fixture_id..."
+  docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+    ALTER TABLE matches
+      ADD COLUMN api_football_fixture_id INT NULL UNIQUE;
+  "
+  echo "✅ Colonne matches.api_football_fixture_id ajoutée."
+else
+  echo "✅ Colonne matches.api_football_fixture_id déjà présente."
+fi
 
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM

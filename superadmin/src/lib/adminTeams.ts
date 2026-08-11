@@ -28,6 +28,7 @@ export interface TeamCreateInput {
   stadium?: string | null
   stadium_ar?: string | null
   logo_url?: string | null
+  api_football_id?: number | null
 }
 
 export interface TeamUpdateInput {
@@ -46,6 +47,13 @@ export interface TeamUpdateInput {
   stadium?: string | null
   stadium_ar?: string | null
   logo_url?: string | null
+  /**
+   * Id API-Football de l'équipe (écran de mapping /admin/api-football).
+   * `null` retire le mapping. `undefined` (champ absent du payload) laisse
+   * la valeur existante inchangée — même convention que les autres champs
+   * de cette interface.
+   */
+  api_football_id?: number | null
 }
 
 /**
@@ -175,6 +183,7 @@ export async function createTeamAdmin(payload: TeamCreateInput) {
     stadium: payload.stadium || null,
     stadium_ar: payload.stadium_ar || null,
     logo_url: payload.logo_url || null,
+    api_football_id: payload.api_football_id ?? null,
   })
 
   const saved = await repo.save(newTeam)
@@ -201,6 +210,20 @@ export async function updateTeamAdmin(id: string, payload: TeamUpdateInput) {
     }
   }
 
+  // Vérifier l'unicité de l'id API-Football si modifié (même équipe API-Football
+  // mappée deux fois côté local : la contrainte UNIQUE de la colonne le
+  // refuserait de toute façon, message plus clair ici avant d'y arriver)
+  if (
+    payload.api_football_id !== undefined &&
+    payload.api_football_id !== null &&
+    payload.api_football_id !== team.api_football_id
+  ) {
+    const existing = await repo.findOne({ where: { api_football_id: payload.api_football_id } })
+    if (existing && existing.id !== id) {
+      throw new Error(`L'id API-Football ${payload.api_football_id} est déjà associé à l'équipe "${existing.nom}"`)
+    }
+  }
+
   const updateData: Partial<Team> = {}
 
   if (payload.nom !== undefined) updateData.nom = payload.nom
@@ -218,6 +241,7 @@ export async function updateTeamAdmin(id: string, payload: TeamUpdateInput) {
   if (payload.stadium !== undefined) updateData.stadium = payload.stadium
   if (payload.stadium_ar !== undefined) updateData.stadium_ar = payload.stadium_ar
   if (payload.logo_url !== undefined) updateData.logo_url = payload.logo_url
+  if (payload.api_football_id !== undefined) updateData.api_football_id = payload.api_football_id
 
   if (Object.keys(updateData).length > 0) {
     await repo.update(id, updateData)

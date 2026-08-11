@@ -55,6 +55,18 @@ export class Match {
 
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
+
+  /**
+   * Id du fixture côté API-Football (endpoint `fixtures`), renseigné
+   * manuellement depuis l'écran de mapping (/admin/api-football) une fois
+   * l'équipe home et l'équipe away elles-mêmes mappées (Team.api_football_id).
+   * Purement additif : ne remplace ni ne recoupe `matches.status`, qui reste
+   * la propriété exclusive de `matchsheet` (voir db/OWNERSHIP.md). Utilisé
+   * par le job de synchro (src/lib/liveScoreSync.ts) pour retrouver le score
+   * live d'un match que `matchsheet` ne couvre pas.
+   */
+  @Column({ type: 'int', nullable: true, unique: true })
+  api_football_fixture_id?: number | null
 }
 
 
