@@ -7,7 +7,8 @@ Ce document remplace `roadmap.md`, `manquants.md` et `NEXT_STEPS.md` (supprimés
 1. le panorama des 11 applications du dépôt ;
 2. les fonctionnalités manquantes propres à chaque projet ;
 3. les processus manquants **entre** les projets (la vraie dette du dépôt) ;
-4. une table de suivi, mise à jour à chaque commit poussé sur `claude/analyse-fonctionnalites-processus-0fpdeq`, qui fait aussi office de liste de priorités.
+4. une synthèse en table de tous les **circuits inter-projets** (flux qui traversent plusieurs apps) avec leur état — fermé, partiel ou ouvert — pour répondre d'un coup d'œil à « qu'est-ce qui n'est pas encore bouclé ? » sans relire toute la section 3 ;
+5. une table de suivi, mise à jour à chaque commit poussé sur `claude/analyse-fonctionnalites-processus-0fpdeq`, qui fait aussi office de liste de priorités.
 
 État vérifié sur le code au 11/08/2026.
 
@@ -78,8 +79,8 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 **Manquant** : vérification fiable de l'audience réservée (aujourd'hui auto-déclarée), scanner de contrôle stade (jamais commencé).
 
 ### `sellerPortal` / `ob` / `payment-api` / `notification-api` — moyenne
-**En place** : `sellerPortal` scoping multi-club réel + ClubBranding ; `ob` live match + espace membre branché sur `notification-api` ; `payment-api`/`notification-api` seuls services avec tests + `.env.example` complets dès l'origine.
-**Manquant** : backfill `club_id` manuel de `sellerPortal` en prod, pas de tests ; `ob` sans PWA installable et sans événement émis vers `notification-api` ; SMS et Web Push front annoncés mais absents de `notification-api`.
+**En place** : `sellerPortal` scoping multi-club réel + ClubBranding ; `ob` live match + espace membre branché sur `notification-api` ; `payment-api`/`notification-api` seuls services avec tests + `.env.example` complets dès l'origine. ~~SMS et Web Push front annoncés mais absents de `notification-api`~~ — **corrigé en re-vérifiant le code (11/08/2026) : le canal Web Push est réellement implémenté**, pas juste annoncé : `notification-api/src/providers/push/web-push.provider.ts` signe avec les vraies clés VAPID et appelle `web-push`, et `ob` le consomme de bout en bout (`PushSubscribeButton.tsx` + `ServiceWorkerRegistration.tsx` + `POST /push-subscriptions` via `notificationApi.ts`) — seule app du dépôt à le faire, voir § 4.
+**Manquant** : backfill `club_id` manuel de `sellerPortal` en prod, pas de tests ; `ob` sans PWA installable et sans événement émis vers `notification-api` (`ob` reste un émetteur muet — la relation avec le canal Web Push, qui va dans l'autre sens, ne change rien à ce point) ; SMS (`NotImplementedSmsProvider`, hors périmètre assumé §36) et FCM (`FcmProvider`, stub non implémenté, hors périmètre assumé) toujours sans provider réel — décision produit documentée dans le code, pas un oubli.
 
 ---
 
@@ -155,6 +156,50 @@ Seuls **Konnect** et **Flouci** sont supportés (`PAYMENT_PROVIDER`, `konnect` p
 
 ### I. Infra cible non branchée — moyenne
 Aucun domaine de production configuré, pas de passerelle API unique, séparation des bases par domaine partielle (`payment-api`/`notification-api` isolées, le reste partage encore `foot`).
+
+---
+
+## 4. Circuits inter-projets — synthèse des flux ouverts, partiels ou fermés
+
+Les sections 2 et 3 détaillent le constat app par app et flux par flux. Cette section les recoupe en une seule table, dans l'ordre où un même utilisateur (staff, arbitre, supporter) les traverserait, pour répondre directement à la question « quel circuit n'est pas encore bouclé, et où est le manque ». `✅ Fermé` = le flux fonctionne bout-en-bout tel qu'observé dans le code ; `🔶 Partiel` = une partie du circuit fonctionne réellement, une autre partie manque ou repose sur un filet de rattrapage ; `⬜ Ouvert` = rien de fonctionnel n'existe pour ce circuit, ou une décision produit reste à prendre. Vérifié sur le code au 11/08/2026 (relecture indépendante de la table de suivi ci-dessus, pas une recopie).
+
+| Circuit | Apps traversées | État | Ce qui manque encore | Détail |
+|---|---|:---:|---|---|
+| Démarrage local unifié | toutes (`start.sh`) | 🔶 Partiel | Port de `sellerPortal` non fixé dans `package.json` — collision possible avec `sso` (3004) si tout tourne en même temps | § 3.A, rang 1 |
+| Session SSO partagée (JWT + cookie) | `sso` → 6 apps clientes | ✅ Fermé | — | `packages/auth-shared` |
+| Révocation de session (déconnexion forcée) | `sso` ↔ 6 apps clientes | 🔶 Partiel | `tokenVersion` vérifié uniquement dans `sso` ; un JWT révoqué reste valide jusqu'à 12h dans les 6 apps clientes (limite d'architecture assumée, pas un oubli) | § « `sso` » rang 8 |
+| Invitation club (staff) en 2 temps | `sso` | ⬜ Ouvert | Aucun flux d'invitation — création de compte staff hors périmètre actuel | § « `sso` » |
+| Portail SSO (page d'accueil) | `sso` | 🔶 Partiel | Page minimale (2 liens ajoutés pour MFA/déconnexion globale), pas un vrai portail de compte | § « `sso` » |
+| Middleware admin (`/admin`, `/api/admin`) | `arbinote`/`superadmin`/`teamManager`/`matchsheet` | ✅ Fermé | — | rang 4 |
+| CSRF sur actions sensibles | `sso`/`matchsheet`/`teamManager` (logout) | ⬜ Ouvert | Le logout accepte encore `GET` sur ces 3 apps (vérifié : `src/app/api/logout/route.ts` exporte un handler `GET`) | § 3.B |
+| Journal de sécurité transverse | toutes | ⬜ Ouvert | Aucun log centralisé des échecs de connexion, rate limit, jeton invalide, reset password | § 3.B |
+| CI qualité (lint + tests) | 10 apps | ✅ Fermé (visibilité) | La CI rend la dette de lint *visible* (`arbinote` ~106 erreurs, `superadmin` ~11) sans la corriger — volontaire, pas un flux cassé | rang 6 |
+| Observabilité `/api/health` | 10 apps | ✅ Fermé | Monitoring/alerting externe (agrégation, alerte) hors périmètre code | rang 7 |
+| Sauvegarde/restauration `foot` + uploads | infra | ⬜ Ouvert | Aucune stratégie au-delà du volume Docker local | rang 10 |
+| Gouvernance de la base partagée (propriété par table) | 7 apps lisant/écrivant `foot` | ✅ Fermé (doc) | `Card` reste à deux écrivains (`teamManager` discipline, `matchsheet` live) sans verrou de concurrence — vérifié : aucun `SELECT ... FOR UPDATE` sur `Card` dans les deux apps | § 3.E, `db/OWNERSHIP.md` |
+| Cycle de vie du match — `UPCOMING`/`IN_PROGRESS`/`FINISHED` | `matchsheet` (écrit) → `ob`/`billetterie`/`teamManager` (lisent) | ✅ Fermé | — | rang 5, § 3.F |
+| Cycle de vie du match — `CANCELLED` | `superadmin` (déciderait) → toutes | ⬜ Ouvert | Vérifié : aucune app n'écrit jamais ce statut (`grep CANCELLED` ne remonte que des lectures/labels). Annulation = décision produit à concevoir (qui prévient qui, réactivation possible ou non), pas un simple câblage | § 3.F |
+| Notifications — émission métier | `arbinote`/`superadmin`/`matchsheet`/`teamManager`/`payment-api` → `notification-api` | ✅ Fermé (5/6 émetteurs) | `ob` n'émet toujours aucun événement (lecture seule côté métier — sans rapport avec le canal Web Push ci-dessous, où `ob` est consommateur) | § 3.G |
+| Notifications — convocation / composition d'équipe / sponsor | `teamManager` → `notification-api` | ⬜ Ouvert | Le destinataire n'est pas un `User` résolvable dans le modèle actuel | § 3.G |
+| Notifications — canal Web Push | `notification-api` ↔ `ob` uniquement | 🔶 Partiel — **corrigé par cette relecture**, la doc précédente le disait absent à tort | Réellement implémenté (VAPID, `webpush.sendNotification`) et câblé de bout en bout dans `ob` (`PushSubscribeButton.tsx`, `ServiceWorkerRegistration.tsx`, `POST /push-subscriptions`) — mais **aucune des 6 autres apps** (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `sellerPortal`, `billetterie`) ne l'utilise, alors que 4 d'entre elles ont déjà un `ServiceWorkerRegistration` PWA générique (donc la brique manquante est seulement le bouton d'abonnement + l'appel à `notification-api`, pas le Service Worker lui-même) | `notification-api/src/providers/push/web-push.provider.ts`, `ob/src/components/PushSubscribeButton.tsx` |
+| Notifications — canal SMS | `notification-api` | ⬜ Ouvert, assumé | `NotImplementedSmsProvider` lève explicitement une erreur — hors périmètre V1 documenté (§36 du code), décision produit et non un oubli | `notification-api/src/providers/sms/not-implemented-sms.provider.ts` |
+| Notifications — canal FCM (mobile natif) | `notification-api` | ⬜ Ouvert, assumé | `FcmProvider` est un stub qui lève une erreur : intégration HTTP v1 Firebase non faite, pas de besoin V1 (repose sur Web Push) | `notification-api/src/providers/push/fcm.provider.ts` |
+| Billetterie — réservation → paiement (Konnect/Flouci) | `billetterie` ↔ `payment-api` | ✅ Fermé | — | rang 9 |
+| Billetterie — confirmation retour paiement | `payment-api` → `billetterie` | 🔶 Partiel | `successUrl`/`failUrl` non transmis à Konnect côté `payment-api` : pas de redirection automatique après paiement, la confirmation repose sur le rattrapage au chargement de `/mes-billets` (fonctionnel mais pas le circuit direct) | § 3.H |
+| Billetterie — Paymee | `billetterie` ↔ `payment-api` | ⬜ Ouvert | Le profil `MEMBER` de `sso` ne collecte pas `firstName`/`lastName`/`phoneNumber`, requis par Paymee à l'initiation | § « `billetterie` », § 3.H |
+| Billetterie — audience réservée fiable | `billetterie` | 🔶 Partiel | Auto-déclarée aujourd'hui, aucune vérification indépendante | § « `billetterie` » |
+| Billetterie — contrôle d'accès au stade (scanner) | inexistant | ⬜ Ouvert | Vérifié : aucun dossier/route `scanner` ou équivalent dans le dépôt, jamais commencé | § « `billetterie` », § 3.H |
+| `ob` espace membre → billetterie | `ob` → `billetterie` | ✅ Fermé | Renvoie vers `{NEXT_PUBLIC_BILLETTERIE_URL}/mes-billets` | rang 9 |
+| Boutique club — checkout/paiement | `teamManager` ↔ `payment-api` | ⬜ Ouvert | Vérifié : aucune référence à `payment-api` dans `teamManager` — la boutique n'a que la gestion admin du catalogue (`admin/shop/`), aucun tunnel d'achat | § « `teamManager` » |
+| Sponsors club — demande → contrat → facturation | `teamManager` | 🔶 Partiel | Formulaire de demande (`devenir-sponsor`) et champs de contrat (`contractStart`/`contractEnd`/`contractAmount` sur `Sponsor`) existent déjà ; aucun document de contrat généré, aucune facturation | § « `teamManager` » |
+| RGPD (consentement, export, suppression) | `teamManager` | ⬜ Ouvert | Aucun module — vérifié, aucun fichier lié au consentement/export/suppression de données personnelles | § « `teamManager` » |
+| Finance / trésorerie club | `teamManager` | ⬜ Ouvert | Aucun module | § « `teamManager` » |
+| Espace supporter / communauté | `teamManager` | ⬜ Ouvert | Aucun module | § « `teamManager` » |
+| Live score / synchro `api-football` | `superadmin` | ⬜ Ouvert | Colonnes de matching (`api_football_id`/`fixture_id`) absentes du schéma, aucun job de synchro (vérifié : aucun `cron`/`setInterval` dans `superadmin/src`), aucun écran de mapping équipe/fixture | § « `superadmin` » |
+| `sellerPortal` — rattachement `club_id` en prod | `sellerPortal` | ⬜ Ouvert | Backfill manuel, pas automatisé | § « `sellerPortal`… » |
+| Infra cible (passerelle API unique, domaines de prod, séparation des bases par domaine) | toutes | ⬜ Ouvert | Hors périmètre code tant que le déploiement réel n'est pas déclenché | rang 12, § 3.I |
+
+**Lecture rapide** : sur les 33 circuits recensés, 9 sont fermés bout-en-bout, 7 sont partiels (un filet de rattrapage ou une moitié du flux existe), 17 sont encore ouverts — dont la majorité concentrée dans `teamManager` (boutique, sponsors, RGPD, finance, espace supporter) et dans les circuits produits jamais commencés ailleurs (scanner billetterie, synchro live `superadmin`, invitation club `sso`). Aucun de ces 17 n'est bloquant pour ce que le dépôt fait déjà fonctionner ; ce sont des extensions de périmètre, pas des régressions à corriger en urgence.
 
 ---
 
