@@ -64,7 +64,7 @@ function icon(label: string): ReactNode {
   return map[label] ?? "•";
 }
 
-export function Sidebar() {
+export function Sidebar({ clubName, clubLogoUrl }: { clubName?: string; clubLogoUrl?: string | null }) {
   const pathname = usePathname();
 
   return (
@@ -84,24 +84,38 @@ export function Sidebar() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 0.4rem 1.5rem" }}>
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 8,
-            background: "var(--sp-primary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 800,
-            color: "#fff",
-          }}
-        >
-          SP
-        </div>
+        {clubLogoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- logo distant fourni par le club, pas un asset local optimisable
+          <img
+            src={clubLogoUrl}
+            alt=""
+            width={34}
+            height={34}
+            style={{ borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              background: "var(--sp-primary)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              color: "#fff",
+              flexShrink: 0,
+            }}
+          >
+            SP
+          </div>
+        )}
         <div>
           <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>Seller Portal</div>
-          <div style={{ fontSize: "0.68rem", color: "var(--sp-sidebar-text)" }}>Marketplace du club</div>
+          <div style={{ fontSize: "0.68rem", color: "var(--sp-sidebar-text)" }}>
+            Marketplace {clubName ?? "du club"}
+          </div>
         </div>
       </div>
 

@@ -102,9 +102,15 @@ Pour une installation déjà bootstrapée avant cet ajout, voir
 `sql/migration_add_club_id.sql` (colonne nullable, à backfiller
 manuellement club par club avant d'en dépendre pour filtrer une requête).
 
-Reste hors périmètre V1 : faire porter le nom/logo/couleurs affichés par le
-portail par la configuration du club du vendeur connecté (`ClubBranding`,
-voir README racine) — actuellement le portail reste visuellement neutre.
+Le tableau de bord (routes `(dashboard)`) consomme aussi `ClubBranding`
+(`src/lib/clubBranding.ts`, table `team_branding` en lecture seule,
+gérée depuis superadmin) : titre de page et logo/couleurs de la barre
+latérale résolus dynamiquement à partir du `clubId` du vendeur connecté
+(`(dashboard)/layout.tsx` → `DashboardShell`/`Sidebar`). Défauts identiques
+au thème actuel (`globals.css`, vert `#0d6e4f`) tant qu'un club n'a pas de
+ligne dans `team_branding`. Les écrans publics (`/login`, `/register`)
+restent volontairement sur le thème générique, sans session pour résoudre
+un club.
 
 ## Hors périmètre V1
 

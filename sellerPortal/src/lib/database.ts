@@ -16,6 +16,7 @@ import { ReturnRequest } from "@/entities/ReturnRequest";
 import { Payout } from "@/entities/Payout";
 import { Notification } from "@/entities/Notification";
 import { Team } from "@/entities/Team";
+import { TeamBranding } from "@/entities/TeamBranding";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
@@ -59,6 +60,7 @@ export async function getDataSource(): Promise<DataSource> {
         Payout,
         Notification,
         Team,
+        TeamBranding,
       ],
       migrations: [],
       charset: "utf8mb4",

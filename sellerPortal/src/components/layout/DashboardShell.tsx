@@ -1,24 +1,37 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import type { ClubBranding } from "@/lib/clubBranding";
 
 export function DashboardShell({
   sellerName,
   sellerStatus,
   userName,
+  clubBranding,
   children,
 }: {
   sellerName: string;
   sellerStatus: string;
   userName: string;
+  clubBranding: ClubBranding;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Couleurs du club connecté injectées comme variables CSS scopées à ce
+  // wrapper : elles écrasent les valeurs par défaut de globals.css pour
+  // tout le tableau de bord sans affecter les pages publiques (login/
+  // register), qui restent sur le thème générique.
+  const brandingVars = {
+    "--sp-primary": clubBranding.primaryColor,
+    "--sp-sidebar-bg": clubBranding.secondaryColor,
+    "--sp-accent": clubBranding.accentColor,
+  } as CSSProperties;
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div style={{ display: "flex", minHeight: "100vh", ...brandingVars }}>
       <style>{`
         @media (max-width: 900px) {
           .sp-sidebar-wrap { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 40; }
@@ -29,7 +42,7 @@ export function DashboardShell({
       `}</style>
 
       <div className={`sp-sidebar-wrap${mobileOpen ? " open" : ""}`}>
-        <Sidebar />
+        <Sidebar clubName={clubBranding.name} clubLogoUrl={clubBranding.logoUrl} />
       </div>
 
       {mobileOpen && (
