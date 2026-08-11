@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import FederationSwitcher from '../FederationSwitcher'
 import { useAdminSidebar } from './AdminSidebarContext'
+import { PushSubscribeButton } from './PushSubscribeButton'
 
 export default function AdminHeader() {
   const { toggleSidebar } = useAdminSidebar()
@@ -41,6 +42,7 @@ export default function AdminHeader() {
         </div>
         <div className="flex-shrink-0 flex items-center gap-3">
           <FederationSwitcher variant="admin" />
+          <PushSubscribeButton />
           <button
             onClick={handleLogout}
             disabled={loggingOut}

@@ -26,7 +26,7 @@ Hiérarchie définie dans la spec et reflétée par `roles`/`users` : `ADMIN`, `
 
 - **Boutique multi-vendeurs** avec commissions et paiement en ligne (côté produit/client, pas seulement gestion admin).
 - **Espace supporter/communauté** : fil d'actualité, vote homme du match, sondages, pronostics, points de fidélité, badges, mur des supporters, contenus exclusifs, live texte, QR code de présence stade, résumé de match généré par IA.
-- **Notifications centralisées** (email + push, ciblage par club/rôle/joueur/supporter) — voir [`../roadmap.md`](../roadmap.md) § 2. Le module `notifications` interne (`entities/Notification.ts`) reste indépendant de `notification-api` ; le câblage vers ce dernier n'est pas encore fait.
+- **Notifications centralisées** (ciblage par club/rôle/joueur/supporter). Le module `notifications` interne (`entities/Notification.ts`, page « Communication » `/admin/notifications`) reste indépendant de `notification-api` ; ce n'est pas ce module qui émet vers `notification-api`. ~~Le câblage vers ce dernier n'est pas encore fait~~ : côté émission, `lib/notificationClient.ts` (`POST /internal/notifications`) est déjà branché ; côté réception, l'abonnement Web Push (voir § PWA ci-dessous) l'est aussi désormais. Reste ouvert : convocation/composition d'équipe/sponsor, où le destinataire n'est pas encore un `User` résolvable (voir avancement.md § 3.G).
 
 ## PWA
 
@@ -34,9 +34,13 @@ Hiérarchie définie dans la spec et reflétée par `roles`/`users` : `ADMIN`, `
 page `offline.html` de secours pour la navigation), icônes dans
 `public/icons/`, bannière d'installation (`PwaInstallPrompt.tsx`,
 évènement `beforeinstallprompt`) — voir [`../roadmap.md`](../roadmap.md) § 3.
-Pas de synchronisation offline des écritures (formulaires/CRUD) ni de
-notifications push (dépend du câblage `notification-api` ci-dessus) : hors
-périmètre de ce chantier.
+Pas de synchronisation offline des écritures (formulaires/CRUD) : hors
+périmètre de ce chantier. **Notifications Web Push** : abonnement possible
+depuis l'en-tête de l'admin (`PushSubscribeButton`, Server Actions dans
+`app/admin/pushActions.ts`, relais du JWT `sso` vers
+`notification-api`/`api/push-subscriptions`) — `public/sw.js` gère
+`push`/`notificationclick`, même mécanique que `ob` (voir avancement.md,
+"Web Push généralisé").
 
 Voir [`../roadmap.md`](../roadmap.md) pour le détail et les priorités de ce backlog.
 

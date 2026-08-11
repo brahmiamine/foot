@@ -16,7 +16,7 @@ Application Next.js (App Router) qui remplace l'ancien "ArbiNote" : un site publ
 - **Contact** (`/contact`) et pages légales (mentions légales, CGU, politique de cookies, politique de confidentialité).
 - **`/testapi`** : page de test de l'intégration API-Football (proxy à liste blanche d'endpoints côté serveur, quota du plan gratuit surveillé).
 - Multi-ligue : une préférence de ligue active peut être sélectionnée côté client.
-- PWA basique : `manifest.json` + service worker minimal avec mise en cache statique.
+- PWA basique : `manifest.json` + service worker minimal avec mise en cache statique. Reçoit aussi les notifications Web Push (`push`/`notificationclick` dans `public/sw.js`) — abonnement depuis l'en-tête du back-office (`PushSubscribeButton`, `lib/notificationApi.ts` relaie le JWT `sso` vers `notification-api`/`api/push-subscriptions`), voir avancement.md, "Web Push généralisé".
 - i18n : français, anglais, arabe.
 
 ### Back-office (`/admin`, réservé au rôle `SUPERADMIN`)

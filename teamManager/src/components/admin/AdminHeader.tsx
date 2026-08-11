@@ -1,6 +1,7 @@
 "use client";
 
 import { useAdminSidebar } from "./AdminSidebarContext";
+import { PushSubscribeButton } from "./PushSubscribeButton";
 
 /**
  * Admin Header — même structure qu'arbinote (bg-white, border-b, shadow-sm).
@@ -34,6 +35,7 @@ export function AdminHeader({ userName }: { userName: string }) {
         </div>
         <div className="d-flex align-items-center gap-2 gap-sm-3">
           {userName && <span className="d-none d-sm-inline text-muted small">{userName}</span>}
+          <PushSubscribeButton />
           <form method="POST" action="/api/logout">
             <button type="submit" className="btn btn-outline-secondary btn-sm">
               <i className="fas fa-sign-out-alt me-2" aria-hidden="true" />

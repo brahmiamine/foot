@@ -41,6 +41,16 @@ export async function getSsoSession(): Promise<SsoUser | null> {
   return verifySessionToken(token);
 }
 
+/**
+ * Jeton brut du cookie de session, pour les appels serveur-à-serveur vers
+ * notification-api (`Authorization: Bearer <token>`, voir lib/notificationApi.ts).
+ * Ne jamais exposer cette valeur au client.
+ */
+export async function getSsoToken(): Promise<string | null> {
+  const store = await cookies();
+  return store.get(getSsoCookieName())?.value ?? null;
+}
+
 export function buildLoginUrl(currentUrl: string): string {
   return buildSsoRedirectUrl(currentUrl, "/login");
 }

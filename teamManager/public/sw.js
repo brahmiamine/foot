@@ -1,7 +1,8 @@
 // Service Worker PWA minimal pour teamManager : app shell (assets statiques)
-// + page de secours hors-ligne pour la navigation. Pas de synchronisation
-// offline des données (formulaires/CRUD) ni de push — hors périmètre de ce
-// chantier (voir roadmap.md §3).
+// + page de secours hors-ligne pour la navigation, + réception Web Push
+// (convocations, annonces — voir avancement.md, "Web Push généralisé").
+// Pas de synchronisation offline des données (formulaires/CRUD) — hors
+// périmètre de ce chantier (voir roadmap.md §3).
 const CACHE_NAME = "teammanager-shell-v1";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE_URLS = [OFFLINE_URL, "/manifest.json", "/icons/icon-192x192.png"];
@@ -52,4 +53,35 @@ self.addEventListener("fetch", (event) => {
       )
     );
   }
+});
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: "TeamManager", body: event.data.text() };
+  }
+  const { title = "TeamManager", body, url = "/admin", icon = "/icons/icon-192x192.png" } = payload;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url ?? "/admin";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && "focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
 });
