@@ -23,8 +23,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <div className="max-w-lg text-center space-y-4">
           <h1 className="text-2xl font-semibold">Configuration requise</h1>
           <p className="text-slate-200">
-            Aucune ligue n'est disponible. Ajoutez des fédérations et ligues dans la base de données
-            pour utiliser l'espace admin.
+            Aucune ligue n&apos;est disponible. Ajoutez des fédérations et ligues dans la base de données
+            pour utiliser l&apos;espace admin.
           </p>
         </div>
       </div>

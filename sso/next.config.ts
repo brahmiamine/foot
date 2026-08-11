@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
     if (isServer) {
       config.externals = [...(config.externals || []), "typeorm", "reflect-metadata"];
     } else {
+      // require() volontaire : webpack n'est utile qu'ici (build client),
+      // pas dispo en top-level import sans risquer de le charger aussi côté
+      // Edge/serveur.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const webpack = require("webpack");
       config.plugins = config.plugins || [];
       config.plugins.push(

@@ -105,7 +105,7 @@ export default function AdminAnomaliesManager() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Détection d'Anomalies
+            Détection d&apos;Anomalies
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Analyse statistique des votes pour détecter les manipulations

@@ -53,7 +53,7 @@ export default function AdminAlertDetails({ alertId }: AdminAlertDetailsProps) {
           ← Retour aux alertes
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Détails de l'Alerte
+          Détails de l&apos;Alerte
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Match: {alert.match.equipe_home?.nom || "N/A"} vs {alert.match.equipe_away?.nom || "N/A"}

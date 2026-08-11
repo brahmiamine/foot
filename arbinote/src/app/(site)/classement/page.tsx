@@ -163,7 +163,7 @@ export default async function ClassementPage() {
   let previousRanking: any[] = [];
   let topVarMatches: any[] = [];
   let topAssistantMatches: any[] = [];
-  let allMatchIds: string[] = [];
+  const allMatchIds: string[] = [];
 
   // Charger les classements pour la journée courante avec score bayésien
   if (current) {

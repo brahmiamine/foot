@@ -34,7 +34,7 @@ export default function CritereManager() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold">Gestion des critères</h2>
-          <p className="text-gray-500">Liste et modification des critères d'évaluation</p>
+          <p className="text-gray-500">Liste et modification des critères d&apos;évaluation</p>
         </div>
         <button
           onClick={() => {

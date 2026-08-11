@@ -35,7 +35,7 @@ export default function AdminHeader() {
             </svg>
           </button>
           <div>
-            <p className="text-xs sm:text-sm text-gray-500">Espace d'administration</p>
+            <p className="text-xs sm:text-sm text-gray-500">Espace d&apos;administration</p>
             <h1 className="text-xl sm:text-2xl lg:text-3xl tracking-wide text-gray-900 font-[family-name:'Bebas_Neue']">Gestion des arbitres</h1>
           </div>
         </div>

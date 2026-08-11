@@ -256,7 +256,7 @@ export function TeamMembersManagement({
       {confirmDialog}
       <div className="row mb-4">
         <div className="col-12">
-          <h1 className="mb-0">Gestion des Membres d'Équipe</h1>
+          <h1 className="mb-0">Gestion des Membres d&apos;Équipe</h1>
         </div>
       </div>
 
@@ -308,7 +308,7 @@ export function TeamMembersManagement({
           <div className="col-12">
             <div className="card">
               <div className="card-header d-flex justify-content-between align-items-center">
-                <h5 className="card-title mb-0">Ajouter un membre à l'équipe</h5>
+                <h5 className="card-title mb-0">Ajouter un membre à l&apos;équipe</h5>
                 <button
                   type="button"
                   className="btn-close"
@@ -485,13 +485,13 @@ export function TeamMembersManagement({
         <div className={`col-12 ${formMode === "edit" ? "col-lg-7" : "col-lg-12"}`}>
           <div className="card">
             <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <h5 className="card-title mb-0">Liste des Membres d'Équipe</h5>
+              <h5 className="card-title mb-0">Liste des Membres d&apos;Équipe</h5>
               <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre..." />
             </div>
             <div className="card-body">
               {teamMembers.length === 0 ? (
                 <div className="text-center py-5">
-                  <p className="text-muted mb-3">Aucun membre d'équipe enregistré</p>
+                  <p className="text-muted mb-3">Aucun membre d&apos;équipe enregistré</p>
                   <button type="button" className="btn btn-primary" onClick={handleAddClick}>
                     Ajouter le premier membre
                   </button>
@@ -587,7 +587,7 @@ export function TeamMembersManagement({
           <div className="col-12 col-lg-5 mt-4 mt-lg-0">
             <div className="card">
               <div className="card-header d-flex justify-content-between align-items-center">
-                <h5 className="card-title mb-0">Modifier le membre d'équipe</h5>
+                <h5 className="card-title mb-0">Modifier le membre d&apos;équipe</h5>
                 <button
                   type="button"
                   className="btn-close"

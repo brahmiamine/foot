@@ -1,0 +1,115 @@
+name: CI
+
+# Rang 6 de avancement.md : aucune CI n'existait avant ce workflow (manquants.md
+# § 3.4 le signalait déjà). Une entrée de matrice par app plutôt qu'un
+# monorepo pnpm workspace : chaque app garde son propre lockfile et son
+# propre cycle de déploiement indépendant (voir packages/auth-shared/README.md
+# pour la même logique appliquée à un package partagé).
+#
+# Ce que ce workflow ne fait PAS : il ne masque pas la dette de lint
+# existante. arbinote/superadmin ont des erreurs `no-explicit-any`
+# pré-existantes (respectivement ~106 et ~11, voir avancement.md rang 6) —
+# ce job les fait apparaître en rouge intentionnellement plutôt que de les
+# exclure, pour que cette dette reste visible au lieu de rester invisible
+# comme elle l'était sans CI.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: sso
+            dir: sso
+            pm: pnpm
+            test: false
+          - name: arbinote
+            dir: arbinote
+            pm: pnpm
+            test: true
+          - name: matchsheet
+            dir: matchsheet
+            pm: pnpm
+            test: false
+          - name: superadmin
+            dir: superadmin
+            pm: pnpm
+            test: true
+          - name: teamManager
+            dir: teamManager
+            pm: pnpm
+            test: false
+          - name: ob
+            dir: ob
+            pm: pnpm
+            test: false
+          - name: sellerPortal
+            dir: sellerPortal
+            pm: pnpm
+            test: false
+          - name: billetterie
+            dir: billetterie
+            pm: pnpm
+            test: false
+          - name: payment-api
+            dir: payment-api
+            pm: npm
+            test: true
+          - name: notification-api
+            dir: notification-api
+            pm: npm
+            test: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: ${{ matrix.pm }}
+          cache-dependency-path: ${{ matrix.dir }}/${{ matrix.pm == 'pnpm' && 'pnpm-lock.yaml' || 'package-lock.json' }}
+
+      - name: Setup pnpm
+        if: matrix.pm == 'pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.pm == 'pnpm' && 'pnpm install --frozen-lockfile' || 'npm ci' }}
+
+      - name: Typecheck
+        if: matrix.pm == 'pnpm'
+        working-directory: ${{ matrix.dir }}
+        run: npx tsc --noEmit
+
+      - name: Build (typecheck + compile)
+        if: matrix.pm == 'npm'
+        working-directory: ${{ matrix.dir }}
+        run: npm run build
+
+      - name: Lint (pnpm apps)
+        if: matrix.pm == 'pnpm'
+        working-directory: ${{ matrix.dir }}
+        run: pnpm run lint
+
+      - name: Lint (npm apps — sans --fix, contrairement au script npm run lint local)
+        if: matrix.pm == 'npm'
+        working-directory: ${{ matrix.dir }}
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+      - name: Test
+        if: matrix.test
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.pm == 'pnpm' && 'pnpm run test' || 'npm test' }}

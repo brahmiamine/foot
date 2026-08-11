@@ -24,7 +24,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | 3 | Documenter la propriété des tables de `foot` + process de migration | ✅ Fait | `db/OWNERSHIP.md` — matrice de propriété par domaine + règles de migration, voir détail ci-dessous |
 | 4 | Middleware global sur chaque back-office (`superadmin`, `arbinote`, `teamManager`) | ✅ Fait | `src/middleware.ts` ajouté aux 3 apps, protège `/admin/*` + `/api/admin/*` — voir détail ci-dessous |
 | 5 | Machine d'état commune du match | ✅ Fait (recadré, voir détail) | `matches.status` existait déjà dans le schéma mais n'était écrit par aucune app — corrigé, pas remplacé par un nouveau système |
-| 6 | CI (lint + tests) sur les 11 projets | ⬜ À faire | Aucun `.github/workflows` |
+| 6 | CI (lint + tests) sur les 10 apps | ✅ Fait | `.github/workflows/ci.yml` — voir détail ci-dessous |
 | 7 | `/api/health` partout + monitoring de base | ⬜ À faire | Seuls `arbinote` et `superadmin` l'exposent |
 | 8 | Reset password + MFA + révocation de session dans `sso` | ⬜ À faire | |
 | 9 | Brancher `billetterie` sur `payment-api` et sur `ob` | ⬜ À faire | Achat aujourd'hui marqué `PAID` immédiatement (mock) |
@@ -96,10 +96,14 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 - Pas de politique CSRF formalisée pour les actions sensibles (le logout accepte encore `GET`).
 - Pas de journal de sécurité transverse (login échoué, rate limit, token invalide, reset password).
 
-### C. Qualité et CI/CD absents — haute
-- Aucun pipeline CI (pas de `.github/workflows`).
-- Tests automatisés présents seulement sur 4 des 11 projets (`arbinote`, `superadmin`, `payment-api`, `notification-api`).
-- Pas de lint commun ni de règle d'exclusion partagée entre projets Next.js.
+### C. Qualité et CI/CD absents — haute, traité
+- ~~Aucun pipeline CI~~ → `.github/workflows/ci.yml` : une entrée de matrice par app (10 apps, `db` exclu — c'est un dump SQL, pas une app), `pnpm install --frozen-lockfile`/`npm ci` + `tsc --noEmit` (ou `npm run build` pour les 2 apps NestJS, qui type-check via `nest build`) + lint + tests quand un script `test` existe (`arbinote`, `superadmin`, `payment-api`, `notification-api`). Déclenché sur push `main` et sur chaque pull request.
+- **Ce que ce workflow ne cache pas** : `arbinote` (~106 erreurs) et `superadmin` (~11 erreurs) ont une dette de lint réelle et pré-existante (`@typescript-eslint/no-explicit-any` en quasi-totalité, + 6 warnings React `setState` synchrone dans un effet côté `arbinote`) — volontairement laissée telle quelle, le job de lint de ces deux apps sera rouge dans la CI et c'est correct : la dette redevient visible au lieu de rester invisible faute de CI. Remplacer progressivement les `any` reste un chantier séparé (déjà identifié dans l'historique `manquants.md`), pas à absorber en une fois sans pouvoir tester chaque changement de type contre une vraie base.
+- **Ce qui a été corrigé au passage, parce que ça empêchait la CI d'être utile dès le premier run** (tous des changements mécaniques, zéro risque comportemental, vérifiés avec `tsc --noEmit` + `eslint` + un `next build --webpack` complet après coup) :
+  - `teamManager/eslint.config.mjs` excluait `.next`/`out`/`build` mais pas `public/**`, qui contient du JS vendored (`bootstrap.min.js`, `ScrollTrigger.min.js`…) jamais écrit par ce projet — ça noyait 5 vraies erreurs sous ~1600 avertissements de fichiers qu'on ne devrait jamais linter. Exclu ; les 5 erreurs restantes (apostrophes non échappées dans `TeamMembersManagement.tsx`) corrigées.
+  - `require()` dans les `webpack()` de `next.config.ts` (`sso`, `matchsheet`, `superadmin`, `arbinote`) : légitime à cet endroit (build client uniquement, un import statique le chargerait aussi côté serveur/Edge) mais interdit par `@typescript-eslint/no-require-imports` — un commentaire `eslint-disable-next-line` documenté remplace la suppression silencieuse.
+  - `arbinote` : 7 apostrophes non échappées (`d'Équipe` → `d&apos;Équipe`, même motif que `teamManager`) et un `let` jamais réassigné (`prefer-const`) corrigés — le reste de la dette (`any`, `setState` synchrone) laissé visible, voir ci-dessus.
+- Note : le script `lint` local de `payment-api`/`notification-api` inclut `--fix` (corrige et avale silencieusement les erreurs auto-fixables) — la CI appelle `eslint` directement sans `--fix` pour que le job échoue réellement en cas d'erreur, sans modifier le script local existant.
 
 ### D. Observabilité au minimum — haute
 - `/api/health` n'existe que dans `arbinote` et `superadmin`.
