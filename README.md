@@ -22,6 +22,7 @@ D'autres documents complètent ce README :
 
 - [`roadmap.md`](./roadmap.md) — backlog produit/fonctionnel (API-Football live, notifications, PWA, espace supporter, boutique, sponsors, finance, RGPD).
 - [`manquants.md`](./manquants.md) — dette technique (infrastructure, sécurité, qualité, gouvernance des données).
+- [`NEXT_STEPS.md`](./NEXT_STEPS.md) — état d'avancement et TODO détaillé de la normalisation générique/custom (ce qui est fait, ce qui reste, comment reprendre dans une autre session).
 
 ## Classification des projets — générique vs custom
 
@@ -126,8 +127,8 @@ au lieu de `payment-api.platform.tn`, `notification-api.platform.tn`, etc. Les s
 
 ### Écarts connus avec l'architecture cible
 
-- **`sellerPortal`** : le renommage (`ob-seller-portal` → `sellerPortal`) et la généralisation des textes d'interface sont faits, mais le schéma (`sp_*`) n'a pas de colonne `clubId`/`teamId` — c'est encore un déploiement mono-club en pratique. Voir `sellerPortal/README.md` § « Portée V1 ».
-- **`teamManager`** : le nom/branding par défaut (manifest PWA, couleur de thème) a été neutralisé, mais il n'y a pas encore de mécanisme `ClubBranding` dynamique (logo/couleurs/favicon résolus par club) — actuellement une seule identité visuelle par défaut pour tous les clubs.
+- **`sellerPortal`** : le renommage (`ob-seller-portal` → `sellerPortal`) et la généralisation des textes d'interface sont faits, mais le schéma (`sp_*`) n'a pas de colonne `clubId`/`teamId` — c'est encore un déploiement mono-club en pratique. Voir `sellerPortal/README.md` § « Portée V1 » et `NEXT_STEPS.md` § A pour le plan de scoping multi-club.
+- **`ClubBranding`** : implémenté (`superadmin` : table `team_branding` + admin CRUD ; `teamManager` : manifest PWA/metadata/logo sidebar résolus dynamiquement par club, voir `lib/clubBranding.ts`). Reste non fait : personnalisation des icônes PWA par club (au-delà nom/couleurs/favicon) et branchement dans `sellerPortal`/la future billetterie.
 - **Billetterie / contrôle billetterie** : n'existent pas comme services génériques indépendants dans ce repo (`ob/espace-membre/billets` n'est aujourd'hui qu'un écran d'attente, aucune vente réelle). L'extraction en service générique multi-clubs est un chantier de roadmap, pas fait dans le cadre de cette normalisation (pas de réécriture non nécessaire, cf. contrainte de la mission) — voir « Billetterie : séparer l'identité du supporter de l'organisateur de l'événement » ci-dessus pour le modèle de données à suivre le jour où ce chantier démarre (ne pas réutiliser le `teamId` unique de `User` pour représenter l'affiliation supporter).
 - **API Gateway** : pas de domaine `api.platform.tn` unifié ; `payment-api`/`notification-api` restent des services distincts avec leurs propres bases. Le routage par chemin (`/payment`, `/notifications`, …) décrit ci-dessus n'est pas encore en place — c'est une tâche d'infrastructure (reverse proxy), pas de code applicatif.
 - **Base de données par domaine** : `payment-api` et `notification-api` ont déjà leur propre base, mais les applications métier (`teamManager`, `sellerPortal`, `arbinote`, `matchsheet`, `ob`) partagent encore la base `foot`. Une séparation en bases par domaine (référentiel/clubs/matchs, marketplace, …) est une évolution possible à moyen terme, à ne déclencher que lorsque ces domaines évoluent réellement de façon indépendante — pas une priorité de cette normalisation.
