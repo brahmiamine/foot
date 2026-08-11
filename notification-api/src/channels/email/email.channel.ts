@@ -7,6 +7,7 @@ import {
 import { TemplatesService } from '../../templates/templates.service';
 import type {
   ChannelDeliveryContext,
+  ChannelDeliveryResult,
   NotificationChannel,
 } from '../channel.interface';
 
@@ -19,7 +20,9 @@ export class EmailChannel implements NotificationChannel {
     private readonly templates: TemplatesService,
   ) {}
 
-  async deliver(context: ChannelDeliveryContext): Promise<void> {
+  async deliver(
+    context: ChannelDeliveryContext,
+  ): Promise<ChannelDeliveryResult> {
     const { notification, recipient, branding } = context;
     if (!recipient.email) {
       throw new Error(`Recipient ${notification.userId} has no email on file`);
@@ -42,10 +45,11 @@ export class EmailChannel implements NotificationChannel {
       { title: notification.title, body: notification.body },
     );
 
-    await this.provider.send({
+    const result = await this.provider.send({
       to: recipient.email,
       subject: rendered.subject ?? notification.title,
       body: rendered.body,
     });
+    return { providerMessageId: result.providerMessageId };
   }
 }

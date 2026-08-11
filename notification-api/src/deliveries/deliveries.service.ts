@@ -30,11 +30,24 @@ export class DeliveriesService {
     if (provider) await this.repository.update(id, { provider });
   }
 
-  async markSent(id: string, provider?: string): Promise<void> {
+  async markSent(
+    id: string,
+    options?: {
+      provider?: string;
+      providerMessageId?: string;
+      providerStatus?: string;
+    },
+  ): Promise<void> {
     await this.repository.update(id, {
       status: DeliveryStatus.SENT,
       sentAt: new Date(),
-      ...(provider ? { provider } : {}),
+      ...(options?.provider ? { provider: options.provider } : {}),
+      ...(options?.providerMessageId
+        ? { providerMessageId: options.providerMessageId }
+        : {}),
+      ...(options?.providerStatus
+        ? { providerStatus: options.providerStatus }
+        : {}),
     });
   }
 

@@ -129,7 +129,7 @@ export class NotificationsService {
       const delivery = await this.deliveries.createPending(saved.id, channel);
       if (channel === NotificationChannelType.IN_APP) {
         // La ligne `notifications` est déjà la notification in-app (§10) : rien à mettre en file.
-        await this.deliveries.markSent(delivery.id, 'in-app');
+        await this.deliveries.markSent(delivery.id, { provider: 'in-app' });
         await this.deliveries.markDelivered(delivery.id);
         continue;
       }

@@ -16,6 +16,12 @@ export interface ChannelDeliveryContext {
 
 export const CHANNEL_REGISTRY = Symbol('CHANNEL_REGISTRY');
 
+/** Métadonnées provider renvoyées par un envoi réussi, conservées dans NotificationDelivery (§25). */
+export interface ChannelDeliveryResult {
+  providerMessageId?: string;
+  providerStatus?: string;
+}
+
 /**
  * Contrat commun à tous les canaux (§10). NotificationsService/les
  * processors de queue ne connaissent que cette interface : ajouter un canal
@@ -24,6 +30,16 @@ export const CHANNEL_REGISTRY = Symbol('CHANNEL_REGISTRY');
  */
 export interface NotificationChannel {
   readonly type: NotificationChannelType;
+  /**
+   * true si "accepté par le provider" ne veut pas dire "livré" (ex: SMS —
+   * TunisieSMS distingue soumission (code 200) et accusé de réception DLR
+   * futur). Le worker ne marque alors jamais la delivery DELIVERED
+   * automatiquement (voir BaseChannelProcessor). Par défaut false/absent :
+   * comportement historique (accepté = livré) pour in-app/email/push.
+   */
+  readonly deliveryConfirmationRequired?: boolean;
   /** Lance l'envoi. Doit lever en cas d'échec (le worker gère alors le retry, voir queue/). */
-  deliver(context: ChannelDeliveryContext): Promise<void>;
+  deliver(
+    context: ChannelDeliveryContext,
+  ): Promise<ChannelDeliveryResult | void>;
 }

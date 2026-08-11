@@ -1,6 +1,6 @@
 # notification-api
 
-Centre de notifications centralisé (NestJS) pour l'écosystème `foot` : in-app, email et push aujourd'hui, SMS demain. Les applications métier (`sso`, `teamManager`, `ob`, `matchsheet`, `arbinote`, `superadmin`, `payment-api`, et à terme `marketplace-api`/`seller-portal`) décident **quand** et **pourquoi** notifier ; le `notification-api` décide **comment** (canaux, préférences, langue, retry) et ne contient jamais de logique métier football/billetterie/marketplace.
+Centre de notifications centralisé (NestJS) pour l'écosystème `foot` : in-app, email, push et SMS (TunisieSMS). Les applications métier (`sso`, `teamManager`, `ob`, `matchsheet`, `arbinote`, `superadmin`, `payment-api`, et à terme `marketplace-api`/`seller-portal`) décident **quand** et **pourquoi** notifier ; le `notification-api` décide **comment** (canaux, préférences, langue, retry) et ne contient jamais de logique métier football/billetterie/marketplace.
 
 ```
 Application métier -> Événement -> Notification API -> Préférences -> Template -> Queue -> Channel -> Provider -> Utilisateur
@@ -24,7 +24,8 @@ src/
 ├── providers/           # implémentations concrètes par canal
 │   ├── email/            # SMTP (V1), Resend, SendGrid
 │   ├── push/              # Web Push (V1), FCM (stub)
-│   └── sms/                # stub (hors périmètre V1, §36)
+│   └── sms/                # TunisieSMS (SMS_PROVIDER=tunisiesms), sinon stub inactif
+│       └── tunisiesms/      # client HTTP, mapper, codes d'erreur — isolé, ajout d'un 2e provider SMS sans y toucher
 ├── queue/               # BullMQ : queues email/push/sms, workers, retry+backoff
 ├── events/               # idempotence des événements externes (eventId)
 ├── internal/             # API service-à-service : POST /internal/notifications
@@ -99,7 +100,20 @@ Copier `.env.example` vers `.env`. Toute la configuration passe par `ConfigModul
 | `REDIS_*` | Connexion BullMQ (queues email/push/sms). |
 | `EMAIL_PROVIDER` + `SMTP_*`/`RESEND_API_KEY`/`SENDGRID_API_KEY` | Fournisseur email actif (§15). |
 | `WEB_PUSH_*` | Clés VAPID pour le Web Push (§16). |
+| `SMS_PROVIDER=tunisiesms` + `TUNISIESMS_*` | Fournisseur SMS actif (voir § SMS ci-dessous). |
 | `NOTIFICATION_RETENTION_DAYS` | Purge quotidienne des notifications expirées/anciennes (§24, §27). |
+
+## SMS (TunisieSMS)
+
+`src/providers/sms/tunisiesms/` intègre [TunisieSMS](https://www.tunisiesms.tn/api-sms/), isolé derrière `SmsProvider` (`src/providers/sms/sms-provider.interface.ts`) — un futur second provider SMS (ex: Twilio) s'ajouterait de la même façon sans toucher `SmsChannel` ni le reste de l'architecture. Activation : `SMS_PROVIDER=tunisiesms` + `TUNISIESMS_API_URL`/`TUNISIESMS_ID`/`TUNISIESMS_API_KEY`/`TUNISIESMS_SENDER` (fournis par le compte TunisieSMS — jamais inventés). Sans cette configuration, `NotImplementedSmsProvider` renvoie un échec structuré (`SMS_PROVIDER_NOT_CONFIGURED`).
+
+- **Destinataire** : `notification.data.phone` (et optionnellement `data.smsSender` pour un expéditeur personnalisé autorisé sur le compte) — la table `User` de la base partagée `foot` n'a pas de colonne téléphone, donc l'application appelant `/internal/notifications` doit fournir ce numéro dans `data`.
+- **Numéro** : normalisé vers `+216XXXXXXXX` pour les numéros tunisiens (local 8 chiffres ou `216XXXXXXXX`) ; un numéro déjà international avec un autre indicatif n'est jamais modifié — un format non reconnaissable est rejeté plutôt que deviné (`tunisiesms.phone.ts`).
+- **Réponse** : `status_code=200` signifie **accepté par TunisieSMS**, pas livré — la delivery correspondante reste au statut `SENT` (jamais `DELIVERED` automatiquement, voir `SmsChannel.deliveryConfirmationRequired`) en attendant un futur accusé de réception (DLR, non implémenté ici, voir `SmsDeliveryResult`). Les codes `400/401/402/420/430/431/440/441/442` sont mappés vers des `errorCode` explicites (`tunisiesms.status-codes.ts`).
+- **`message_id`** est conservé dans `NotificationDelivery.providerMessageId` pour l'audit et une future réconciliation DLR.
+- **Retry** : aucun retry automatique côté provider (un timeout ne prouve pas l'absence d'envoi) ; le retry avec backoff de la queue (§18) s'applique au niveau job, pas au niveau HTTP TunisieSMS.
+
+> **Format de requête non vérifié contre un compte réel** : cet environnement de développement n'a pas d'accès réseau sortant vers `tunisiesms.tn`, donc le corps de requête HTTP (`tunisiesms.client.ts`, POST JSON `{ id, api_key, destination, content, sender }`) suit les noms de champs donnés dans la spécification de la tâche sans avoir pu être confirmé contre la documentation officielle. Le parsing de réponse (XML/JSON), les codes d'erreur, la normalisation du numéro et l'encodage sont indépendants de ce point et ne sont pas concernés. Avant mise en production : vérifier la méthode HTTP exacte et le format de requête auprès du compte TunisieSMS — un seul fichier à ajuster si besoin.
 
 ## Développement
 

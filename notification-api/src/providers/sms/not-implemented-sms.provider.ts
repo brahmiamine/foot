@@ -1,20 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { SmsProvider } from './sms-provider.interface';
+import { SmsProvider, SmsSendResult } from './sms-provider.interface';
 
 /**
- * SMS est explicitement hors périmètre V1 (§36). Ce stub existe pour que
- * SmsChannel (voir channels/sms) ait un provider à injecter dès
- * aujourd'hui : brancher un vrai fournisseur (ex: Twilio) plus tard ne
- * demandera qu'une nouvelle classe SmsProvider + un changement de config,
- * sans toucher SmsChannel ni le reste de l'architecture.
+ * Provider actif par défaut tant que `SMS_PROVIDER` n'est pas configuré à
+ * une valeur reconnue (ex: `tunisiesms`, voir tunisiesms/). Renvoie un échec
+ * structuré plutôt que de lever, pour que SmsChannel/DeliveriesService
+ * enregistrent un échec explicite au lieu d'un crash de worker.
  */
 @Injectable()
 export class NotImplementedSmsProvider implements SmsProvider {
   readonly name = 'not-implemented';
 
-  send(): Promise<void> {
-    throw new Error(
-      'SMS channel is not implemented yet (out of scope for V1, see §36)',
-    );
+  send(): Promise<SmsSendResult> {
+    return Promise.resolve({
+      success: false,
+      errorCode: 'SMS_PROVIDER_NOT_CONFIGURED',
+      errorMessage:
+        'No SMS provider is configured (set SMS_PROVIDER=tunisiesms and the TUNISIESMS_* variables)',
+    });
   }
 }

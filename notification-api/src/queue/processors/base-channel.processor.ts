@@ -60,9 +60,14 @@ export abstract class BaseChannelProcessor extends WorkerHost {
 
     try {
       const context = await this.recipientContext.resolve(notification);
-      await channel.deliver(context);
-      await this.deliveries.markSent(job.data.deliveryId);
-      await this.deliveries.markDelivered(job.data.deliveryId);
+      const result = await channel.deliver(context);
+      await this.deliveries.markSent(job.data.deliveryId, {
+        providerMessageId: result?.providerMessageId,
+        providerStatus: result?.providerStatus,
+      });
+      if (!channel.deliveryConfirmationRequired) {
+        await this.deliveries.markDelivered(job.data.deliveryId);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.deliveries.markFailed(job.data.deliveryId, message);

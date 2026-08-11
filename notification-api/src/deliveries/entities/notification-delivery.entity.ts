@@ -31,6 +31,24 @@ export class NotificationDelivery {
   @Column({ type: 'varchar', length: 64, nullable: true })
   provider!: string | null;
 
+  /** Référence externe de l'envoi (ex: `message_id` TunisieSMS) — conservée pour l'audit et une future réconciliation DLR (§25). */
+  @Column({
+    type: 'varchar',
+    length: 191,
+    nullable: true,
+    name: 'provider_message_id',
+  })
+  providerMessageId!: string | null;
+
+  /** Statut brut renvoyé par le provider (ex: "200 ok" TunisieSMS), distinct du statut interne ci-dessous. */
+  @Column({
+    type: 'varchar',
+    length: 191,
+    nullable: true,
+    name: 'provider_status',
+  })
+  providerStatus!: string | null;
+
   @Column({
     type: 'enum',
     enum: DeliveryStatus,

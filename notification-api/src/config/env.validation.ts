@@ -141,6 +141,28 @@ class EnvironmentVariables {
   @IsOptional()
   FCM_PRIVATE_KEY?: string;
 
+  // --- SMS (TunisieSMS) ---
+  @IsOptional()
+  @IsIn(['none', 'tunisiesms'])
+  SMS_PROVIDER = 'none';
+
+  @IsOptional()
+  TUNISIESMS_API_URL?: string;
+
+  @IsOptional()
+  TUNISIESMS_ID?: string;
+
+  @IsOptional()
+  TUNISIESMS_API_KEY?: string;
+
+  @IsOptional()
+  TUNISIESMS_SENDER?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  TUNISIESMS_TIMEOUT_MS = 10_000;
+
   // --- Rétention / nettoyage ---
   @IsOptional()
   @Type(() => Number)
