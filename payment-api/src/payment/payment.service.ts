@@ -8,6 +8,15 @@ import { PaymentStatus } from './enums/payment-status.enum';
 import { InitPaymentDto } from './dto/init-payment.dto';
 import { InitPaymentResultDto } from './dto/init-payment-result.dto';
 import { KonnectProvider } from './providers/konnect/konnect.provider';
+import {
+  InitPaymeePaymentDto,
+  PaymeeIntegrationMode,
+} from './providers/paymee/dto/init-paymee-payment.dto';
+import { InitPaymeePaymentResultDto } from './providers/paymee/dto/init-paymee-payment-result.dto';
+import { formatPaymeeAmount } from './providers/paymee/paymee.mapper';
+import { PaymeeProvider } from './providers/paymee/paymee.provider';
+import { PaymeePaymentNotFoundError } from './providers/paymee/paymee.exceptions';
+import { PaymeeWebhookPayload } from './providers/paymee/paymee.types';
 
 export const PAYMENT_PAID_EVENT = 'payment.paid';
 
@@ -26,6 +35,7 @@ export class PaymentService {
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
     private readonly konnectProvider: KonnectProvider,
+    private readonly paymeeProvider: PaymeeProvider,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -133,6 +143,126 @@ export class PaymentService {
         this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
         this.logger.log(
           `Payment ${payment.id} marked PAID (order ${payment.orderId}).`,
+        );
+      }
+      return;
+    }
+
+    await this.paymentRepository.update(payment.id, {
+      status: verification.internalStatus,
+      lastProviderStatus: verification.providerStatus,
+    });
+  }
+
+  async initiatePaymeePayment(
+    dto: InitPaymeePaymentDto,
+  ): Promise<InitPaymeePaymentResultDto> {
+    const mode = dto.mode ?? PaymeeIntegrationMode.REDIRECT;
+
+    const payment = this.paymentRepository.create({
+      orderId: dto.orderId,
+      provider: PaymentProviderName.PAYMEE,
+      amount: formatPaymeeAmount(dto.amount),
+      currency: 'TND',
+      status: PaymentStatus.PENDING,
+    });
+    await this.paymentRepository.save(payment);
+
+    const initiated = await this.paymeeProvider.initiatePayment({
+      orderId: dto.orderId,
+      amount: dto.amount,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
+      phoneNumber: dto.phoneNumber,
+    });
+
+    payment.providerRef = initiated.token;
+    payment.payUrl = initiated.payUrl;
+    await this.paymentRepository.save(payment);
+
+    this.logger.log(
+      `Payment ${payment.id} initiated via Paymee (order ${payment.orderId}, mode ${mode})`,
+    );
+
+    return {
+      paymentId: payment.id,
+      token: initiated.token,
+      payUrl:
+        mode === PaymeeIntegrationMode.REDIRECT ? initiated.payUrl : undefined,
+    };
+  }
+
+  /**
+   * Processes a Paymee webhook notification, following Paymee's mandatory
+   * order: verify check_sum before ever looking up the internal payment,
+   * then verify order_id/amount before trusting payment_status. Idempotent:
+   * calling this repeatedly for the same token never re-triggers the PAID
+   * transition (and its side effects) more than once.
+   */
+  async handlePaymeeWebhook(payload: PaymeeWebhookPayload): Promise<void> {
+    this.paymeeProvider.verifyChecksum(
+      payload.token,
+      payload.payment_status,
+      payload.check_sum,
+    );
+
+    const payment = await this.paymentRepository.findOne({
+      where: {
+        provider: PaymentProviderName.PAYMEE,
+        providerRef: payload.token,
+      },
+    });
+
+    if (!payment) {
+      throw new PaymeePaymentNotFoundError();
+    }
+
+    await this.paymentRepository.update(payment.id, {
+      webhookReceivedCount: payment.webhookReceivedCount + 1,
+      lastWebhookAt: new Date(),
+    });
+
+    if (payment.status === PaymentStatus.PAID) {
+      this.logger.log(
+        `Webhook for already-paid Paymee payment ${payment.id}, ignoring (idempotent).`,
+      );
+      return;
+    }
+
+    const verification = this.paymeeProvider.verifyPayment(payload, {
+      orderId: payment.orderId,
+      amount: payment.amount,
+    });
+
+    if (verification.internalStatus === PaymentStatus.PAID) {
+      // Atomic, conditional transition: only the first webhook delivery to
+      // reach this point actually flips the row and fires the event, even
+      // under concurrent/duplicate deliveries.
+      const result = await this.paymentRepository
+        .createQueryBuilder()
+        .update(Payment)
+        .set({
+          status: PaymentStatus.PAID,
+          paidAt: new Date(),
+          lastProviderStatus: verification.providerStatus,
+          receivedAmount: verification.receivedAmount ?? null,
+          providerFee: verification.fee ?? null,
+        })
+        .where('id = :id', { id: payment.id })
+        .andWhere('status != :paid', { paid: PaymentStatus.PAID })
+        .execute();
+
+      if (result.affected && result.affected > 0) {
+        const event: PaymentPaidEvent = {
+          paymentId: payment.id,
+          orderId: payment.orderId,
+          provider: payment.provider,
+          providerRef: payload.token,
+        };
+        this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
+        this.logger.log(
+          `Payment ${payment.id} marked PAID via Paymee (order ${payment.orderId}).`,
         );
       }
       return;

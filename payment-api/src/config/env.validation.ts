@@ -49,6 +49,38 @@ class EnvironmentVariables {
   )
   KONNECT_WEBHOOK_URL: string;
 
+  // --- Paymee ---
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'PAYMEE_BASE_URL must be a valid HTTPS URL' },
+  )
+  PAYMEE_BASE_URL: string;
+
+  @IsNotEmpty({ message: 'PAYMEE_API_KEY is required' })
+  PAYMEE_API_KEY: string;
+
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'PAYMEE_WEBHOOK_URL must be a valid HTTPS URL' },
+  )
+  PAYMEE_WEBHOOK_URL: string;
+
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'PAYMEE_RETURN_URL must be a valid HTTPS URL' },
+  )
+  PAYMEE_RETURN_URL: string;
+
+  @IsNotEmpty()
+  @IsUrl(
+    { require_tld: false },
+    { message: 'PAYMEE_CANCEL_URL must be a valid HTTPS URL' },
+  )
+  PAYMEE_CANCEL_URL: string;
+
   // --- Database ---
   @IsNotEmpty()
   DB_HOST: string;

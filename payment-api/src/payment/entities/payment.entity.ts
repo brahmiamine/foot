@@ -54,6 +54,15 @@ export class Payment {
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date | null;
 
+  // Populated only for providers that report fees separately from the
+  // requested amount (e.g. Paymee's received_amount/cost). `amount` above
+  // always stays the order amount; these never modify it.
+  @Column({ type: 'decimal', precision: 12, scale: 3, nullable: true })
+  receivedAmount: string | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 3, nullable: true })
+  providerFee: string | null;
+
   @Column({ type: 'timestamp', nullable: true })
   lastWebhookAt: Date | null;
 
