@@ -14,7 +14,8 @@ Plateforme de gestion d'une ligue de football (fédérations, ligues, clubs, mat
 | [`ob`](./ob) | Site public (vitrine) **custom** de l'Olympique de Béja, en lecture seule sur la base partagée. Live match (buts/cartons/remplacements/blessures lus depuis `matchsheet`) et espace membre (profil, notifications, préférences, push) consommant `notification-api`. | — | Public + `MEMBER` via SSO |
 | [`payment-api`](./payment-api) | API de paiement (NestJS) mutualisée : intègre les providers tunisiens Konnect Network, Paymee et Flouci derrière une interface unique. | — | Clé API interne |
 | [`notification-api`](./notification-api) | Centre de notifications centralisé (NestJS) : in-app, email et push (SMS à venir) pour toutes les apps de l'écosystème, avec préférences utilisateur, templates multilingues, queue asynchrone (BullMQ) et idempotence. | 3010 | JWT `sso` (public) + clé de service (interne) |
-| [`sellerPortal`](./sellerPortal) | Portail vendeur générique du marketplace d'un club : catalogue produits/variantes, stock, commandes, retours, payouts (lecture seule), notifications — les vendeurs sont des comptes indépendants du SSO club. Anciennement `ob-seller-portal` (voir note ⚠️ ci-dessous et son README pour l'écart encore existant avec le multi-clubs). | ⚠️ voir note | Cookie de session propre (`SP_JWT_SECRET`), indépendant du SSO |
+| [`sellerPortal`](./sellerPortal) | Portail vendeur générique du marketplace d'un club : catalogue produits/variantes, stock, commandes, retours, payouts (lecture seule), notifications — les vendeurs sont des comptes indépendants du SSO club, rattachés à un club (`clubId`) dès l'inscription. Anciennement `ob-seller-portal`. | ⚠️ voir note | Cookie de session propre (`SP_JWT_SECRET`), indépendant du SSO |
+| [`billetterie`](./billetterie) | Billetterie générique multi-clubs : achat de billets par un compte `MEMBER`, catégories/tarifs/quotas définis par club organisateur (table `matches` réutilisée comme événement), pas d'intégration paiement réelle ni de contrôle billetterie dans cette itération (voir son README). | — | JWT `sso` (`MEMBER` uniquement) |
 | [`db`](./db) | Dump SQL de référence du schéma partagé `foot`. | — | — |
 | [`skote`](./skote) | Template d'admin React (Themesbrand Skote) vendored à titre de référence visuelle — non branché au produit. | — | — |
 
@@ -34,6 +35,7 @@ GENERIC PLATFORM (multi-clubs)
 ├── superadmin     — back-office plateforme (fédérations, ligues, clubs, saisons, arbitres, audit)
 ├── teamManager    — back-office de gestion d'un club (le club est déterminé par teamId)
 ├── sellerPortal   — portail vendeur du marketplace d'un club
+├── billetterie    — achat de billets, multi-clubs (catégories/quotas par club organisateur)
 ├── arbinote       — notation publique des arbitres
 ├── matchsheet     — feuille de match électronique (kiosque)
 ├── payment-api    — paiement mutualisé (Konnect, Paymee, Flouci)
@@ -48,7 +50,8 @@ CUSTOM APPLICATIONS
 | `sso` | Générique | Multi-club |
 | `superadmin` | Générique | Plateforme |
 | `teamManager` | Générique | Multi-club |
-| `sellerPortal` | Générique (⚠️ V1 mono-club en pratique, voir son README) | Multi-club (cible) |
+| `sellerPortal` | Générique | Multi-club |
+| `billetterie` | Générique | Multi-club |
 | `arbinote` | Générique | Multi-club |
 | `matchsheet` | Générique | Multi-club |
 | `payment-api` | Générique | Plateforme |
@@ -67,7 +70,7 @@ Aucun de ces domaines n'est actuellement configuré (DNS/SSL/reverse proxy) — 
 | `sso.platform.tn` | `sso` |
 | `admin.platform.tn` | `teamManager` (le club connecté est déterminé par `teamId` après authentification) |
 | `sellers.platform.tn` | `sellerPortal` |
-| `tickets.platform.tn` | Billetterie générique — **n'existe pas encore comme application séparée dans ce repo** ; la billetterie/l'espace membre `ob/espace-membre/billets` est aujourd'hui couplée à l'app custom `ob` (écart avec la cible, voir ci-dessous) |
+| `tickets.platform.tn` | `billetterie` — pas d'intégration paiement réelle ni de contrôle billetterie dans cette itération (voir son README) ; `ob/espace-membre/billets` reste un écran d'attente séparé côté app custom, pas encore branché sur `billetterie` (écart avec la cible, voir ci-dessous) |
 | `scanner.platform.tn` | Contrôle billetterie générique — **n'existe pas encore dans ce repo** |
 | `api.platform.tn` | Passerelle API générique — **n'existe pas encore** ; `payment-api` et `notification-api` sont aujourd'hui exposées séparément |
 | `superadmin.platform.tn` | `superadmin` |
@@ -91,7 +94,7 @@ admin.platform.tn/login → SSO → teamId=OB  → branding/joueurs/couleurs OB
 
 Même URL, contenu différent selon le club authentifié — c'est exactement le rôle du `ClubBranding` décrit plus haut. `ob` reste le seul cas différent : c'est un **second projet, custom**, pas un tenant de plus dans une appli générique. Si l'Espérance de Tunis commande un jour un site vitrine équivalent, ce serait un nouveau projet custom (`est`, `www.est.tn`) indépendant de `ob`, pas une évolution de `ob` ni de `teamManager`.
 
-Pour la billetterie, le club peut aussi apparaître dans le chemin plutôt qu'être déduit uniquement de la session (`tickets.platform.tn/ob`, `tickets.platform.tn/est`) : `/ob` et `/est` ne sont pas deux déploiements différents, seulement deux contextes de la même application. **Règle de sécurité** : le slug d'URL ne doit jamais servir directement de filtre de données. Le serveur doit toujours le résoudre en `teamId` (`resolveTeam("ob") → teamId`), vérifier l'autorisation, puis filtrer `WHERE team_id = teamId` — jamais `WHERE team_slug = request.params.slug` sans ce contrôle, qui laisserait n'importe quel appelant changer de club en changeant l'URL.
+Pour la billetterie, le club peut aussi apparaître dans le chemin plutôt qu'être déduit uniquement de la session (`tickets.platform.tn/ob`, `tickets.platform.tn/est`) : `/ob` et `/est` ne sont pas deux déploiements différents, seulement deux contextes de la même application. **Règle de sécurité** : le slug d'URL ne doit jamais servir directement de filtre de données. Le serveur doit toujours le résoudre en `teamId` (`resolveTeam("ob") → teamId`), vérifier l'autorisation, puis filtrer `WHERE team_id = teamId` — jamais `WHERE team_slug = request.params.slug` sans ce contrôle, qui laisserait n'importe quel appelant changer de club en changeant l'URL. L'implémentation actuelle de `billetterie` (voir ci-dessous) suit ce principe en pratique via `/match/[id]` plutôt que `/club/[slug]` : l'identifiant exposé est celui du match (`matches.id`, déjà un UUID opaque), et le club organisateur en est dérivé côté serveur (`matches.equipe_home`), jamais lu depuis un paramètre d'URL de club.
 
 Dans la même logique, les catégories de billets ne doivent pas être un enum fixe dans le code (`GRADIN`, `CHAISE`, …) : chaque club doit pouvoir définir les siennes (ex. OB : Gradin/Chaise ; EST : Virage/Tribune/VIP) via une configuration par club, pas via une modification de code.
 
@@ -129,7 +132,8 @@ au lieu de `payment-api.platform.tn`, `notification-api.platform.tn`, etc. Les s
 
 - **`sellerPortal`** : scoping multi-club fait — `Seller.clubId` et `ProductCategory.clubId`, portés par le JWT de session, filtrage serveur systématique (catégories, validation du `categoryId` à la création/modification d'un produit). Reste non fait : `ClubBranding` (nom/logo/couleurs du club affichés dans le portail) et le scoping des tables non essentielles au multi-tenant (`sp_products`/`sp_market_orders` restent scopées par `sellerId`, suffisant tant qu'un vendeur n'appartient qu'à un seul club). Voir `sellerPortal/README.md` § « Multi-clubs ».
 - **`ClubBranding`** : implémenté (`superadmin` : table `team_branding` + admin CRUD ; `teamManager` : manifest PWA/metadata/logo sidebar résolus dynamiquement par club, voir `lib/clubBranding.ts`). Reste non fait : personnalisation des icônes PWA par club (au-delà nom/couleurs/favicon) et branchement dans `sellerPortal`/la future billetterie.
-- **Billetterie / contrôle billetterie** : n'existent pas comme services génériques indépendants dans ce repo (`ob/espace-membre/billets` n'est aujourd'hui qu'un écran d'attente, aucune vente réelle). L'extraction en service générique multi-clubs est un chantier de roadmap, pas fait dans le cadre de cette normalisation (pas de réécriture non nécessaire, cf. contrainte de la mission) — voir « Billetterie : séparer l'identité du supporter de l'organisateur de l'événement » ci-dessus pour le modèle de données à suivre le jour où ce chantier démarre (ne pas réutiliser le `teamId` unique de `User` pour représenter l'affiliation supporter).
+- **`billetterie`** : app générique créée (catégories/quotas par club organisateur, `TicketSaleRule` d'audience, achat par un compte `MEMBER`). Reste non fait : intégration paiement réelle (billets marqués `PAID` directement, voir son README), administration des catégories/quotas (pas d'UI, insertion SQL manuelle pour l'instant), `ob/espace-membre/billets` n'est pas encore branché dessus.
+- **Contrôle billetterie / scanner** : n'existe pas comme service séparé dans ce repo — hors périmètre de cette normalisation (application distincte à part entière, voir README § Classification).
 - **API Gateway** : pas de domaine `api.platform.tn` unifié ; `payment-api`/`notification-api` restent des services distincts avec leurs propres bases. Le routage par chemin (`/payment`, `/notifications`, …) décrit ci-dessus n'est pas encore en place — c'est une tâche d'infrastructure (reverse proxy), pas de code applicatif.
 - **Base de données par domaine** : `payment-api` et `notification-api` ont déjà leur propre base, mais les applications métier (`teamManager`, `sellerPortal`, `arbinote`, `matchsheet`, `ob`) partagent encore la base `foot`. Une séparation en bases par domaine (référentiel/clubs/matchs, marketplace, …) est une évolution possible à moyen terme, à ne déclencher que lorsque ces domaines évoluent réellement de façon indépendante — pas une priorité de cette normalisation.
 
