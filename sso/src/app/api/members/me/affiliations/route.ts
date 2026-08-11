@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/session";
+import { getRequestSession } from "@/lib/requestSession";
 import { addMemberAffiliation, listMemberAffiliations } from "@/lib/memberAffiliations";
 
 /**
@@ -7,10 +8,14 @@ import { addMemberAffiliation, listMemberAffiliations } from "@/lib/memberAffili
  * `session.teamId` (réservé au staff) : voir README racine, section
  * « Billetterie : séparer l'identité du supporter de l'organisateur de
  * l'événement ». Consommé par les apps génériques (ex. `ob`, billetterie)
- * pour personnaliser l'affichage — jamais pour restreindre un achat.
+ * pour personnaliser l'affichage — jamais pour restreindre un achat (voir
+ * billetterie/src/lib/tickets.ts : signal de modération non bloquant
+ * uniquement, `audience_mismatch` sur `tk_tickets`). GET accepte aussi
+ * `Authorization: Bearer <token>` pour cet appel serveur-à-serveur —
+ * mêmes règles que /api/members/me/profile.
  */
-export async function GET() {
-  const session = await getCurrentSession();
+export async function GET(request: NextRequest) {
+  const session = await getRequestSession(request);
   if (!session || session.role !== "MEMBER") {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }

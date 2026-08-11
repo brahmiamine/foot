@@ -32,3 +32,25 @@ export async function fetchMemberProfile(): Promise<MemberProfile | null> {
 
   return (await res.json()) as MemberProfile;
 }
+
+/**
+ * Clubs suivis par le membre (préférences déclaratives, voir
+ * sso/src/entities/MemberTeamAffiliation.ts) — jamais pour restreindre un
+ * achat, seulement pour calculer `audience_mismatch` (signal de modération
+ * non bloquant) sur les catégories HOME_SUPPORTERS/AWAY_SUPPORTERS. Renvoie
+ * `null` si l'appel échoue plutôt que de faire échouer l'achat : l'absence
+ * de signal ne doit jamais bloquer une vente, voir src/lib/tickets.ts.
+ */
+export async function fetchMemberAffiliatedTeamIds(): Promise<Set<string> | null> {
+  const token = await getSsoToken();
+  if (!token) return null;
+
+  const res = await fetch(`${baseUrl()}/api/members/me/affiliations`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as { teams?: { id: string }[] };
+  return new Set((data.teams ?? []).map((team) => team.id));
+}

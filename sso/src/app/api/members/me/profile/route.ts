@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentSession, verifySessionToken } from "@/lib/session";
+import { getRequestSession } from "@/lib/requestSession";
 import { getMemberProfile, updateMemberProfile } from "@/lib/members";
 
 /**
@@ -10,13 +10,6 @@ import { getMemberProfile, updateMemberProfile } from "@/lib/members";
  * avant d'initier un paiement Paymee (voir billetterie/src/lib/ssoProfileClient.ts),
  * même convention que notification-api pour les apps clientes.
  */
-async function getRequestSession(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (bearerToken) return verifySessionToken(bearerToken);
-  return getCurrentSession();
-}
-
 export async function GET(request: NextRequest) {
   const session = await getRequestSession(request);
   if (!session || session.role !== "MEMBER") {

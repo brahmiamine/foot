@@ -61,4 +61,26 @@ export class Ticket {
    */
   @Column({ type: "varchar", length: 36, name: "payment_id", nullable: true })
   paymentId!: string | null;
+
+  /**
+   * Règle d'audience qui s'appliquait au moment de l'achat (PUBLIC si aucune
+   * restriction). Trace ce que TicketSaleRule.allowedAudience valait alors —
+   * jamais recalculée après coup, la règle peut changer entre-temps.
+   */
+  @Column({
+    type: "enum",
+    enum: ["PUBLIC", "HOME_SUPPORTERS", "AWAY_SUPPORTERS"],
+    name: "declared_audience",
+    default: "PUBLIC",
+  })
+  declaredAudience!: "PUBLIC" | "HOME_SUPPORTERS" | "AWAY_SUPPORTERS";
+
+  /**
+   * Signal de modération, jamais un blocage (voir TicketSaleRule pour
+   * pourquoi une vérification stricte n'est pas possible ici) : vrai si
+   * l'acheteur a déclaré HOME_SUPPORTERS/AWAY_SUPPORTERS mais que ses
+   * affiliations sso ne couvrent pas l'équipe correspondante.
+   */
+  @Column({ type: "tinyint", name: "audience_mismatch", default: 0 })
+  audienceMismatch!: boolean;
 }

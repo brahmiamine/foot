@@ -35,6 +35,19 @@ l'acheteur au moment de l'achat (case à cocher), pas une vérification
 d'identité. À remplacer par un mécanisme fiable (abonnement/carte de membre
 vérifiée) avant toute vente réelle sur des catégories sensibles.
 
+Ce qui a changé : la déclaration n'est plus jetée après l'achat. Chaque
+billet garde `declaredAudience` (la règle en vigueur au moment de l'achat)
+et `audienceMismatch`, un **signal de modération non bloquant** — jamais un
+blocage, jamais une vérification d'identité — mis à `true` après coup
+(`flagAudienceMismatchIfNeeded` dans `src/lib/tickets.ts`, appelé sans
+bloquer la réservation ni le paiement) si l'acheteur a déclaré
+HOME_SUPPORTERS/AWAY_SUPPORTERS mais que ses affiliations `sso` ne couvrent
+pas l'équipe correspondante. Un échec de cet appel (SSO indisponible, etc.)
+laisse simplement le billet sans signal, jamais sans vente. Aucun écran
+d'administration ne consomme encore ce signal aujourd'hui — la donnée est
+capturée et interrogeable directement, un tri/export pour modération reste
+à construire si le besoin se confirme.
+
 ## Paiement (`payment-api`)
 
 `POST /api/tickets` réserve les billets (`PENDING`) et initie un paiement

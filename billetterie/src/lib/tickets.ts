@@ -8,7 +8,7 @@ import { Ticket } from "@/entities/Ticket";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { generateTicketReference } from "@/lib/reference";
 import { getPaymentProvider, getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
-import { fetchMemberProfile } from "@/lib/ssoProfileClient";
+import { fetchMemberAffiliatedTeamIds, fetchMemberProfile } from "@/lib/ssoProfileClient";
 
 export interface OpenMatchSummary {
   id: string;
@@ -171,6 +171,29 @@ async function releaseTickets(manager: EntityManager, ticketIds: string[]): Prom
   }
 }
 
+/**
+ * Signal de modération non bloquant sur une catégorie HOME_SUPPORTERS/
+ * AWAY_SUPPORTERS : marque `audience_mismatch` sur les billets si les
+ * affiliations sso de l'acheteur (préférences déclaratives, voir
+ * MemberTeamAffiliation côté sso) ne couvrent pas `relevantTeamId`.
+ * N'est JAMAIS appelée avant la création des billets ni le paiement — voir
+ * TicketSaleRule pour pourquoi ceci reste un signal de modération, jamais
+ * une vérification d'identité ni un blocage d'achat. Ne doit jamais lever :
+ * un échec de cet appel (sso indisponible, etc.) laisse simplement le
+ * billet sans signal, pas sans vente.
+ */
+async function flagAudienceMismatchIfNeeded(ticketIds: string[], relevantTeamId: string): Promise<void> {
+  try {
+    const affiliatedTeamIds = await fetchMemberAffiliatedTeamIds();
+    if (!affiliatedTeamIds || affiliatedTeamIds.has(relevantTeamId)) return;
+
+    const ds = await getDataSource();
+    await ds.getRepository(Ticket).update({ id: In(ticketIds) }, { audienceMismatch: true });
+  } catch (error) {
+    console.error("flagAudienceMismatchIfNeeded failed:", error);
+  }
+}
+
 export interface PurgeStaleReservationsResult {
   releasedTickets: number;
   releasedCategories: number;
@@ -247,7 +270,7 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
 
   const ds = await getDataSource();
 
-  const { tickets, mtc } = await ds.transaction(async (manager) => {
+  const { tickets, mtc, allowedAudience, homeTeamId, awayTeamId } = await ds.transaction(async (manager) => {
     const mtc = await manager.findOne(MatchTicketCategory, {
       where: { id: input.matchTicketCategoryId },
       lock: { mode: "pessimistic_write" },
@@ -316,11 +339,20 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
         reference: generateTicketReference(),
         price: mtc.price,
         paymentId: null,
+        declaredAudience: allowedAudience,
       }),
     );
     const saved = await manager.save(tickets);
-    return { tickets: saved, mtc };
+    return { tickets: saved, mtc, allowedAudience, homeTeamId: match.equipeHome, awayTeamId: match.equipeAway };
   });
+
+  if (allowedAudience !== "PUBLIC") {
+    // Best-effort, jamais bloquant : voir flagAudienceMismatchIfNeeded.
+    void flagAudienceMismatchIfNeeded(
+      tickets.map((t) => t.id),
+      allowedAudience === "HOME_SUPPORTERS" ? homeTeamId : awayTeamId,
+    );
+  }
 
   const totalAmount = Math.round(parseFloat(mtc.price) * input.quantity * 1000) / 1000;
   // Référence du premier billet du lot : unique, sert d'orderId payment-api
