@@ -76,7 +76,16 @@ Haute.
 
 ### Statut
 
-Scaffold V1 livré dans [`notification-api`](./notification-api) (NestJS) : table `Notification` standardisée, préférences par canal/catégorie, templates multilingues, queue BullMQ avec retry, ciblage broadcast (TEAM/ROLE/MEMBERS via la base partagée, CATEGORY/SELLER pré-résolus par l'app appelante), idempotence par `eventId`, historique de livraison. Reste à brancher : intégration effective des apps sources (appels à `POST /internal/notifications` depuis `teamManager`/`payment-api`/`ob`), Web Push côté frontend (souscription navigateur), FCM (mobile), SMS.
+Scaffold V1 livré dans [`notification-api`](./notification-api) (NestJS) : table `Notification` standardisée, préférences par canal/catégorie, templates multilingues, queue BullMQ avec retry, ciblage broadcast (TEAM/ROLE/MEMBERS via la base partagée, CATEGORY/SELLER pré-résolus par l'app appelante), idempotence par `eventId`, historique de livraison.
+
+Apps sources désormais branchées (appels à `POST /internal/notifications`, via un `notificationClient` "best-effort" — jamais bloquant pour l'opération métier) :
+- `arbinote` : `VOTE_ANOMALY_DETECTED` (ROLE=SUPERADMIN) quand une alerte de vote devient critique.
+- `superadmin` : `MATCH_CREATED` et `MATCH_RESCHEDULED` (TEAM des deux clubs) à la création/reprogrammation d'un match.
+- `matchsheet` : `MATCH_SHEET_CLOSED` (TEAM des deux clubs) à la clôture d'une feuille de match.
+- `teamManager` : `NEWS_PUBLISHED` (MEMBERS du club) à la publication d'une actualité.
+- `payment-api` : `PAYMENT_SUCCEEDED` (USER) quand un paiement est confirmé, si l'app appelante a fourni un `userId` à l'initiation.
+
+Reste à brancher : `ob` (aucun événement source aujourd'hui, l'app est en lecture seule), `convocation envoyée`/`composition publiée`/`sponsor accepté` (le destinataire — joueur, sponsor — n'est pas un compte `User` de la base partagée, donc pas résolvable en `userId` sans évolution de modèle), Web Push côté frontend (souscription navigateur), FCM (mobile), SMS.
 
 ### Constat
 

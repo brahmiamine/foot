@@ -23,6 +23,13 @@ export class Payment {
   @Column({ type: 'varchar', length: 100 })
   orderId: string;
 
+  // Shared `foot` User.id of the payer, when the caller has one (optional:
+  // a payment can be initiated for a guest/anonymous checkout). Used only
+  // to notify the payer via notification-api once PAID — see
+  // src/notifications/payment-notifications.listener.ts.
+  @Column({ type: 'varchar', length: 36, nullable: true })
+  userId: string | null;
+
   @Column({
     type: 'enum',
     enum: PaymentProviderName,

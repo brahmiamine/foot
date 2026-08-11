@@ -46,4 +46,15 @@ export class InitPaymentDto {
   @IsString()
   @MaxLength(30)
   phoneNumber?: string;
+
+  /**
+   * Shared `foot` User.id of the payer, if the caller has one (a payment
+   * can be initiated for a guest/anonymous checkout without it). Enables
+   * a PAYMENT_SUCCEEDED notification via notification-api once the
+   * payment is confirmed — never used for anything else.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  userId?: string;
 }
