@@ -35,13 +35,36 @@ l'acheteur au moment de l'achat (case à cocher), pas une vérification
 d'identité. À remplacer par un mécanisme fiable (abonnement/carte de membre
 vérifiée) avant toute vente réelle sur des catégories sensibles.
 
-## Portée V1
+## Paiement (`payment-api`)
 
-- Pas d'intégration `payment-api` réelle : l'achat (`POST /api/tickets`) est
-  un mock qui marque le billet `PAID` immédiatement. Toute la validation
-  serveur (fenêtre de vente, quota par utilisateur, capacité restante) reste
-  réelle et appliquée en transaction (verrou pessimiste sur
-  `tk_match_ticket_categories` pour éviter la survente).
+`POST /api/tickets` réserve les billets (`PENDING`) et initie un paiement
+auprès de `payment-api` (`PAYMENT_PROVIDER`, `konnect` par défaut — voir
+`.env.example`) ; le client redirige le navigateur vers le `payUrl` reçu.
+`payment-api` ne rappelle jamais `billetterie` : la confirmation
+(`PENDING` → `PAID`) est relue via `GET /payments/:id`, soit sur
+`/paiement/retour`, soit — filet de sécurité principal, ne dépend d'aucune
+redirection — opportunément à chaque chargement de `/mes-billets` (voir
+`reconcileTicketPayment` dans `src/lib/tickets.ts`).
+
+⚠️ **Limite connue avec le provider par défaut (Konnect)** : l'intégration
+Konnect de `payment-api` ne transmet pas de `successUrl`/`failUrl` à
+Konnect (voir `payment-api/src/payment/providers/konnect/konnect.types.ts`) —
+le payeur n'est donc **pas** automatiquement redirigé vers
+`/paiement/retour` après paiement. Ça fonctionne quand même grâce au
+rattrapage sur `/mes-billets`, mais un supporter qui ne revient jamais sur
+le site ne verra jamais la confirmation avant sa prochaine visite.
+
+Une réservation `PENDING` sans confirmation après 30 minutes est traitée
+comme abandonnée et sa capacité libérée automatiquement à la prochaine
+tentative d'achat sur la même catégorie (pas de tâche planifiée dans ce
+dépôt — voir `PENDING_RESERVATION_TTL_MS` dans `src/lib/tickets.ts`).
+
+Seuls **Konnect** et **Flouci** sont supportés (`PAYMENT_PROVIDER`) : Paymee
+exige `firstName`/`lastName`/`phoneNumber`, des champs que le profil
+`MEMBER` de `sso` ne collecte pas aujourd'hui.
+
+## Portée
+
 - Pas de scanner/contrôle billetterie : ce sera une app séparée
   (`ticketing-scanner`), hors périmètre.
 - L'interface d'administration pour créer les catégories/règles de vente

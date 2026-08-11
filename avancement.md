@@ -27,7 +27,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | 6 | CI (lint + tests) sur les 10 apps | ✅ Fait | `.github/workflows/ci.yml` — voir détail ci-dessous |
 | 7 | `/api/health` partout | ✅ Fait (10/10 apps) | Monitoring/alerting externe reste hors périmètre — voir détail |
 | 8 | Reset password + MFA + révocation de session dans `sso` | ✅ Fait (dans `sso`, limite assumée côté apps clientes) | Voir détail — `User.tokenVersion` vérifié par `sso` à chaque requête, pas encore par les 6 apps clientes |
-| 9 | Brancher `billetterie` sur `payment-api` et sur `ob` | ⬜ À faire | Achat aujourd'hui marqué `PAID` immédiatement (mock) |
+| 9 | Brancher `billetterie` sur `payment-api` et sur `ob` | ✅ Fait (limite Konnect documentée) | Voir détail — premier vrai appelant de `payment-api` dans le dépôt |
 | 10 | Backup/restauration testée pour `foot` et les uploads | ⬜ À faire | |
 | 11 | Espace supporter, finance/trésorerie, sponsors avancés, RGPD dans `teamManager` | ⬜ À faire | |
 | 12 | Passerelle API + domaines de production | ⬜ À faire | Tâche infra, à déclencher au déploiement réel |
@@ -73,9 +73,9 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 **En place** : référentiels, audit, ClubBranding, lib `apiFootball.ts`.
 **Manquant** : colonnes de matching (`api_football_id`/`fixture_id`, live score/minute), job de synchro live, écran de mapping équipes/fixtures, icônes PWA personnalisables par club.
 
-### `billetterie` — haute
-**En place** : catégories par club/match, règles de vente, achat, « mes billets », anti-survente, quota, fenêtre de vente.
-**Manquant** : paiement réel (`payment-api`), vérification fiable de l'audience réservée (aujourd'hui auto-déclarée), scanner de contrôle stade (jamais commencé).
+### `billetterie` — rang 9 fait, reste : audience fiable, scanner
+**En place** : catégories par club/match, règles de vente, « mes billets », anti-survente, quota, fenêtre de vente, **paiement réel via `payment-api`** (réservation `PENDING` → `POST /payments/konnect/init` → redirection → confirmation relue via `GET /payments/:id`, jamais poussée par `payment-api` — voir rang 9 ci-dessous), **réservations abandonnées libérées automatiquement** après 30 min.
+**Manquant** : vérification fiable de l'audience réservée (aujourd'hui auto-déclarée), scanner de contrôle stade (jamais commencé).
 
 ### `sellerPortal` / `ob` / `payment-api` / `notification-api` — moyenne
 **En place** : `sellerPortal` scoping multi-club réel + ClubBranding ; `ob` live match + espace membre branché sur `notification-api` ; `payment-api`/`notification-api` seuls services avec tests + `.env.example` complets dès l'origine.
@@ -133,8 +133,25 @@ Constat initial : un même match traverse quatre applications distinctes, chacun
 ### G. Notifications : câblage émetteur partiel — moyenne
 Le service central existe et 5 apps émettent déjà des événements (`arbinote`, `superadmin`, `matchsheet`, `teamManager`, `payment-api`). `ob` ne source rien (lecture seule). Convocation/composition/sponsor non branchables tant que le destinataire n'est pas un `User` résolvable. Web Push, FCM, SMS annoncés mais aucun actif.
 
-### H. Billetterie : chaîne supporter → paiement → contrôle non fermée — haute
-`ob/espace-membre/billets` reste un écran d'attente statique. `billetterie` ne parle pas à `payment-api` (achat mock). Le contrôle billetterie à l'entrée du stade (`ticketing-scanner`) n'existe dans aucun dossier du dépôt.
+### H. Billetterie : chaîne supporter → paiement → contrôle — traité pour paiement + lien ob, contrôle stade toujours absent
+
+~~`ob/espace-membre/billets` reste un écran d'attente statique~~ → renvoie maintenant vers `{NEXT_PUBLIC_BILLETTERIE_URL}/mes-billets`.
+
+~~`billetterie` ne parle pas à `payment-api` (achat mock)~~ → `billetterie` est le premier vrai appelant de `payment-api` dans tout le dépôt (aucune autre app ne l'intégrait avant). Détail du flux (`billetterie/src/lib/tickets.ts`, `paymentApiClient.ts`) :
+
+1. `purchaseTickets` réserve les billets en `PENDING` dans une transaction (verrou pessimiste inchangé, anti-survente déjà présente en V1), **après avoir libéré les réservations `PENDING` abandonnées depuis plus de 30 min** de la même catégorie (pas de tâche planifiée dans ce dépôt pour un nettoyage périodique — ce rattrapage opportuniste en tient lieu) ;
+2. hors transaction (jamais d'appel réseau pendant qu'un verrou DB est tenu), appelle `POST /payments/konnect/init` avec `orderId`/`amount`/`email`/`userId` ; si l'appel échoue, compensation : la réservation est libérée plutôt que de laisser des billets `PENDING` orphelins ;
+3. le client redirige le navigateur vers le `payUrl` reçu.
+
+**`payment-api` ne rappelle jamais `billetterie`** (pas de webhook applicatif entre les deux apps, seuls les providers rappellent `payment-api`) : la confirmation est relue via `GET /payments/:id`, soit sur `/paiement/retour`, soit — filet de sécurité principal — opportunément à chaque chargement de `/mes-billets` (`reconcileTicketPayment`, idempotent).
+
+**Limite découverte en creusant le code de `payment-api`, pas un oubli côté `billetterie`** : son intégration Konnect (`payment-api/src/payment/providers/konnect/konnect.types.ts`) ne transmet pas de `successUrl`/`failUrl` à Konnect — avec le provider par défaut, le payeur n'est **pas** automatiquement redirigé vers `/paiement/retour` après paiement. Le rattrapage sur `/mes-billets` reste donc le mécanisme réel de confirmation pour la plupart des achats tant que ce n'est pas ajouté côté `payment-api` (changement volontairement pas fait ici : toucher à l'intégration Konnect existante sans base pour tester contre le vrai provider est plus risqué que documenter la limite).
+
+Seuls **Konnect** et **Flouci** sont supportés (`PAYMENT_PROVIDER`, `konnect` par défaut) : Paymee exige `firstName`/`lastName`/`phoneNumber` à l'initiation, des champs que le profil `MEMBER` de `sso` ne collecte pas aujourd'hui — non câblé plutôt que deviné.
+
+**Bug pré-existant découvert en testant réellement (pas juste `tsc`), sans rapport direct avec ce rang mais corrigé au passage** : `billetterie/package.json` n'a jamais eu `mysql2` en dépendance. `type: "mariadb"` de TypeORM en a besoin en interne malgré le nom (c'est un alias du driver MySQL, pas le package npm `mariadb`, que `billetterie` a aussi mais qui ne sert à rien ici) — `ob`/`sellerPortal` ont les deux packages, `billetterie` n'avait que `mariadb`. Sans base disponible dans cet environnement, aucune route de `billetterie` n'avait jamais été testée en conditions réelles avant cette session (seulement `tsc`/`eslint`/`next build`, qui ne touchent jamais la DB) — la première requête HTTP réelle contre une route qui appelle `getDataSource()` (`/paiement/retour`) a immédiatement révélé `DriverPackageNotInstalledError`. Corrigé (`mysql2` ajouté), revérifié : la même page échoue maintenant proprement en `ECONNREFUSED` (pas de vraie base ici) au lieu de planter — ce qui confirme au passage que `/api/health` de `billetterie` (rang 7) était affecté par le même bug et fonctionne correctement maintenant.
+
+**Toujours absent** : le contrôle billetterie à l'entrée du stade (`ticketing-scanner`) n'existe dans aucun dossier du dépôt — hors périmètre de ce rang.
 
 ### I. Infra cible non branchée — moyenne
 Aucun domaine de production configuré, pas de passerelle API unique, séparation des bases par domaine partielle (`payment-api`/`notification-api` isolées, le reste partage encore `foot`).

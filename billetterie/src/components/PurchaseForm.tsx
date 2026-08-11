@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { formatPriceTnd } from "@/lib/format";
 
 export function PurchaseForm({
@@ -19,12 +18,10 @@ export function PurchaseForm({
   maxTicketsPerUser: number;
   saleOpen: boolean;
 }) {
-  const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [audienceConfirmed, setAudienceConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
 
   const requiresConfirmation = allowedAudience !== "PUBLIC";
   const maxQuantity = Math.max(1, Math.min(maxTicketsPerUser, remaining));
@@ -44,11 +41,12 @@ export function PurchaseForm({
       if (!res.ok) {
         throw new Error(body?.error ?? `Erreur ${res.status}`);
       }
-      setDone(true);
-      router.refresh();
+      if (!body?.payUrl) {
+        throw new Error("Réponse inattendue du serveur (lien de paiement manquant).");
+      }
+      window.location.href = body.payUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Achat impossible.");
-    } finally {
       setLoading(false);
     }
   }
@@ -58,13 +56,6 @@ export function PurchaseForm({
   }
   if (remaining <= 0) {
     return <p style={{ fontSize: "0.82rem", color: "var(--tk-danger)", marginTop: 10 }}>Complet.</p>;
-  }
-  if (done) {
-    return (
-      <p style={{ fontSize: "0.82rem", color: "var(--tk-success)", fontWeight: 600, marginTop: 10 }}>
-        Billet(s) acheté(s) — retrouvez-les dans « Mes billets ».
-      </p>
-    );
   }
 
   return (

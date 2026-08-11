@@ -1,4 +1,4 @@
-import { In } from "typeorm";
+import { EntityManager, In, IsNull, LessThan, Not } from "typeorm";
 import { getDataSource } from "@/lib/database";
 import { Match } from "@/entities/Match";
 import { TicketCategory } from "@/entities/TicketCategory";
@@ -7,6 +7,7 @@ import { TicketSaleRule } from "@/entities/TicketSaleRule";
 import { Ticket } from "@/entities/Ticket";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { generateTicketReference } from "@/lib/reference";
+import { getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
 
 export interface OpenMatchSummary {
   id: string;
@@ -127,28 +128,66 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail | nul
 
 export interface PurchaseInput {
   purchaserId: string;
+  purchaserEmail?: string;
   matchTicketCategoryId: string;
   quantity: number;
   // Auto-déclaration de l'acheteur pour les catégories réservées à un camp
   // (HOME_SUPPORTERS/AWAY_SUPPORTERS) — voir la note de sécurité dans
   // src/entities/TicketSaleRule.ts : ce n'est PAS une vérification
-  // d'identité fiable, juste un garde-fou d'usage pour cette V1 mock.
+  // d'identité fiable, juste un garde-fou d'usage.
   audienceConfirmed: boolean;
 }
 
-// Achat mock : pas d'intégration payment-api dans cette itération, le
-// billet est marqué PAID immédiatement (voir NEXT_STEPS.md § B). Toute la
-// validation (fenêtre de vente, quota, capacité) reste réelle et faite
-// serveur — jamais fait confiance à une valeur envoyée par le client au-delà
-// de l'id de catégorie et de la quantité désirée.
-export async function purchaseTickets(input: PurchaseInput): Promise<Ticket[]> {
+export interface PurchaseResult {
+  tickets: Ticket[];
+  /** Le caller doit rediriger le navigateur du supporter vers cette URL. */
+  payUrl: string;
+}
+
+// Une réservation PENDING sans paiement confirmé passé ce délai est
+// considérée abandonnée et sa capacité libérée (voir releaseTickets ci-
+// dessous) — sans ça, un panier jamais payé bloquerait des places
+// indéfiniment (pas de tâche planifiée dans ce dépôt pour un nettoyage
+// périodique, voir avancement.md § C : CI/observabilité, pas de cron).
+const PENDING_RESERVATION_TTL_MS = 30 * 60 * 1000;
+
+async function releaseTickets(manager: EntityManager, ticketIds: string[]): Promise<void> {
+  if (ticketIds.length === 0) return;
+  const tickets = await manager.find(Ticket, { where: { id: In(ticketIds) } });
+  const mtcId = tickets[0]?.matchTicketCategoryId;
+
+  for (const ticket of tickets) ticket.status = "CANCELLED";
+  await manager.save(tickets);
+
+  if (mtcId) {
+    const mtc = await manager.findOne(MatchTicketCategory, { where: { id: mtcId }, lock: { mode: "pessimistic_write" } });
+    if (mtc) {
+      mtc.soldCount = Math.max(0, mtc.soldCount - tickets.length);
+      await manager.save(mtc);
+    }
+  }
+}
+
+/**
+ * Réserve les billets (PENDING) et valide toutes les règles serveur —
+ * fenêtre de vente, audience, quota, capacité — puis, hors transaction,
+ * initie le paiement auprès de payment-api. Si l'initiation échoue, la
+ * réservation est libérée (compensation) plutôt que de laisser des billets
+ * PENDING orphelins qu'aucun paiement ne pourra jamais confirmer.
+ *
+ * La confirmation (PENDING → PAID) n'arrive pas ici : voir
+ * reconcileTicketPayment, appelée depuis la page de retour de paiement et
+ * opportunément depuis listMyTickets (payment-api ne rappelle jamais
+ * billetterie — seuls les providers rappellent payment-api).
+ */
+export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseResult> {
   if (input.quantity < 1) {
     throw new ForbiddenError("La quantité doit être d'au moins 1 billet.");
   }
 
   const ds = await getDataSource();
 
-  return ds.transaction(async (manager) => {
+  const { tickets, mtc } = await ds.transaction(async (manager) => {
     const mtc = await manager.findOne(MatchTicketCategory, {
       where: { id: input.matchTicketCategoryId },
       lock: { mode: "pessimistic_write" },
@@ -179,6 +218,18 @@ export async function purchaseTickets(input: PurchaseInput): Promise<Ticket[]> {
       );
     }
 
+    // Libère les réservations abandonnées de cette catégorie avant de
+    // vérifier la capacité disponible.
+    const staleCutoff = new Date(now.getTime() - PENDING_RESERVATION_TTL_MS);
+    const staleTickets = await manager.find(Ticket, {
+      where: { matchTicketCategoryId: mtc.id, status: "PENDING", createdAt: LessThan(staleCutoff) },
+    });
+    if (staleTickets.length > 0) {
+      for (const ticket of staleTickets) ticket.status = "CANCELLED";
+      await manager.save(staleTickets);
+      mtc.soldCount = Math.max(0, mtc.soldCount - staleTickets.length);
+    }
+
     const maxTicketsPerUser = rule?.maxTicketsPerUser ?? 4;
     const alreadyOwned = await manager.count(Ticket, {
       where: { matchTicketCategoryId: mtc.id, purchaserId: input.purchaserId, status: In(["PENDING", "PAID"]) },
@@ -195,21 +246,99 @@ export async function purchaseTickets(input: PurchaseInput): Promise<Ticket[]> {
     mtc.soldCount += input.quantity;
     await manager.save(mtc);
 
-    const paidAt = new Date();
     const tickets = Array.from({ length: input.quantity }, () =>
       manager.create(Ticket, {
         matchId: match.id,
         matchTicketCategoryId: mtc.id,
         organizerTeamId: match.equipeHome,
         purchaserId: input.purchaserId,
-        status: "PAID",
+        status: "PENDING",
         reference: generateTicketReference(),
         price: mtc.price,
-        paidAt,
+        paymentId: null,
       }),
     );
-    return manager.save(tickets);
+    const saved = await manager.save(tickets);
+    return { tickets: saved, mtc };
   });
+
+  const totalAmount = Math.round(parseFloat(mtc.price) * input.quantity * 1000) / 1000;
+  // Référence du premier billet du lot : unique, sert d'orderId payment-api
+  // pour tout le panier (un seul paiement couvre les `quantity` billets).
+  const orderId = tickets[0].reference;
+
+  let paymentId: string;
+  let payUrl: string;
+  try {
+    const result = await initPayment({
+      orderId,
+      amount: totalAmount,
+      email: input.purchaserEmail,
+      userId: input.purchaserId,
+    });
+    paymentId = result.paymentId;
+    payUrl = result.payUrl;
+  } catch (error) {
+    await ds.transaction((manager) => releaseTickets(manager, tickets.map((t) => t.id)));
+    throw error;
+  }
+
+  const ticketIds = tickets.map((t) => t.id);
+  await ds.getRepository(Ticket).update(ticketIds, { paymentId });
+  tickets.forEach((t) => {
+    t.paymentId = paymentId;
+  });
+
+  return { tickets, payUrl };
+}
+
+export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED";
+
+/**
+ * payment-api ne rappelle jamais billetterie : c'est à billetterie de
+ * relire GET /payments/:id quand c'est pertinent (retour du payeur depuis
+ * le provider, ou consultation de "mes billets"). Idempotent : ne modifie
+ * que les billets encore PENDING pour ce paiement, sûr à appeler plusieurs
+ * fois ou en concurrence.
+ */
+export async function reconcileTicketPayment(paymentId: string): Promise<ReconcileResult> {
+  const ds = await getDataSource();
+  const ticketRepo = ds.getRepository(Ticket);
+
+  const pendingTickets = await ticketRepo.find({ where: { paymentId, status: "PENDING" } });
+  if (pendingTickets.length === 0) {
+    const any = await ticketRepo.findOne({ where: { paymentId } });
+    if (!any) return "CANCELLED";
+    return any.status === "PAID" ? "PAID" : "CANCELLED";
+  }
+
+  const status = await getPaymentStatus(paymentId);
+
+  if (status === "PAID") {
+    await ds.transaction(async (manager) => {
+      const tickets = await manager.find(Ticket, { where: { paymentId, status: "PENDING" } });
+      const paidAt = new Date();
+      for (const ticket of tickets) {
+        ticket.status = "PAID";
+        ticket.paidAt = paidAt;
+      }
+      await manager.save(tickets);
+    });
+    return "PAID";
+  }
+
+  if (status === "FAILED" || status === "EXPIRED") {
+    await ds.transaction(async (manager) => {
+      const tickets = await manager.find(Ticket, { where: { paymentId, status: "PENDING" } });
+      await releaseTickets(
+        manager,
+        tickets.map((t) => t.id),
+      );
+    });
+    return "CANCELLED";
+  }
+
+  return "PENDING";
 }
 
 export interface MyTicket {
@@ -228,7 +357,24 @@ export interface MyTicket {
 
 export async function listMyTickets(purchaserId: string): Promise<MyTicket[]> {
   const ds = await getDataSource();
-  const tickets = await ds.getRepository(Ticket).find({ where: { purchaserId }, order: { createdAt: "DESC" } });
+  const ticketRepo = ds.getRepository(Ticket);
+
+  // Rattrapage opportuniste : si le supporter n'est jamais passé par la
+  // page de retour de paiement (onglet fermé, navigation directe vers
+  // "mes billets"...), on relit le statut auprès de payment-api ici plutôt
+  // que de laisser un billet payé afficher indéfiniment "En attente".
+  const pendingWithPayment = await ticketRepo.find({
+    where: { purchaserId, status: "PENDING", paymentId: Not(IsNull()) },
+  });
+  for (const ticket of pendingWithPayment) {
+    if (ticket.paymentId) {
+      await reconcileTicketPayment(ticket.paymentId).catch((error) => {
+        console.error(`reconcileTicketPayment failed for payment ${ticket.paymentId}:`, error);
+      });
+    }
+  }
+
+  const tickets = await ticketRepo.find({ where: { purchaserId }, order: { createdAt: "DESC" } });
   if (tickets.length === 0) return [];
 
   const mtcIds = Array.from(new Set(tickets.map((t) => t.matchTicketCategoryId)));

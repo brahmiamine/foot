@@ -49,4 +49,16 @@ export class Ticket {
 
   @Column({ type: "datetime", name: "used_at", nullable: true })
   usedAt!: Date | null;
+
+  /**
+   * Payment.id de payment-api pour le paiement couvrant ce billet — tous
+   * les billets d'un même achat (quantity > 1) partagent le même
+   * payment_id, un seul paiement pour tout le panier. NULL tant que
+   * l'appel POST /payments/konnect/init n'a pas réussi (voir
+   * src/lib/tickets.ts, purchaseTickets) — un ticket sans payment_id qui
+   * reste PENDING plus de quelques minutes signale un échec d'initiation,
+   * pas un paiement en cours.
+   */
+  @Column({ type: "varchar", length: 36, name: "payment_id", nullable: true })
+  paymentId!: string | null;
 }

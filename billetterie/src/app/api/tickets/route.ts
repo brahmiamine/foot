@@ -11,9 +11,12 @@ const purchaseSchema = z.object({
   audienceConfirmed: z.boolean().optional().default(false),
 });
 
-// Achat mock (voir src/lib/tickets.ts) — le vendeur/organisateur n'est
-// jamais lu depuis le body client, il est dérivé côté serveur du match
-// résolu à partir de matchTicketCategoryId.
+// Le vendeur/organisateur n'est jamais lu depuis le body client, il est
+// dérivé côté serveur du match résolu à partir de matchTicketCategoryId.
+// Réserve les billets (PENDING) et initie le paiement auprès de
+// payment-api — voir src/lib/tickets.ts. Le caller doit rediriger le
+// navigateur vers payUrl ; la confirmation (PENDING -> PAID) arrive plus
+// tard, via /paiement/retour ou opportunément sur /mes-billets.
 export async function POST(req: NextRequest) {
   try {
     const session = await getSsoSession();
@@ -25,14 +28,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = purchaseSchema.parse(await req.json());
-    const tickets = await purchaseTickets({
+    const { tickets, payUrl } = await purchaseTickets({
       purchaserId: session.id,
+      purchaserEmail: session.email,
       matchTicketCategoryId: body.matchTicketCategoryId,
       quantity: body.quantity,
       audienceConfirmed: body.audienceConfirmed,
     });
 
-    return NextResponse.json({ tickets }, { status: 201 });
+    return NextResponse.json({ tickets, payUrl }, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }
