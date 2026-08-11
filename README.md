@@ -94,6 +94,23 @@ Pour la billetterie, le club peut aussi apparaître dans le chemin plutôt qu'ê
 
 Dans la même logique, les catégories de billets ne doivent pas être un enum fixe dans le code (`GRADIN`, `CHAISE`, …) : chaque club doit pouvoir définir les siennes (ex. OB : Gradin/Chaise ; EST : Virage/Tribune/VIP) via une configuration par club, pas via une modification de code.
 
+#### Billetterie : séparer l'identité du supporter de l'organisateur de l'événement
+
+Un compte membre (`sso`, rôle `MEMBER`) est **global à la plateforme**, pas rattaché à un seul club : un supporter peut suivre plusieurs clubs, ou n'en suivre aucun et simplement acheter un billet ponctuel. Il ne faut donc **pas** conditionner l'achat d'un billet à un `teamId` unique porté par le compte membre — ce serait trop restrictif (un supporter EST doit pouvoir acheter un billet pour un match organisé par OB).
+
+Le club intervient à trois niveaux distincts, à ne pas confondre :
+
+```
+Member (sso)                 → identité globale à la plateforme
+Member ↔ Team (optionnel)    → affiliations/clubs favoris (0, 1 ou plusieurs)
+Event/Match                  → homeTeam, awayTeam, stade, club organisateur (teamId)
+Ticket                       → eventId, matchId, purchaserId, teamId (organisateur), categoryId, status
+```
+
+Le `teamId` porté par un billet est celui du **club organisateur/vendeur** de cette billetterie (l'équipe à domicile, en général), pas celui du supporter acheteur. Pour gérer les catégories réservées à un camp (ex. `OB vs EST` : Gradin/Chaise en vente publique, mais une tribune réservée aux seuls supporters visiteurs), la billetterie a besoin d'une règle de vente par catégorie plutôt que d'un simple filtre par club de l'acheteur — typiquement une `TicketSaleRule` (`eventId`, `categoryId`, `allowedAudience` : public/supporters-domicile/supporters-visiteurs, `allowedTeamId` optionnel, fenêtre de vente, quota par utilisateur).
+
+Point d'attention sur le modèle existant : l'entité `User` de `sso` (`sso/src/entities/User.ts`) porte aujourd'hui un seul champ `teamId` nullable. C'est correct pour un compte staff/`ADMIN` (rattaché à un seul club par construction), mais **ne doit pas être réutilisé tel quel pour représenter l'affiliation supporter** d'un `MEMBER` une fois la billetterie construite — il faudrait alors un modèle d'affiliations séparé (0..N clubs favoris par membre), indépendant de la relation billet/événement. Ce n'est pas un problème aujourd'hui (la billetterie n'existe pas encore, voir plus haut), mais c'est à garder en tête au moment de sa conception plutôt que de prolonger le champ `teamId` existant.
+
 #### Passerelle API : un domaine, des chemins par service — pas un sous-domaine par service
 
 `api.platform.tn` doit rester un point d'entrée unique routé par chemin vers les services internes, plutôt qu'un sous-domaine par service :
@@ -111,7 +128,7 @@ au lieu de `payment-api.platform.tn`, `notification-api.platform.tn`, etc. Les s
 
 - **`sellerPortal`** : le renommage (`ob-seller-portal` → `sellerPortal`) et la généralisation des textes d'interface sont faits, mais le schéma (`sp_*`) n'a pas de colonne `clubId`/`teamId` — c'est encore un déploiement mono-club en pratique. Voir `sellerPortal/README.md` § « Portée V1 ».
 - **`teamManager`** : le nom/branding par défaut (manifest PWA, couleur de thème) a été neutralisé, mais il n'y a pas encore de mécanisme `ClubBranding` dynamique (logo/couleurs/favicon résolus par club) — actuellement une seule identité visuelle par défaut pour tous les clubs.
-- **Billetterie / contrôle billetterie** : n'existent pas comme services génériques indépendants dans ce repo. La billetterie vécue aujourd'hui (`ob/espace-membre/billets`) est intégrée à l'app custom `ob`. L'extraction en service générique multi-clubs est un chantier de roadmap, pas fait dans le cadre de cette normalisation (pas de réécriture non nécessaire, cf. contrainte de la mission).
+- **Billetterie / contrôle billetterie** : n'existent pas comme services génériques indépendants dans ce repo (`ob/espace-membre/billets` n'est aujourd'hui qu'un écran d'attente, aucune vente réelle). L'extraction en service générique multi-clubs est un chantier de roadmap, pas fait dans le cadre de cette normalisation (pas de réécriture non nécessaire, cf. contrainte de la mission) — voir « Billetterie : séparer l'identité du supporter de l'organisateur de l'événement » ci-dessus pour le modèle de données à suivre le jour où ce chantier démarre (ne pas réutiliser le `teamId` unique de `User` pour représenter l'affiliation supporter).
 - **API Gateway** : pas de domaine `api.platform.tn` unifié ; `payment-api`/`notification-api` restent des services distincts avec leurs propres bases. Le routage par chemin (`/payment`, `/notifications`, …) décrit ci-dessus n'est pas encore en place — c'est une tâche d'infrastructure (reverse proxy), pas de code applicatif.
 - **Base de données par domaine** : `payment-api` et `notification-api` ont déjà leur propre base, mais les applications métier (`teamManager`, `sellerPortal`, `arbinote`, `matchsheet`, `ob`) partagent encore la base `foot`. Une séparation en bases par domaine (référentiel/clubs/matchs, marketplace, …) est une évolution possible à moyen terme, à ne déclencher que lorsque ces domaines évoluent réellement de façon indépendante — pas une priorité de cette normalisation.
 
