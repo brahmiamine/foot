@@ -21,10 +21,22 @@ interface StadiumData {
   cityFr: string | null;
   cityAr: string | null;
   isHome: boolean;
+  facilityType: string;
   capacity: number | null;
+  descriptionFr: string | null;
+  descriptionAr: string | null;
   imageUrl: string | null;
   createdAt: string;
 }
+
+const FACILITY_TYPE_LABELS: Record<string, string> = {
+  STADIUM: "Stade",
+  TRAINING_GROUND: "Terrain d'entraînement",
+  LOCKER_ROOM: "Vestiaires",
+  GYM: "Salle de musculation",
+  SPORTS_CENTER: "Centre sportif",
+  OTHER: "Autre installation",
+};
 
 interface StadiumsManagementProps {
   initialStadiums: StadiumData[];
@@ -72,7 +84,10 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
     cityFr: "",
     cityAr: "",
     isHome: false,
+    facilityType: "STADIUM",
     capacity: "",
+    descriptionFr: "",
+    descriptionAr: "",
     imageUrl: "",
   });
 
@@ -90,7 +105,10 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
       cityFr: "",
       cityAr: "",
       isHome: false,
+      facilityType: "STADIUM",
       capacity: "",
+      descriptionFr: "",
+      descriptionAr: "",
       imageUrl: "",
     });
     setImageFile(null);
@@ -119,7 +137,10 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
       cityFr: stadium.cityFr || "",
       cityAr: stadium.cityAr || "",
       isHome: stadium.isHome,
+      facilityType: stadium.facilityType || "STADIUM",
       capacity: stadium.capacity?.toString() || "",
+      descriptionFr: stadium.descriptionFr || "",
+      descriptionAr: stadium.descriptionAr || "",
       imageUrl: stadium.imageUrl || "",
     });
     // Set image preview if image exists
@@ -214,7 +235,10 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
       formDataObj.append("cityFr", formData.cityFr);
       formDataObj.append("cityAr", formData.cityAr);
       formDataObj.append("isHome", formData.isHome ? "true" : "false");
+      formDataObj.append("facilityType", formData.facilityType);
       formDataObj.append("capacity", formData.capacity || "");
+      formDataObj.append("descriptionFr", formData.descriptionFr || "");
+      formDataObj.append("descriptionAr", formData.descriptionAr || "");
       formDataObj.append("imageUrl", imageUrl || "");
 
       let result;
@@ -451,6 +475,25 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                         placeholder="Ex: 10000"
                         disabled={loading}
                       />
+                    </div>
+
+                    <div className="col-md-4 mb-3">
+                      <label htmlFor="facilityType-add" className="form-label">
+                        Type d&apos;installation
+                      </label>
+                      <select
+                        className="form-select"
+                        id="facilityType-add"
+                        value={formData.facilityType}
+                        onChange={(e) => setFormData({ ...formData, facilityType: e.target.value })}
+                        disabled={loading}
+                      >
+                        {Object.entries(FACILITY_TYPE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="col-md-4 mb-3">
@@ -760,6 +803,25 @@ export function StadiumsManagement({ initialStadiums }: StadiumsManagementProps)
                       placeholder="Ex: 10000"
                       disabled={loading}
                     />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="facilityType" className="form-label">
+                      Type d&apos;installation
+                    </label>
+                    <select
+                      className="form-select"
+                      id="facilityType"
+                      value={formData.facilityType}
+                      onChange={(e) => setFormData({ ...formData, facilityType: e.target.value })}
+                      disabled={loading}
+                    >
+                      {Object.entries(FACILITY_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="mb-3">

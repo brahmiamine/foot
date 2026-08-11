@@ -14,7 +14,10 @@ interface StadiumData {
   cityFr: string | null;
   cityAr: string | null;
   isHome: boolean;
+  facilityType: string;
   capacity: number | null;
+  descriptionFr: string | null;
+  descriptionAr: string | null;
   imageUrl: string | null;
   createdAt: string;
 }
@@ -37,7 +40,10 @@ export default async function StadiumsPage() {
     cityFr: stadium.cityFr || null,
     cityAr: stadium.cityAr || null,
     isHome: stadium.isHome,
+    facilityType: stadium.facilityType,
     capacity: stadium.capacity || null,
+    descriptionFr: stadium.descriptionFr || null,
+    descriptionAr: stadium.descriptionAr || null,
     imageUrl: stadium.imageUrl || null,
     createdAt: stadium.createdAt.toISOString(),
   }));

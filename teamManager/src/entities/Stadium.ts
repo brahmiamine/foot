@@ -1,6 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
 import { Team } from "./Team";
 
+export type StadiumFacilityType = "STADIUM" | "TRAINING_GROUND" | "LOCKER_ROOM" | "GYM" | "SPORTS_CENTER" | "OTHER";
+
 /**
  * Stadium Entity (fiche riche pour le site public : adresse, capacité,
  * photo — le champ `teams.stadium` reste le simple nom affiché ailleurs).
@@ -39,8 +41,22 @@ export class Stadium {
   @Column({ type: "boolean", default: false, name: "is_home" })
   isHome!: boolean;
 
+  @Column({
+    type: "enum",
+    enum: ["STADIUM", "TRAINING_GROUND", "LOCKER_ROOM", "GYM", "SPORTS_CENTER", "OTHER"],
+    default: "STADIUM",
+    name: "facility_type",
+  })
+  facilityType!: StadiumFacilityType;
+
   @Column({ type: "int", nullable: true })
   capacity?: number | null;
+
+  @Column({ type: "text", nullable: true, name: "description_fr" })
+  descriptionFr?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "description_ar" })
+  descriptionAr?: string | null;
 
   @Column({ type: "varchar", length: 255, nullable: true, name: "image_url" })
   imageUrl?: string | null;

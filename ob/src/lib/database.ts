@@ -11,6 +11,17 @@ import { MediaGallery } from "@/entities/MediaGallery";
 import { MediaGalleryItem } from "@/entities/MediaGalleryItem";
 import { MediaItem } from "@/entities/MediaItem";
 import { Product } from "@/entities/Product";
+import { ClubInfo } from "@/entities/ClubInfo";
+import { History } from "@/entities/History";
+import { HistoryFigure } from "@/entities/HistoryFigure";
+import { Honor } from "@/entities/Honor";
+import { AcademyCategory } from "@/entities/AcademyCategory";
+import { AcademyInfo } from "@/entities/AcademyInfo";
+import { RecruitmentNeed } from "@/entities/RecruitmentNeed";
+import { Announcement } from "@/entities/Announcement";
+import { TeamSocials } from "@/entities/TeamSocials";
+import { ContactInfo } from "@/entities/ContactInfo";
+import { Sponsor } from "@/entities/Sponsor";
 
 /**
  * Connexion en lecture seule à la base "foot" partagée avec arbinote,
@@ -35,7 +46,29 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false,
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Team, Match, News, Player, Stadium, MediaGallery, MediaGalleryItem, MediaItem, Product],
+      entities: [
+        Federation,
+        Team,
+        Match,
+        News,
+        Player,
+        Stadium,
+        MediaGallery,
+        MediaGalleryItem,
+        MediaItem,
+        Product,
+        ClubInfo,
+        History,
+        HistoryFigure,
+        Honor,
+        AcademyCategory,
+        AcademyInfo,
+        RecruitmentNeed,
+        Announcement,
+        TeamSocials,
+        ContactInfo,
+        Sponsor,
+      ],
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",

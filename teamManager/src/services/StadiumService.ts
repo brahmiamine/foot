@@ -1,6 +1,21 @@
 import { getDataSource } from "@/lib/database";
-import { Stadium } from "@/entities/Stadium";
+import { Stadium, StadiumFacilityType } from "@/entities/Stadium";
 import { Repository } from "typeorm";
+
+interface StadiumData {
+  nameFr: string;
+  nameAr?: string | null;
+  addressFr?: string | null;
+  addressAr?: string | null;
+  cityFr?: string | null;
+  cityAr?: string | null;
+  isHome?: boolean;
+  facilityType?: StadiumFacilityType;
+  capacity?: number | null;
+  descriptionFr?: string | null;
+  descriptionAr?: string | null;
+  imageUrl?: string | null;
+}
 
 /**
  * Service for Stadium operations
@@ -38,20 +53,7 @@ export class StadiumService {
   /**
    * Create a new stadium
    */
-  async create(
-    data: {
-      nameFr: string;
-      nameAr?: string | null;
-      addressFr?: string | null;
-      addressAr?: string | null;
-      cityFr?: string | null;
-      cityAr?: string | null;
-      isHome?: boolean;
-      capacity?: number | null;
-      imageUrl?: string | null;
-    },
-    teamId: string
-  ): Promise<Stadium> {
+  async create(data: StadiumData, teamId: string): Promise<Stadium> {
     const repository = await this.getRepository();
 
     const stadium = repository.create({ ...data, teamId });
@@ -61,21 +63,7 @@ export class StadiumService {
   /**
    * Update a stadium
    */
-  async update(
-    id: number,
-    teamId: string,
-    data: {
-      nameFr?: string;
-      nameAr?: string | null;
-      addressFr?: string | null;
-      addressAr?: string | null;
-      cityFr?: string | null;
-      cityAr?: string | null;
-      isHome?: boolean;
-      capacity?: number | null;
-      imageUrl?: string | null;
-    }
-  ): Promise<Stadium> {
+  async update(id: number, teamId: string, data: Partial<StadiumData>): Promise<Stadium> {
     const repository = await this.getRepository();
     const stadium = await this.findById(id, teamId);
 
