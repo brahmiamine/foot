@@ -21,7 +21,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 |---|---|---|---|
 | 1 | `sso` dans `start.sh` ; `.env.example` harmonisé sur toutes les apps Next.js | ✅ Fait | `start.sh` lance désormais `sso` (port 3004) ; `.gitignore` de `arbinote`/`matchsheet`/`superadmin`/`teamManager`/`sso`/`sellerPortal` excepte `!.env.example` ; chaque app a maintenant un `.env.example` unique et complet (DB + SSO + notification, `SP_*`/SMTP pour `sellerPortal`, `API_FOOTBALL_KEY` pour `superadmin`) — les anciens `env.sso.example`/`env.notification.example` fragmentaires sont retirés d'`arbinote`/`matchsheet`/`superadmin`/`teamManager` |
 | 2 | Extraire un package `auth-shared` (session, rôles, cookies) | ✅ Fait | `packages/auth-shared/src/session.ts` centralise la vérification JWT (issuer, forme du payload, nom du cookie, secret) — voir détail ci-dessous |
-| 3 | Documenter la propriété des tables de `foot` + process de migration | ⬜ À faire | 7 apps écrivent dans la même base sans règle explicite par table |
+| 3 | Documenter la propriété des tables de `foot` + process de migration | ✅ Fait | `db/OWNERSHIP.md` — matrice de propriété par domaine + règles de migration, voir détail ci-dessous |
 | 4 | Middleware global sur chaque back-office (`superadmin`, `arbinote`, `teamManager`) | ⬜ À faire | Seul `matchsheet/src/middleware.ts` existe aujourd'hui |
 | 5 | Machine d'état commune du match | ⬜ À faire | 4 apps touchent le même match sans statut partagé |
 | 6 | CI (lint + tests) sur les 11 projets | ⬜ À faire | Aucun `.github/workflows` |
@@ -105,10 +105,13 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 - Aucun monitoring/alerting transverse.
 - Pas de stratégie de sauvegarde documentée au-delà du volume Docker local.
 
-### E. Gouvernance de la base partagée — critique
-- 7 applications lisent/écrivent la même base `foot` sans document formel de propriété par table.
-- Pas de processus de migration commun (dry-run, backup avant migration, rollback).
-- Modèle multi-club partiel : les affiliations supporter couvrent les `MEMBER`, mais un compte staff (`User.teamId`) reste lié à un seul club.
+### E. Gouvernance de la base partagée — critique, en partie traité
+- ~~7 applications lisent/écrivent la même base `foot` sans document formel de propriété par table~~ → `db/OWNERSHIP.md` : matrice de propriété par domaine, construite en croisant les entités TypeORM réellement déclarées et leurs routes d'écriture effectives (pas seulement les migrations historiques, qui incluent des tables reprises par plusieurs apps sans refléter les droits d'écriture actuels).
+  - Découverte au passage : `arbinote` et `superadmin` ont chacune une copie identique des mêmes migrations et entités référentielles (`federations`/`teams`/`matches`/`arbitres`…), mais `arbinote` n'a aucune route d'écriture dessus — résidu de l'époque où `superadmin` n'existait pas encore comme app séparée. Non consolidé (risque : vérifier d'abord si `arbinote` s'appuie dessus pour bootstrapper un environnement isolé).
+  - Découverte au passage : `Card` a deux écrivains (`teamManager` en discipline, `matchsheet` en live) — signalé dans `db/OWNERSHIP.md` comme le seul domaine sans propriétaire unique, sans verrou de concurrence.
+  - Vérifié : `synchronize: true` n'est déjà utilisé nulle part contre la base partagée (seulement dans des `test/testDataSource.ts` en SQLite mémoire) — ce point de `manquants.md` était déjà satisfait.
+- Processus de migration documenté dans `db/OWNERSHIP.md` (revue cross-app, additif/idempotent, pas de `synchronize: true`) ; le backup/rollback réel reste bloqué sur le rang 10 (aucune stratégie de sauvegarde en place).
+- Modèle multi-club toujours partiel : les affiliations supporter couvrent les `MEMBER`, mais un compte staff (`User.teamId`) reste lié à un seul club — non traité par ce rang, reste ouvert.
 
 ### F. Pas de cycle de vie commun du match — critique
 Un même match traverse quatre applications distinctes, chacune avec son propre statut local (`matchsheet` a un `SheetStatus` local, mais rien ne relie la préparation `teamManager`, la création `superadmin` ou l'ouverture des votes `arbinote` à un état partagé). Aucune machine d'état transversale, aucun workflow bout-en-bout écrit noir sur blanc.
