@@ -7,6 +7,7 @@ import { getClientIP } from "@/lib/getClientIP";
 import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt } from "@/lib/loginRateLimit";
 import { consumeRecoveryCode, verifyTotpCode } from "@/lib/mfa";
 import { verifyMfaPendingToken } from "@/lib/mfaPendingToken";
+import { logSecurityEvent } from "@/lib/securityLog";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
     const clientIP = getClientIP(request);
 
     if (isLoginRateLimited(clientIP)) {
+      logSecurityEvent({ type: "LOGIN_RATE_LIMITED", ip: clientIP });
       return NextResponse.json(
         { error: "Trop de tentatives échouées. Réessayez dans quelques minutes." },
         { status: 429 }
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     if (!user || !user.isActive || !user.mfaEnabled || !user.mfaSecret) {
       recordFailedLoginAttempt(clientIP);
+      logSecurityEvent({ type: "MFA_FAILED", userId: user?.id, ip: clientIP });
       return NextResponse.json({ error: "Code invalide" }, { status: 401 });
     }
 
@@ -60,6 +63,7 @@ export async function POST(request: NextRequest) {
 
     if (!valid) {
       recordFailedLoginAttempt(clientIP);
+      logSecurityEvent({ type: "MFA_FAILED", userId: user.id, ip: clientIP });
       return NextResponse.json({ error: "Code invalide" }, { status: 401 });
     }
 

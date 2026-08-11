@@ -9,7 +9,8 @@ Application Next.js dédiée à l'authentification : c'est la seule app du dép�
 - **Déconnexion** (`POST /api/logout`) : supprime le cookie de session (POST uniquement, pour éviter qu'un lien/image tiers ne déclenche une déconnexion en CSRF via une simple requête `GET`).
 - **`GET /api/teams`** : liste publique en lecture seule des clubs (id, nom, nom arabe, logo) pour alimenter le sélecteur de club au login.
 - **Affiliations supporter** (`GET`/`POST /api/members/me/affiliations`, `DELETE /api/members/me/affiliations/[teamId]`) : clubs suivis par un compte `MEMBER` (0..N), gérées via `member_team_affiliations` — **distinctes** de `User.teamId`/`session.teamId` qui restent réservés au staff (`ADMIN`/`OBSERVATEUR`, un seul club). Ces affiliations sont purement des préférences d'affichage : elles ne conditionnent aucune autorisation (achat de billet, accès aux données, etc.) — voir README racine, section « Billetterie : séparer l'identité du supporter de l'organisateur de l'événement ».
-- Pas encore de réinitialisation de mot de passe ni de gestion de compte (non implémenté).
+- **Journal de sécurité** (table `security_events`, voir `src/lib/securityLog.ts`) : échec de connexion, rate limit atteint, échec MFA, demande/confirmation de réinitialisation de mot de passe. Écriture best-effort (ne bloque et ne casse jamais le flux appelant) ; pas de viewer admin dédié dans cette app — interrogation directe de la base pour l'instant (voir avancement.md, § 3.B pour la portée exacte de ce journal).
+- Pas encore de gestion de compte au-delà de la réinitialisation de mot de passe et de la MFA (non implémenté).
 
 ## Mécanisme de session (JWT partagé)
 
@@ -26,6 +27,7 @@ Base MySQL/MariaDB `foot` partagée avec les autres apps (table `User` commune).
 - `migration_add_member_role.sql` — ajoute la valeur `MEMBER` à l'énumération `role` (changement additif, sans impact sur les autres apps).
 - `migration_add_member_team_affiliations.sql` — crée `member_team_affiliations` (table additive, sans impact sur `User`).
 - `migration_add_member_profile_fields.sql` — ajoute `firstName`/`lastName`/`phoneNumber` (nullable) à `User`, pour permettre à un membre de compléter son profil (`PATCH /api/members/me/profile`) et débloquer Paymee côté `billetterie`, qui les exige à l'initiation d'un paiement.
+- `migration_add_security_events.sql` — crée `security_events` (table additive, sans impact sur `User`) : journal des échecs de connexion, rate limit, échecs MFA et réinitialisations de mot de passe, voir `src/lib/securityLog.ts`.
 
 ## Script d'amorçage
 

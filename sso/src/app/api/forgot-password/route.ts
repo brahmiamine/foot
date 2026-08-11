@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requestPasswordReset } from "@/lib/passwordReset";
 import { getClientIP } from "@/lib/getClientIP";
 import { isPasswordResetRateLimited, recordPasswordResetAttempt } from "@/lib/passwordResetRateLimit";
+import { logSecurityEvent } from "@/lib/securityLog";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: "Email requis" }, { status: 400 });
     }
+
+    logSecurityEvent({ type: "PASSWORD_RESET_REQUESTED", email, ip: clientIP });
 
     // Ne jamais laisser une erreur d'envoi d'email (ou toute autre) fuiter
     // d'information sur l'existence du compte — toujours le même message.

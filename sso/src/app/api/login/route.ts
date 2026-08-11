@@ -6,6 +6,7 @@ import { getClientIP } from "@/lib/getClientIP";
 import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt } from "@/lib/loginRateLimit";
 import { isMfaEnabled } from "@/lib/mfa";
 import { signMfaPendingToken } from "@/lib/mfaPendingToken";
+import { logSecurityEvent } from "@/lib/securityLog";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
     const clientIP = getClientIP(request);
 
     if (isLoginRateLimited(clientIP)) {
+      logSecurityEvent({ type: "LOGIN_RATE_LIMITED", ip: clientIP });
       return NextResponse.json(
         { error: "Trop de tentatives échouées. Réessayez dans quelques minutes." },
         { status: 429 }
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest) {
     const user = await authenticate({ email, password, teamId });
     if (!user) {
       recordFailedLoginAttempt(clientIP);
+      logSecurityEvent({ type: "LOGIN_FAILED", email, ip: clientIP });
       return NextResponse.json({ error: "Email, mot de passe ou club incorrect" }, { status: 401 });
     }
 
