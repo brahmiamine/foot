@@ -23,6 +23,7 @@ describe('validateEnv', () => {
         'https://api.example.com/payments/providers/flouci/webhook',
       FLOUCI_SUCCESS_URL: 'https://example.com/payment/success',
       FLOUCI_FAIL_URL: 'https://example.com/payment/fail',
+      SERVICE_API_KEYS: '{"ob":"ob-key"}',
       DB_HOST: 'localhost',
       DB_USERNAME: 'payment_api',
       DB_DATABASE: 'payment_api',
@@ -52,5 +53,12 @@ describe('validateEnv', () => {
     const env = validEnv({ FLOUCI_BASE_URL: 'not a url' });
 
     expect(() => validateEnv(env)).toThrow(/FLOUCI_BASE_URL/);
+  });
+
+  it('rejects an environment missing SERVICE_API_KEYS', () => {
+    const env = validEnv();
+    delete (env as Record<string, string | undefined>).SERVICE_API_KEYS;
+
+    expect(() => validateEnv(env)).toThrow(/SERVICE_API_KEYS/);
   });
 });

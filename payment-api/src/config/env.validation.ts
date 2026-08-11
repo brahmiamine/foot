@@ -116,6 +116,12 @@ class EnvironmentVariables {
   )
   FLOUCI_FAIL_URL: string;
 
+  // --- Service-to-service (applications internes autorisées à appeler
+  // /payments/*/init et GET /payments/:id) ---
+  // JSON: {"ob":"clé1","teamManager":"clé2", ...}
+  @IsNotEmpty({ message: 'SERVICE_API_KEYS is required' })
+  SERVICE_API_KEYS: string;
+
   // --- Database ---
   @IsNotEmpty()
   DB_HOST: string;

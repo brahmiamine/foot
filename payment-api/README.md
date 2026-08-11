@@ -73,6 +73,7 @@ Copier `.env.example` vers `.env` et renseigner les valeurs. Toute la configurat
 | `FLOUCI_WEBHOOK_URL` | URL HTTPS publique de `POST /payments/providers/flouci/webhook`. |
 | `FLOUCI_SUCCESS_URL` | URL de retour du payeur après un paiement réussi. |
 | `FLOUCI_FAIL_URL` | URL de retour du payeur après un paiement échoué/annulé. |
+| `SERVICE_API_KEYS` | JSON `{ "application": "clé" }` — une clé par application backend interne (`ob`, `teamManager`, `ob-seller-portal`, `marketplace-api`, …) autorisée à appeler `POST /payments/*/init` et `GET /payments/:id`. |
 | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` | Base MySQL/MariaDB où sont stockés les paiements internes. |
 
 ## Endpoints
@@ -96,8 +97,12 @@ Copier `.env.example` vers `.env` et renseigner les valeurs. Toute la configurat
 
 - `GET /payments/:id` — consultation d'un paiement interne (provider-agnostique).
 
+Les trois endpoints `init` ainsi que `GET /payments/:id` sont réservés aux applications backend de l'écosystème : ils exigent un header `x-api-key` valide (voir § Sécurité). Les endpoints `webhook`, appelés directement par Konnect/Paymee/Flouci, restent publics — ils sont authentifiés autrement (re-vérification serveur-à-serveur / checksum).
+
 ## Sécurité
 
+- **Authentification service-à-service** : `POST /payments/{konnect,providers/paymee,providers/flouci}/init` et `GET /payments/:id` sont protégés par `ServiceAuthGuard` (`src/auth/guards/service-auth.guard.ts`), qui exige un header `x-api-key` valide contre le registre `SERVICE_API_KEYS`. Un client qui ne connaît pas cette clé ne peut ni déclencher un paiement, ni lire l'état d'un paiement existant. Les webhooks providers ne portent jamais cette clé (Konnect/Paymee/Flouci ne la connaissent pas) et restent donc publics, protégés par leur propre mécanisme de vérification.
+- **Rate limiting** : `ThrottlerModule` limite globalement chaque IP (120 requêtes/minute par défaut, `src/app.module.ts`), en défense en profondeur sur les routes publiques (webhooks) comme protégées.
 - `KONNECT_API_KEY` / `PAYMEE_API_KEY` / `FLOUCI_PRIVATE_KEY` ne quittent jamais le backend : ni retournées dans une réponse HTTP, ni écrites dans un log (les clients HTTP construisent leurs erreurs sans jamais sérialiser la config/les headers de la requête).
 - Le webhook ne suffit jamais à valider un paiement :
   - Konnect : le statut est systématiquement revérifié auprès de Konnect (`GET /payments/:paymentId`), et le montant/devise/orderId sont comparés à l'enregistrement interne avant d'accepter un paiement comme `PAID`.

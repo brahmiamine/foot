@@ -5,7 +5,9 @@ import {
   HttpStatus,
   Logger,
   Post,
+  UseGuards,
 } from '@nestjs/common';
+import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
 import { PaymentService } from '../../payment.service';
 import { InitPaymeePaymentDto } from './dto/init-paymee-payment.dto';
 import { InitPaymeePaymentResultDto } from './dto/init-paymee-payment-result.dto';
@@ -22,7 +24,9 @@ export class PaymeeController {
 
   constructor(private readonly paymentService: PaymentService) {}
 
+  /** Reserved to backend applications of the ecosystem. */
   @Post('init')
+  @UseGuards(ServiceAuthGuard)
   async init(
     @Body() dto: InitPaymeePaymentDto,
   ): Promise<InitPaymeePaymentResultDto> {
