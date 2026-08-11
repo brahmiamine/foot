@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 
 interface TeamOption {
   id: string;
@@ -115,6 +116,10 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         {loading ? "Connexion..." : "Se connecter"}
       </button>
 
+      <Link href="/forgot-password" className="sso-switch sso-switch-link">
+        Mot de passe oublié ?
+      </Link>
+
       <button
         type="button"
         className="sso-switch"
@@ -170,6 +175,9 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         .sso-submit:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+        }
+        .sso-switch-link {
+          width: fit-content;
         }
         .sso-switch {
           background: none;

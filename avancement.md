@@ -26,7 +26,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | 5 | Machine d'état commune du match | ✅ Fait (recadré, voir détail) | `matches.status` existait déjà dans le schéma mais n'était écrit par aucune app — corrigé, pas remplacé par un nouveau système |
 | 6 | CI (lint + tests) sur les 10 apps | ✅ Fait | `.github/workflows/ci.yml` — voir détail ci-dessous |
 | 7 | `/api/health` partout | ✅ Fait (10/10 apps) | Monitoring/alerting externe reste hors périmètre — voir détail |
-| 8 | Reset password + MFA + révocation de session dans `sso` | ⬜ À faire | |
+| 8 | Reset password + MFA + révocation de session dans `sso` | 🔶 Partiel | Reset password fait ; MFA et révocation de session restent à faire |
 | 9 | Brancher `billetterie` sur `payment-api` et sur `ob` | ⬜ À faire | Achat aujourd'hui marqué `PAID` immédiatement (mock) |
 | 10 | Backup/restauration testée pour `foot` et les uploads | ⬜ À faire | |
 | 11 | Espace supporter, finance/trésorerie, sponsors avancés, RGPD dans `teamManager` | ⬜ À faire | |
@@ -54,9 +54,9 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 
 ## 2. Fonctionnalités manquantes, par projet
 
-### `sso` — critique
-**En place** : login staff/club + membre public (Google inclus), cookie JWT partagé, rate limiting login, affiliations supporter multi-clubs séparées du `teamId` staff.
-**Manquant** : mot de passe oublié, MFA (TOTP) pour `SUPERADMIN`, révocation de session, invitation club en 2 temps, portail SSO (page d'accueil).
+### `sso` — critique, en cours (rang 8)
+**En place** : login staff/club + membre public (Google inclus), cookie JWT partagé, rate limiting login, affiliations supporter multi-clubs séparées du `teamId` staff, **mot de passe oublié** (`/forgot-password` → email avec lien à usage unique valable 1h → `/reset-password`, jeton stocké hashé SHA-256, jamais en clair — voir `sso/src/lib/passwordReset.ts`).
+**Manquant** : MFA (TOTP) pour `SUPERADMIN`, révocation de session, invitation club en 2 temps, portail SSO (page d'accueil).
 
 ### `teamManager` — haute
 **En place** : effectif, staff, discipline, actus/médias, boutique, sponsors, académie/recrutement, admin billetterie, PWA dynamique par club.
