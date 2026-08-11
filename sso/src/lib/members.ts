@@ -17,6 +17,7 @@ function toSsoUser(user: User): SsoUser {
     name: user.name,
     role: user.role,
     teamId: user.teamId ?? null,
+    tokenVersion: user.tokenVersion,
   };
 }
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentSession } from "@/lib/session";
+import LogoutEverywhereButton from "@/components/LogoutEverywhereButton";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,9 @@ export default async function Home() {
             </Link>
           </p>
         )}
+        <p>
+          <LogoutEverywhereButton />
+        </p>
       </div>
     </div>
   );

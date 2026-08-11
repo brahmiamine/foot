@@ -40,5 +40,6 @@ export async function authenticate(credentials: Credentials): Promise<SsoUser | 
     name: user.name,
     role: user.role,
     teamId: user.teamId ?? null,
+    tokenVersion: user.tokenVersion,
   };
 }

@@ -68,6 +68,10 @@ export async function resetPassword(rawToken: string, newPassword: string): Prom
   }
 
   user.password = await bcrypt.hash(newPassword, 12);
+  // Invalide toute session déjà émise (voir User.tokenVersion) : un
+  // attaquant ayant volé une session avant que le titulaire ne réinitialise
+  // son mot de passe ne doit pas pouvoir continuer à l'utiliser après.
+  user.tokenVersion += 1;
   await userRepo.save(user);
 
   resetToken.usedAt = new Date();

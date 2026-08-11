@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, issueSession } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
 
@@ -34,9 +34,22 @@ export async function POST(request: NextRequest) {
   user.mfaEnabled = false;
   user.mfaSecret = null;
   user.mfaRecoveryCodes = null;
+  // Même raisonnement qu'à l'activation : changement de posture de
+  // sécurité, on invalide les sessions déjà émises puis on réémet
+  // immédiatement une session à jour pour ne pas déconnecter l'utilisateur.
+  user.tokenVersion += 1;
   await userRepo.save(user);
 
   console.log(`[MFA] Désactivée pour le compte ${user.email} (${user.id}).`);
 
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+  await issueSession(response, {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    teamId: user.teamId ?? null,
+    tokenVersion: user.tokenVersion,
+  });
+  return response;
 }

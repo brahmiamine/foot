@@ -49,6 +49,18 @@ export class User {
   @Column({ type: "text", nullable: true, name: "mfa_recovery_codes" })
   mfaRecoveryCodes?: string | null;
 
+  /**
+   * Révocation de session — voir src/lib/session.ts. Incrémenté à chaque
+   * changement de mot de passe, activation/désactivation MFA, ou
+   * déconnexion explicite "partout" ; embarqué dans le JWT à l'émission et
+   * comparé à cette valeur en base à chaque vérification de session côté
+   * `sso`. Les apps clientes (arbinote/matchsheet/superadmin/teamManager/
+   * ob/billetterie) ne font PAS encore cette vérification — voir
+   * avancement.md rang 8 pour la limite assumée.
+   */
+  @Column({ type: "int", default: 0, name: "token_version" })
+  tokenVersion!: number;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

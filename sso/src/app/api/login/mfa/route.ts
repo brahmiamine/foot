@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       name: user.name,
       role: user.role,
       teamId: user.teamId ?? null,
+      tokenVersion: user.tokenVersion,
     };
 
     const response = NextResponse.json({ success: true, redirect: redirect ?? "/" });

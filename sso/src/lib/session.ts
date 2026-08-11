@@ -1,6 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getDataSource } from "./db";
+import { User } from "@/entities/User";
 
 /**
  * Émission et vérification du cookie de session partagé entre les 6 apps
@@ -26,6 +28,13 @@ export interface SsoUser {
   name: string;
   role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER";
   teamId: string | null;
+  /**
+   * Génération de session — voir User.tokenVersion (entité). Obligatoire
+   * (pas de valeur par défaut implicite) pour forcer chaque émetteur de
+   * session à lire la vraie valeur en base plutôt que d'en oublier une et
+   * signer un JWT avec une génération incorrecte.
+   */
+  tokenVersion: number;
 }
 
 function getJwtSecret(): Uint8Array {
@@ -42,6 +51,7 @@ async function signSession(user: SsoUser): Promise<string> {
     name: user.name,
     role: user.role,
     teamId: user.teamId,
+    tokenVersion: user.tokenVersion,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
@@ -51,18 +61,36 @@ async function signSession(user: SsoUser): Promise<string> {
     .sign(getJwtSecret());
 }
 
+/**
+ * Vérifie la signature/l'expiration du JWT, PUIS que sa génération
+ * (`tokenVersion`) correspond toujours à celle en base — un jeton dont la
+ * génération est dépassée est traité comme invalide, même s'il n'a pas
+ * encore expiré (voir User.tokenVersion). Un JWT signé avant l'ajout de ce
+ * mécanisme n'a pas de claim `tokenVersion` : traité comme 0, la valeur
+ * par défaut de tous les comptes existants, pour ne forcer aucune
+ * déconnexion lors de la migration.
+ */
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecret(), { issuer: "foot-sso" });
     if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
       return null;
     }
+    const tokenVersion = typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0;
+
+    const dataSource = await getDataSource();
+    const user = await dataSource.getRepository(User).findOne({ where: { id: payload.sub } });
+    if (!user || !user.isActive || user.tokenVersion !== tokenVersion) {
+      return null;
+    }
+
     return {
       id: payload.sub,
       email: payload.email,
       name: typeof payload.name === "string" ? payload.name : payload.email,
       role: payload.role as SsoUser["role"],
       teamId: typeof payload.teamId === "string" ? payload.teamId : null,
+      tokenVersion: user.tokenVersion,
     };
   } catch {
     return null;
