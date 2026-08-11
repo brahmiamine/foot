@@ -14,6 +14,22 @@ export class User {
   @Column({ type: "varchar", length: 191 })
   name!: string;
 
+  /**
+   * Profil étendu, optionnel — collecté à l'inscription ou complété plus
+   * tard (voir /api/members/me/profile). Distinct de `name` (qui reste le
+   * champ d'affichage partout ailleurs) : n'existe que pour satisfaire les
+   * champs que Paymee exige à l'initiation d'un paiement
+   * (firstName/lastName/phoneNumber), voir billetterie/src/lib/tickets.ts.
+   */
+  @Column({ type: "varchar", length: 100, nullable: true })
+  firstName?: string | null;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  lastName?: string | null;
+
+  @Column({ type: "varchar", length: 30, nullable: true })
+  phoneNumber?: string | null;
+
   @Column({ type: "varchar", length: 191, unique: true })
   email!: string;
 

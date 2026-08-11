@@ -7,6 +7,9 @@ export default function MemberRegisterForm({ redirectTo }: { redirectTo: string 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +27,15 @@ export default function MemberRegisterForm({ redirectTo }: { redirectTo: string 
       const response = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, redirect: redirectTo }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          phoneNumber: phoneNumber || undefined,
+          redirect: redirectTo,
+        }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -86,6 +97,43 @@ export default function MemberRegisterForm({ redirectTo }: { redirectTo: string 
           autoComplete="new-password"
           minLength={8}
           required
+        />
+      </div>
+
+      <p className="sso-hint">
+        Optionnel — utile pour payer par Paymee (billetterie) plus tard. Vous pourrez aussi les renseigner ensuite depuis votre profil.
+      </p>
+
+      <div className="sso-field">
+        <label htmlFor="firstName">Prénom (optionnel)</label>
+        <input
+          id="firstName"
+          type="text"
+          value={firstName}
+          onChange={(event) => setFirstName(event.target.value)}
+          autoComplete="given-name"
+        />
+      </div>
+
+      <div className="sso-field">
+        <label htmlFor="lastName">Nom de famille (optionnel)</label>
+        <input
+          id="lastName"
+          type="text"
+          value={lastName}
+          onChange={(event) => setLastName(event.target.value)}
+          autoComplete="family-name"
+        />
+      </div>
+
+      <div className="sso-field">
+        <label htmlFor="phoneNumber">Téléphone (optionnel)</label>
+        <input
+          id="phoneNumber"
+          type="tel"
+          value={phoneNumber}
+          onChange={(event) => setPhoneNumber(event.target.value)}
+          autoComplete="tel"
         />
       </div>
 
@@ -154,6 +202,11 @@ export default function MemberRegisterForm({ redirectTo }: { redirectTo: string 
           color: var(--sso-error);
           font-size: 0.875rem;
           margin: 0;
+        }
+        .sso-hint {
+          color: var(--sso-muted);
+          font-size: 0.8125rem;
+          margin: -4px 0 0;
         }
         .sso-submit {
           background: var(--sso-accent);

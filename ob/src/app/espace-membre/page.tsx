@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 import { getSsoSession, buildLogoutUrl } from "@/lib/ssoSession";
+import { fetchMemberProfile, type MemberProfile } from "@/lib/ssoProfileClient";
+import { MemberProfileForm } from "@/components/MemberProfileForm";
 import shared from "@/components/shared.module.css";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +19,13 @@ export default async function ProfilPage() {
   const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
   const logoutUrl = buildLogoutUrl(`${proto}://${host}/`);
 
+  let profile: MemberProfile = { firstName: null, lastName: null, phoneNumber: null };
+  try {
+    profile = await fetchMemberProfile();
+  } catch (error) {
+    console.error("fetchMemberProfile failed on profil page:", error);
+  }
+
   return (
     <div className={shared.card} style={{ padding: 24, maxWidth: 480 }}>
       <h2 style={{ marginTop: 0 }}>Profil</h2>
@@ -26,7 +35,14 @@ export default async function ProfilPage() {
         <dt style={{ color: "var(--ob-text-faint)" }}>Email</dt>
         <dd style={{ margin: 0 }}>{session.email}</dd>
       </dl>
-      <form method="POST" action={logoutUrl}>
+
+      <h3 style={{ fontSize: 15, marginBottom: 0 }}>Prénom, nom, téléphone</h3>
+      <p style={{ fontSize: 13, color: "var(--ob-text-faint)", margin: "4px 0 0" }}>
+        Optionnel — utile pour payer par Paymee dans la billetterie.
+      </p>
+      <MemberProfileForm initialProfile={profile} />
+
+      <form method="POST" action={logoutUrl} style={{ marginTop: 20 }}>
         <button type="submit" className={shared.btnPrimary} style={{ border: "none", cursor: "pointer" }}>
           Se déconnecter
         </button>

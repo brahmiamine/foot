@@ -10,6 +10,7 @@ import {
   removePushSubscription,
   type NotificationLocale,
 } from "@/lib/notificationApi";
+import { updateMemberProfile, type MemberProfile } from "@/lib/ssoProfileClient";
 
 async function requireMember() {
   const session = await getSsoSession();
@@ -50,4 +51,15 @@ export async function removePushSubscriptionAction(deviceId: string): Promise<vo
   await requireMember();
   await removePushSubscription(deviceId);
   revalidatePath("/espace-membre/preferences");
+}
+
+export async function updateMemberProfileAction(input: {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+}): Promise<MemberProfile> {
+  await requireMember();
+  const profile = await updateMemberProfile(input);
+  revalidatePath("/espace-membre");
+  return profile;
 }

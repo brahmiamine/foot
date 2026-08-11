@@ -1,15 +1,18 @@
 /**
  * Client HTTP serveur-à-serveur vers payment-api (voir ../../payment-api/README.md).
- * N'accepte que les providers dont le DTO d'initiation ne demande que
- * orderId/amount/email/userId (Konnect, Flouci) : Paymee exige en plus
- * firstName/lastName/phoneNumber, des champs que le profil MEMBER de `sso`
- * ne collecte pas aujourd'hui — non supporté ici tant que ce formulaire de
- * checkout n'existe pas (voir avancement.md, rang 9).
+ * Konnect/Flouci utilisent le DTO générique (orderId/amount/currency/email/
+ * userId + firstName/lastName/phoneNumber optionnels) ; Paymee a son propre
+ * DTO qui exige en plus firstName/lastName/phoneNumber (jamais `currency`,
+ * absent de son DTO) — voir buildRequestBody. src/lib/tickets.ts est
+ * responsable de vérifier que ces champs sont renseignés (profil membre,
+ * voir src/lib/ssoProfileClient.ts) avant d'appeler initPayment avec
+ * PAYMENT_PROVIDER=paymee.
  */
 
 const PROVIDER_INIT_PATHS: Record<string, string> = {
   konnect: "/payments/konnect/init",
   flouci: "/payments/providers/flouci/init",
+  paymee: "/payments/providers/paymee/init",
 };
 
 function getConfig(): { baseUrl: string; apiKey: string } {
@@ -21,12 +24,15 @@ function getConfig(): { baseUrl: string; apiKey: string } {
   return { baseUrl, apiKey };
 }
 
-function getProviderInitPath(): string {
-  const provider = process.env.PAYMENT_PROVIDER || "konnect";
+export function getPaymentProvider(): string {
+  return process.env.PAYMENT_PROVIDER || "konnect";
+}
+
+function getProviderInitPath(provider: string): string {
   const path = PROVIDER_INIT_PATHS[provider];
   if (!path) {
     throw new Error(
-      `PAYMENT_PROVIDER="${provider}" non supporté par billetterie (konnect ou flouci uniquement) — voir src/lib/paymentApiClient.ts.`
+      `PAYMENT_PROVIDER="${provider}" non supporté par billetterie (konnect, flouci ou paymee) — voir src/lib/paymentApiClient.ts.`
     );
   }
   return path;
@@ -37,6 +43,10 @@ export interface InitPaymentInput {
   amount: number;
   email?: string;
   userId: string;
+  /** Requis par le DTO Paymee ; optionnels (ignorés si absents) pour Konnect/Flouci. */
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
 }
 
 export interface InitPaymentResult {
@@ -44,19 +54,45 @@ export interface InitPaymentResult {
   payUrl: string;
 }
 
-export async function initPayment(input: InitPaymentInput): Promise<InitPaymentResult> {
-  const { baseUrl, apiKey } = getConfig();
-
-  const response = await fetch(`${baseUrl}${getProviderInitPath()}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-    body: JSON.stringify({
+/**
+ * payment-api valide chaque DTO avec `forbidNonWhitelisted: true` : un champ
+ * que le DTO ne déclare pas fait échouer la requête en 400. Le DTO Paymee
+ * n'a pas de `currency` ; le DTO générique (Konnect/Flouci) n'a pas de
+ * `mode` — jamais spreader un objet commun entre les deux.
+ */
+function buildRequestBody(provider: string, input: InitPaymentInput): Record<string, unknown> {
+  if (provider === "paymee") {
+    return {
       orderId: input.orderId,
       amount: input.amount,
-      currency: "TND",
+      firstName: input.firstName,
+      lastName: input.lastName,
       email: input.email,
+      phoneNumber: input.phoneNumber,
       userId: input.userId,
-    }),
+      mode: "redirect",
+    };
+  }
+  return {
+    orderId: input.orderId,
+    amount: input.amount,
+    currency: "TND",
+    email: input.email,
+    userId: input.userId,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    phoneNumber: input.phoneNumber,
+  };
+}
+
+export async function initPayment(input: InitPaymentInput): Promise<InitPaymentResult> {
+  const { baseUrl, apiKey } = getConfig();
+  const provider = getPaymentProvider();
+
+  const response = await fetch(`${baseUrl}${getProviderInitPath(provider)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+    body: JSON.stringify(buildRequestBody(provider, input)),
   });
 
   if (!response.ok) {

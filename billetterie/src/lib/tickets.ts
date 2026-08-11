@@ -7,7 +7,8 @@ import { TicketSaleRule } from "@/entities/TicketSaleRule";
 import { Ticket } from "@/entities/Ticket";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { generateTicketReference } from "@/lib/reference";
-import { getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
+import { getPaymentProvider, getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
+import { fetchMemberProfile } from "@/lib/ssoProfileClient";
 
 export interface OpenMatchSummary {
   id: string;
@@ -185,6 +186,24 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
     throw new ForbiddenError("La quantité doit être d'au moins 1 billet.");
   }
 
+  // Paymee exige firstName/lastName/phoneNumber dès l'initiation (DTO
+  // dédié côté payment-api) : vérifié avant toute réservation, pour ne
+  // jamais bloquer des billets qu'on sait déjà ne pas pouvoir payer.
+  let paymeeProfile: { firstName: string; lastName: string; phoneNumber: string } | undefined;
+  if (getPaymentProvider() === "paymee") {
+    const profile = await fetchMemberProfile();
+    if (!profile?.firstName || !profile.lastName || !profile.phoneNumber) {
+      throw new ForbiddenError(
+        "Complétez votre prénom, nom et téléphone dans votre profil (espace membre) avant de payer par Paymee.",
+      );
+    }
+    paymeeProfile = {
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      phoneNumber: profile.phoneNumber,
+    };
+  }
+
   const ds = await getDataSource();
 
   const { tickets, mtc } = await ds.transaction(async (manager) => {
@@ -275,6 +294,7 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
       amount: totalAmount,
       email: input.purchaserEmail,
       userId: input.purchaserId,
+      ...paymeeProfile,
     });
     paymentId = result.paymentId;
     payUrl = result.payUrl;

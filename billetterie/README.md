@@ -62,9 +62,13 @@ comme abandonnée et sa capacité libérée automatiquement à la prochaine
 tentative d'achat sur la même catégorie (pas de tâche planifiée dans ce
 dépôt — voir `PENDING_RESERVATION_TTL_MS` dans `src/lib/tickets.ts`).
 
-Seuls **Konnect** et **Flouci** sont supportés (`PAYMENT_PROVIDER`) : Paymee
-exige `firstName`/`lastName`/`phoneNumber`, des champs que le profil
-`MEMBER` de `sso` ne collecte pas aujourd'hui.
+**Konnect**, **Flouci** et **Paymee** sont supportés (`PAYMENT_PROVIDER`).
+Paymee exige `firstName`/`lastName`/`phoneNumber` à l'initiation (DTO dédié
+côté `payment-api`) : avant de réserver le moindre billet, `purchaseTickets`
+appelle `sso` (`GET /api/members/me/profile`, voir `src/lib/ssoProfileClient.ts`)
+et refuse l'achat avec un message clair si l'un des trois champs manque —
+le membre les complète depuis son profil (`ob/espace-membre`, formulaire
+prénom/nom/téléphone, optionnel partout ailleurs).
 
 ## Portée
 

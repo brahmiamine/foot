@@ -25,6 +25,7 @@ Base MySQL/MariaDB `foot` partagée avec les autres apps (table `User` commune).
 
 - `migration_add_member_role.sql` — ajoute la valeur `MEMBER` à l'énumération `role` (changement additif, sans impact sur les autres apps).
 - `migration_add_member_team_affiliations.sql` — crée `member_team_affiliations` (table additive, sans impact sur `User`).
+- `migration_add_member_profile_fields.sql` — ajoute `firstName`/`lastName`/`phoneNumber` (nullable) à `User`, pour permettre à un membre de compléter son profil (`PATCH /api/members/me/profile`) et débloquer Paymee côté `billetterie`, qui les exige à l'initiation d'un paiement.
 
 ## Script d'amorçage
 
