@@ -8,9 +8,12 @@ export interface TicketDisplayInfo {
   ticketNumber: string;
   status: TicketStatus;
   categoryName: string;
+  categoryPrice: number;
   matchLabel: string;
+  opponentName: string;
   matchDate: string | null;
   holderName: string;
+  isHome: boolean;
 }
 
 /** Résout les infos d'affichage (catégorie, match) pour une liste de billets — regroupe les lookups pour éviter le N+1. */
@@ -20,6 +23,7 @@ export async function resolveTicketDisplayInfo(tickets: Ticket[], teamId: string
   const dataSource = await getDataSource();
   const categories = await dataSource.getRepository(TicketCategory).find({ where: { teamId } });
   const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
+  const categoryPriceById = new Map(categories.map((c) => [c.id, parseFloat(c.price)]));
 
   const ticketingService = new TicketingService();
   const eventIds = [...new Set(tickets.map((t) => t.ticketingEventId))];
@@ -39,9 +43,12 @@ export async function resolveTicketDisplayInfo(tickets: Ticket[], teamId: string
       ticketNumber: t.ticketNumber,
       status: t.status,
       categoryName: categoryNameById.get(t.ticketCategoryId) ?? "?",
+      categoryPrice: categoryPriceById.get(t.ticketCategoryId) ?? 0,
       matchLabel: info?.matchLabel ?? "Match",
+      opponentName: info?.opponentName ?? "Adversaire",
       matchDate: info?.matchDate ? info.matchDate.toISOString() : null,
       holderName: [t.holderFirstName, t.holderLastName].filter(Boolean).join(" "),
+      isHome: info?.isHome ?? true,
     };
   });
 }

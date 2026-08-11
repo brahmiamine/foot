@@ -1,14 +1,18 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { PageChrome } from "@/components/PageChrome";
 import { FollowToggle } from "@/components/FollowToggle";
 import { buildMemberLoginUrlForPath, buildLogoutUrl } from "@/lib/ssoSession";
 import { getSessionMember } from "@/lib/community/member";
-import { getObTeams } from "@/lib/ob-team";
+import { getObTeam, getObTeams } from "@/lib/ob-team";
 import { PublicPlayerService } from "@/services/PublicPlayerService";
 import { BadgeService } from "@/services/BadgeService";
 import { FollowService } from "@/services/FollowService";
 import { NotificationPrefsService } from "@/services/NotificationPrefsService";
+import { TicketPurchaseService } from "@/services/TicketPurchaseService";
+import { resolveTicketDisplayInfo } from "@/app/mes-billets/ticketDisplay";
+import { TicketList } from "@/app/mes-billets/TicketList";
 import { NotificationPrefsForm } from "@/components/NotificationPrefsForm";
 import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import shared from "@/components/shared.module.css";
@@ -37,13 +41,19 @@ export default async function EspaceMembrePage() {
   const squad = teams[0] ? await new PublicPlayerService().getSquad(teams[0].id) : [];
   const badgeService = new BadgeService();
   const followService = new FollowService();
+  const obTeam = await getObTeam();
 
-  const [badges, earnedBadgeIds, followedTeamIds, followedPlayerIds, notificationPrefs] = await Promise.all([
+  const [badges, earnedBadgeIds, followedTeamIds, followedPlayerIds, notificationPrefs, myTickets] = await Promise.all([
     badgeService.listCatalog(),
     badgeService.getEarnedBadgeIds(session.id),
     followService.getFollowedIds(session.id, "TEAM"),
     followService.getFollowedIds(session.id, "PLAYER"),
     new NotificationPrefsService().getForUser(session.id),
+    obTeam
+      ? new TicketPurchaseService()
+          .getTicketsForUser(session.id, obTeam.id)
+          .then((tickets) => resolveTicketDisplayInfo(tickets, obTeam.id))
+      : Promise.resolve([]),
   ]);
 
   const earnedBadges = badges.filter((b) => earnedBadgeIds.has(b.id));
@@ -66,13 +76,21 @@ export default async function EspaceMembrePage() {
               <span className={styles.pointsValue}>{member.points.toLocaleString("fr-FR")}</span>
               <span className={styles.pointsLabel}>points</span>
             </div>
-            <a href="/mes-billets" className={shared.btnPrimary}>
-              Mes billets
-            </a>
             <a href={logoutUrl} className={shared.btnOutline}>
               Se déconnecter
             </a>
           </div>
+
+          <h2 className={shared.sectionSubtitle}>Mes billets</h2>
+          {myTickets.length === 0 ? (
+            <p className={shared.empty}>
+              Aucun billet pour le moment. <Link href="/billetterie">Réservez vos places</Link> pour le prochain match à domicile.
+            </p>
+          ) : (
+            <div style={{ marginBottom: 32 }}>
+              <TicketList tickets={myTickets} />
+            </div>
+          )}
 
           <h2 className={shared.sectionSubtitle}>Mes badges</h2>
           {earnedBadges.length === 0 ? (
