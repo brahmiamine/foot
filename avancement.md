@@ -20,7 +20,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | Rang | Action | Statut | Détail |
 |---|---|---|---|
 | 1 | `sso` dans `start.sh` ; `.env.example` harmonisé sur toutes les apps Next.js | ✅ Fait | `start.sh` lance désormais `sso` (port 3004) ; `.gitignore` de `arbinote`/`matchsheet`/`superadmin`/`teamManager`/`sso`/`sellerPortal` excepte `!.env.example` ; chaque app a maintenant un `.env.example` unique et complet (DB + SSO + notification, `SP_*`/SMTP pour `sellerPortal`, `API_FOOTBALL_KEY` pour `superadmin`) — les anciens `env.sso.example`/`env.notification.example` fragmentaires sont retirés d'`arbinote`/`matchsheet`/`superadmin`/`teamManager` |
-| 2 | Extraire un package `auth-shared` (session, rôles, cookies) | ⬜ À faire | 6 copies de la vérification JWT SSO (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob`, `billetterie`) |
+| 2 | Extraire un package `auth-shared` (session, rôles, cookies) | ✅ Fait | `packages/auth-shared/src/session.ts` centralise la vérification JWT (issuer, forme du payload, nom du cookie, secret) — voir détail ci-dessous |
 | 3 | Documenter la propriété des tables de `foot` + process de migration | ⬜ À faire | 7 apps écrivent dans la même base sans règle explicite par table |
 | 4 | Middleware global sur chaque back-office (`superadmin`, `arbinote`, `teamManager`) | ⬜ À faire | Seul `matchsheet/src/middleware.ts` existe aujourd'hui |
 | 5 | Machine d'état commune du match | ⬜ À faire | 4 apps touchent le même match sans statut partagé |
@@ -82,7 +82,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 
 ## 3. Ce qui manque entre les projets
 
-**Le plus structurant** : aucun package d'authentification partagé — la vérification du JWT SSO est réécrite dans `arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob` et `billetterie`. Un changement de format de token, de nom de cookie ou de rôle doit être répliqué à la main dans six endroits.
+**Le plus structurant** (✅ traité) : aucun package d'authentification partagé n'existait — la vérification du JWT SSO était réécrite dans `arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob` et `billetterie`. `packages/auth-shared/src/session.ts` centralise désormais l'issuer, la forme du payload, le nom du cookie et le secret ; chaque app garde son propre `src/lib/ssoSession.ts` en wrapper fin (typage `SsoUser` propre à ses rôles + helpers Server Components `cookies()`/`headers()`, incompatibles Edge Runtime donc hors du module partagé). Voir `packages/auth-shared/README.md` pour le détail et pourquoi ce n'est pas un package pnpm workspace (import par chemin relatif, pour ne pas changer la topologie de déploiement indépendant de chaque app). **Point à vérifier avant merge** : ce module partagé n'a pas de `node_modules` propre — il résout `jose` via un `node_modules` racine (`package.json`/`pnpm-lock.yaml` ajoutés à cet effet). Ça fonctionne pour `pnpm install` + `tsc --noEmit` de chaque app dans cet environnement, mais si une app est déployée avec un « Root Directory » Vercel strict (sans « Include files outside root directory »), le build ne verra pas `packages/` ni la racine du dépôt — à vérifier par app avant de compter dessus en production.
 
 ### A. Démarrage local incohérent — critique
 - ~~`start.sh` ne lançait pas `sso`~~ → corrigé (rang 1 du suivi).

@@ -1,3 +1,8 @@
 .DS_Store
 Skote_React_v4.4.0/
 db/*.zip
+
+# node_modules à la racine : sert uniquement à packages/auth-shared pour
+# résoudre `jose` (voir packages/auth-shared/README.md) — pas un workspace,
+# chaque app garde son propre node_modules et son propre pnpm-lock.yaml.
+node_modules/

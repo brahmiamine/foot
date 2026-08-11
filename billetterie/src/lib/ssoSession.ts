@@ -1,11 +1,16 @@
-import { jwtVerify } from "jose";
 import { cookies, headers } from "next/headers";
+import {
+  buildSsoRedirectUrl,
+  getSsoCookieName,
+  verifySsoToken,
+} from "../../../packages/auth-shared/src/session";
 
 /**
- * Vérification du cookie de session émis par l'app `sso` (voir
- * sso/src/lib/session.ts pour l'émission). Copie en lecture seule, comme
- * dans ob/matchsheet/arbinote/superadmin/teamManager — ce site ne signe
- * jamais de session, il ne fait que lire celle posée par `sso`.
+ * Wrapper local au-dessus de la vérification JWT partagée (voir
+ * packages/auth-shared/README.md) : type `SsoUser` propre à `billetterie`
+ * (rôles staff + `MEMBER`). Copie en lecture seule, comme dans
+ * ob/matchsheet/arbinote/superadmin/teamManager — ce site ne signe jamais
+ * de session, il ne fait que lire celle posée par `sso`.
  */
 
 export interface SsoUser {
@@ -16,45 +21,19 @@ export interface SsoUser {
   teamId: string | null;
 }
 
-const COOKIE_NAME = process.env.SSO_COOKIE_NAME || "foot_sso_session";
-
-function getJwtSecret(): Uint8Array {
-  const secret = process.env.SSO_JWT_SECRET;
-  if (!secret) throw new Error("SSO_JWT_SECRET must be set");
-  return new TextEncoder().encode(secret);
-}
-
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {
-  try {
-    const { payload } = await jwtVerify(token, getJwtSecret(), { issuer: "foot-sso" });
-    if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
-      return null;
-    }
-    return {
-      id: payload.sub,
-      email: payload.email,
-      name: typeof payload.name === "string" ? payload.name : payload.email,
-      role: payload.role as SsoUser["role"],
-      teamId: typeof payload.teamId === "string" ? payload.teamId : null,
-    };
-  } catch {
-    return null;
-  }
+  return (await verifySsoToken(token)) as SsoUser | null;
 }
 
 export async function getSsoSession(): Promise<SsoUser | null> {
   const store = await cookies();
-  const token = store.get(COOKIE_NAME)?.value;
+  const token = store.get(getSsoCookieName())?.value;
   if (!token) return null;
   return verifySessionToken(token);
 }
 
 export function buildMemberLoginUrl(currentUrl: string): string {
-  const ssoUrl = process.env.SSO_URL;
-  if (!ssoUrl) throw new Error("SSO_URL must be set");
-  const loginUrl = new URL("/membre/login", ssoUrl);
-  loginUrl.searchParams.set("redirect", currentUrl);
-  return loginUrl.toString();
+  return buildSsoRedirectUrl(currentUrl, "/membre/login");
 }
 
 /**
