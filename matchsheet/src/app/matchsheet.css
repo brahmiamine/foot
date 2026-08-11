@@ -96,6 +96,29 @@ body {
   color: #fff;
 }
 
+.matchsheet-settings-link {
+  position: fixed;
+  top: 0.75rem;
+  inset-inline-start: 0.75rem;
+  z-index: 1050;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  border: 1px solid #ce1126;
+  background: #fff;
+  color: #ce1126;
+  font-size: 1rem;
+  text-decoration: none;
+}
+
+.matchsheet-settings-link:hover {
+  background: #ce1126;
+  color: #fff;
+}
+
 .match-chip .match-chip-teams {
   font-weight: 600;
   font-size: 0.85rem;

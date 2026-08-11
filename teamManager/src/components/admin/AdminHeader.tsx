@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAdminSidebar } from "./AdminSidebarContext";
 
 /**
@@ -33,7 +34,11 @@ export function AdminHeader({ userName }: { userName: string }) {
           </div>
         </div>
         <div className="d-flex align-items-center gap-2 gap-sm-3">
-          {userName && <span className="d-none d-sm-inline text-muted small">{userName}</span>}
+          {userName && (
+            <Link href="/admin/mon-compte" className="d-none d-sm-inline text-muted small text-decoration-none">
+              {userName}
+            </Link>
+          )}
           <button
             onClick={async () => {
               await fetch("/api/logout", { method: "POST" });

@@ -208,6 +208,7 @@ export function AdminSidebar({
         items: [
           { title: "Utilisateurs", icon: "fas fa-id-badge", href: "/admin/users", children: [], permission: "users.view" },
           { title: "Rôles & permissions", icon: "fas fa-user-shield", href: "/admin/roles", children: [], permission: "roles.manage" },
+          { title: "Mon compte", icon: "fas fa-user-circle", href: "/admin/mon-compte", children: [] },
         ],
       },
     ],

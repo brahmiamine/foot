@@ -76,3 +76,36 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Réception des notifications Web Push (voir /admin/notifications côté app,
+// notification-api/src/providers/push/web-push.provider.ts côté serveur).
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'Arbinote', body: event.data.text() };
+  }
+  const { title = 'Arbinote', body, url = '/admin', icon = '/icon-192x192.png' } = payload;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url ?? '/admin';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && 'focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+

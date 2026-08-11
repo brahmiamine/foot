@@ -1,7 +1,10 @@
 // Service Worker PWA minimal pour matchsheet : app shell (assets statiques)
-// + page de secours hors-ligne pour la navigation. Ne met en cache aucune
-// donnée de match (les événements live doivent toujours venir du réseau) —
-// pas de file d'attente offline pour les écritures (roadmap.md §3, §9).
+// + page de secours hors-ligne pour la navigation, plus réception des
+// notifications Web Push (voir /parametres côté app,
+// notification-api/src/providers/push/web-push.provider.ts côté serveur).
+// Ne met en cache aucune donnée de match (les événements live doivent
+// toujours venir du réseau) — pas de file d'attente offline pour les
+// écritures (roadmap.md §3, §9).
 const CACHE_NAME = "matchsheet-shell-v1";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE_URLS = [OFFLINE_URL, "/manifest.json", "/icons/icon-192x192.png"];
@@ -54,4 +57,35 @@ self.addEventListener("fetch", (event) => {
       )
     );
   }
+});
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: "Feuille de match électronique", body: event.data.text() };
+  }
+  const { title = "Feuille de match électronique", body, url = "/", icon = "/icons/icon-192x192.png" } = payload;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url ?? "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && "focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
 });

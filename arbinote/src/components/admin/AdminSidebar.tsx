@@ -11,6 +11,7 @@ const navItems = [
   { label: 'Anomalies', href: '/admin/anomalies', icon: '⚠️' },
   { label: 'Alertes', href: '/admin/alerts', icon: '🔔' },
   { label: 'Messages', href: '/admin/contact', icon: '✉️' },
+  { label: 'Notifications', href: '/admin/notifications', icon: '📲' },
 ]
 
 export default function AdminSidebar() {

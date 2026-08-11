@@ -6,6 +6,7 @@ import { MatchService } from "@/services/MatchService";
 import { MatchesBottomBar } from "@/components/MatchesBottomBar";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { SettingsLink } from "@/components/SettingsLink";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
@@ -47,6 +48,7 @@ export default async function RootLayout({
         <LanguageProvider>
           <div className="matchsheet-shell">
             <LanguageToggle />
+            <SettingsLink />
             <main className="matchsheet-main">{children}</main>
             <MatchesBottomBar matches={matchOptions} />
           </div>
