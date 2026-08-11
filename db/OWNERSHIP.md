@@ -29,7 +29,7 @@ présence d'une entité.
 | Matchs — référentiel (équipes, date, score, arbitre) | `matches` (hors `status`, voir ligne suivante) | `superadmin` (création/programmation) | `arbinote`, `matchsheet`, `ob`, `billetterie`, `teamManager` (lecture pour préparation) |
 | Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `matchsheet` (`IN_PROGRESS`/`FINISHED`, seul à savoir avec certitude quand un match démarre/finit réellement) ; `superadmin` (`CANCELLED` uniquement, voir alerte ci-dessous) | `ob` (résultats, classement), `billetterie` (fenêtre de vente + refus d'achat sur `CANCELLED`), `teamManager` (formations) |
 | Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `arbinote` | `superadmin` (consultation) |
-| Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens`, `security_events` | `sso` | `arbinote`, `superadmin`, `teamManager` (lecture/jointures) |
+| Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens`, `security_events`, `staff_invitations` | `sso` (authentification, `SUPERADMIN`/`MEMBER`) ; `superadmin` (provisioning des comptes club `ADMIN`/`OBSERVATEUR` uniquement — voir alerte ci-dessous) | `arbinote`, `teamManager` (lecture/jointures) |
 | Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `teamManager` | `matchsheet`, `ob` (lecture) |
 | **Cartons (`Card`) — écriture partagée, voir alerte ci-dessous** | `Card` | `teamManager` **et** `matchsheet` | `ob` (lecture) |
 | Compositions d'équipe | `cms_match_lineups` | `teamManager` | `matchsheet` (lecture, verrouillage au coup d'envoi) |
@@ -110,6 +110,32 @@ et aucun workflow multi-étapes (qui prévient qui au-delà de la notification
 aux deux clubs, remboursement des billets déjà vendus côté `billetterie`,
 etc.) — annuler reste une action simple, pas un processus métier complet.
 À étendre séparément si le besoin se confirme.
+
+## Point d'attention : `superadmin` écrit `User` pour les comptes club (`ADMIN`/`OBSERVATEUR`)
+
+Découvert en construisant l'invitation staff en 2 temps (avancement.md,
+"Invitation club (staff)") : `superadmin/src/lib/clubAccounts.ts` écrit
+directement dans `User` depuis longtemps (`/admin/club/[teamId]`, création/
+désactivation/réinitialisation de mot de passe des comptes `ADMIN`/
+`OBSERVATEUR`) — la ligne de ce document classait pourtant `superadmin` en
+« lecture/jointures » uniquement sur ce domaine. Corrigé ci-dessus : la
+répartition réelle est `sso` pour l'authentification et les comptes
+`SUPERADMIN`/`MEMBER`, `superadmin` pour le provisioning des comptes club
+`ADMIN`/`OBSERVATEUR` (jamais l'inverse — `sso` ne crée jamais de compte
+`ADMIN`/`OBSERVATEUR`, `superadmin` ne touche jamais un compte `SUPERADMIN`/
+`MEMBER`). Pas de conflit d'écriture réel : les deux apps écrivent des
+sous-ensembles de lignes disjoints de la même table, jamais la même ligne.
+
+**Corrigé au passage** : la création d'un compte club exigeait jusqu'ici que
+`superadmin` choisisse lui-même le mot de passe (visible en clair côté
+formulaire admin, à communiquer hors plateforme). Remplacé par une
+invitation par email à usage unique (`staff_invitations`, table propre à
+`superadmin`, même pattern `token_hash` SHA-256 que `password_reset_tokens`
+côté `sso`) : `superadmin` ne connaît plus jamais le mot de passe d'un
+compte club, le destinataire le choisit lui-même en acceptant l'invitation
+(`superadmin/src/app/invite/[token]`). La réinitialisation d'un mot de
+passe existant (compte déjà créé, admin dépanne un utilisateur bloqué)
+reste inchangée — cas différent, toujours géré directement.
 
 ## Ce que ce document corrige
 

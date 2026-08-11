@@ -28,7 +28,8 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
 
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'ADMIN' as 'ADMIN' | 'OBSERVATEUR' })
+  const [form, setForm] = useState({ name: '', email: '', role: 'ADMIN' as 'ADMIN' | 'OBSERVATEUR' })
+  const [inviteSent, setInviteSent] = useState<string | null>(null)
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [resetId, setResetId] = useState<string | null>(null)
@@ -53,21 +54,22 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId])
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError(null)
+    setInviteSent(null)
     try {
-      const response = await fetch('/api/admin/club', {
+      const response = await fetch(`/api/admin/club/${teamId}/invitations`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, teamId }),
+        body: JSON.stringify(form),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? 'Erreur')
-      setUsers((prev) => [data, ...prev])
-      setForm({ name: '', email: '', password: '', role: 'ADMIN' })
+      setInviteSent(form.email)
+      setForm({ name: '', email: '', role: 'ADMIN' })
       setShowForm(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
@@ -140,15 +142,24 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
           onClick={() => setShowForm((v) => !v)}
           className="btn btn-primary"
         >
-          {showForm ? 'Annuler' : '+ Nouveau compte'}
+          {showForm ? 'Annuler' : '+ Inviter un compte'}
         </button>
       </div>
 
       {error && <div className="alert alert-danger mb-0">{error}</div>}
+      {inviteSent && (
+        <div className="alert alert-success mb-0">
+          Invitation envoyée à {inviteSent}. Le compte sera créé quand la personne l&apos;acceptera (lien valable 7 jours).
+        </div>
+      )}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="card shadow-sm border-0">
+        <form onSubmit={handleInvite} className="card shadow-sm border-0">
           <div className="card-body">
+            <p className="text-muted small mb-3">
+              Un email avec un lien d&apos;invitation à usage unique sera envoyé. La personne invitée choisit
+              elle-même son mot de passe en l&apos;acceptant.
+            </p>
             <div className="row g-3">
               <div className="col-12 col-md-6">
                 <label className="form-label">Nom complet</label>
@@ -171,17 +182,6 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
                 />
               </div>
               <div className="col-12 col-md-6">
-                <label className="form-label">Mot de passe</label>
-                <input
-                  required
-                  minLength={8}
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="form-control"
-                />
-              </div>
-              <div className="col-12 col-md-6">
                 <label className="form-label">Rôle</label>
                 <select
                   value={form.role}
@@ -200,7 +200,7 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
               disabled={saving}
               className="btn btn-primary"
             >
-              Créer le compte
+              {saving ? 'Envoi...' : "Envoyer l'invitation"}
             </button>
           </div>
         </form>

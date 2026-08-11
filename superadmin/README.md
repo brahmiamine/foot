@@ -13,7 +13,7 @@ Application Next.js (App Router) réservée au rôle `SUPERADMIN` : c'est l'outi
 - **Matchs** (`/admin/matches`) : CRUD, plus **annulation** (`matches.status -> CANCELLED`, `POST /api/admin/matches/[id]/cancel`, motif obligatoire) — restreinte aux matchs `UPCOMING`, irréversible depuis cette action (pas de réactivation), notifie les deux clubs via `notification-api` et journalise dans `/admin/audit`. Voir `avancement.md` § « Cycle de vie du match — CANCELLED » pour les décisions volontairement pas prises (réactivation, workflow multi-étapes).
 - **Arbitres** (`/admin/arbitres`) : CRUD + import CSV en masse.
 - **Motifs de cartons** (`/admin/card-reasons`) : référentiel disciplinaire utilisé par `teamManager` et `matchsheet`.
-- **Comptes club** (`/admin/club`, `/admin/club/[teamId]`) : gestion des utilisateurs rattachés à une équipe (accès à `teamManager`).
+- **Comptes club** (`/admin/club`, `/admin/club/[teamId]`) : gestion des utilisateurs rattachés à une équipe (accès à `teamManager`). Création par **invitation par email à usage unique** (`POST /api/admin/club/[teamId]/invitations`, table `staff_invitations`, lien valable 7 jours, page publique `/invite/[token]`) — `superadmin` ne choisit plus le mot de passe du compte, le destinataire le définit lui-même en acceptant. La réinitialisation du mot de passe d'un compte existant reste directe (dépannage d'un utilisateur bloqué), inchangée.
 - **Journal d'audit** (`/admin/audit`) : historique des actions effectuées dans le back-office.
 - **Test/mapping API-Football** (`/admin/testapi`) : panneau de test de l'intégration externe (voir [`matching.md`](./matching.md) et [`../roadmap.md`](../roadmap.md) § 1).
 
