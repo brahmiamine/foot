@@ -123,12 +123,23 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
       teamId: typeof payload.teamId === "string" ? payload.teamId : null,
       tokenVersion: user.tokenVersion,
     };
-  } catch {
-    await logSecurityEvent({
-      eventType: "INVALID_TOKEN",
-      ip: await currentRequestIP(),
-      detail: "Signature ou expiration JWT invalide",
-    });
+  } catch (error) {
+    // Un jeton simplement expiré est le cas de très loin le plus fréquent
+    // (session de 12h qui touche à sa fin, cookie pas encore effacé par le
+    // navigateur) — pas suspect, ça arrive à chaque visite après expiration
+    // tant que le cookie traîne. Le journaliser comme les autres cas
+    // noierait le vrai signal (signature invalide, jeton altéré) sous du
+    // bruit de fonctionnement normal. jose expose `code` sur ses erreurs
+    // (voir jose/dist/*/util/errors.js) — plus fiable qu'un `instanceof`
+    // face aux deux bundles (browser/node) que ce paquet expose.
+    const code = (error as { code?: string } | null)?.code;
+    if (code !== "ERR_JWT_EXPIRED") {
+      await logSecurityEvent({
+        eventType: "INVALID_TOKEN",
+        ip: await currentRequestIP(),
+        detail: "Signature JWT invalide",
+      });
+    }
     return null;
   }
 }
