@@ -99,8 +99,14 @@ unique peut donc servir plusieurs clubs :
    ce club avant d'être accepté.
 
 Pour une installation déjà bootstrapée avant cet ajout, voir
-`sql/migration_add_club_id.sql` (colonne nullable, à backfiller
-manuellement club par club avant d'en dépendre pour filtrer une requête).
+`sql/migration_add_club_id.sql` (colonne nullable), puis `npm run
+backfill:club-id` (`scripts/backfill-club-id.ts`) : idempotent, il
+rattache automatiquement les lignes `club_id IS NULL` au club unique de la
+table `teams` partagée s'il n'y en a qu'un (le cas de la quasi-totalité
+des installs existantes, mono-club avant le support multi-clubs). S'il y
+en a plusieurs, aucune donnée de `sp_sellers`/`sp_product_categories` ne
+permet de déduire lequel est le bon sans risquer un mauvais rattachement :
+le script s'arrête alors et liste ce qu'il faut résoudre manuellement.
 
 Le tableau de bord (routes `(dashboard)`) consomme aussi `ClubBranding`
 (`src/lib/clubBranding.ts`, table `team_branding` en lecture seule,

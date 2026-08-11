@@ -8,7 +8,8 @@
     "build": "next build --webpack",
     "start": "next start -p 3006",
     "lint": "eslint",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "backfill:club-id": "tsx scripts/backfill-club-id.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
