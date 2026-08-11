@@ -42,7 +42,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | `sso` | Authentification centralisée | Générique | ❌ | ✅ | ❌ | ✅ |
 | `arbinote` | Notation publique des arbitres | Générique | ✅ | ✅ | ✅ | ✅ |
 | `matchsheet` | Feuille de match électronique (kiosque) | Générique | ❌ | ✅ | ✅ | ✅ |
-| `superadmin` | Référentiels plateforme, audit | Générique | ✅ | ✅ | ✅ | ✅ |
+| `superadmin` | Référentiels plateforme, audit | Générique | ✅ | ✅ | ⚠️¹ | ✅ |
 | `teamManager` | Back-office club | Générique | ❌ | ✅ | ✅ | ✅ |
 | `ob` | Vitrine + espace membre OB (lecture seule) | Custom | ❌ | ✅ | ❌ | ✅ |
 | `payment-api` | Paiement mutualisé (Konnect/Paymee/Flouci) | Service | ✅ | ✅ | — | ✅ |
@@ -50,6 +50,8 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | `sellerPortal` | Portail vendeur marketplace | Générique | ❌ | ✅ | ❌ | ✅ |
 | `billetterie` | Billetterie multi-clubs (V1 mock) | Générique | ❌ | ✅ | ❌ | ✅ |
 | `db` | Dump SQL de référence, pas une app | Référence | — | — | — | — |
+
+¹ Découvert le 11/08/2026 en câblant Web Push (§ 4) : `superadmin/public/sw.js`/`manifest.json` existent mais ne sont référencés nulle part dans `src/` — aucun `ServiceWorkerRegistration`, aucun `<link rel="manifest">` — et `sw.js` porte encore le nom de cache `arbinote-v1`, copié-collé jamais adapté depuis le tout premier commit. La PWA n'a donc jamais été réellement active malgré le ✅ historique de cette ligne ; corrigé ici, le câblage réel reste à faire (hors périmètre de ce passage, qui portait sur Web Push, pas sur la PWA elle-même).
 
 ---
 
@@ -64,7 +66,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 
 ### `teamManager` — haute
 **En place** : effectif, staff, discipline, actus/médias, boutique, sponsors, académie/recrutement, admin billetterie, PWA dynamique par club.
-**Manquant** : espace supporter/communauté, checkout/paiement réel de la boutique, workflow contrat/facturation sponsors, finance/trésorerie (aucun module), RGPD (aucun consentement/export/suppression).
+**Manquant** : espace supporter/communauté (hors périmètre, décision explicite), ~~checkout/paiement réel de la boutique~~ (**fermé**, voir § 4), workflow contrat/facturation sponsors (hors périmètre, décision explicite), finance/trésorerie (hors périmètre, décision explicite), RGPD (hors périmètre, décision explicite).
 
 ### `matchsheet` — moyenne
 **En place** : avant-match, live, signatures, statut local de feuille, PWA, middleware de protection.
@@ -183,7 +185,7 @@ Les sections 2 et 3 détaillent le constat app par app et flux par flux. Cette s
 | Cycle de vie du match — `CANCELLED` | `superadmin` (déciderait) → toutes | ⛔ Hors périmètre (décision explicite) | Annulation = workflow produit à concevoir (qui prévient qui, réactivation possible ou non) — écarté du 11/08/2026 faute de spécification, pas un oubli | § 3.F |
 | Notifications — émission métier | `arbinote`/`superadmin`/`matchsheet`/`teamManager`/`payment-api` → `notification-api` | ✅ Fermé (5/6 émetteurs) | `ob` n'émet toujours aucun événement (lecture seule côté métier — sans rapport avec le canal Web Push ci-dessous, où `ob` est consommateur) | § 3.G |
 | Notifications — convocation / composition d'équipe / sponsor | `teamManager` → `notification-api` | ⬜ Ouvert (non traité ce passage) | Le destinataire n'est pas un `User` résolvable dans le modèle actuel — un `Player`/`Sponsor` n'a pas nécessairement de compte `sso`. Laissé ouvert délibérément le 11/08/2026 : contrairement à l'invitation club (§ `sso`, traitée ce passage sur un gabarit clair, le reset de mot de passe), il n'existe aucun flux analogue dans le dépôt à suivre pour « qui reçoit quoi quand un `Player` sans compte doit être notifié » — trancher ça sans casser l'hypothèse actuelle (destinataire = `User`) dans `notification-api` mérite une décision produit, pas un câblage | § 3.G |
-| Notifications — canal Web Push | `notification-api` ↔ `ob` uniquement | 🔶 Partiel — **corrigé par cette relecture**, la doc précédente le disait absent à tort | Réellement implémenté (VAPID, `webpush.sendNotification`) et câblé de bout en bout dans `ob` (`PushSubscribeButton.tsx`, `ServiceWorkerRegistration.tsx`, `POST /push-subscriptions`) — mais **aucune des 6 autres apps** (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `sellerPortal`, `billetterie`) ne l'utilise, alors que 4 d'entre elles ont déjà un `ServiceWorkerRegistration` PWA générique (donc la brique manquante est seulement le bouton d'abonnement + l'appel à `notification-api`, pas le Service Worker lui-même) | `notification-api/src/providers/push/web-push.provider.ts`, `ob/src/components/PushSubscribeButton.tsx` |
+| Notifications — canal Web Push | `notification-api` ↔ `ob`/`arbinote`/`matchsheet`/`teamManager` | ✅ Fermé (4/6 apps clientes concernées) | Câblé dans les 4 apps qui avaient déjà un vrai Service Worker PWA (`PushSubscribeButton` + page compte dédiée par app : `/admin/notifications` `arbinote`, `/parametres` `matchsheet`, `/admin/mon-compte` `teamManager`). `superadmin` vérifié et exclu à raison : son `sw.js`/`manifest.json` existent mais ne sont référencés nulle part dans `src/` (jamais câblés à la PWA malgré le ✅ du panorama — à corriger séparément, hors périmètre Web Push). `sellerPortal`/`billetterie` restent hors périmètre (PWA ❌, pas de Service Worker à brancher) | `notification-api/src/providers/push/web-push.provider.ts`, `*/src/components/PushSubscribeButton.tsx` |
 | Notifications — canal SMS | `notification-api` | ⛔ Hors périmètre (décision explicite) | `NotImplementedSmsProvider` lève explicitement une erreur — hors périmètre V1 documenté (§36 du code) ; confirmé écarté le 11/08/2026 (pas d'identifiants Twilio/équivalent à câbler dans cet environnement) | `notification-api/src/providers/sms/not-implemented-sms.provider.ts` |
 | Notifications — canal FCM (mobile natif) | `notification-api` | ⛔ Hors périmètre (décision explicite) | `FcmProvider` est un stub qui lève une erreur : intégration HTTP v1 Firebase non faite, pas de besoin V1 (repose sur Web Push) ; confirmé écarté le 11/08/2026 (pas de compte de service Firebase disponible ici) | `notification-api/src/providers/push/fcm.provider.ts` |
 | Billetterie — réservation → paiement (Konnect/Flouci) | `billetterie` ↔ `payment-api` | ✅ Fermé | — | rang 9 |
@@ -192,7 +194,7 @@ Les sections 2 et 3 détaillent le constat app par app et flux par flux. Cette s
 | Billetterie — audience réservée fiable | `billetterie` | 🔶 Partiel | Auto-déclarée aujourd'hui, aucune vérification indépendante — dépend directement du scanner (ligne ci-dessus), lui-même hors périmètre : rien à fermer ici tant que ce dernier n'existe pas | § « `billetterie` » |
 | Billetterie — contrôle d'accès au stade (scanner) | inexistant | ⛔ Hors périmètre (décision explicite) | Vérifié : aucun dossier/route `scanner` ou équivalent dans le dépôt, jamais commencé. Traité comme les modules produit sans spécification (même famille que RGPD/finance/espace supporter) : ce n'est pas une fonctionnalité à l'intérieur d'une app existante, c'est une app opérateur à part entière (matériel de scan, rôles stade, mode hors-ligne) — écarté le 11/08/2026 faute de spécification, pas un oubli | § « `billetterie` », § 3.H |
 | `ob` espace membre → billetterie | `ob` → `billetterie` | ✅ Fermé | Renvoie vers `{NEXT_PUBLIC_BILLETTERIE_URL}/mes-billets` | rang 9 |
-| Boutique club — checkout/paiement | `teamManager` ↔ `payment-api` | ⬜ Ouvert | Vérifié : aucune référence à `payment-api` dans `teamManager` — la boutique n'a que la gestion admin du catalogue (`admin/shop/`), aucun tunnel d'achat | § « `teamManager` » |
+| Boutique club — checkout/paiement | `teamManager` ↔ `payment-api` | ✅ Fermé | `/boutique/[teamId]` (public, `MEMBER` via SSO) : réservation `PENDING` avec verrou pessimiste sur le stock, appel `payment-api` hors transaction, compensation si l'appel échoue, réconciliation opportuniste (`/paiement/retour` + `/mes-commandes`) — même architecture que `billetterie`. Nouvelle table `shop_orders` (`teamManager/sql/migration_add_shop_orders.sql`), entité `ShopOrder` | § « `teamManager` » |
 | Sponsors club — facturation | `teamManager` | ⛔ Hors périmètre (décision explicite) | Formulaire de demande (`devenir-sponsor`) et champs de contrat (`contractStart`/`contractEnd`/`contractAmount` sur `Sponsor`) existent déjà ; génération de document de contrat + facturation écartées le 11/08/2026, module produit sans spécification (format de facture, numérotation, TVA…) | § « `teamManager` » |
 | RGPD (consentement, export, suppression) | `teamManager` | ⛔ Hors périmètre (décision explicite) | Aucun module — écarté le 11/08/2026, périmètre légal/produit (quel consentement, quelle rétention) non spécifié | § « `teamManager` » |
 | Finance / trésorerie club | `teamManager` | ⛔ Hors périmètre (décision explicite) | Aucun module — écarté le 11/08/2026, périmètre non spécifié | § « `teamManager` » |

@@ -4,9 +4,9 @@
   "private": true,
   "description": "Portail vendeur générique multi-clubs — un vendeur est rattaché au marketplace d'un club donné",
   "scripts": {
-    "dev": "next dev --webpack -p 3006",
+    "dev": "next dev --webpack -p 3007",
     "build": "next build --webpack",
-    "start": "next start -p 3006",
+    "start": "next start -p 3007",
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
     "backfill:club-id": "tsx scripts/backfill-club-id.ts"

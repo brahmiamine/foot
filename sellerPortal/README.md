@@ -32,7 +32,7 @@ npm install
 # importer sql/schema.sql dans la base "foot" (une seule fois)
 mariadb -h 127.0.0.1 -P 3307 -u "$DB_USER" -p foot < sql/schema.sql
 npm run seed                 # optionnel : jeu de données de démo
-npm run dev                  # http://localhost:3006
+npm run dev                  # http://localhost:3007
 ```
 
 Identifiants de démo (après `npm run seed`) : voir la sortie du script
