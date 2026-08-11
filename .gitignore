@@ -6,3 +6,7 @@ db/*.zip
 # résoudre `jose` (voir packages/auth-shared/README.md) — pas un workspace,
 # chaque app garde son propre node_modules et son propre pnpm-lock.yaml.
 node_modules/
+
+# Worktrees git temporaires créés par l'isolation des agents Claude Code —
+# jamais du contenu du dépôt, nettoyés/fusionnés après coup.
+.claude/worktrees/
