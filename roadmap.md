@@ -74,6 +74,10 @@ Haute.
 
 ## 2.1. Notifications centralisées à finaliser
 
+### Statut
+
+Scaffold V1 livré dans [`notification-api`](./notification-api) (NestJS) : table `Notification` standardisée, préférences par canal/catégorie, templates multilingues, queue BullMQ avec retry, ciblage broadcast (TEAM/ROLE/MEMBERS via la base partagée, CATEGORY/SELLER pré-résolus par l'app appelante), idempotence par `eventId`, historique de livraison. Reste à brancher : intégration effective des apps sources (appels à `POST /internal/notifications` depuis `teamManager`/`payment-api`/`ob`), Web Push côté frontend (souscription navigateur), FCM (mobile), SMS.
+
 ### Constat
 
 `teamManager` prévoit notifications PWA, email et in-app.

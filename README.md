@@ -13,6 +13,7 @@ Plateforme de gestion d'une ligue de football (fédérations, ligues, clubs, mat
 | [`teamManager`](./teamManager) | Back-office de gestion d'un club : effectif, staff, discipline (cartons/suspensions/amendes), actualités/médias, boutique, sponsors, académie/recrutement, exports, réglages. | 3003 | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
 | [`ob`](./ob) | Site public (vitrine) d'un club — Olympique de Béja — en lecture seule sur la base partagée. | — | Public |
 | [`payment-api`](./payment-api) | API de paiement (NestJS) mutualisée : intègre les providers tunisiens Konnect Network et Paymee derrière une interface unique. | — | Clé API interne |
+| [`notification-api`](./notification-api) | Centre de notifications centralisé (NestJS) : in-app, email et push (SMS à venir) pour toutes les apps de l'écosystème, avec préférences utilisateur, templates multilingues, queue asynchrone (BullMQ) et idempotence. | 3010 | JWT `sso` (public) + clé de service (interne) |
 | [`db`](./db) | Dump SQL de référence du schéma partagé `foot`. | — | — |
 | [`skote`](./skote) | Template d'admin React (Themesbrand Skote) vendored à titre de référence visuelle — non branché au produit. | — | — |
 
