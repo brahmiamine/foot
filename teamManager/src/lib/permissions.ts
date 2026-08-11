@@ -126,6 +126,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    key: "billetterie",
+    label: "Billetterie",
+    permissions: [
+      { key: "billetterie.view", label: "Voir la billetterie" },
+      { key: "billetterie.manage", label: "Gérer catégories / vente de billets" },
+    ],
+  },
+  {
     key: "sponsors",
     label: "Sponsors",
     permissions: [

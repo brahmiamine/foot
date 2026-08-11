@@ -9,7 +9,10 @@ partagée, quel que soit le club organisateur. Générique au même titre que
 **Ne duplique pas les matchs** : la table `matches` (gérée par
 `superadmin`/`teamManager`) reste la source de vérité pour l'« event » —
 cette app y ajoute seulement des catégories de billets, des règles de vente
-et des billets (tables `tk_*`, voir `sql/schema.sql`).
+et des billets (tables `tk_*`, voir `sql/schema.sql`). Le schéma est créé
+ici, mais **`teamManager` est l'admin** : il écrit `tk_ticket_categories`/
+`tk_match_ticket_categories`/`tk_ticket_sale_rules` (`/admin/billetterie`),
+cette app les lit pour l'achat et n'écrit que `tk_tickets`.
 
 ## Modèle de données
 
@@ -41,10 +44,12 @@ vérifiée) avant toute vente réelle sur des catégories sensibles.
   `tk_match_ticket_categories` pour éviter la survente).
 - Pas de scanner/contrôle billetterie : ce sera une app séparée
   (`ticketing-scanner`), hors périmètre.
-- Pas d'interface d'administration pour créer les catégories/règles de vente
-  d'un club (`tk_ticket_categories`, `tk_match_ticket_categories`,
-  `tk_ticket_sale_rules`) : à créer en base directement pour cette V1, ou à
-  brancher dans `superadmin`/`teamManager` dans une itération ultérieure.
+- L'interface d'administration pour créer les catégories/règles de vente
+  d'un club vit dans **`teamManager`** (`/admin/billetterie`, réservé
+  `ADMIN` du club), pas ici — cette app ne fait que consommer les tables
+  `tk_ticket_categories`/`tk_match_ticket_categories`/`tk_ticket_sale_rules`
+  en lecture (+ écrit `tk_tickets` à l'achat). Voir
+  `teamManager/src/services/TicketingService.ts`.
 
 ## Démarrage
 

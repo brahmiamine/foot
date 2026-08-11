@@ -11,6 +11,7 @@ Le cahier des charges complet vit dans [`doc/cahier-des-charges.md`](./doc/cahie
 - **Matchs** : matchs officiels et amicaux (`matches`, `friendly-matches`).
 - **Actualités & médias (CMS)** : actualités (`news`), galeries et fichiers médias (`media`), histoire/figures/palmarès du club (`club`), informations stade (`stadiums`).
 - **Boutique & sponsors** (gestion côté admin) : catégories et produits (`shop`), sponsors (`sponsors`).
+- **Billetterie** (gestion côté admin, `billetterie`) : catégories de billets du club, et par match à domicile — prix/capacité/règles de vente (audience, quota par acheteur, fenêtre de vente). Écrit dans les tables partagées `tk_*` (voir `../billetterie/README.md`) ; l'app `billetterie` (générique, séparée) est celle qui vend réellement les billets aux supporters.
 - **Académie & recrutement** : candidatures académie (`academy`), besoins de recrutement (`recruitment`).
 - **Administration** : utilisateurs et rôles/permissions (`users`, `roles`), réglages club (`club-settings`), communiqués (`announcements`), notifications internes (`notifications`), journal d'audit (`audit`), tableau de bord (`stats`), exports Excel/PDF (`exports`, via `exceljs`/`jspdf`).
 - **Formulaires publics** (hors `/admin`, un par club via `[teamId]`) : contact (`/contact/[teamId]`), devenir sponsor (`/devenir-sponsor/[teamId]`), inscription académie (`/inscription/[teamId]`), recrutement (`/recrutement/[teamId]`) — ces formulaires sont aussi consommés par le site vitrine `ob` en lecture seule.

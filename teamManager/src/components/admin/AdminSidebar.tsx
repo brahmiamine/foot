@@ -136,6 +136,16 @@ export function AdminSidebar({
               { title: "Catégories", href: "/admin/shop/categories" },
             ],
           },
+          {
+            title: "Billetterie",
+            icon: "fas fa-ticket",
+            href: "/admin/billetterie/matches",
+            permission: "billetterie.view",
+            children: [
+              { title: "Par match", href: "/admin/billetterie/matches" },
+              { title: "Catégories de billets", href: "/admin/billetterie/categories" },
+            ],
+          },
           { title: "Sponsors", icon: "fas fa-handshake", href: "/admin/sponsors", children: [], permission: "sponsors.view" },
           { title: "Communication", icon: "fas fa-bell", href: "/admin/notifications", children: [], permission: "notifications.view" },
           {
