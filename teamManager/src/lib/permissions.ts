@@ -194,6 +194,26 @@ export const PERMISSION_MODULES: PermissionModule[] = [
       { key: "tactics.manage", label: "Créer / gérer ses propres planches tactiques" },
     ],
   },
+  {
+    key: "ticketing",
+    label: "Billetterie",
+    permissions: [
+      { key: "ticketing.view", label: "Voir la billetterie" },
+      { key: "ticketing.create", label: "Créer une billetterie" },
+      { key: "ticketing.update", label: "Modifier une billetterie" },
+      { key: "ticketing.open", label: "Ouvrir la vente" },
+      { key: "ticketing.close", label: "Clôturer la vente" },
+      { key: "ticketing.cancel", label: "Annuler une billetterie" },
+      { key: "ticketing.manageCategories", label: "Gérer les catégories de billets" },
+      { key: "ticketing.manageQuotas", label: "Gérer les quotas" },
+      { key: "ticketing.viewOrders", label: "Voir les commandes" },
+      { key: "ticketing.manageTickets", label: "Gérer les billets" },
+      { key: "ticketing.cancelTicket", label: "Annuler un billet" },
+      { key: "ticketing.scan", label: "Scanner les billets (contrôle d'entrée)" },
+      { key: "ticketing.viewStats", label: "Voir les statistiques de billetterie" },
+      { key: "ticketing.manageControllers", label: "Gérer les contrôleurs" },
+    ],
+  },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_MODULES.flatMap((m) => m.permissions.map((p) => p.key));

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import shared from "./shared.module.css";
 import styles from "./Hero.module.css";
 
@@ -20,9 +21,9 @@ export function Hero() {
           Nord-Ouest tunisien en Ligue Professionnelle 1.
         </p>
         <div className={styles.actions}>
-          <a href="#billetterie" className={shared.btnPrimary} style={{ padding: "16px 32px", fontSize: 16 }}>
+          <Link href="/billetterie" className={shared.btnPrimary} style={{ padding: "16px 32px", fontSize: 16 }}>
             Acheter un billet
-          </a>
+          </Link>
           <a href="#effectif" className={shared.btnOutline} style={{ padding: "14px 32px", fontSize: 16 }}>
             Voir l&apos;effectif
           </a>

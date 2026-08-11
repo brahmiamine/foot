@@ -5,10 +5,12 @@ import { News } from "@/entities/News";
 import { MediaGallery } from "@/entities/MediaGallery";
 import { MsGoal } from "@/entities/MsGoal";
 import { ObKickoffNotified } from "@/entities/ObKickoffNotified";
+import { TicketHold } from "@/entities/TicketHold";
+import { TicketOrder } from "@/entities/TicketOrder";
 import { getObTeam } from "@/lib/ob-team";
 import { notifyOptedIn } from "@/lib/notifications/push";
 import { getCursor, setCursor } from "@/lib/notifications/cursor";
-import { MoreThan, Between } from "typeorm";
+import { MoreThan, Between, IsNull, LessThan } from "typeorm";
 
 export const runtime = "nodejs";
 
@@ -32,14 +34,45 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date();
-  const [kickoffs, goals, results, content] = await Promise.all([
+  const [kickoffs, goals, results, content, expiredHolds] = await Promise.all([
     notifyKickoffs(team.id, now),
     notifyGoals(team.id, now),
     notifyResults(team.id, now),
     notifyNewContent(team.id, now),
+    releaseExpiredTicketHolds(now),
   ]);
 
-  return NextResponse.json({ success: true, kickoffs, goals, results, content });
+  return NextResponse.json({ success: true, kickoffs, goals, results, content, expiredHolds });
+}
+
+/**
+ * Libère les réservations de billets (#billetterie) dont le délai est
+ * dépassé. Ceci n'est pas nécessaire à la correction du calcul de
+ * disponibilité (TicketingService.getAvailability filtre déjà `expiresAt >
+ * now`) — c'est un nettoyage de tenue à jour : marque les holds comme
+ * `released_at` et les commandes PENDING encore ouvertes comme EXPIRED,
+ * pour que l'admin (liste des commandes côté teamManager) ne les voie pas
+ * traîner indéfiniment en "En attente".
+ */
+async function releaseExpiredTicketHolds(now: Date): Promise<number> {
+  const dataSource = await getDataSource();
+  const holdRepo = dataSource.getRepository(TicketHold);
+  const orderRepo = dataSource.getRepository(TicketOrder);
+
+  const expired = await holdRepo.find({ where: { releasedAt: IsNull(), expiresAt: LessThan(now) } });
+  if (expired.length === 0) return 0;
+
+  for (const hold of expired) {
+    hold.releasedAt = now;
+  }
+  await holdRepo.save(expired);
+
+  const orderIds = [...new Set(expired.map((h) => h.orderId))];
+  for (const orderId of orderIds) {
+    await orderRepo.update({ id: orderId, status: "PENDING" }, { status: "EXPIRED" });
+  }
+
+  return expired.length;
 }
 
 async function notifyKickoffs(teamId: string, now: Date): Promise<number> {

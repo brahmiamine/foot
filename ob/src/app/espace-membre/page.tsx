@@ -66,6 +66,9 @@ export default async function EspaceMembrePage() {
               <span className={styles.pointsValue}>{member.points.toLocaleString("fr-FR")}</span>
               <span className={styles.pointsLabel}>points</span>
             </div>
+            <a href="/mes-billets" className={shared.btnPrimary}>
+              Mes billets
+            </a>
             <a href={logoutUrl} className={shared.btnOutline}>
               Se déconnecter
             </a>

@@ -1,0 +1,75 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.match {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ob-text);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--ob-muted, #6b7280);
+  margin-top: 2px;
+}
+
+.status {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.statusIssued {
+  background: rgba(200, 16, 46, 0.1);
+  color: var(--ob-red);
+}
+
+.statusUsed {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.statusCancelled {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.form input {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--ob-text);
+  font-family: inherit;
+}
+
+.form button {
+  align-self: flex-start;
+}

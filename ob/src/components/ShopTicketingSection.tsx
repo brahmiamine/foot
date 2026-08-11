@@ -14,8 +14,8 @@ export function ShopTicketingSection({ products }: { products: Product[] }) {
             <p className={styles.ticketsText}>
               Réservez votre place au Stade Boujemaa Kmiti et venez encourager les Cigognes à domicile.
             </p>
-            <Link href="/#contact" className={shared.btnDark} style={{ alignSelf: "flex-start", marginTop: 8 }}>
-              Contacter le club
+            <Link href="/billetterie" className={shared.btnDark} style={{ alignSelf: "flex-start", marginTop: 8 }}>
+              Voir la billetterie
             </Link>
           </div>
 

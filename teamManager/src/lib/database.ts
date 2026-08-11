@@ -45,6 +45,15 @@ import { Injury } from "@/entities/Injury";
 import { Trip } from "@/entities/Trip";
 import { TripVehicle } from "@/entities/TripVehicle";
 import { TripParticipant } from "@/entities/TripParticipant";
+import { TicketCategory } from "@/entities/TicketCategory";
+import { TicketingEvent } from "@/entities/TicketingEvent";
+import { TicketingEventCategory } from "@/entities/TicketingEventCategory";
+import { TicketOrder } from "@/entities/TicketOrder";
+import { TicketOrderItem } from "@/entities/TicketOrderItem";
+import { Ticket } from "@/entities/Ticket";
+import { TicketHold } from "@/entities/TicketHold";
+import { TicketScan } from "@/entities/TicketScan";
+import { TicketController } from "@/entities/TicketController";
 
 /**
  * Database connection configuration
@@ -78,7 +87,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Never use synchronize in production
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant], // Import entities directly instead of using glob patterns
+      entities: [Federation, Stadium, Team, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant, TicketCategory, TicketingEvent, TicketingEventCategory, TicketOrder, TicketOrderItem, Ticket, TicketHold, TicketScan, TicketController], // Import entities directly instead of using glob patterns
       migrations: [], // Add migrations as needed
       charset: "utf8mb4",
       timezone: "Z",

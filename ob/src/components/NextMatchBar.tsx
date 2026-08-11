@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Match } from "@/entities/Match";
 import type { Stadium } from "@/entities/Stadium";
 import { formatMatchDateTime } from "@/lib/format";
@@ -37,9 +38,9 @@ export function NextMatchBar({
                 {match.date && <div className={styles.datetime}>{formatMatchDateTime(match.date)}</div>}
                 {location && <div className={styles.location}>{location}</div>}
               </div>
-              <a href="#billetterie" className={styles.cta}>
+              <Link href="/billetterie" className={styles.cta}>
                 Billets
-              </a>
+              </Link>
             </div>
           </>
         ) : (

@@ -1,0 +1,144 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.badge {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ob-red);
+  background: rgba(200, 16, 46, 0.08);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.match {
+  font-family: var(--ob-font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ob-text);
+}
+
+.date {
+  font-size: 14px;
+  color: var(--ob-muted, #6b7280);
+}
+
+.cta {
+  margin-top: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ob-red);
+}
+
+.categories {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.categoryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+}
+
+.categoryColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.categoryName {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.categoryPrice {
+  font-size: 13px;
+  color: var(--ob-muted, #6b7280);
+}
+
+.categoryAvailable {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.soldOut {
+  color: #9ca3af;
+}
+
+.qtyControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qtyControl button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qtyControl button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formRow {
+  display: flex;
+  gap: 12px;
+}
+
+.form input {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--ob-text);
+  font-family: inherit;
+  flex: 1;
+}

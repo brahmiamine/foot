@@ -42,6 +42,14 @@ import { ObQuiz } from "@/entities/ObQuiz";
 import { ObQuizOption } from "@/entities/ObQuizOption";
 import { ObQuizAnswer } from "@/entities/ObQuizAnswer";
 import { ObStadiumCheckin } from "@/entities/ObStadiumCheckin";
+import { FriendlyMatch } from "@/entities/FriendlyMatch";
+import { TicketCategory } from "@/entities/TicketCategory";
+import { TicketingEvent } from "@/entities/TicketingEvent";
+import { TicketingEventCategory } from "@/entities/TicketingEventCategory";
+import { TicketOrder } from "@/entities/TicketOrder";
+import { TicketOrderItem } from "@/entities/TicketOrderItem";
+import { Ticket } from "@/entities/Ticket";
+import { TicketHold } from "@/entities/TicketHold";
 
 /**
  * Connexion à la base "foot" partagée avec arbinote, superadmin et
@@ -111,6 +119,14 @@ export async function getDataSource(): Promise<DataSource> {
         ObQuizOption,
         ObQuizAnswer,
         ObStadiumCheckin,
+        FriendlyMatch,
+        TicketCategory,
+        TicketingEvent,
+        TicketingEventCategory,
+        TicketOrder,
+        TicketOrderItem,
+        Ticket,
+        TicketHold,
       ],
       migrations: [],
       charset: "utf8mb4",
