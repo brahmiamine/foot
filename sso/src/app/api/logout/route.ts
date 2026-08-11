@@ -6,12 +6,10 @@ export const runtime = "nodejs";
 
 function handleLogout(request: NextRequest) {
   const redirect = sanitizeRedirect(request.nextUrl.searchParams.get("redirect")) ?? "/login";
-  const response = NextResponse.redirect(new URL(redirect, request.url));
+  // 303 explicite : la déconnexion répond à un POST, un 307/308 par défaut
+  // referait suivre un POST vers la page de destination.
+  const response = NextResponse.redirect(new URL(redirect, request.url), 303);
   return clearSessionCookie(response);
-}
-
-export async function GET(request: NextRequest) {
-  return handleLogout(request);
 }
 
 export async function POST(request: NextRequest) {

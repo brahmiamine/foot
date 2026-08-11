@@ -6,7 +6,7 @@ Application Next.js dédiée à l'authentification : c'est la seule app du dép�
 
 - **Connexion staff/club** (`/login`) : email + mot de passe, avec sélecteur de club pour les rôles rattachés à une équipe (`ADMIN`, `OBSERVATEUR`) ; endpoint `POST /api/login`, limité en débit par IP.
 - **Espace membre public** (`/membre/login`, `/membre/register`) : création de compte et connexion pour le rôle `MEMBER` (espace supporter), y compris connexion Google (`GET /api/auth/google` puis `GET /api/auth/google/callback`, validation d'état signé, email vérifié requis).
-- **Déconnexion** (`GET`/`POST /api/logout`) : supprime le cookie de session.
+- **Déconnexion** (`POST /api/logout`) : supprime le cookie de session (POST uniquement, pour éviter qu'un lien/image tiers ne déclenche une déconnexion en CSRF via une simple requête `GET`).
 - **`GET /api/teams`** : liste publique en lecture seule des clubs (id, nom, nom arabe, logo) pour alimenter le sélecteur de club au login.
 - **Affiliations supporter** (`GET`/`POST /api/members/me/affiliations`, `DELETE /api/members/me/affiliations/[teamId]`) : clubs suivis par un compte `MEMBER` (0..N), gérées via `member_team_affiliations` — **distinctes** de `User.teamId`/`session.teamId` qui restent réservés au staff (`ADMIN`/`OBSERVATEUR`, un seul club). Ces affiliations sont purement des préférences d'affichage : elles ne conditionnent aucune autorisation (achat de billet, accès aux données, etc.) — voir README racine, section « Billetterie : séparer l'identité du supporter de l'organisateur de l'événement ».
 - Pas encore de réinitialisation de mot de passe ni de gestion de compte (non implémenté).

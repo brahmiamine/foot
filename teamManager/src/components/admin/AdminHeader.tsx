@@ -34,15 +34,12 @@ export function AdminHeader({ userName }: { userName: string }) {
         </div>
         <div className="d-flex align-items-center gap-2 gap-sm-3">
           {userName && <span className="d-none d-sm-inline text-muted small">{userName}</span>}
-          <button
-            onClick={() => {
-              window.location.href = "/api/logout";
-            }}
-            className="btn btn-outline-secondary btn-sm"
-          >
-            <i className="fas fa-sign-out-alt me-2" aria-hidden="true" />
-            Déconnexion
-          </button>
+          <form method="POST" action="/api/logout">
+            <button type="submit" className="btn btn-outline-secondary btn-sm">
+              <i className="fas fa-sign-out-alt me-2" aria-hidden="true" />
+              Déconnexion
+            </button>
+          </form>
         </div>
       </div>
     </header>

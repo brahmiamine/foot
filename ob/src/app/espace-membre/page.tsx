@@ -26,9 +26,11 @@ export default async function ProfilPage() {
         <dt style={{ color: "var(--ob-text-faint)" }}>Email</dt>
         <dd style={{ margin: 0 }}>{session.email}</dd>
       </dl>
-      <a href={logoutUrl} className={shared.btnPrimary} style={{ display: "inline-block" }}>
-        Se déconnecter
-      </a>
+      <form method="POST" action={logoutUrl}>
+        <button type="submit" className={shared.btnPrimary} style={{ border: "none", cursor: "pointer" }}>
+          Se déconnecter
+        </button>
+      </form>
     </div>
   );
 }
