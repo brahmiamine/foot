@@ -42,3 +42,5 @@ next-env.d.ts
 Boostrap5
 template
 themeforest-EtAS3fzg-landrick-responsive-saas-and-software-template.zip
+
+!.env.example

@@ -46,3 +46,4 @@ todo.md
 
 # Claude Code local tooling (agent worktrees, etc.)
 .claude/
+!.env.example

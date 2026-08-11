@@ -48,7 +48,7 @@ Base MySQL/MariaDB (`mysql2` + TypeORM), partagée avec `superadmin` et `teamMan
 ## Démarrage
 
 ```bash
-cp env.sso.example .env.local   # renseigner DB_*, SSO_JWT_SECRET, SSO_COOKIE_NAME, etc.
+cp .env.example .env.local   # renseigner DB_*, SSO_JWT_SECRET, SSO_COOKIE_NAME, etc.
 pnpm install
 pnpm run dev        # http://localhost:3000 (voir aussi ./start.sh à la racine du repo)
 ```
