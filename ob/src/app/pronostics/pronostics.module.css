@@ -1,0 +1,52 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 40px;
+}
+
+.matchDate {
+  color: var(--ob-text-faint);
+  font-size: 12px;
+  margin: 0 0 4px;
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.historyRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+}
+
+.teams {
+  font-weight: 600;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.win {
+  color: var(--ob-win-text);
+  font-weight: 600;
+}
+
+.miss {
+  color: var(--ob-text-faint);
+}
+
+.pending {
+  color: var(--ob-text-faint);
+}

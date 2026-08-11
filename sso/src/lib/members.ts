@@ -48,6 +48,7 @@ export async function createMemberAccount(
   }
 
   const hashed = await bcrypt.hash(password, 12);
+  const now = new Date();
   const user = repository.create({
     id: randomUUID(),
     name: name.trim(),
@@ -56,6 +57,8 @@ export async function createMemberAccount(
     role: "MEMBER",
     isActive: true,
     teamId: null,
+    createdAt: now,
+    updatedAt: now,
   });
   await repository.save(user);
 
@@ -91,6 +94,7 @@ export async function findOrCreateGoogleMember(profile: {
   // Mot de passe inutilisable : ce compte ne peut être authentifié que via
   // Google (le hash ne correspondra jamais à un mot de passe saisi).
   const unusablePassword = await bcrypt.hash(randomBytes(32).toString("hex"), 12);
+  const now = new Date();
   const user = repository.create({
     id: randomUUID(),
     name: profile.name.trim() || normalizedEmail,
@@ -99,6 +103,8 @@ export async function findOrCreateGoogleMember(profile: {
     role: "MEMBER",
     isActive: true,
     teamId: null,
+    createdAt: now,
+    updatedAt: now,
   });
   await repository.save(user);
 

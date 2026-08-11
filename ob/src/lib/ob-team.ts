@@ -30,3 +30,35 @@ export async function getObTeam(): Promise<Team | null> {
   cachedTeam = team ?? null;
   return cachedTeam;
 }
+
+let cachedTeams: Team[] | undefined;
+
+/**
+ * Toutes les équipes du club (première, féminine, jeunes...), pour le
+ * sélecteur de suivi de l'espace membre (#14). Résolu par nom une fois
+ * `getObTeam()` connu, puisque `teams` n'a pas de colonne de regroupement
+ * par club — seulement une ligne par (nom, sport, catégorie d'âge).
+ */
+export async function getObTeams(): Promise<Team[]> {
+  if (cachedTeams !== undefined) {
+    return cachedTeams;
+  }
+
+  const reference = await getObTeam();
+  if (!reference) {
+    cachedTeams = [];
+    return cachedTeams;
+  }
+
+  const dataSource = await getDataSource();
+  const repository = dataSource.getRepository(Team);
+  const clubName = reference.nom.replace(/\s*\(.*\)\s*$/, "").trim();
+
+  const teams = await repository.find({
+    where: { nom: Like(`%${clubName}%`) },
+    order: { sport: "ASC", ageCategory: "ASC" },
+  });
+
+  cachedTeams = teams.length > 0 ? teams : [reference];
+  return cachedTeams;
+}

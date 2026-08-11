@@ -1,0 +1,43 @@
+.subtitle {
+  color: var(--ob-text-muted);
+  margin: 0 0 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.badge {
+  padding: 20px;
+  text-align: center;
+}
+
+.icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.name {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.description {
+  color: var(--ob-text-muted);
+  font-size: 13px;
+}
+
+.locked {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.lockedLabel {
+  margin-top: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ob-text-faint);
+}

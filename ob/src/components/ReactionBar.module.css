@@ -1,0 +1,26 @@
+.bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  color: var(--ob-text);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pill:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.active {
+  border-color: var(--ob-red);
+  background: var(--ob-highlight-bg);
+  color: var(--ob-highlight-text);
+}

@@ -65,6 +65,7 @@ async function main() {
     await repository.save(existing);
     console.log(`Compte SUPERADMIN mis à jour : ${email}`);
   } else {
+    const now = new Date();
     const user = repository.create({
       id: randomUUID(),
       name,
@@ -73,6 +74,8 @@ async function main() {
       role: "SUPERADMIN",
       isActive: true,
       teamId: null,
+      createdAt: now,
+      updatedAt: now,
     });
     await repository.save(user);
     console.log(`Compte SUPERADMIN créé : ${email}`);

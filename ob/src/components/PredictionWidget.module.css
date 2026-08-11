@@ -1,0 +1,86 @@
+.card {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  color: var(--ob-red);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
+}
+
+.teams {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.vs {
+  color: var(--ob-text-faint);
+  font-size: 12px;
+}
+
+.form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.scores {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scores input {
+  width: 56px;
+  text-align: center;
+  background: var(--ob-bg-alt);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--ob-text);
+  font-size: 16px;
+}
+
+.form button {
+  background: var(--ob-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.form button:disabled {
+  opacity: 0.6;
+}
+
+.confirm {
+  color: var(--ob-win-text);
+  font-size: 13px;
+  margin: 0;
+  width: 100%;
+}
+
+.error {
+  color: var(--ob-loss-text);
+  font-size: 13px;
+  margin: 0;
+  width: 100%;
+}
+
+.muted {
+  color: var(--ob-text-faint);
+  font-size: 13px;
+}

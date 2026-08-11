@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/#classement", label: "Classement" },
   { href: "/#histoire", label: "Histoire" },
   { href: "/galerie", label: "Galerie" },
+  { href: "/communaute", label: "Communauté" },
   { href: "/boutique", label: "Boutique" },
   { href: "/#contact", label: "Contact" },
 ];

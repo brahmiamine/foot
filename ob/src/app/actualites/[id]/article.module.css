@@ -60,3 +60,9 @@
 .prose img {
   max-width: 100%;
 }
+
+.engagement {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--ob-divider);
+}

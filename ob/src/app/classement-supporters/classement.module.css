@@ -1,0 +1,59 @@
+.subtitle {
+  color: var(--ob-text-muted);
+  margin: 0 0 24px;
+}
+
+.highlights {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.highlight {
+  padding: 16px 24px;
+  min-width: 200px;
+}
+
+.highlightLabel {
+  color: var(--ob-red);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.highlightName {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+}
+
+.rank {
+  width: 40px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.points {
+  color: var(--ob-red);
+  font-weight: 700;
+}

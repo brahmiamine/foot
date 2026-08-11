@@ -1,8 +1,15 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { PageChrome } from "@/components/PageChrome";
-import { getSsoSession, buildMemberLoginUrlForPath, buildLogoutUrl } from "@/lib/ssoSession";
+import { FollowToggle } from "@/components/FollowToggle";
+import { buildMemberLoginUrlForPath, buildLogoutUrl } from "@/lib/ssoSession";
+import { getSessionMember } from "@/lib/community/member";
+import { getObTeams } from "@/lib/ob-team";
+import { PublicPlayerService } from "@/services/PublicPlayerService";
+import { BadgeService } from "@/services/BadgeService";
+import { FollowService } from "@/services/FollowService";
 import shared from "@/components/shared.module.css";
+import styles from "./espace-membre.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -11,33 +18,100 @@ export const metadata = {
 };
 
 export default async function EspaceMembrePage() {
-  const session = await getSsoSession();
+  const sessionMember = await getSessionMember();
 
-  if (!session) {
+  if (!sessionMember) {
     redirect(await buildMemberLoginUrlForPath("/espace-membre"));
   }
+  const { session, member } = sessionMember;
 
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
   const logoutUrl = buildLogoutUrl(`${proto}://${host}/`);
 
+  const teams = await getObTeams();
+  const squad = teams[0] ? await new PublicPlayerService().getSquad(teams[0].id) : [];
+  const badgeService = new BadgeService();
+  const followService = new FollowService();
+
+  const [badges, earnedBadgeIds, followedTeamIds, followedPlayerIds] = await Promise.all([
+    badgeService.listCatalog(),
+    badgeService.getEarnedBadgeIds(session.id),
+    followService.getFollowedIds(session.id, "TEAM"),
+    followService.getFollowedIds(session.id, "PLAYER"),
+  ]);
+
+  const earnedBadges = badges.filter((b) => earnedBadgeIds.has(b.id));
+  const players = squad.flatMap((group) => group.players);
+
   return (
     <PageChrome>
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-            Espace membre
+            Mon espace OB
           </h1>
-          <div className={shared.card} style={{ padding: 24 }}>
-            <p>
-              Bienvenue, <strong>{session.name}</strong>.
-            </p>
-            <p>{session.email}</p>
-            <a href={logoutUrl} className={shared.btnPrimary} style={{ marginTop: 16, display: "inline-block" }}>
+
+          <div className={`${shared.card} ${styles.profile}`}>
+            <div>
+              <p className={styles.name}>{session.name}</p>
+              <p className={styles.email}>{session.email}</p>
+            </div>
+            <div className={styles.points}>
+              <span className={styles.pointsValue}>{member.points.toLocaleString("fr-FR")}</span>
+              <span className={styles.pointsLabel}>points</span>
+            </div>
+            <a href={logoutUrl} className={shared.btnOutline}>
               Se déconnecter
             </a>
           </div>
+
+          <h2 className={shared.sectionSubtitle}>Mes badges</h2>
+          {earnedBadges.length === 0 ? (
+            <p className={shared.empty}>Aucun badge débloqué pour le moment.</p>
+          ) : (
+            <div className={styles.badgeRow}>
+              {earnedBadges.map((badge) => (
+                <div key={badge.id} className={styles.badgeChip} title={badge.description}>
+                  <span>{badge.icon}</span> {badge.name}
+                </div>
+              ))}
+            </div>
+          )}
+          <p className={styles.badgeLink}>
+            <a href="/badges">Voir tous les badges →</a>
+          </p>
+
+          <h2 className={shared.sectionSubtitle}>Suivre les équipes de l&apos;OB</h2>
+          <div className={styles.followRow}>
+            {teams.map((team) => (
+              <FollowToggle
+                key={team.id}
+                targetType="TEAM"
+                targetId={team.id}
+                label={`${team.nom} (${team.ageCategory === "seniors" ? "équipe première" : team.ageCategory})`}
+                initialFollowing={followedTeamIds.has(team.id)}
+              />
+            ))}
+          </div>
+
+          {players.length > 0 && (
+            <>
+              <h2 className={shared.sectionSubtitle}>Suivre des joueurs</h2>
+              <div className={styles.followRow}>
+                {players.map((player) => (
+                  <FollowToggle
+                    key={player.id}
+                    targetType="PLAYER"
+                    targetId={player.id}
+                    label={`${player.firstNameFr} ${player.lastNameFr}`}
+                    initialFollowing={followedPlayerIds.has(player.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </PageChrome>

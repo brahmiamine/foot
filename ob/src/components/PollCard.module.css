@@ -1,0 +1,64 @@
+.card {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  color: var(--ob-red);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+}
+
+.card h3 {
+  margin: 0 0 14px;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  background: var(--ob-bg-alt) linear-gradient(90deg, var(--ob-highlight-bg), var(--ob-highlight-bg)) no-repeat;
+  background-size: 0% 100%;
+  border: 1px solid var(--ob-card-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--ob-text);
+  cursor: pointer;
+  transition: background-size 0.3s ease;
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+.chosen {
+  border-color: var(--ob-red);
+}
+
+.pct {
+  color: var(--ob-text-muted);
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--ob-text-faint);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.error {
+  color: var(--ob-loss-text);
+  font-size: 13px;
+}

@@ -1,0 +1,20 @@
+.toggle {
+  background: var(--ob-bg-alt);
+  border: 1px solid var(--ob-card-border);
+  color: var(--ob-text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.following {
+  background: var(--ob-highlight-bg);
+  border-color: var(--ob-red);
+  color: var(--ob-highlight-text);
+}

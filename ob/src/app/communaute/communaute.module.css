@@ -1,0 +1,73 @@
+.subtitle {
+  color: var(--ob-text-muted);
+  margin: 0 0 16px;
+}
+
+.quickLinks {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.quickLinks a {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--ob-text);
+}
+
+.loginPrompt {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 32px;
+}
+
+.loginPrompt a {
+  color: var(--ob-red);
+  font-weight: 600;
+}
+
+.blocked {
+  color: var(--ob-loss-text);
+  margin-bottom: 32px;
+}
+
+.pollsSection {
+  margin-bottom: 40px;
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post {
+  padding: 20px;
+}
+
+.postHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.postHeader strong {
+  color: var(--ob-red);
+}
+
+.date {
+  color: var(--ob-text-faint);
+  font-size: 12px;
+}
+
+.body {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+}

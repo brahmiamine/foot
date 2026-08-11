@@ -1,0 +1,59 @@
+.wrap {
+  margin-top: 8px;
+}
+
+.toggle {
+  background: none;
+  border: none;
+  color: var(--ob-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.panel {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment {
+  background: var(--ob-bg-alt);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.comment strong {
+  font-size: 13px;
+  color: var(--ob-red);
+}
+
+.comment p {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+
+.form {
+  display: flex;
+  gap: 8px;
+}
+
+.form input {
+  flex: 1;
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--ob-text);
+}
+
+.muted {
+  color: var(--ob-text-faint);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--ob-loss-text, #ff8080);
+  font-size: 13px;
+}

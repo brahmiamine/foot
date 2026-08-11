@@ -1,0 +1,68 @@
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.name {
+  font-weight: 700;
+  font-size: 18px;
+  margin: 0;
+}
+
+.email {
+  color: var(--ob-text-muted);
+  margin: 4px 0 0;
+}
+
+.points {
+  margin-left: auto;
+  text-align: center;
+}
+
+.pointsValue {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ob-red);
+}
+
+.pointsLabel {
+  font-size: 12px;
+  color: var(--ob-text-faint);
+  text-transform: uppercase;
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.badgeChip {
+  background: var(--ob-card-bg);
+  border: 1px solid var(--ob-card-border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.badgeLink {
+  margin: 8px 0 32px;
+  font-size: 13px;
+}
+
+.badgeLink a {
+  color: var(--ob-red);
+}
+
+.followRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 32px;
+}
