@@ -31,6 +31,9 @@ export function Nav({ teamName }: { teamName: string }) {
             </Link>
           ))}
         </div>
+        <Link href="/espace-membre" className={styles.member}>
+          Espace membre
+        </Link>
         <Link href="/#billetterie" className={`${shared.btnPrimary} ${styles.cta}`}>
           Billetterie
         </Link>

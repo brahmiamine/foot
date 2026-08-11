@@ -52,6 +52,16 @@
   color: var(--ob-text);
 }
 
+.member {
+  flex-shrink: 0;
+  font-family: var(--ob-font-display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--ob-text);
+}
+
 .cta {
   flex-shrink: 0;
 }

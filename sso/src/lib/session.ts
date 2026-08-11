@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 /**
- * Émission et vérification du cookie de session partagé entre les 5 apps
- * (matchsheet, arbinote, superadmin, teamManager, sso). Le SSO est le seul
- * endroit qui signe ; les 4 autres apps ne font que vérifier (voir leur
+ * Émission et vérification du cookie de session partagé entre les 6 apps
+ * (matchsheet, arbinote, superadmin, teamManager, ob, sso). Le SSO est le
+ * seul endroit qui signe ; les 5 autres apps ne font que vérifier (voir leur
  * propre src/lib/ssoSession.ts, copie en lecture seule de la partie
  * vérification de ce fichier).
  *
@@ -24,7 +24,7 @@ export interface SsoUser {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN";
+  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER";
   teamId: string | null;
 }
 
