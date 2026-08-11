@@ -140,7 +140,7 @@ au lieu de `payment-api.platform.tn`, `notification-api.platform.tn`, etc. Les s
 
 Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `3307`) et phpMyAdmin (port `9090`), applique un correctif de schéma idempotent, puis lance en parallèle `sso`, `arbinote`, `matchsheet`, `superadmin` et `teamManager`. `sso` ne démarre que si `sso/.env.local` existe déjà (`cp sso/.env.example sso/.env.local` puis renseigner les secrets) — sans quoi le script continue mais les autres apps ne pourront pas authentifier. `ob`, `payment-api`, `notification-api`, `sellerPortal` et `billetterie` sont des déploiements séparés, à démarrer indépendamment depuis leur propre dossier.
 
-> ⚠️ Le README de `sellerPortal` indique le port `3004` comme exemple, alors que ce port est déjà celui de `sso`. Aucun port fixe n'est défini dans son `package.json` (Next.js démarre par défaut sur `3000`) : à clarifier/fixer avant un lancement simultané de toutes les apps.
+`sellerPortal` a désormais un port fixe (`3006`, `next dev -p 3006`/`next start -p 3006` dans son `package.json`), qui ne collisionne plus avec `sso` (3004) ni avec aucune autre app démarrée par `start.sh` (3000-3003) ou `billetterie` (3005).
 
 ## Architecture partagée
 

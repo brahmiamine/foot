@@ -107,9 +107,9 @@ Cette sous-section complète les listes ci-dessus avec les manques ressortis de 
 
 **Le plus structurant** (✅ traité) : aucun package d'authentification partagé n'existait — la vérification du JWT SSO était réécrite dans `arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob` et `billetterie`. `packages/auth-shared/src/session.ts` centralise désormais l'issuer, la forme du payload, le nom du cookie et le secret ; chaque app garde son propre `src/lib/ssoSession.ts` en wrapper fin (typage `SsoUser` propre à ses rôles + helpers Server Components `cookies()`/`headers()`, incompatibles Edge Runtime donc hors du module partagé). Voir `packages/auth-shared/README.md` pour le détail et pourquoi ce n'est pas un package pnpm workspace (import par chemin relatif, pour ne pas changer la topologie de déploiement indépendant de chaque app). **Point à vérifier avant merge** : ce module partagé n'a pas de `node_modules` propre — il résout `jose` via un `node_modules` racine (`package.json`/`pnpm-lock.yaml` ajoutés à cet effet). Ça fonctionne pour `pnpm install` + `tsc --noEmit` de chaque app dans cet environnement, mais si une app est déployée avec un « Root Directory » Vercel strict (sans « Include files outside root directory »), le build ne verra pas `packages/` ni la racine du dépôt — à vérifier par app avant de compter dessus en production.
 
-### A. Démarrage local incohérent — critique
+### A. Démarrage local incohérent — critique, traité
 - ~~`start.sh` ne lançait pas `sso`~~ → corrigé (rang 1 du suivi).
-- Le port de `sellerPortal` (aucun port fixé dans `package.json`) entre en conflit avec celui documenté pour `sso` (3004) si tout est lancé en même temps — reste à corriger.
+- ~~Le port de `sellerPortal` (aucun port fixé dans `package.json`) entre en conflit avec celui documenté pour `sso` (3004) si tout est lancé en même temps~~ → corrigé : `sellerPortal/package.json` fixe désormais `next dev -p 3006`/`next start -p 3006` (au lieu de dépendre du défaut Next.js 3000, qui collisionnait aussi avec `arbinote`) ; `sellerPortal/README.md` et `.env.example` (`NEXT_PUBLIC_APP_URL`) mis à jour sur `3006` ; l'avertissement du README racine remplacé par la confirmation du port fixe (aucune collision avec `sso` 3004, `billetterie` 3005, ni `arbinote`/`matchsheet`/`superadmin`/`teamManager` 3000-3003).
 - ~~`.env.example` absent pour `sso`, `superadmin`, `teamManager`, `sellerPortal`~~ → corrigé (rang 1 du suivi).
 
 ### B. Sécurité transverse fragmentée — critique, en grande partie traité
@@ -184,7 +184,7 @@ Les sections 2 et 3 détaillent le constat app par app et flux par flux. Cette s
 
 | Circuit | Apps traversées | État | Ce qui manque encore | Détail |
 |---|---|:---:|---|---|
-| Démarrage local unifié | toutes (`start.sh`) | 🔶 Partiel | Port de `sellerPortal` non fixé dans `package.json` — collision possible avec `sso` (3004) si tout tourne en même temps | § 3.A, rang 1 |
+| Démarrage local unifié | toutes (`start.sh`) | ✅ Fermé | — | § 3.A, rang 1 |
 | Session SSO partagée (JWT + cookie) | `sso` → 6 apps clientes | ✅ Fermé | — | `packages/auth-shared` |
 | Révocation de session (déconnexion forcée) | `sso` ↔ 6 apps clientes | 🔶 Partiel | `tokenVersion` vérifié uniquement dans `sso` ; un JWT révoqué reste valide jusqu'à 12h dans les 6 apps clientes (limite d'architecture assumée, pas un oubli) | § « `sso` » rang 8 |
 | Invitation club (staff) en 2 temps | `sso` | ⬜ Ouvert | Aucun flux d'invitation — création de compte staff hors périmètre actuel | § « `sso` » |
@@ -218,7 +218,7 @@ Les sections 2 et 3 détaillent le constat app par app et flux par flux. Cette s
 | `sellerPortal` — rattachement `club_id` en prod | `sellerPortal` | ⬜ Ouvert | Backfill manuel, pas automatisé | § « `sellerPortal`… » |
 | Infra cible (passerelle API unique, domaines de prod, séparation des bases par domaine) | toutes | ⬜ Ouvert | Hors périmètre code tant que le déploiement réel n'est pas déclenché | rang 12, § 3.I |
 
-**Lecture rapide** : sur les 33 circuits recensés, 9 sont fermés bout-en-bout, 7 sont partiels (un filet de rattrapage ou une moitié du flux existe), 17 sont encore ouverts — dont la majorité concentrée dans `teamManager` (boutique, sponsors, RGPD, finance, espace supporter) et dans les circuits produits jamais commencés ailleurs (scanner billetterie, synchro live `superadmin`, invitation club `sso`). Aucun de ces 17 n'est bloquant pour ce que le dépôt fait déjà fonctionner ; ce sont des extensions de périmètre, pas des régressions à corriger en urgence.
+**Lecture rapide** : sur les 33 circuits recensés, 10 sont fermés bout-en-bout, 6 sont partiels (un filet de rattrapage ou une moitié du flux existe), 17 sont encore ouverts — dont la majorité concentrée dans `teamManager` (boutique, sponsors, RGPD, finance, espace supporter) et dans les circuits produits jamais commencés ailleurs (scanner billetterie, synchro live `superadmin`, invitation club `sso`). Aucun de ces 17 n'est bloquant pour ce que le dépôt fait déjà fonctionner ; ce sont des extensions de périmètre, pas des régressions à corriger en urgence.
 
 ---
 
