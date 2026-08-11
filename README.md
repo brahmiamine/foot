@@ -11,10 +11,10 @@ Plateforme de gestion d'une ligue de football (fédérations, ligues, clubs, mat
 | [`matchsheet`](./matchsheet) | Feuille de match électronique (kiosque tablette) : avant-match, live (cartons/buts/blessures/remplacements), après-match, signatures. | 3001 | Aucune (preuve = signature sur place) |
 | [`superadmin`](./superadmin) | Back-office interne : référentiels fédérations/ligues/saisons/journées/équipes/matchs/arbitres, journal d'audit, test/mapping API-Football, gestion des comptes club. | 3002 | `SUPERADMIN` via SSO |
 | [`teamManager`](./teamManager) | Back-office de gestion d'un club : effectif, staff, discipline (cartons/suspensions/amendes), actualités/médias, boutique, sponsors, académie/recrutement, exports, réglages. | 3003 | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
-| [`ob`](./ob) | Site public (vitrine) d'un club — Olympique de Béja — en lecture seule sur la base partagée. Live match (buts/cartons/remplacements/blessures lus depuis `matchsheet`) et espace membre (profil, notifications, préférences, push) consommant `notification-api`. | — | Public + `MEMBER` via SSO |
+| [`ob`](./ob) | Site public (vitrine) **custom** de l'Olympique de Béja, en lecture seule sur la base partagée. Live match (buts/cartons/remplacements/blessures lus depuis `matchsheet`) et espace membre (profil, notifications, préférences, push) consommant `notification-api`. | — | Public + `MEMBER` via SSO |
 | [`payment-api`](./payment-api) | API de paiement (NestJS) mutualisée : intègre les providers tunisiens Konnect Network, Paymee et Flouci derrière une interface unique. | — | Clé API interne |
 | [`notification-api`](./notification-api) | Centre de notifications centralisé (NestJS) : in-app, email et push (SMS à venir) pour toutes les apps de l'écosystème, avec préférences utilisateur, templates multilingues, queue asynchrone (BullMQ) et idempotence. | 3010 | JWT `sso` (public) + clé de service (interne) |
-| [`ob-seller-portal`](./ob-seller-portal) | Portail vendeur de la marketplace du club : catalogue produits/variantes, stock, commandes, retours, payouts (lecture seule), notifications — les vendeurs sont des comptes indépendants du SSO club. | ⚠️ voir note | Cookie de session propre (`SP_JWT_SECRET`), indépendant du SSO |
+| [`sellerPortal`](./sellerPortal) | Portail vendeur générique du marketplace d'un club : catalogue produits/variantes, stock, commandes, retours, payouts (lecture seule), notifications — les vendeurs sont des comptes indépendants du SSO club. Anciennement `ob-seller-portal` (voir note ⚠️ ci-dessous et son README pour l'écart encore existant avec le multi-clubs). | ⚠️ voir note | Cookie de session propre (`SP_JWT_SECRET`), indépendant du SSO |
 | [`db`](./db) | Dump SQL de référence du schéma partagé `foot`. | — | — |
 | [`skote`](./skote) | Template d'admin React (Themesbrand Skote) vendored à titre de référence visuelle — non branché au produit. | — | — |
 
@@ -23,20 +23,87 @@ D'autres documents complètent ce README :
 - [`roadmap.md`](./roadmap.md) — backlog produit/fonctionnel (API-Football live, notifications, PWA, espace supporter, boutique, sponsors, finance, RGPD).
 - [`manquants.md`](./manquants.md) — dette technique (infrastructure, sécurité, qualité, gouvernance des données).
 
+## Classification des projets — générique vs custom
+
+Cette classification est la source de vérité pour toute contribution future : **rien de générique ne doit connaître un club en particulier ; tout ce qui est spécifique à l'identité et au contenu de l'Olympique de Béja reste dans `ob`.**
+
+```
+GENERIC PLATFORM (multi-clubs)
+├── sso            — authentification centralisée
+├── superadmin     — back-office plateforme (fédérations, ligues, clubs, saisons, arbitres, audit)
+├── teamManager    — back-office de gestion d'un club (le club est déterminé par teamId)
+├── sellerPortal   — portail vendeur du marketplace d'un club
+├── arbinote       — notation publique des arbitres
+├── matchsheet     — feuille de match électronique (kiosque)
+├── payment-api    — paiement mutualisé (Konnect, Paymee, Flouci)
+└── notification-api — notifications in-app / email / push
+
+CUSTOM APPLICATIONS
+└── ob             — site vitrine + espace membre, spécifique à l'Olympique de Béja
+```
+
+| Projet | Type | Scope |
+|---|---|---|
+| `sso` | Générique | Multi-club |
+| `superadmin` | Générique | Plateforme |
+| `teamManager` | Générique | Multi-club |
+| `sellerPortal` | Générique (⚠️ V1 mono-club en pratique, voir son README) | Multi-club (cible) |
+| `arbinote` | Générique | Multi-club |
+| `matchsheet` | Générique | Multi-club |
+| `payment-api` | Générique | Plateforme |
+| `notification-api` | Générique | Plateforme |
+| `ob` | Custom | Olympique de Béja uniquement |
+
+Règle pour tout code ajouté aux projets génériques : ne jamais hardcoder le nom du club, son sigle, son logo, ses couleurs ou son favicon — ces éléments doivent provenir de la configuration du club courant (`ClubBranding` : `clubId`, `name`, `shortName`, `logo`, `favicon`, `primaryColor`, `secondaryColor`, `accentColor`, `font`, `metadata`), résolue à partir du `teamId` authentifié, jamais d'une valeur envoyée par le frontend.
+
+### URLs de production (architecture cible)
+
+Aucun de ces domaines n'est actuellement configuré (DNS/SSL/reverse proxy) — voir « Points nécessitant une intervention manuelle » ci-dessous. La table ci-dessous documente le mapping cible à mettre en place :
+
+| Domaine cible | Application |
+|---|---|
+| `www.ob.tn` | `ob` (custom, exclusivement OB) |
+| `sso.platform.tn` | `sso` |
+| `admin.platform.tn` | `teamManager` (le club connecté est déterminé par `teamId` après authentification) |
+| `sellers.platform.tn` | `sellerPortal` |
+| `tickets.platform.tn` | Billetterie générique — **n'existe pas encore comme application séparée dans ce repo** ; la billetterie/l'espace membre `ob/espace-membre/billets` est aujourd'hui couplée à l'app custom `ob` (écart avec la cible, voir ci-dessous) |
+| `scanner.platform.tn` | Contrôle billetterie générique — **n'existe pas encore dans ce repo** |
+| `api.platform.tn` | Passerelle API générique — **n'existe pas encore** ; `payment-api` et `notification-api` sont aujourd'hui exposées séparément |
+| `superadmin.platform.tn` | `superadmin` |
+
+### Écarts connus avec l'architecture cible
+
+- **`sellerPortal`** : le renommage (`ob-seller-portal` → `sellerPortal`) et la généralisation des textes d'interface sont faits, mais le schéma (`sp_*`) n'a pas de colonne `clubId`/`teamId` — c'est encore un déploiement mono-club en pratique. Voir `sellerPortal/README.md` § « Portée V1 ».
+- **`teamManager`** : le nom/branding par défaut (manifest PWA, couleur de thème) a été neutralisé, mais il n'y a pas encore de mécanisme `ClubBranding` dynamique (logo/couleurs/favicon résolus par club) — actuellement une seule identité visuelle par défaut pour tous les clubs.
+- **Billetterie / contrôle billetterie** : n'existent pas comme services génériques indépendants dans ce repo. La billetterie vécue aujourd'hui (`ob/espace-membre/billets`) est intégrée à l'app custom `ob`. L'extraction en service générique multi-clubs est un chantier de roadmap, pas fait dans le cadre de cette normalisation (pas de réécriture non nécessaire, cf. contrainte de la mission).
+- **API Gateway** : pas de domaine `api.platform.tn` unifié ; `payment-api`/`notification-api` restent des services distincts avec leurs propres bases.
+
 ## Démarrage local
 
 ```bash
 ./start.sh
 ```
 
-Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `3307`) et phpMyAdmin (port `9090`), applique un correctif de schéma idempotent, puis lance en parallèle `arbinote`, `matchsheet`, `superadmin` et `teamManager`. `sso` n'est pas encore intégré à ce script (voir `manquants.md` § 1.1) : il doit être démarré manuellement (`cd sso && pnpm run dev`, port `3004`) pour que la connexion fonctionne dans les autres apps. `ob`, `payment-api`, `notification-api` et `ob-seller-portal` sont des déploiements séparés, à démarrer indépendamment depuis leur propre dossier.
+Ce script démarre un conteneur MariaDB partagé (`mariadb_container`, port `3307`) et phpMyAdmin (port `9090`), applique un correctif de schéma idempotent, puis lance en parallèle `arbinote`, `matchsheet`, `superadmin` et `teamManager`. `sso` n'est pas encore intégré à ce script (voir `manquants.md` § 1.1) : il doit être démarré manuellement (`cd sso && pnpm run dev`, port `3004`) pour que la connexion fonctionne dans les autres apps. `ob`, `payment-api`, `notification-api` et `sellerPortal` sont des déploiements séparés, à démarrer indépendamment depuis leur propre dossier.
 
-> ⚠️ Le README de `ob-seller-portal` indique le port `3004` comme exemple, alors que ce port est déjà celui de `sso`. Aucun port fixe n'est défini dans son `package.json` (Next.js démarre par défaut sur `3000`) : à clarifier/fixer avant un lancement simultané de toutes les apps.
+> ⚠️ Le README de `sellerPortal` indique le port `3004` comme exemple, alors que ce port est déjà celui de `sso`. Aucun port fixe n'est défini dans son `package.json` (Next.js démarre par défaut sur `3000`) : à clarifier/fixer avant un lancement simultané de toutes les apps.
 
 ## Architecture partagée
 
-- **Base de données** : une seule base MariaDB `foot`, partagée par `arbinote`, `matchsheet`, `superadmin`, `teamManager`, `sso` et `ob` (lecture seule pour ce dernier). Les tables communes (`teams`, `matches`, `Player`, `Card`, `User`, …) permettent à chaque app de lire/écrire les mêmes données sans duplication. `ob-seller-portal` ajoute ses propres tables (`sp_*`) dans cette même base `foot` en attendant une future Marketplace API dédiée. `payment-api` et `notification-api` ont chacune leur propre base (paiements, notifications) ; `notification-api` ne lit `foot` qu'en lecture seule (`DIRECTORY_DB_*`), pour résoudre les destinataires d'un envoi groupé (par club, rôle, ou espace supporter).
+- **Base de données** : une seule base MariaDB `foot`, partagée par `arbinote`, `matchsheet`, `superadmin`, `teamManager`, `sso` et `ob` (lecture seule pour ce dernier). Les tables communes (`teams`, `matches`, `Player`, `Card`, `User`, …) permettent à chaque app de lire/écrire les mêmes données sans duplication. `sellerPortal` ajoute ses propres tables (`sp_*`) dans cette même base `foot` en attendant une future Marketplace API dédiée. `payment-api` et `notification-api` ont chacune leur propre base (paiements, notifications) ; `notification-api` ne lit `foot` qu'en lecture seule (`DIRECTORY_DB_*`), pour résoudre les destinataires d'un envoi groupé (par club, rôle, ou espace supporter).
 - **Authentification** : `sso` signe un JWT (HS256, `jose`) placé dans un cookie partagé (`foot_sso_session` par défaut, domaine configurable via `SSO_COOKIE_DOMAIN` pour du multi-sous-domaine). Les autres apps ne font que vérifier ce cookie avec le même secret (`SSO_JWT_SECRET`) et le même issuer (`foot-sso`) — elles n'émettent jamais de session elles-mêmes. `matchsheet` est volontairement hors de ce périmètre (kiosque sans authentification).
 - **API-Football** : intégration externe en cours de finalisation (voir `arbinote/matching.md` et `roadmap.md` § 1) pour le rapprochement des équipes/matchs locaux avec les identifiants de l'API et le suivi des scores en direct.
 - **PWA** : `teamManager` et `matchsheet` exposent chacun un `manifest.json` + service worker (app shell, page de secours hors-ligne, bannière d'installation) — voir `roadmap.md` § 3. Aucune synchronisation offline des écritures (formulaires/CRUD) : ce chantier reste à faire.
 - **Notifications côté `ob`** : l'espace membre (`ob/espace-membre`) est le premier frontend supporter branché sur `notification-api` — liste des notifications, préférences de langue et abonnement Web Push, via des appels serveur-à-serveur authentifiés par le JWT `sso` de l'utilisateur (jamais d'écriture directe dans la base `foot`). `teamManager`, `payment-api` et le reste de `ob` n'envoient pas encore d'événements vers `notification-api` (voir `roadmap.md` § 2.1) : les listes resteront vides tant que ce câblage émetteur n'existe pas.
+
+## Points nécessitant une intervention manuelle
+
+Ce qui suit ne peut pas être fait depuis ce repo seul et doit être traité séparément (infra/DNS/secrets) :
+
+- **DNS / SSL / reverse proxy** : aucun des domaines cibles (`www.ob.tn`, `sso.platform.tn`, `admin.platform.tn`, `sellers.platform.tn`, `tickets.platform.tn`, `scanner.platform.tn`, `api.platform.tn`, `superadmin.platform.tn`) n'existe aujourd'hui — achat/délégation de domaine, certificats et configuration Nginx/Traefik sont à faire hors repo.
+- **`SSO_COOKIE_DOMAIN`** : pour un cookie SSO partagé entre plusieurs sous-domaines `*.platform.tn`, cette variable (déjà supportée par `sso`, voir son README) doit être positionnée en production sur le domaine parent (`.platform.tn`) — vérifier aussi le domaine séparé `ob.tn`, hors du périmètre `*.platform.tn`, qui ne peut pas partager ce cookie sans mécanisme dédié (SSO cross-domaine, à concevoir si le besoin apparaît).
+- **CORS** : chaque app back-end (`payment-api`, `notification-api`, `sso`) doit avoir ses origines autorisées mises à jour avec les domaines de production définitifs une fois connus.
+- **Callback OAuth (Google)** : `sso` gère la connexion Google — les URIs de redirection autorisées côté Google Cloud Console devront être mises à jour pour `https://sso.platform.tn/...` en production.
+- **Secrets/variables d'environnement** : `SSO_JWT_SECRET`, `SP_JWT_SECRET`, `SERVICE_API_KEYS`, clés des providers de paiement (Konnect/Paymee/Flouci) et clés push (VAPID) doivent être générées/gérées via un secret manager en production — aucune valeur réelle n'est commitée (seuls des `*.env.example` existent), mais leur provisioning reste une action manuelle par environnement.
+- **`sellerPortal` multi-clubs** : ajouter `clubId` au schéma (`sp_*`), migrer les données existantes et brancher le filtrage serveur par club (voir `sellerPortal/README.md` § « Portée V1 ») — nécessite une décision produit sur la stratégie de migration avant toute exécution en base de production.
+- **`ClubBranding` dynamique** : n'existe pas encore comme entité/API dans `superadmin`/`teamManager`/`sellerPortal` — à concevoir (stockage, endpoint de résolution par `teamId`, injection dans le manifest PWA et les métadonnées de page) avant de pouvoir réellement démontrer « Club A → branding A, Club B → branding B » en generique.

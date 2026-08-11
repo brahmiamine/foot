@@ -198,7 +198,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplateSeed[] = [
     subject: 'Match sheet closed - {{matchName}}',
     body: 'Hello {{firstName}},\n\nThe match sheet for {{matchName}} has been signed and closed. It can no longer be modified.\n\n{{clubName}}',
   },
-  // --- Supporter / OB ---
+  // --- Supporter (espace membre du site vitrine club) ---
   {
     type: 'NEWS_PUBLISHED',
     channel: NotificationChannelType.EMAIL,

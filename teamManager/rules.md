@@ -1,5 +1,5 @@
 ###############################################################################
-# Cursor Rules — (Olympique de béja) Next.js / TypeScript Project (2025)
+# Cursor Rules — TeamManager (générique multi-clubs) Next.js / TypeScript Project (2025)
 # Scope: Security, Performance, Scalability, Maintainability, Reusability
 ###############################################################################
 
