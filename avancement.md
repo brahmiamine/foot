@@ -48,12 +48,31 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | `payment-api` | Paiement mutualisé (Konnect/Paymee/Flouci) | Service | ✅ | ✅ | — | ✅ |
 | `notification-api` | Centre de notifications | Service | ✅ | ✅ | — | ✅ |
 | `sellerPortal` | Portail vendeur marketplace | Générique | ❌ | ✅ | ❌ | ✅ |
-| `billetterie` | Billetterie multi-clubs (V1 mock) | Générique | ❌ | ✅ | ❌ | ✅ |
+| `billetterie` | Billetterie multi-clubs (achat réel via `payment-api`) | Générique | ❌ | ✅ | ❌ | ✅ |
 | `db` | Dump SQL de référence, pas une app | Référence | — | — | — | — |
 
 ---
 
 ## 2. Fonctionnalités manquantes, par projet
+
+
+### Rapport complémentaire 11/08/2026 — fonctionnalités/flux manquants ajoutés après comparaison README ↔ audit
+
+Cette sous-section complète les listes ci-dessus avec les manques ressortis de la relecture systématique des README projet par projet. Elle ne remplace pas les sections détaillées suivantes : elle sert de checklist exhaustive et consolidée pour éviter qu'un manque soit perdu parce qu'il est documenté dans un README applicatif mais pas encore visible dans la table des circuits.
+
+| Projet | Manques fonctionnels ou process restants | Impact / décision attendue |
+|---|---|---|
+| `sso` | Invitation staff/club en 2 temps ; vrai portail compte SSO ; propagation transverse de la révocation `tokenVersion` aux apps clientes ; données profil membre encore trop pauvres pour Paymee (`firstName`/`lastName`/`phoneNumber`) | Décider entre vérification DB/cache partagé côté apps clientes ou TTL court ; ajouter un modèle d'invitation et enrichir le profil membre si Paymee doit être supporté côté billetterie |
+| `superadmin` | Annulation de match (`CANCELLED`) non déclenchable ; colonnes de matching API-Football (`api_football_id`/`fixture_id`) et job live absents ; écran de mapping équipes/fixtures absent ; icônes PWA personnalisables par club absentes | Créer un workflow produit d'annulation + notifications ; ajouter migration/mapping/synchronisation API-Football ; étendre `ClubBranding` aux assets PWA |
+| `teamManager` | Espace supporter/communauté ; tunnel boutique client + paiement ; boutique multi-vendeurs côté supporter ; contrats/factures sponsors ; finance/trésorerie ; RGPD ; notifications centralisées non câblées pour tous les cas métier ; concurrence `Card` avec `matchsheet` non verrouillée | Gros lots produit à prioriser ; besoin d'un modèle destinataire fiable (`User`) pour notifications joueurs/staff/supporters ; définir propriétaire ou verrou transactionnel pour `Card` |
+| `arbinote` | Intégration API-Football encore limitée par le mapping live ; dépendance à une empreinte appareil/cookie pour le vote sans compte ; règles anti-fraude avancées au-delà anomalies/statistiques non décrites ; tests présents mais dette lint historique signalée par la CI | Finaliser mapping fixtures quand l'API le permet ; décider si un vote authentifié devient nécessaire ; garder la modération humaine et l'export comme filet de contrôle |
+| `matchsheet` | Tests automatisés absents ; pas de synchronisation offline des écritures ; réouverture après clôture non modélisée/auditée ; pas de mot de passe de match/compte FMI dédié ; concurrence des cartons avec `teamManager` à encadrer | Ajouter tests service/API ; décider si kiosque sans auth reste acceptable ; définir workflow de correction post-clôture |
+| `ob` | Pas de PWA installable ; pas de tunnel achat boutique/billetterie intégré ; pas d'émission d'événements vers `notification-api` ; pages billets/commandes encore dépendantes des apps génériques ; site custom limité à OB | Garder `ob` lecture seule ou ajouter des appels backend ; éviter de réimplémenter billetterie/marketplace dans le site custom |
+| `billetterie` | Audience réservée auto-déclarée ; scanner stade absent ; Paymee non supporté faute de champs profil membre ; redirection Konnect non automatique (`successUrl`/`failUrl` absents côté `payment-api`) ; pas de tâche planifiée de purge des réservations `PENDING` ; pas de tests | Prioriser contrôle d'accès et preuve d'audience avant vente réelle sensible ; ajouter tests et éventuellement cron de nettoyage ; corriger Konnect côté `payment-api` si retour direct obligatoire |
+| `payment-api` | Pas de callback applicatif vers apps métier ; Konnect ne reçoit pas `successUrl`/`failUrl` ; pas de remboursements/payouts ; notifications uniquement `PAYMENT_SUCCEEDED` si `userId` fourni ; pas de passerelle API publique unifiée | Décider si les apps doivent consommer par polling/reconciliation ou recevoir des webhooks internes ; étendre modèle paiement aux remboursements/payouts |
+| `notification-api` | SMS non implémenté ; FCM stub ; Web Push consommé seulement par `ob` ; plusieurs notifications métier non branchées faute de destinataires résolvables ; monitoring/alerting externe absent ; purge/rétention dépendante de configuration runtime | Prioriser généralisation du composant d'abonnement push et clarifier les identités destinataires ; choisir provider SMS/FCM et outil d'observabilité |
+| `sellerPortal` | Tests absents ; backfill `club_id` manuel en production ; paiement direct/transporteur/payout automatique/enchères/abonnement publicité vendeur hors périmètre ; dépendance temporaire aux tables `sp_*` dans `foot` au lieu d'une Marketplace API | Préparer migration vers Marketplace API ; automatiser backfill ou écrire runbook ; prioriser paiement/logistique/payout selon lancement marketplace |
+| `db` / infra | Backup/restauration `foot` + uploads non testés ; API Gateway et domaines de production absents ; séparation des bases par domaine partielle ; monitoring des healthchecks absent | Travail infra obligatoire avant production : sauvegardes restaurées en test, reverse proxy/API gateway, alerting, runbooks de migration |
 
 ### `sso` — rang 8 fait (limite assumée documentée), reste : invitation club, portail
 **En place** : login staff/club + membre public (Google inclus), cookie JWT partagé, rate limiting login, affiliations supporter multi-clubs séparées du `teamId` staff, **mot de passe oublié** (`/forgot-password` → email avec lien à usage unique valable 1h → `/reset-password`, jeton stocké hashé SHA-256, jamais en clair — voir `sso/src/lib/passwordReset.ts`), **MFA TOTP pour `SUPERADMIN`** (`/account/mfa` : QR code + confirmation par code → 10 codes de récupération affichés une seule fois ; connexion en deux temps via `/api/login` → `mfaRequired` → `/api/login/mfa`, jeton intermédiaire signé avec un issuer distinct pour qu'il ne puisse jamais être accepté comme une vraie session — voir `sso/src/lib/mfa.ts`/`mfaPendingToken.ts`), **révocation de session** (`User.tokenVersion`, embarqué dans le JWT, comparé à la base à chaque `getCurrentSession()`/`verifySessionToken()` de `sso` — incrémenté automatiquement au changement de mot de passe et à l'activation/désactivation MFA, plus un bouton « Se déconnecter de tous les appareils » explicite sur `/`).
@@ -68,7 +87,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 
 ### `matchsheet` — moyenne
 **En place** : avant-match, live, signatures, statut local de feuille, PWA, middleware de protection.
-**Manquant** : tests automatisés, `/api/health`, verrouillage renforcé après clôture (raison de réouverture, audit dédié).
+**Manquant** : tests automatisés, verrouillage renforcé après clôture (raison de réouverture, audit dédié), règles explicites de concurrence avec `teamManager` sur les cartons écrits dans `Card`.
 
 ### `superadmin` — haute
 **En place** : référentiels, audit, ClubBranding, lib `apiFootball.ts`.
@@ -132,7 +151,7 @@ Constat initial : un même match traverse quatre applications distinctes, chacun
 **Volontairement pas fait** : je n'ai pas construit le système à 12 états (`SCHEDULED`/`LINEUP_SUBMITTED`/`OFFICIALS_CONFIRMED`/`PRE_MATCH_SIGNED`/`PUBLISHED`/`ARCHIVED`/…) envisagé initialement — `CANCELLED` reste un état du schéma qu'aucune app ne permet de déclencher (annuler un match est une décision `superadmin`, donc une vraie nouvelle fonctionnalité produit à concevoir — qui prévient qui, réactivation possible ou non — pas un simple câblage manquant comme `IN_PROGRESS`/`FINISHED`). Item ouvert si le besoin se confirme.
 
 ### G. Notifications : câblage émetteur partiel — moyenne
-Le service central existe et 5 apps émettent déjà des événements (`arbinote`, `superadmin`, `matchsheet`, `teamManager`, `payment-api`). `ob` ne source rien (lecture seule). Convocation/composition/sponsor non branchables tant que le destinataire n'est pas un `User` résolvable. Web Push, FCM, SMS annoncés mais aucun actif.
+Le service central existe et 5 apps émettent déjà des événements (`arbinote`, `superadmin`, `matchsheet`, `teamManager`, `payment-api`). `ob` ne source rien (lecture seule). Convocation/composition/sponsor non branchables tant que le destinataire n'est pas un `User` résolvable. Le Web Push est actif côté `notification-api` et consommé par `ob`, mais pas généralisé aux autres frontends ; SMS et FCM restent des providers stub/non implémentés.
 
 ### H. Billetterie : chaîne supporter → paiement → contrôle — traité pour paiement + lien ob, contrôle stade toujours absent
 
