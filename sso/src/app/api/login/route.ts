@@ -4,6 +4,8 @@ import { issueSession } from "@/lib/session";
 import { sanitizeRedirect } from "@/lib/redirect";
 import { getClientIP } from "@/lib/getClientIP";
 import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt } from "@/lib/loginRateLimit";
+import { isMfaEnabled } from "@/lib/mfa";
+import { signMfaPendingToken } from "@/lib/mfaPendingToken";
 
 export const runtime = "nodejs";
 
@@ -35,6 +37,15 @@ export async function POST(request: NextRequest) {
     }
 
     clearFailedLoginAttempts(clientIP);
+
+    // Mot de passe correct, mais MFA activée sur ce compte (voir
+    // /account/mfa) : pas de session tant que le code TOTP n'est pas
+    // vérifié par /api/login/mfa. Le jeton renvoyé ici n'est jamais posé en
+    // cookie (voir src/lib/mfaPendingToken.ts).
+    if (await isMfaEnabled(user.id)) {
+      const mfaToken = await signMfaPendingToken(user.id);
+      return NextResponse.json({ mfaRequired: true, mfaToken });
+    }
 
     const response = NextResponse.json({ success: true, redirect: redirect ?? "/" });
     await issueSession(response, user);

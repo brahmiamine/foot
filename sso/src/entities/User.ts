@@ -33,6 +33,22 @@ export class User {
   @Column({ type: "varchar", length: 191, nullable: true })
   teamId?: string | null;
 
+  /**
+   * MFA (TOTP) — voir src/lib/mfa.ts. `mfaSecret` reste NULL tant que
+   * l'enrôlement n'est pas confirmé (voir /api/mfa/enable) : un secret
+   * généré mais jamais confirmé par un code valide ne doit jamais pouvoir
+   * activer la MFA sur le compte.
+   */
+  @Column({ type: "varchar", length: 191, nullable: true, name: "mfa_secret" })
+  mfaSecret?: string | null;
+
+  @Column({ type: "tinyint", default: 0, name: "mfa_enabled" })
+  mfaEnabled!: boolean;
+
+  /** JSON d'un tableau de hash (bcrypt) de codes de récupération à usage unique. */
+  @Column({ type: "text", nullable: true, name: "mfa_recovery_codes" })
+  mfaRecoveryCodes?: string | null;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

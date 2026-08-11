@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,13 @@ export default async function Home() {
         <p style={{ color: "var(--sso-muted)" }}>
           Revenez sur l&apos;application souhaitée — vous êtes déjà authentifié.
         </p>
+        {session.role === "SUPERADMIN" && (
+          <p>
+            <Link href="/account/mfa" style={{ color: "var(--sso-accent)" }}>
+              Authentification à deux facteurs
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );
