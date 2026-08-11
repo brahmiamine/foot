@@ -15,6 +15,7 @@ import { SellerOrderItem } from "@/entities/SellerOrderItem";
 import { ReturnRequest } from "@/entities/ReturnRequest";
 import { Payout } from "@/entities/Payout";
 import { Notification } from "@/entities/Notification";
+import { Team } from "@/entities/Team";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
@@ -57,6 +58,7 @@ export async function getDataSource(): Promise<DataSource> {
         ReturnRequest,
         Payout,
         Notification,
+        Team,
       ],
       migrations: [],
       charset: "utf8mb4",

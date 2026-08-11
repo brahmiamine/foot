@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { FormField, Input, Textarea } from "@/components/ui/Field";
+import { FormField, Input, Select, Textarea } from "@/components/ui/Field";
 import { api, ApiError } from "@/lib/apiClient";
 
 interface FormState {
+  clubId: string;
   businessName: string;
   ownerName: string;
   email: string;
@@ -21,7 +22,13 @@ interface FormState {
   tradeRegister: string;
 }
 
+interface ClubOption {
+  id: string;
+  nom: string;
+}
+
 const initialState: FormState = {
+  clubId: "",
   businessName: "",
   ownerName: "",
   email: "",
@@ -38,9 +45,17 @@ const initialState: FormState = {
 
 export default function RegisterPage() {
   const [form, setForm] = useState<FormState>(initialState);
+  const [clubs, setClubs] = useState<ClubOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    api
+      .get<{ items: ClubOption[] }>("/api/teams?type=club")
+      .then((res) => setClubs(res.items))
+      .catch(() => setClubs([]));
+  }, []);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -52,7 +67,9 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const payload = Object.fromEntries(
-        Object.entries(form).filter(([key, v]) => key === "businessName" || key === "ownerName" || key === "email" || key === "password" || v !== ""),
+        Object.entries(form).filter(
+          ([key, v]) => key === "clubId" || key === "businessName" || key === "ownerName" || key === "email" || key === "password" || v !== "",
+        ),
       );
       await api.post("/api/auth/register", payload);
       setDone(true);
@@ -91,6 +108,18 @@ export default function RegisterPage() {
         </div>
       )}
 
+      <FormField label="Club" required hint="Le marketplace sur lequel vous souhaitez vendre">
+        <Select required value={form.clubId} onChange={(e) => set("clubId", e.target.value)}>
+          <option value="" disabled>
+            Sélectionner un club…
+          </option>
+          {clubs.map((club) => (
+            <option key={club.id} value={club.id}>
+              {club.nom}
+            </option>
+          ))}
+        </Select>
+      </FormField>
       <FormField label="Nom de l'entreprise" required>
         <Input required value={form.businessName} onChange={(e) => set("businessName", e.target.value)} />
       </FormField>

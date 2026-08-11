@@ -12,24 +12,19 @@ redécouvrir le contexte.
 3. **`sso` : affiliations supporter** (`sso/src/entities/MemberTeamAffiliation.ts`, migration `sso/sql/migration_add_member_team_affiliations.sql`, endpoints `GET`/`POST /api/members/me/affiliations`, `DELETE .../[teamId]`) — un `MEMBER` peut suivre 0..N clubs, séparé de `User.teamId` (réservé staff, un seul club).
 4. **`superadmin` : ClubBranding** (`src/lib/entities/TeamBranding.ts`, migration `superadmin/migrations/add_team_branding.sql`, API `GET`/`PUT /api/admin/teams/[id]/branding`, UI `TeamBrandingPanel.tsx` branchée dans `AdminTeamsManager.tsx`) — favicon/couleurs/police par club, `name`/`shortName`/`logo` restent portés par `teams` (pas dupliqués).
 5. **`teamManager` : consommation de ClubBranding** (`src/lib/clubBranding.ts`, `src/entities/TeamBranding.ts` en lecture seule, `app/manifest.ts` dynamique remplaçant l'ancien `public/manifest.json` hardcodé OB, `generateMetadata`/`generateViewport` dynamiques, logo dans `AdminSidebar`, couleur d'accent de `PwaInstallPrompt` passée en prop). Défauts identiques à l'ancien hardcodage (`#c8102e`/`#0d0d0d`) tant qu'un club n'a pas de ligne dans `team_branding`.
+6. **`sellerPortal` : scoping multi-club réel** (branche `claude/next-steps-continuation-hq9hwc`) — `club_id` ajouté à `sp_sellers`/`sp_product_categories` (`sql/schema.sql`, `sql/migration_add_club_id.sql` pour les installs existantes), `src/entities/Seller.ts`/`ProductCategory.ts` avec `clubId`, `src/entities/Team.ts` en lecture seule + `GET /api/teams?type=club` (sélecteur de club sur l'écran d'inscription, `src/app/(auth)/register/page.tsx`), `POST /api/auth/register` exige et valide `clubId`, `clubId` porté par la session JWT (`src/lib/session.ts`, dérivé au login), `GET /api/categories` filtré par `session.clubId`, et `categoryId` revalidé comme appartenant au club du vendeur dans `POST /api/products` et `PATCH /api/products/[id]` (jamais fait confiance à un id de catégorie envoyé par le client sans vérifier son club). `scripts/seed.ts` mis à jour pour résoudre un club existant (`teams` partagée) avant de créer le vendeur/catégorie de démo. READMEs (racine + `sellerPortal/README.md` § « Portée V1 ») mis à jour en conséquence.
 
 Toutes ces briques ont été vérifiées avec `pnpm install && npx tsc --noEmit && npx eslint <fichiers touchés>` dans chaque app (pas de build complet ni de test contre une vraie base MariaDB — aucune base n'est disponible dans l'environnement d'exécution).
 
 ## Pas fait — à reprendre, dans cet ordre
 
-### A. `sellerPortal` — scoping multi-club réel (le plus proche, commencer ici)
+### A. `sellerPortal` — reste à faire sur le multi-club (petit, avant de passer à B)
 
-Le renommage/dé-branding textuel est fait, mais **le schéma n'a aucune notion de club** (`sellerPortal/sql/schema.sql`). Pour un vrai multi-clubs :
+Le scoping serveur (point 6 ci-dessus) est fait. Reste :
 
-1. `sql/schema.sql` : ajouter `club_id CHAR(36) NOT NULL` à `sp_sellers` (FK logique vers `teams.id` de la base partagée — pas de contrainte FK réelle cross-connexion TypeORM, comme le reste de l'app) ; idem sur `sp_product_categories` (les catégories sont définies "par l'administration du club", donc par club, pas globales).
-2. Ajouter un fichier de migration séparé (`sql/migration_add_club_id.sql`) pour les installations déjà bootstrapées, avec la même `ALTER TABLE ... ADD COLUMN club_id CHAR(36) NULL` (nullable pour ne pas casser une install existante — la contrainte NOT NULL n'a de sens qu'au niveau applicatif pour les nouvelles écritures).
-3. `src/entities/Seller.ts` et `src/entities/ProductCategory.ts` : ajouter le champ `clubId`.
-4. `src/lib/database.ts` : ajouter une entité `Team` en lecture seule (mêmes champs que `sso/src/entities/Team.ts` : `id`, `nom`, `abbr`, `logoUrl`, `teamType`) pour permettre un sélecteur de club à l'inscription (`GET /api/teams?type=club`, à créer, lecture seule).
-5. `src/app/api/auth/register/route.ts` : exiger `clubId` dans le payload d'inscription (valider qu'il correspond à un club existant), le stocker sur le `Seller` créé.
-6. `src/lib/session.ts` : ajouter `clubId` au payload JWT (comme `sellerId`/`role` aujourd'hui), dérivé de `seller.clubId` au login (`src/app/api/auth/login/route.ts`).
-7. Filtrer **tout** ce qui touche aux catégories par `session.clubId` (`src/app/api/categories/route.ts` notamment) — aujourd'hui c'est un référentiel global partagé par tous les vendeurs, ça doit devenir un référentiel par club.
-8. Mettre à jour `sellerPortal/README.md` § « Portée V1 » pour retirer l'avertissement une fois fait, et le README racine § « Écarts connus ».
-9. Vérifier avec `pnpm install && npx tsc --noEmit` dans `sellerPortal/`.
+1. **Backfill production** : pour une install déjà bootstrapée avant cet ajout, exécuter `sellerPortal/sql/migration_add_club_id.sql` puis renseigner manuellement `club_id` sur les lignes existantes de `sp_sellers`/`sp_product_categories` (nécessite une décision produit : quel club pour quelles lignes existantes) avant de pouvoir compter dessus pour filtrer une requête en prod.
+2. **`ClubBranding` dans `sellerPortal`** : brancher le nom/logo/couleurs affichés par le portail sur la configuration du club du vendeur connecté (voir README racine, `superadmin`/`teamManager` l'ont déjà fait pour leur périmètre) — actuellement le portail reste visuellement neutre malgré le scoping par club.
+3. Vérifier avec `pnpm install && npx tsc --noEmit` dans `sellerPortal/` après ces changements (déjà fait pour le travail de cette session, à refaire si du code est modifié).
 
 ### B. Billetterie générique — nouvelle app (le plus gros chantier, pas commencé)
 

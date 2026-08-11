@@ -3,11 +3,13 @@ import { z } from "zod";
 import { getDataSource } from "@/lib/database";
 import { Seller } from "@/entities/Seller";
 import { SellerUser } from "@/entities/SellerUser";
+import { Team } from "@/entities/Team";
 import { hashPassword } from "@/lib/password";
 import { handleApiError } from "@/lib/api";
 import { SellerStatus, SellerUserRole } from "@/entities/enums";
 
 const registerSchema = z.object({
+  clubId: z.string().min(1).max(36),
   businessName: z.string().min(2).max(191),
   ownerName: z.string().min(2).max(191),
   email: z.string().email(),
@@ -36,10 +38,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cet email est déjà utilisé." }, { status: 409 });
     }
 
+    const club = await ds.getRepository(Team).findOne({ where: { id: body.clubId, teamType: "club" } });
+    if (!club) {
+      return NextResponse.json({ error: "Club sélectionné introuvable." }, { status: 422 });
+    }
+
     const passwordHash = await hashPassword(body.password);
 
     const result = await ds.transaction(async (manager) => {
       const seller = manager.create(Seller, {
+        clubId: club.id,
         businessName: body.businessName,
         ownerName: body.ownerName,
         email: body.email,

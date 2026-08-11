@@ -4,6 +4,7 @@ import { getDataSource } from "@/lib/database";
 import { Product } from "@/entities/Product";
 import { ProductImage } from "@/entities/ProductImage";
 import { InventoryItem } from "@/entities/InventoryItem";
+import { ProductCategory } from "@/entities/ProductCategory";
 import { ProductStatus } from "@/entities/enums";
 import { requireActiveSeller } from "@/lib/authz";
 import { handleApiError } from "@/lib/api";
@@ -77,6 +78,18 @@ export async function POST(req: NextRequest) {
     const existingSku = await ds.getRepository(Product).findOne({ where: { sku: body.sku } });
     if (existingSku) {
       return NextResponse.json({ error: "Ce SKU est déjà utilisé." }, { status: 409 });
+    }
+
+    // Le référentiel de catégories est scopé par club : jamais faire
+    // confiance à un categoryId envoyé par le client sans vérifier qu'il
+    // appartient bien au club du vendeur connecté.
+    if (body.categoryId) {
+      const category = await ds
+        .getRepository(ProductCategory)
+        .findOne({ where: { id: body.categoryId, clubId: session.clubId } });
+      if (!category) {
+        return NextResponse.json({ error: "Catégorie introuvable." }, { status: 422 });
+      }
     }
 
     const product = await ds.transaction(async (manager) => {

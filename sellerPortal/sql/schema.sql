@@ -6,6 +6,10 @@
 
 CREATE TABLE IF NOT EXISTS sp_sellers (
   id CHAR(36) NOT NULL PRIMARY KEY,
+  -- FK logique vers `teams.id` de la base partagée (pas de contrainte FK
+  -- réelle cross-connexion TypeORM, comme le reste de l'app). Le club
+  -- auquel le vendeur est rattaché, choisi à l'inscription.
+  club_id CHAR(36) NOT NULL,
   businessName VARCHAR(191) NOT NULL,
   ownerName VARCHAR(191) NOT NULL,
   email VARCHAR(191) NOT NULL,
@@ -24,7 +28,8 @@ CREATE TABLE IF NOT EXISTS sp_sellers (
   commissionRate DECIMAL(5,2) NOT NULL DEFAULT 10.00,
   createdAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  UNIQUE KEY uq_sp_sellers_email (email)
+  UNIQUE KEY uq_sp_sellers_email (email),
+  KEY idx_sp_sellers_club (club_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sp_seller_users (
@@ -47,11 +52,14 @@ CREATE TABLE IF NOT EXISTS sp_seller_users (
 
 CREATE TABLE IF NOT EXISTS sp_product_categories (
   id CHAR(36) NOT NULL PRIMARY KEY,
+  -- FK logique vers `teams.id` — catégories définies par l'administration
+  -- de chaque club, pas un référentiel global partagé.
+  club_id CHAR(36) NOT NULL,
   name VARCHAR(191) NOT NULL,
   slug VARCHAR(191) NOT NULL,
   parentId CHAR(36) NULL,
   commissionRate DECIMAL(5,2) NULL,
-  UNIQUE KEY uq_sp_product_categories_slug (slug)
+  UNIQUE KEY uq_sp_product_categories_club_slug (club_id, slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sp_products (

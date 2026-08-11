@@ -80,27 +80,31 @@ lecture : dans l'architecture cible, cette table appartient entièrement à
 la Marketplace API et `sellerPortal` n'expose jamais que la sous-commande
 d'un vendeur (`SellerOrder`), jamais la commande globale en entier.
 
-## Portée V1 — écart connu avec l'architecture cible multi-clubs
+## Portée V1 — scoping multi-clubs
 
-⚠️ Le schéma actuel (`sql/schema.sql`, tables `sp_*`) ne porte **aucune**
-colonne de rattachement club (`clubId`/`teamId`) : la V1 a été construite en
-contexte mono-club (Olympique de Béja) et reste, en l'état, un déploiement
-par club plutôt qu'un vrai multi-tenant à déploiement unique. Le renommage
-`ob-seller-portal` → `sellerPortal` et la généralisation des textes de
-l'interface (qui ne mentionnent plus explicitement un club) préparent cette
-cible mais ne la réalisent pas : pour un vrai multi-clubs, il reste à :
+Le schéma (`sql/schema.sql`, tables `sp_*`) porte désormais un rattachement
+club réel : `sp_sellers.club_id` et `sp_product_categories.club_id`
+(FK logique vers `teams.id` de la base partagée, comme le reste de l'app —
+pas de contrainte FK réelle cross-connexion TypeORM). Un vrai déploiement
+unique peut donc servir plusieurs clubs :
 
-1. ajouter `clubId` sur `sp_sellers` (et le propager aux entités liées) ;
-2. filtrer systématiquement les requêtes par le club du vendeur connecté
-   (jamais par un `clubId` envoyé par le frontend) ;
-3. faire porter le nom/logo/couleurs affichés par le portail par la
-   configuration du club du vendeur connecté (`ClubBranding`, voir README
-   racine).
+1. `clubId` est choisi par le vendeur à l'inscription (`GET /api/teams?type=club`
+   alimente le sélecteur, `POST /api/auth/register` valide qu'il correspond
+   à un club existant) et stocké sur `Seller`.
+2. `clubId` est porté par la session (JWT, comme `sellerId`/`role`), dérivé
+   de `seller.clubId` au login — jamais lu depuis un paramètre client.
+3. Le référentiel de catégories (`sp_product_categories`) est filtré par
+   `session.clubId` (`GET /api/categories`), et tout `categoryId` fourni à
+   la création/modification d'un produit est revalidé comme appartenant à
+   ce club avant d'être accepté.
 
-Ce chantier n'a pas été fait dans le cadre de cette normalisation pour ne
-pas modifier le schéma DB sans nécessité (voir README racine, section
-« points nécessitant une intervention manuelle »). Le préfixe `sp_` peut
-rester en l'état pour la V1.
+Pour une installation déjà bootstrapée avant cet ajout, voir
+`sql/migration_add_club_id.sql` (colonne nullable, à backfiller
+manuellement club par club avant d'en dépendre pour filtrer une requête).
+
+Reste hors périmètre V1 : faire porter le nom/logo/couleurs affichés par le
+portail par la configuration du club du vendeur connecté (`ClubBranding`,
+voir README racine) — actuellement le portail reste visuellement neutre.
 
 ## Hors périmètre V1
 

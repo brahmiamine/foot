@@ -15,10 +15,12 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import "reflect-metadata";
+import { Like } from "typeorm";
 import { getDataSource } from "../src/lib/database";
 import { Seller } from "../src/entities/Seller";
 import { SellerUser } from "../src/entities/SellerUser";
 import { ProductCategory } from "../src/entities/ProductCategory";
+import { Team } from "../src/entities/Team";
 import { Product } from "../src/entities/Product";
 import { ProductVariant } from "../src/entities/ProductVariant";
 import { InventoryItem } from "../src/entities/InventoryItem";
@@ -42,10 +44,24 @@ import {
 async function main() {
   const ds = await getDataSource();
 
+  // Le seed a besoin d'un club existant (table `teams` partagée, gérée par
+  // superadmin/teamManager) pour rattacher le vendeur et ses catégories de
+  // démo. On préfère le club de démonstration historique du monorepo s'il
+  // est présent, sinon le premier club disponible.
+  const teamRepo = ds.getRepository(Team);
+  const club =
+    (await teamRepo.findOne({ where: { nom: Like("%Béja%"), teamType: "club" } })) ??
+    (await teamRepo.findOne({ where: { teamType: "club" } }));
+  if (!club) {
+    throw new Error(
+      "Aucun club trouvé dans la table `teams` partagée : bootstrap d'abord un club (superadmin/teamManager) avant de lancer ce seed.",
+    );
+  }
+
   const categoryRepo = ds.getRepository(ProductCategory);
-  let category = await categoryRepo.findOne({ where: { slug: "maillots" } });
+  let category = await categoryRepo.findOne({ where: { clubId: club.id, slug: "maillots" } });
   if (!category) {
-    category = await categoryRepo.save(categoryRepo.create({ name: "Maillots", slug: "maillots" }));
+    category = await categoryRepo.save(categoryRepo.create({ clubId: club.id, name: "Maillots", slug: "maillots" }));
   }
 
   const sellerRepo = ds.getRepository(Seller);
@@ -53,6 +69,7 @@ async function main() {
   if (!seller) {
     seller = await sellerRepo.save(
       sellerRepo.create({
+        clubId: club.id,
         businessName: "Sport Shop Demo",
         ownerName: "Mohamed Exemple",
         email: "demo@vendeur.example",

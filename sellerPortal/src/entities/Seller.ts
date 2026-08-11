@@ -22,6 +22,13 @@ export class Seller {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  // FK logique vers teams.id de la base partagée (pas de contrainte FK
+  // réelle cross-connexion TypeORM, comme le reste de l'app). Le club
+  // auquel le vendeur est rattaché, choisi à l'inscription.
+  @Index()
+  @Column({ type: "char", length: 36, name: "club_id" })
+  clubId!: string;
+
   @Column({ type: "varchar", length: 191 })
   businessName!: string;
 

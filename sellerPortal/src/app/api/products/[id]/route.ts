@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDataSource } from "@/lib/database";
 import { Product } from "@/entities/Product";
 import { ProductImage } from "@/entities/ProductImage";
+import { ProductCategory } from "@/entities/ProductCategory";
 import { ProductStatus } from "@/entities/enums";
 import { requireActiveSeller, assertOwnedBySeller, NotFoundError } from "@/lib/authz";
 import { handleApiError } from "@/lib/api";
@@ -66,6 +67,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         { error: "Ce produit est en cours de modération et ne peut plus être modifié." },
         { status: 409 },
       );
+    }
+
+    // Comme à la création, ne jamais faire confiance à un categoryId client
+    // sans vérifier qu'il appartient au club du vendeur connecté.
+    if (body.categoryId) {
+      const category = await ds
+        .getRepository(ProductCategory)
+        .findOne({ where: { id: body.categoryId, clubId: session.clubId } });
+      if (!category) {
+        return NextResponse.json({ error: "Catégorie introuvable." }, { status: 422 });
+      }
     }
 
     const { images, ...rest } = body;
