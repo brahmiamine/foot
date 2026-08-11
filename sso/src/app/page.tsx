@@ -40,6 +40,13 @@ export default async function Home() {
             </Link>
           </p>
         )}
+        {(session.role === "SUPERADMIN" || session.role === "ADMIN") && (
+          <p>
+            <Link href="/admin/invitations" style={{ color: "var(--sso-accent)" }}>
+              Inviter un membre du staff
+            </Link>
+          </p>
+        )}
         <p>
           <LogoutEverywhereButton />
         </p>

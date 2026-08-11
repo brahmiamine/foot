@@ -5,6 +5,7 @@ import { Team } from "@/entities/Team";
 import { MemberTeamAffiliation } from "@/entities/MemberTeamAffiliation";
 import { PasswordResetToken } from "@/entities/PasswordResetToken";
 import { SecurityLog } from "@/entities/SecurityLog";
+import { ClubInvitation } from "@/entities/ClubInvitation";
 
 const globalForDataSource = globalThis as unknown as {
   dataSource?: DataSource;
@@ -28,7 +29,7 @@ function createDataSource() {
     logging: DB_LOGGING === "true",
     // Base partagée avec les 4 autres apps : jamais de synchronize ici.
     synchronize: false,
-    entities: [User, Team, MemberTeamAffiliation, PasswordResetToken, SecurityLog],
+    entities: [User, Team, MemberTeamAffiliation, PasswordResetToken, SecurityLog, ClubInvitation],
   });
 }
 

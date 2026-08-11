@@ -176,6 +176,27 @@ docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
 "
 echo "✅ Schéma security_logs à jour."
 
+# `sso` lit/écrit `club_invitations` (invitation club en 2 temps).
+echo "🔧 Vérification du schéma (club_invitations)..."
+docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -e "
+  CREATE TABLE IF NOT EXISTS club_invitations (
+    id CHAR(36) NOT NULL DEFAULT uuid() PRIMARY KEY,
+    email VARCHAR(191) NOT NULL,
+    team_id VARCHAR(191) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    invited_by_user_id VARCHAR(191) NOT NULL,
+    token_hash VARCHAR(191) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_club_invitations_invited_by FOREIGN KEY (invited_by_user_id) REFERENCES \`User\`(id) ON DELETE CASCADE,
+    INDEX idx_club_invitations_email (email),
+    INDEX idx_club_invitations_token_hash (token_hash),
+    INDEX idx_club_invitations_team_id (team_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"
+echo "✅ Schéma club_invitations à jour."
+
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
 

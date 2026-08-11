@@ -31,6 +31,7 @@ présence d'une entité.
 | Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `arbinote` | `superadmin` (consultation) |
 | Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens` | `sso` | `arbinote`, `superadmin`, `teamManager` (lecture/jointures) |
 | Journal de sécurité (authentification) | `security_logs` | `sso` | — |
+| Invitation club (staff) en 2 temps | `club_invitations` | `sso` | — |
 | Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `teamManager` | `matchsheet`, `ob` (lecture) |
 | **Cartons (`Card`) — écriture partagée, voir alerte ci-dessous** | `Card` | `teamManager` **et** `matchsheet` | `ob` (lecture) |
 | Compositions d'équipe | `cms_match_lineups` | `teamManager` | `matchsheet` (lecture, verrouillage au coup d'envoi) |
@@ -122,6 +123,24 @@ métier du club) : même s'ils se ressemblent, ce ne sont pas trois vues du
 même concept — `security_logs` journalise des événements *d'authentification*
 transverses à `sso`, pas des actions métier propres à chaque app. Ne pas les
 fusionner sans revoir les trois domaines ensemble.
+
+## Point d'attention : invitation club — émission dans `sso`, pas dans `teamManager`
+
+`teamManager/admin/users` (écran « Utilisateurs du club ») reste l'endroit
+où le président d'un club (`ADMIN`) crée un compte `User` en lui choisissant
+lui-même un mot de passe (`UserService.create`) — ce flux existant n'a pas
+été modifié. L'invitation en 2 temps (`club_invitations`, voir
+`sso/src/lib/clubInvitations.ts`) est un flux différent, complémentaire, pas
+un remplacement : la personne invitée choisit elle-même son mot de passe en
+ouvrant un lien email à usage unique, comme pour la réinitialisation de mot
+de passe. Émission et rédemption du jeton vivent entièrement dans `sso`
+(seule app propriétaire de `User`) : `sso/admin/invitations` (déclencheur,
+réservé à `SUPERADMIN`/`ADMIN`) et `sso/invitation` (rédemption, page
+publique protégée par le jeton). Pas de trigger UI ajouté côté
+`teamManager` dans cette itération — l'écran `sso/admin/invitations` suffit
+et évite un appel réseau cross-app depuis une Server Action `teamManager`
+vers `sso` ; à réévaluer si l'expérience « tout dans `teamManager` » devient
+un besoin produit confirmé.
 
 ## Ce que ce document corrige
 
