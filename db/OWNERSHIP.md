@@ -26,7 +26,8 @@ présence d'une entité.
 | Fédérations / ligues / saisons / journées | `federations`, `ligues`, `saisons`, `journees` | `superadmin` | `arbinote`, `matchsheet`, `ob`, `teamManager` |
 | Équipes / clubs (référentiel) | `teams` | `superadmin` (CRUD complet) | `arbinote`, `matchsheet`, `ob`, `sso`, `sellerPortal`, `billetterie` |
 | Fiche du club connecté (paramètres, branding) | `teams` (sa propre ligne, `WHERE id = teamId`), `team_branding` | `teamManager` (sa ligne), `superadmin` (branding, toutes lignes) | `sellerPortal` |
-| Matchs | `matches` | `superadmin` (création/programmation) | `arbinote`, `matchsheet`, `ob`, `billetterie`, `teamManager` (lecture pour préparation) |
+| Matchs — référentiel (équipes, date, score, arbitre) | `matches` (hors `status`, voir ligne suivante) | `superadmin` (création/programmation) | `arbinote`, `matchsheet`, `ob`, `billetterie`, `teamManager` (lecture pour préparation) |
+| Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `matchsheet` (seul à savoir, avec certitude, quand un match démarre/finit réellement — voir alerte ci-dessous) | `ob` (résultats, classement), `billetterie` (fenêtre de vente), `teamManager` (formations) |
 | Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `arbinote` | `superadmin` (consultation) |
 | Comptes et sessions | `User`, `member_team_affiliations` | `sso` | `arbinote`, `superadmin`, `teamManager` (lecture/jointures) |
 | Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `teamManager` | `matchsheet`, `ob` (lecture) |
@@ -63,6 +64,40 @@ peu importe qui les saisit), mais ça veut dire concrètement :
   `teamManager` pendant qu'un match est en direct sur `matchsheet`) n'est
   géré par aucun verrou aujourd'hui — à surveiller si ce cas se produit en
   pratique.
+
+## Point d'attention : `matches.status` — la machine d'état commune du match
+
+`matches.status` (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) existe
+déjà dans le schéma (voir `db/foot.sql`) et est déjà lu par trois apps :
+`ob` (filtre les matchs « à venir » vs « résultats », calcule le classement
+à partir des matchs `FINISHED`), `billetterie` (n'autorise l'achat que sur
+`UPCOMING`/`IN_PROGRESS`), `teamManager` (verrouille la composition une
+fois le match `FINISHED`/`CANCELLED`). **Vérifié : avant ce correctif,
+aucune app n'écrivait jamais cette colonne** — `superadmin`/`arbinote` ne
+la déclarent même pas dans leur entité `Match`, et aucun `.save()`/
+`.update()` dessus n'existait ailleurs. Conséquence concrète : chaque
+match restait `UPCOMING` pour toujours (confirmé dans `db/foot.sql`, où
+100 % des lignes du dump sont `UPCOMING`), ce qui rendait silencieusement
+vides en permanence la page résultats et le classement d'`ob`
+(`PublicMatchService`/`PublicStandingsService` filtrent sur `FINISHED`,
+qui n'arrivait jamais).
+
+Corrigé : `matchsheet` (seule app qui sait, avec certitude, quand un match
+démarre et finit réellement — pas une estimation basée sur la date
+programmée) répercute désormais le statut de sa feuille de match sur
+`matches.status` à deux moments (`SheetService.mirrorMatchStatus`,
+voir `matchsheet/src/services/SheetService.ts`) :
+
+- feuille → `IN_PROGRESS` (coup d'envoi confirmé) ⇒ `matches.status = 'IN_PROGRESS'` ;
+- feuille → `CLOSED` (clôture après-match) ⇒ `matches.status = 'FINISHED'`.
+
+**Non traité, volontairement** : `CANCELLED` reste un état défini dans le
+schéma mais qu'aucune app ne permet de déclencher — annuler un match est
+une décision de `superadmin` (référentiel), pas de `matchsheet`, et
+construire cet écran est une nouvelle fonctionnalité produit (qui prévient
+qui, un match peut-il être réactivé, etc.), pas une simple correction de
+câblage manquant comme le point ci-dessus. À faire séparément si le besoin
+se confirme.
 
 ## Ce que ce document corrige
 

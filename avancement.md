@@ -23,7 +23,7 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 | 2 | Extraire un package `auth-shared` (session, rôles, cookies) | ✅ Fait | `packages/auth-shared/src/session.ts` centralise la vérification JWT (issuer, forme du payload, nom du cookie, secret) — voir détail ci-dessous |
 | 3 | Documenter la propriété des tables de `foot` + process de migration | ✅ Fait | `db/OWNERSHIP.md` — matrice de propriété par domaine + règles de migration, voir détail ci-dessous |
 | 4 | Middleware global sur chaque back-office (`superadmin`, `arbinote`, `teamManager`) | ✅ Fait | `src/middleware.ts` ajouté aux 3 apps, protège `/admin/*` + `/api/admin/*` — voir détail ci-dessous |
-| 5 | Machine d'état commune du match | ⬜ À faire | 4 apps touchent le même match sans statut partagé |
+| 5 | Machine d'état commune du match | ✅ Fait (recadré, voir détail) | `matches.status` existait déjà dans le schéma mais n'était écrit par aucune app — corrigé, pas remplacé par un nouveau système |
 | 6 | CI (lint + tests) sur les 11 projets | ⬜ À faire | Aucun `.github/workflows` |
 | 7 | `/api/health` partout + monitoring de base | ⬜ À faire | Seuls `arbinote` et `superadmin` l'exposent |
 | 8 | Reset password + MFA + révocation de session dans `sso` | ⬜ À faire | |
@@ -114,8 +114,14 @@ Mis à jour à chaque push. `✅ Fait` / `🔶 Partiel` / `⬜ À faire`.
 - Processus de migration documenté dans `db/OWNERSHIP.md` (revue cross-app, additif/idempotent, pas de `synchronize: true`) ; le backup/rollback réel reste bloqué sur le rang 10 (aucune stratégie de sauvegarde en place).
 - Modèle multi-club toujours partiel : les affiliations supporter couvrent les `MEMBER`, mais un compte staff (`User.teamId`) reste lié à un seul club — non traité par ce rang, reste ouvert.
 
-### F. Pas de cycle de vie commun du match — critique
-Un même match traverse quatre applications distinctes, chacune avec son propre statut local (`matchsheet` a un `SheetStatus` local, mais rien ne relie la préparation `teamManager`, la création `superadmin` ou l'ouverture des votes `arbinote` à un état partagé). Aucune machine d'état transversale, aucun workflow bout-en-bout écrit noir sur blanc.
+### F. Pas de cycle de vie commun du match — critique, recadré et en partie traité
+Constat initial : un même match traverse quatre applications distinctes, chacune avec son propre statut local (`matchsheet` a un `SheetStatus` local, mais rien ne relie la préparation `teamManager`, la création `superadmin` ou l'ouverture des votes `arbinote` à un état partagé). Aucune machine d'état transversale, aucun workflow bout-en-bout écrit noir sur blanc.
+
+**Ce qui a changé en creusant** : la machine d'état commune n'était pas à inventer, elle existait déjà — `matches.status` (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) est dans le schéma partagé depuis le début et déjà *lue* par 3 apps (`ob` pour les résultats/classement, `billetterie` pour la fenêtre de vente, `teamManager` pour verrouiller la composition). Mais **vérifié : aucune app ne l'écrivait jamais** — `superadmin`/`arbinote` ne la déclarent même pas dans leur entité `Match`. Conséquence réelle, pas théorique : chaque match restait `UPCOMING` pour toujours (100 % des lignes du dump `db/foot.sql` sont `UPCOMING`), ce qui rendait la page résultats et le classement d'`ob` silencieusement vides en permanence (leurs requêtes filtrent sur `status = 'FINISHED'`, qui n'arrivait jamais).
+
+**Corrigé** : `matchsheet` — seule app qui sait avec certitude quand un match démarre/finit réellement — répercute désormais le statut de sa feuille sur `matches.status` (`SheetService.mirrorMatchStatus`) : `IN_PROGRESS` au coup d'envoi confirmé, `FINISHED` à la clôture après-match. Détail complet et alerte dans `db/OWNERSHIP.md` § « `matches.status` — la machine d'état commune du match ».
+
+**Volontairement pas fait** : je n'ai pas construit le système à 12 états (`SCHEDULED`/`LINEUP_SUBMITTED`/`OFFICIALS_CONFIRMED`/`PRE_MATCH_SIGNED`/`PUBLISHED`/`ARCHIVED`/…) envisagé initialement — `CANCELLED` reste un état du schéma qu'aucune app ne permet de déclencher (annuler un match est une décision `superadmin`, donc une vraie nouvelle fonctionnalité produit à concevoir — qui prévient qui, réactivation possible ou non — pas un simple câblage manquant comme `IN_PROGRESS`/`FINISHED`). Item ouvert si le besoin se confirme.
 
 ### G. Notifications : câblage émetteur partiel — moyenne
 Le service central existe et 5 apps émettent déjà des événements (`arbinote`, `superadmin`, `matchsheet`, `teamManager`, `payment-api`). `ob` ne source rien (lecture seule). Convocation/composition/sponsor non branchables tant que le destinataire n'est pas un `User` résolvable. Web Push, FCM, SMS annoncés mais aucun actif.
