@@ -86,8 +86,8 @@ Cette sous-section complète les listes ci-dessus avec les manques ressortis de 
 ~~**Manquant** : invitation club en 2 temps~~ → corrigé, mais côté `superadmin` plutôt que `sso` : en creusant, la création d'un compte club (`ADMIN`/`OBSERVATEUR`) n'a jamais été gérée par `sso` — c'est `superadmin/src/lib/clubAccounts.ts` qui écrit directement dans `User` depuis longtemps (`/admin/club/[teamId]`), un fait pré-existant mais jusqu'ici non documenté dans `db/OWNERSHIP.md` (corrigé au passage, voir § « `superadmin` écrit `User` pour les comptes club »). L'invitation en 2 temps est donc naturellement construite là où la création se faisait déjà : `superadmin` invite (email, lien à usage unique valable 7 jours, jeton haché SHA-256 — `staff_invitations`, même pattern que `password_reset_tokens` côté `sso`), le destinataire accepte et choisit lui-même son mot de passe (`/invite/[token]`, jamais connu de `superadmin`). Détail complet dans `db/OWNERSHIP.md`, § « `superadmin` écrit `User` pour les comptes club ».
 
 ### `teamManager` — haute
-**En place** : effectif, staff, discipline, actus/médias, boutique, sponsors, académie/recrutement, admin billetterie, PWA dynamique par club.
-**Manquant** : espace supporter/communauté, checkout/paiement réel de la boutique, workflow contrat/facturation sponsors, finance/trésorerie (aucun module), RGPD (aucun consentement/export/suppression).
+**En place** : effectif, staff, discipline, actus/médias, boutique, sponsors (demande → acceptation → **génération PDF du résumé de convention**, `GET /api/exports/sponsor-contract/[id]`), académie/recrutement, admin billetterie, PWA dynamique par club, Web Push (voir § 3.G).
+**Manquant** : espace supporter/communauté, checkout/paiement réel de la boutique, facturation sponsors (aucun module comptable), finance/trésorerie (aucun module), RGPD (aucun consentement/export/suppression).
 
 ### `matchsheet` — moyenne
 **En place** : avant-match, live, signatures, statut local de feuille, PWA, middleware de protection.
@@ -228,7 +228,7 @@ Les sections 2 et 3 détaillent le constat app par app et flux par flux. Cette s
 | Billetterie — contrôle d'accès au stade (scanner) | inexistant | ⬜ Ouvert | Vérifié : aucun dossier/route `scanner` ou équivalent dans le dépôt, jamais commencé | § « `billetterie` », § 3.H |
 | `ob` espace membre → billetterie | `ob` → `billetterie` | ✅ Fermé | Renvoie vers `{NEXT_PUBLIC_BILLETTERIE_URL}/mes-billets` | rang 9 |
 | Boutique club — checkout/paiement | `teamManager` ↔ `payment-api` | ⬜ Ouvert | Vérifié : aucune référence à `payment-api` dans `teamManager` — la boutique n'a que la gestion admin du catalogue (`admin/shop/`), aucun tunnel d'achat | § « `teamManager` » |
-| Sponsors club — demande → contrat → facturation | `teamManager` | 🔶 Partiel | Formulaire de demande (`devenir-sponsor`) et champs de contrat (`contractStart`/`contractEnd`/`contractAmount` sur `Sponsor`) existent déjà ; aucun document de contrat généré, aucune facturation | § « `teamManager` » |
+| Sponsors club — demande → contrat → facturation | `teamManager` | 🔶 Partiel (contrat fait, facturation toujours absente) | Génération PDF ajoutée (`GET /api/exports/sponsor-contract/[id]`, résumé administratif, pas un contrat juridiquement relu) ; toujours aucune facturation (pas de module comptable dans cette app) | § « `teamManager` » |
 | RGPD (consentement, export, suppression) | `teamManager` | ⬜ Ouvert | Aucun module — vérifié, aucun fichier lié au consentement/export/suppression de données personnelles | § « `teamManager` » |
 | Finance / trésorerie club | `teamManager` | ⬜ Ouvert | Aucun module | § « `teamManager` » |
 | Espace supporter / communauté | `teamManager` | ⬜ Ouvert | Aucun module | § « `teamManager` » |
