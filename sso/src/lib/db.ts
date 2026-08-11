@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { User } from "@/entities/User";
 import { Team } from "@/entities/Team";
+import { MemberTeamAffiliation } from "@/entities/MemberTeamAffiliation";
 
 const globalForDataSource = globalThis as unknown as {
   dataSource?: DataSource;
@@ -25,7 +26,7 @@ function createDataSource() {
     logging: DB_LOGGING === "true",
     // Base partagée avec les 4 autres apps : jamais de synchronize ici.
     synchronize: false,
-    entities: [User, Team],
+    entities: [User, Team, MemberTeamAffiliation],
   });
 }
 

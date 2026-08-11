@@ -2,6 +2,7 @@
 
 import CreateTeamForm from './teams/CreateTeamForm'
 import EditTeamForm from './teams/EditTeamForm'
+import TeamBrandingPanel from './teams/TeamBrandingPanel'
 import ImportTeamsModal from './teams/ImportTeamsModal'
 import TeamsTable from './teams/TeamsTable'
 import { AGE_CATEGORY_LABELS, emptyForm, GENDER_LABELS, getCountryLabel, SPORT_LABELS, TEAM_TYPE_LABELS } from './teams/constants'
@@ -212,6 +213,8 @@ export default function AdminTeamsManager() {
             onClose={cancelEdit}
           />
         )}
+
+        {editingId && <TeamBrandingPanel teamId={editingId} />}
       </div>
     </div>
   )
