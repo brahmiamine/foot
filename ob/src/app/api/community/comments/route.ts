@@ -3,6 +3,7 @@ import { getDataSource } from "@/lib/database";
 import { ObComment, type ObCommentTargetType } from "@/entities/ObComment";
 import { requireMember } from "@/lib/community/requireMember";
 import { CommunityFeedService } from "@/services/CommunityFeedService";
+import { containsAbusiveContent } from "@/lib/community/abuseFilter";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,9 @@ export async function POST(request: NextRequest) {
 
   if (!TARGET_TYPES.includes(targetType) || !targetId || !text || text.length > MAX_BODY_LENGTH) {
     return NextResponse.json({ error: "Commentaire invalide" }, { status: 400 });
+  }
+  if (containsAbusiveContent(text)) {
+    return NextResponse.json({ error: "Ce commentaire contient des termes non autorisés." }, { status: 400 });
   }
 
   const dataSource = await getDataSource();

@@ -24,6 +24,9 @@ import { ObPollOption } from "@/entities/ObPollOption";
 import { ObPollVote } from "@/entities/ObPollVote";
 import { ObPrediction } from "@/entities/ObPrediction";
 import { CommunityUser } from "@/entities/CommunityUser";
+import { ObReport } from "@/entities/ObReport";
+import { ObModerationLog } from "@/entities/ObModerationLog";
+import { ObFanWallItem } from "@/entities/ObFanWallItem";
 
 /**
  * Connexion à la base "foot" partagée avec arbinote, superadmin et
@@ -75,6 +78,9 @@ export async function getDataSource(): Promise<DataSource> {
         ObPollVote,
         ObPrediction,
         CommunityUser,
+        ObReport,
+        ObModerationLog,
+        ObFanWallItem,
       ],
       migrations: [],
       charset: "utf8mb4",

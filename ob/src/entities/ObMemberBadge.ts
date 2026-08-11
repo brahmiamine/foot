@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeor
 
 @Entity("ob_member_badges")
 export class ObMemberBadge {
-  @PrimaryGeneratedColumn({ type: "bigint" })
+  @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: "varchar", length: 191, name: "user_id" })

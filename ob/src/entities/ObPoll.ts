@@ -5,7 +5,7 @@ export type ObPollType = "POLL" | "MOTM" | "PLAYER_OF_MONTH" | "GOAL_OF_MONTH";
 /** Sert les sondages libres (#13) et les votes à thème (#18) selon `type`. */
 @Entity("ob_polls")
 export class ObPoll {
-  @PrimaryGeneratedColumn({ type: "bigint" })
+  @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: "varchar", length: 255 })

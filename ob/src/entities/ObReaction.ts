@@ -6,7 +6,7 @@ export type ObReactionEmoji = (typeof REACTION_EMOJIS)[number];
 
 @Entity("ob_reactions")
 export class ObReaction {
-  @PrimaryGeneratedColumn({ type: "bigint" })
+  @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: "enum", enum: ["POST", "NEWS", "COMMENT"], name: "target_type" })

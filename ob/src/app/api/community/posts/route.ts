@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataSource } from "@/lib/database";
 import { ObPost } from "@/entities/ObPost";
 import { requireMember } from "@/lib/community/requireMember";
+import { containsAbusiveContent } from "@/lib/community/abuseFilter";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
 
   if (!text || text.length > MAX_BODY_LENGTH) {
     return NextResponse.json({ error: "Message invalide" }, { status: 400 });
+  }
+  if (containsAbusiveContent(text)) {
+    return NextResponse.json({ error: "Ce message contient des termes non autorisés." }, { status: 400 });
   }
 
   const dataSource = await getDataSource();

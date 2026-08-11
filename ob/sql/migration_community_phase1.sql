@@ -20,7 +20,7 @@ CREATE TABLE ob_members (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ob_follows (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   user_id VARCHAR(191) NOT NULL,
   target_type ENUM('TEAM', 'PLAYER') NOT NULL,
   target_id VARCHAR(191) NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE ob_follows (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ob_points_ledger (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   user_id VARCHAR(191) NOT NULL,
   points INT NOT NULL,
   reason VARCHAR(64) NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE ob_badges (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ob_member_badges (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   user_id VARCHAR(191) NOT NULL,
   badge_id VARCHAR(64) NOT NULL,
   awarded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -61,7 +61,7 @@ CREATE TABLE ob_member_badges (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ob_posts (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   user_id VARCHAR(191) NOT NULL,
   body TEXT NOT NULL,
   image_url TEXT NULL,
@@ -74,7 +74,7 @@ CREATE TABLE ob_posts (
 -- target_type NEWS référence `cms_news.id` (teamManager), POST référence
 -- ob_posts.id : cible polymorphe, pas de FK possible côté target.
 CREATE TABLE ob_comments (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   target_type ENUM('POST', 'NEWS') NOT NULL,
   target_id VARCHAR(191) NOT NULL,
   user_id VARCHAR(191) NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE ob_comments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ob_reactions (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   target_type ENUM('POST', 'NEWS', 'COMMENT') NOT NULL,
   target_id VARCHAR(191) NOT NULL,
   user_id VARCHAR(191) NOT NULL,
@@ -100,7 +100,7 @@ CREATE TABLE ob_reactions (
 -- Sert à la fois les sondages libres (#13) et les votes à thème (#18 :
 -- homme du match / joueur du mois / but du mois) via `type` + `match_id`.
 CREATE TABLE ob_polls (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   question VARCHAR(255) NOT NULL,
   type ENUM('POLL', 'MOTM', 'PLAYER_OF_MONTH', 'GOAL_OF_MONTH') NOT NULL DEFAULT 'POLL',
   -- Collation alignée sur `matches.id`, voir commentaire sur ob_predictions.match_id.
@@ -113,8 +113,8 @@ CREATE TABLE ob_polls (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ob_poll_options (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  poll_id BIGINT NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  poll_id INT NOT NULL,
   label VARCHAR(191) NOT NULL,
   player_id VARCHAR(191) NULL,
   sort_order INT NOT NULL DEFAULT 0,
@@ -122,9 +122,9 @@ CREATE TABLE ob_poll_options (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ob_poll_votes (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  poll_id BIGINT NOT NULL,
-  option_id BIGINT NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  poll_id INT NOT NULL,
+  option_id INT NOT NULL,
   user_id VARCHAR(191) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_ob_poll_vote (poll_id, user_id),
@@ -140,7 +140,7 @@ CREATE TABLE ob_poll_votes (
 -- sur `User.id`) : sans ça, toute jointure SQL avec `matches` échoue avec
 -- "Illegal mix of collations".
 CREATE TABLE ob_predictions (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   match_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   user_id VARCHAR(191) NOT NULL,
   score_home INT NOT NULL,

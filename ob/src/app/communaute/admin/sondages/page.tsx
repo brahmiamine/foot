@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getSsoSession } from "@/lib/ssoSession";
 import { PageChrome } from "@/components/PageChrome";
 import { CreatePollForm } from "@/components/CreatePollForm";
@@ -16,9 +17,12 @@ export default async function AdminSondagesPage() {
     <PageChrome>
       <div className={shared.sectionPad}>
         <div className={shared.container}>
-          <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
+          <h1 className={shared.sectionTitle} style={{ marginBottom: 8 }}>
             Créer un sondage
           </h1>
+          <p style={{ marginBottom: 28 }}>
+            <Link href="/communaute/admin/moderation">→ Modération</Link>
+          </p>
           <CreatePollForm />
         </div>
       </div>

@@ -2,10 +2,10 @@ import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 
 @Entity("ob_poll_options")
 export class ObPollOption {
-  @PrimaryGeneratedColumn({ type: "bigint" })
+  @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ type: "bigint", name: "poll_id" })
+  @Column({ type: "int", name: "poll_id" })
   pollId!: number;
 
   @Column({ type: "varchar", length: 191 })

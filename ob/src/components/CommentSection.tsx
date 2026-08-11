@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { ReportButton } from "./ReportButton";
 import styles from "./CommentSection.module.css";
 
 interface CommentView {
@@ -86,6 +87,7 @@ export function CommentSection({
           {comments?.map((c) => (
             <div key={c.id} className={styles.comment}>
               <strong>{c.authorName}</strong>
+              <ReportButton targetType="COMMENT" targetId={c.id} loggedIn={loggedIn} />
               <p>{c.body}</p>
             </div>
           ))}

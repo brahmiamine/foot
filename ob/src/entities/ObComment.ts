@@ -4,7 +4,7 @@ export type ObCommentTargetType = "POST" | "NEWS";
 
 @Entity("ob_comments")
 export class ObComment {
-  @PrimaryGeneratedColumn({ type: "bigint" })
+  @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: "enum", enum: ["POST", "NEWS"], name: "target_type" })

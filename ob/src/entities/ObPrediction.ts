@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 
 @Entity("ob_predictions")
 export class ObPrediction {
-  @PrimaryGeneratedColumn({ type: "bigint" })
+  @PrimaryGeneratedColumn()
   id!: number;
 
   /** Collation alignée sur `matches.id` (utf8mb4_uca1400_ai_ci) pour permettre les jointures SQL. */

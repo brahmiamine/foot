@@ -10,7 +10,7 @@ export type ObPointsReason = "SIGNUP" | "PREDICTION" | "PREDICTION_EXACT" | "VOT
 
 @Entity("ob_points_ledger")
 export class ObPointsLedgerEntry {
-  @PrimaryGeneratedColumn({ type: "bigint" })
+  @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: "varchar", length: 191, name: "user_id" })

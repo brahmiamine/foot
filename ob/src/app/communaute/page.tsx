@@ -3,6 +3,7 @@ import { PostComposer } from "@/components/PostComposer";
 import { ReactionBar } from "@/components/ReactionBar";
 import { CommentSection } from "@/components/CommentSection";
 import { PollCard } from "@/components/PollCard";
+import { ReportButton } from "@/components/ReportButton";
 import { CommunityFeedService } from "@/services/CommunityFeedService";
 import { PollService } from "@/services/PollService";
 import { getSessionMember } from "@/lib/community/member";
@@ -40,6 +41,8 @@ export default async function CommunautePage() {
             <a href="/pronostics">🔥 Pronostics</a>
             <a href="/classement-supporters">🏆 Classement des supporters</a>
             <a href="/badges">🎖️ Badges</a>
+            <a href="/tribune">📣 Tribune des supporters</a>
+            <a href="/hall-of-fame">👑 Hall of Fame</a>
             <a href="/espace-membre">Mon espace OB</a>
           </div>
 
@@ -83,6 +86,7 @@ export default async function CommunautePage() {
                   <div className={styles.postHeader}>
                     <strong>{post.authorName}</strong>
                     <span className={styles.date}>{formatFullDateTime(post.createdAt)}</span>
+                    <ReportButton targetType="POST" targetId={post.id} loggedIn={!!sessionMember} />
                   </div>
                   <p className={styles.body}>{post.body}</p>
                   <ReactionBar
