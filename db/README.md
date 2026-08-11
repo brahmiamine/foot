@@ -14,3 +14,5 @@ En local, la base réelle est gérée par un conteneur Docker (`mariadb_containe
 - **Divers** : `contact_messages`, `Settings`, `_prisma_migrations` (historique).
 
 Pour le détail des colonnes et des relations, se référer directement au dump ou aux entités TypeORM/Prisma de chaque application.
+
+Pour savoir quelle app a le droit d'écrire quoi (et le processus à suivre pour une migration qui touche une table utilisée par plusieurs apps), voir [`OWNERSHIP.md`](./OWNERSHIP.md).

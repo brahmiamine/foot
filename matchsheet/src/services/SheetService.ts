@@ -1,5 +1,6 @@
 import { getDataSource } from "@/lib/db";
 import { Sheet, SheetStatus } from "@/entities/Sheet";
+import { Match } from "@/entities/Match";
 import { Repository } from "typeorm";
 
 /**
@@ -10,6 +11,11 @@ export class SheetService {
   private async getRepository(): Promise<Repository<Sheet>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(Sheet);
+  }
+
+  private async getMatchRepository(): Promise<Repository<Match>> {
+    const dataSource = await getDataSource();
+    return dataSource.getRepository(Match);
   }
 
   /**
@@ -41,6 +47,29 @@ export class SheetService {
     if (status === "PRE_MATCH_SIGNED") sheet.preMatchSignedAt = new Date();
     if (status === "POST_MATCH_SIGNED") sheet.postMatchSignedAt = new Date();
     if (status === "CLOSED") sheet.closedAt = new Date();
-    return repository.save(sheet);
+    const saved = await repository.save(sheet);
+    await this.mirrorMatchStatus(sheet.matchId, status);
+    return saved;
+  }
+
+  /**
+   * Répercute le statut de la feuille sur `matches.status`
+   * (UPCOMING/IN_PROGRESS/FINISHED/CANCELLED) — colonne partagée déjà lue
+   * par `ob` (résultats, classement) et `billetterie` (fenêtre de vente),
+   * mais jusqu'ici jamais écrite par aucune app : chaque match restait
+   * `UPCOMING` pour toujours, laissant la page résultats/classement d'`ob`
+   * en permanence vide (voir avancement.md, rang 5). `matchsheet` est le
+   * seul endroit qui sait, avec certitude, quand un match démarre et
+   * finit réellement — c'est donc lui qui pilote cette transition, pas
+   * une estimation basée sur la date programmée.
+   */
+  private async mirrorMatchStatus(matchId: string, sheetStatus: SheetStatus): Promise<void> {
+    let matchStatus: Match["status"] | null = null;
+    if (sheetStatus === "IN_PROGRESS") matchStatus = "IN_PROGRESS";
+    if (sheetStatus === "CLOSED") matchStatus = "FINISHED";
+    if (!matchStatus) return;
+
+    const matchRepository = await this.getMatchRepository();
+    await matchRepository.update({ id: matchId }, { status: matchStatus });
   }
 }
