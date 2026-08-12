@@ -37,7 +37,7 @@ présence d'une entité.
 | Contenu club (actus, médias, académie, staff, historique…) | `cms_*` (~35 tables, préfixe `cms_`) | `teamManager` | `ob` (lecture, sous-ensemble public) |
 | Boutique / sponsors (legacy `teamManager`) | `cms_products`, `cms_sponsors`, `shop_*` | `teamManager` | `ob` (lecture) |
 | Billetterie — catégories et règles | `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules` | `teamManager` (`/admin/billetterie`) | `billetterie` (lecture) |
-| Billetterie — achats | `tk_tickets` | `billetterie` | — |
+| Billetterie — achats et contrôle | `tk_tickets`, `tk_ticket_scans` | `billetterie` | — |
 | Marketplace vendeur | `sp_*` (préfixe `sp_`) | `sellerPortal` | — |
 | Audit | `audit_logs` (arbitrage), `AuditLog` (`teamManager`) | `arbinote`/`superadmin` et `teamManager` respectivement (deux journaux d'audit distincts, pas un seul) | — |
 
@@ -195,3 +195,21 @@ base partagée), les règles suivantes s'appliquent dès maintenant :
    naturelle une fois plusieurs apps modifient réellement le même domaine
    en parallèle — pas nécessaire tant que la matrice ci-dessus reste à peu
    près stable (un seul écrivain par domaine, sauf `Card`).
+
+### Procédure explicite — billetterie et marketplace
+
+- **Billetterie (`tk_*`)** : le script est ajouté dans `billetterie/sql` et
+  doit être revu par `billetterie` (achats/contrôle) ainsi que par
+  `teamManager` si catégories ou règles de vente sont touchées. Toute
+  évolution qui référence `matches`, `teams` ou `User` requiert aussi la revue
+  de leurs propriétaires indiqués dans la matrice. Appliquer d'abord une
+  migration additive compatible avec les deux applications, déployer les
+  lecteurs/écrivains, puis seulement retirer un ancien champ dans une migration
+  ultérieure validée par tous.
+- **Marketplace (`sp_*`)** : `sellerPortal` est propriétaire et place le script
+  dans `sellerPortal/sql`. Tant que ces tables vivent dans `foot`, toute clé ou
+  jointure vers `teams` doit être revue par `superadmin`, propriétaire du
+  référentiel. Une future extraction vers une base de Marketplace API suit le
+  même ordre (schéma compatible, double lecture/écriture ou backfill contrôlé,
+  bascule, puis suppression) et ne doit jamais être réalisée par simple
+  déplacement ou renommage destructif des tables.

@@ -29,6 +29,11 @@ Le dépôt ne contient aucun dossier `skote` : il ne s'agit donc pas d'une appli
 |---|---|---|
 | [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les six applications clientes (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob`, `billetterie`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
 
+## Composants partagés non déployables
+
+- [`packages/auth-shared`](./packages/auth-shared) — contrat et helpers de vérification des sessions JWT émises par `sso`, importés par les applications clientes.
+- [`db`](./db) — instantané SQL de la base partagée `foot`, inventaire des écarts avec les migrations et règles de propriété des domaines.
+
 ## Classification des projets — générique vs custom
 
 La règle de contribution est : **aucun composant générique ne connaît un club particulier**. Identité visuelle et contenu propres à l'Olympique de Béja restent dans `ob`; le contexte des applications génériques vient du `teamId` résolu côté serveur.
