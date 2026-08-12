@@ -1,59 +1,69 @@
-# arbinote — site public de notation des arbitres
+# arbinote
 
-Application Next.js (App Router) qui remplace l'ancien "ArbiNote" : un site public permettant aux internautes de noter les arbitres après chaque match, et un back-office pour modérer ces votes, gérer les critères de notation et surveiller les anomalies. Fait partie de l'écosystème `foot` : même base MariaDB partagée (`teams`, `matches`, `Player`, …) que `superadmin`, `teamManager` et `matchsheet`, même SSO que `superadmin`, `teamManager`, `sso`, `matchsheet` et `ob`.
+## Rôle du projet
 
-## Fonctionnalités
+Site public multi-ligues de notation des arbitres et back-office de modération.
 
-### Partie publique
+## Fonctionnalités publiques
 
-- **Accueil, équipes, matchs, journées** : navigation de la hiérarchie fédération → ligue → saison → journée → match, avec fiches équipes et matchs.
-- **Fiches arbitres** (`/arbitres`, `/arbitres/[id]`) avec statistiques individuelles.
-- **Classement des arbitres** (`/classement`) calculé par un algorithme de classement bayésien (`bayesianRanking.ts`), pondérant les votes pour limiter l'effet des petits échantillons ou du vote massif orienté ; export CSV disponible (rate-limité).
-- **Vote** : un formulaire par critère sur la page d'un match ; la note globale n'est jamais envoyée telle quelle par le client, elle est **recalculée côté serveur** à partir des critères soumis pour limiter la triche. Un seul vote par (match, appareil) est autorisé, l'identification se faisant par empreinte d'appareil (`@fingerprintjs/fingerprintjs`) plutôt que par compte utilisateur, avec une contrainte d'unicité en base et un cookie de preuve.
-- **Score de crédibilité d'un match** (`/matches/[id]`) : détection automatique d'anomalies statistiques dans les votes reçus (`voteAnomalyDetection.ts`, `matchCredibility.ts`), affiché en clair pour la transparence.
-- **`/mes-votes`** : historique des votes de l'appareil courant.
-- **`/transparence`** : explication publique de la méthodologie de notation et de détection d'anomalies.
-- **Contact** (`/contact`) et pages légales (mentions légales, CGU, politique de cookies, politique de confidentialité).
-- Multi-ligue : une préférence de ligue active peut être sélectionnée côté client.
-- PWA basique : `manifest.json` + service worker minimal avec mise en cache statique. Reçoit aussi les notifications Web Push (`push`/`notificationclick` dans `public/sw.js`) — abonnement depuis l'en-tête du back-office (`PushSubscribeButton`, `lib/notificationApi.ts` relaie le JWT `sso` vers `notification-api`/`api/push-subscriptions`), voir avancement.md, "Web Push généralisé".
-- i18n : français, anglais, arabe.
+Accueil, matchs et journées; fiches équipes/arbitres; vote anonyme protégé par empreinte et preuve signée; classement, statistiques, crédibilité, mes votes; contact, transparence et pages légales.
 
-### Back-office (`/admin`, réservé au rôle `SUPERADMIN`)
+**Pages inventoriées :** `/arbitres/[id]`, `/arbitres`, `/classement`, `/conditions-generales`, `/contact`, `/journees/[id]`, `/matches/[id]`, `/matches`, `/mentions-legales`, `/mes-votes`, `/`, `/politique-cookies`, `/politique-de-confidentialite`, `/statistic`, `/teams/[id]`, `/teams`, `/transparence`, `/admin/alerts/[id]`, `/admin/alerts`, `/admin/anomalies`, `/admin/contact`, `/admin/criteres`, `/admin`, `/admin/votes`, `/login`
 
-- **Tableau de bord** de synthèse.
-- **Modération des votes** (`/admin/votes`) : liste, détail par match, export CSV.
-- **Anomalies** (`/admin/anomalies`) détectées automatiquement dans les votes.
-- **Alertes** (`/admin/alerts`) de crédibilité (types `critical`/`important`, statuts `new/reviewed/resolved/dismissed`) avec résolution/rejet.
-- **Critères de notation** (`/admin/criteres`) : CRUD des critères utilisés dans le formulaire de vote.
-- **Messages de contact** (`/admin/contact`) reçus depuis le formulaire public.
+## Fonctionnalités administratives
 
-## Authentification
+Tableau de bord; critères; liste, détail, export et modération des votes; détection d'anomalies; alertes à résoudre/ignorer; messages de contact.
 
-- Aucune authentification côté public : identification par empreinte d'appareil uniquement (pas de compte).
-- L'accès au back-office (`/admin/*` et `api/admin/*`) est protégé via `src/lib/adminAuth.ts`, qui délègue à `src/lib/ssoSession.ts` — vérification du cookie JWT partagé (`SSO_COOKIE_NAME`, secret `SSO_JWT_SECRET`, issuer `foot-sso`, bibliothèque `jose`), rôle requis : `SUPERADMIN`. Les comptes sont créés côté `sso` (`pnpm seed:superadmin`) ; l'ancien couple `ADMIN_USER`/`ADMIN_PASS` codé en dur est déprécié.
+## API
 
-## Modèle de données (TypeORM)
+`/api/admin/alerts/[id]/dismiss`, `/api/admin/alerts/[id]/resolve`, `/api/admin/alerts/[id]`, `/api/admin/alerts`, `/api/admin/alerts/stats`, `/api/admin/contact`, `/api/admin/criteres/[id]`, `/api/admin/criteres`, `/api/admin/logout`, `/api/admin/votes/[matchId]/anomalies`, `/api/admin/votes/[matchId]/details`, `/api/admin/votes/anomalies`, `/api/admin/votes/export`, `/api/admin/votes/moderate/[voteId]`, `/api/admin/votes`, `/api/admin/votes/single/[id]`, `/api/arbitres/[id]/stats`, `/api/arbitres`, `/api/classement/export`, `/api/contact`, `/api/contact/user`, `/api/federations`, `/api/health`, `/api/journees/[id]/matches`, `/api/matches/[id]/credibility`, `/api/matches/[id]`, `/api/matches`, `/api/preferences/league`, `/api/push-subscriptions/[deviceId]`, `/api/push-subscriptions`, `/api/uploads/arbitre/[filename]`, `/api/uploads/arbitre`, `/api/uploads/federation/[filename]`, `/api/uploads/federation`, `/api/uploads/league/[filename]`, `/api/uploads/league`, `/api/votes/[matchId]`, `/api/votes/[matchId]/user`, `/api/votes`, `/api/votes/user/[fingerprint]/matches`, `/api/votes/user/[fingerprint]`
 
-`Federation` → `League` → `Saison` → `Journee` → `Match`, avec `Team` et `Arbitre`. Votes (`Vote`, unicité `match_id` + empreinte d'appareil), `VoteAlert` (table `vote_alerts`), `CritereDefinitionEntity` (table `critere_definitions`), `Contact` (table `contact_messages`), `AuditLog`.
+> Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
-## Base de données
+## Authentification et autorisations
 
-Base MySQL/MariaDB (`mysql2` + TypeORM), partagée avec `superadmin` et `teamManager`. Migrations SQL dans `migrations/` :
+Lecture et vote publics. Le vote combine fingerprint, limitation de débit et unicité en base; ce n'est pas une identité forte. Les routes `/api/admin/*` vérifient le cookie JWT SSO et le rôle `SUPERADMIN` (sauf login délégué au SSO).
 
-- `add_is_active_to_federations.sql`
-- `add_is_active_to_leagues.sql`
-- `add_unique_vote_per_match_device.sql`
+## Données possédées
+
+Base partagée `foot`: fédérations, ligues, saisons, journées, matchs, équipes, arbitres; possède votes, critères, contacts, alertes et audit associés.
+
+**Migrations réellement présentes :** `mysql/arbitres.sql` et `drop-old-schema.sql`; migrations audit, IP de vote, champs équipes/catégories, tournois, alertes et modération; `migrations/` active fédérations/ligues et ajoute l'unicité vote-match-device.
+
+## Intégrations
+
+MariaDB partagée; SSO pour l'administration; notification-api pour les alertes/push.
+
+## Variables d’environnement
+
+Copier le fichier réellement versionné :
+
+```bash
+cp .env.example .env.local
+```
+
+Variables déclarées dans `.env.example` : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_LOGGING`, `NEXT_PUBLIC_BASE_URL`, `SSO_URL`, `NEXT_PUBLIC_SSO_URL`, `SSO_JWT_SECRET`, `SSO_COOKIE_NAME`, `SSO_COOKIE_DOMAIN`, `FINGERPRINT_PROOF_SECRET`, `NOTIFICATION_API_URL`, `NOTIFICATION_API_KEY`, `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY`, `NEXT_PUBLIC_GOOGLE_VERIFICATION`, `NEXT_PUBLIC_YAHOO_VERIFICATION`, `NEXT_PUBLIC_YANDEX_VERIFICATION`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
 
 ## Démarrage
 
+Prérequis : Node.js, pnpm, et les dépendances MariaDB/Redis éventuelles configurées.
+
 ```bash
-cp .env.example .env.local   # renseigner DB_*, SSO_JWT_SECRET, SSO_COOKIE_NAME, etc.
 pnpm install
-pnpm run dev        # http://localhost:3000 (voir aussi ./start.sh à la racine du repo)
+pnpm dev
+pnpm build
+pnpm start
+pnpm lint
 ```
+
+**Port :** 3000 via `PORT=3000` dans `../start.sh`; sinon Next choisit 3000.
+
+Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `superadmin` et `teamManager`, avec MariaDB partagée. Les autres projets se lancent séparément. `payment-api` et `notification-api` possèdent leur base; `marketplace-api` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (sellerPortal inclus).
 
 ## Tests
 
-```bash
-pnpm test        # Vitest : bayesianRanking, voteAnomalyDetection, voteWeighting, apiError, imageHost, voteFiltering
-```
+`pnpm test`, `pnpm test:i18n`. Les scripts `lint` des API NestJS utilisent `--fix` et peuvent donc modifier les fichiers.
+
+## Limites connues
+
+Le fingerprint peut être contourné et ne remplace pas un compte. Les uploads sont locaux. Les alertes/anomalies sont une aide à la modération, pas une preuve de fraude.
