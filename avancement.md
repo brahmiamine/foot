@@ -21,7 +21,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P1 | E07 – Notifications fiables | ⏳ | éviter la perte d'événements métiers via outbox |
 | P1 | E08 – Sécurisation SSO | 🔄 | réduire les risques liés à HS256/fail-open |
 | P1 | E09 – Ownership des domaines | ⏳ | réduire les écritures DB cross-projects |
-| P1 | E10 – CI et tests | 🔄 | exécuter les tests existants sur tous les projets |
+| P1 | E10 – CI et tests | 🔄 | exécuter les tests existants sur tous les projets (TS-33 ✅, TS-34 ✅, TS-35 ✅, TS-36 ⏳) |
 | P1 | E11 – Billetterie supporters | 🔄 | renforcer le contrôle de l'audience avec scanner/offline |
 | P2 | E12 – ArbiNote audit | ✅ | compléter traçabilité et modération |
 | P2 | E13 – Live temps réel | ⏳ | remplacer progressivement le polling par SSE/WebSocket |
@@ -503,6 +503,13 @@ l'instant — ce point sera à traiter quand ce circuit sera branché.
   `SellerOrder` déjà existantes (voir Epic E05/E06, `MarketOrder`). Pas de
   vue vendeur/club pour déclencher ces transitions depuis une UI — API
   uniquement pour l'instant.
+- **Découverte (voir TS-35)** : `sellerPortal` a sa propre implémentation
+  TypeORM directe de ce même cycle de fulfillment (`sp_seller_orders`),
+  antérieure et non migrée par TS-04 — les deux implémentations coexistent
+  sans conflit actif tant qu'aucun flux de création de commande réel
+  n'existe, mais devront être réconciliées (une seule source de vérité,
+  probablement `marketplace-api` via HTTP comme pour les produits) avant
+  qu'un vrai tunnel d'achat ne soit branché.
 - Notification membre (US-24) hors périmètre : `MarketOrder` ne porte
   qu'un email/nom déclaratif, pas de compte SSO, et `marketplace-api` n'a
   pas d'outbox notification à ce jour (voir Epic E07/TS-25).
@@ -915,16 +922,56 @@ Testé (49 tests au total, dont 43 nouveaux) :
 
 ## TS-35 — Tests SellerPortal
 
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
-Tester :
+`sellerPortal` avait déjà un harnais vitest + SQLite en mémoire et un
+premier test (`src/lib/authz.test.ts`, couvrant déjà l'essentiel de
+« isolation vendeurs » et « accès croisé refusé » : `requireSellerSession`,
+`requireActiveSeller` selon le statut du compte, `assertOwnedBySeller` —
+404 jamais 403, pour ne rien révéler à un vendeur non autorisé). Complété
+avec 4 nouveaux fichiers de test (37 tests au total sur ce périmètre) :
 
-- isolation vendeurs ;
-- accès croisé refusé ;
-- transitions produits ;
-- transitions commandes ;
-- stock ;
-- shipping.
+- **transitions commandes** — `src/app/api/orders/[id]/status/route.test.ts`
+  (5 cas : progression autorisée, saut d'étape refusé, `SHIPPED` refusé sur
+  cet endpoint — doit passer par `/shipping` —, 404 cross-vendeur, session
+  requise) ;
+- **shipping** — `src/app/api/orders/[id]/shipping/route.test.ts` (4 cas :
+  expédition depuis `READY_TO_SHIP` avec transporteur/suivi/date
+  enregistrés, refus hors `READY_TO_SHIP`, validation du corps, 404
+  cross-vendeur) ;
+- **stock** — `src/app/api/inventory/[id]/route.test.ts` (4 cas : mise à
+  jour de `available`, 404 cross-vendeur sans mutation, valeur négative
+  refusée, session requise) ;
+- **transitions produits** — `src/lib/marketplaceApiClient.test.ts` (7 cas)
+  : depuis TS-04, `sellerPortal` ne fait plus les transitions produit
+  elle-même, elle les délègue en HTTP à `marketplace-api`
+  (`internal/products/*`) — testé ici : configuration manquante,
+  construction de la requête (URL, `x-api-key`, `sellerId` encodé), et
+  propagation d'une transition refusée (409) ou d'une erreur non-JSON
+  comme erreur côté appelant.
+
+### Découverte annexe (à traiter séparément, hors périmètre de ce ticket)
+
+En testant `/api/orders/[id]/status` et `/api/orders/[id]/shipping`, on
+constate que `sellerPortal` a déjà sa **propre** implémentation complète du
+cycle de fulfillment `SellerOrder` (mêmes statuts, même table
+`sp_seller_orders`) en TypeORM direct — assumé et documenté au niveau de
+l'entité (`sellerPortal/src/entities/MarketOrder.ts` : *« Dans
+l'architecture cible cette table appartient à la Marketplace API ; elle
+est répliquée ici uniquement pour permettre au Seller Portal de
+fonctionner de façon autonome en V1 »*), mais jamais mentionné dans ce
+document jusqu'ici. Cela signifie que le fulfillment `seller-orders`
+livré côté `marketplace-api` (Epic E06, TS-20 à US-24) et celui déjà
+présent côté `sellerPortal` sont aujourd'hui **deux implémentations
+parallèles** de la même logique sur la même table, avec des règles de
+transition et des mécanismes d'authentification distincts (JWT vendeur
+`marketplace-api` vs session propre `SP_JWT_SECRET`) — sans conflit actif
+aujourd'hui puisqu'aucune des deux n'est branchée à un vrai flux de
+création de commande (aucun tunnel d'achat marketplace n'existe encore,
+voir Epic E05/E06). À réconcilier avant qu'un vrai flux de commande
+n'existe : migrer `sellerPortal` vers `marketplace-api` pour le
+fulfillment aussi, sur le modèle déjà appliqué aux produits (TS-04),
+plutôt que de laisser les deux coexister.
 
 ## TS-36 — Tests OB
 
@@ -1603,7 +1650,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Portail vendeur fonctionnel
 ✅ Workflow de modération fermé (côté teamManager, cf. `teamManager` ci-dessus)
 ✅ Migré vers Marketplace API pour les écritures produit (TS-04) — create/update/delete/submit/withdraw/toggle-active
-⏳ Tests isolation multi-vendeurs
+✅ Tests isolation multi-vendeurs (TS-35) — authz + transitions commandes/shipping/stock + délégation produit
 ⏳ Intégration payment-api
 ⏳ Intégration notification-api
 ⏳ Returns API
