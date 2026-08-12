@@ -10,7 +10,8 @@ interface VoteSectionWrapperProps {
   arbitreId: string;
   arbitreNom: string;
   criteresDefs: CritereDefinition[];
-  matchDate?: string | null;
+  matchStatus?: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED' | null;
+  actualStartedAt?: string | null;
 }
 
 export default function VoteSectionWrapper({
@@ -18,7 +19,8 @@ export default function VoteSectionWrapper({
   arbitreId,
   arbitreNom,
   criteresDefs,
-  matchDate,
+  matchStatus,
+  actualStartedAt,
 }: VoteSectionWrapperProps) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -34,7 +36,8 @@ export default function VoteSectionWrapper({
         arbitreId={arbitreId}
         arbitreNom={arbitreNom}
         criteresDefs={criteresDefs}
-        matchDate={matchDate}
+        matchStatus={matchStatus}
+        actualStartedAt={actualStartedAt}
         onSuccess={handleVoteSuccess}
       />
       <AlreadyVotedSection

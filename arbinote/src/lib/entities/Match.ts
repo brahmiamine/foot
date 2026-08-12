@@ -53,6 +53,21 @@ export class Match {
   @Column({ type: 'int', nullable: true })
   score_away?: number | null
 
+  /**
+   * Écrit uniquement par `matchsheet` (démarrage/fin réels de la feuille de
+   * match) et par `superadmin` (CANCELLED). ArbiNote ne l'écrit jamais,
+   * seulement le lit pour n'autoriser les votes que sur un match réellement
+   * commencé — voir canVoteMatch dans lib/utils.ts.
+   */
+  @Column({ type: 'enum', enum: ['UPCOMING', 'IN_PROGRESS', 'FINISHED', 'CANCELLED'], default: 'UPCOMING' })
+  status!: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
+
+  @Column({ type: 'datetime', nullable: true, name: 'actual_started_at' })
+  actual_started_at?: Date | null
+
+  @Column({ type: 'datetime', nullable: true, name: 'actual_finished_at' })
+  actual_finished_at?: Date | null
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 }

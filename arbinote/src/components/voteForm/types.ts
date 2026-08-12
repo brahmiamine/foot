@@ -5,7 +5,8 @@ export interface VoteFormProps {
   arbitreId: string;
   arbitreNom: string;
   criteresDefs: CritereDefinition[];
-  matchDate?: string | null;
+  matchStatus?: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED' | null;
+  actualStartedAt?: string | null;
   onSuccess?: () => void;
 }
 

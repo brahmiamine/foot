@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     // Vérifier que le match existe
     const match = await matchRepo.findOne({
-      select: ['id', 'arbitre_id', 'date'],
+      select: ['id', 'arbitre_id', 'date', 'status', 'actual_started_at'],
       where: { id: match_id },
     })
 
@@ -77,10 +77,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Vérifier que le match peut être voté (arbitre attribué, match commencé et au moins 30 min écoulées)
-    if (!canVoteMatch({ arbitre_id: match.arbitre_id, date: match.date?.toISOString() })) {
+    // Vérifier que le match peut être voté (arbitre attribué, statut réel IN_PROGRESS/FINISHED et au moins 30 min écoulées depuis actual_started_at)
+    if (
+      !canVoteMatch({
+        arbitre_id: match.arbitre_id,
+        status: match.status,
+        actual_started_at: match.actual_started_at,
+      })
+    ) {
       return NextResponse.json(
-        { error: 'Cannot vote: match has no referee assigned, match has not started yet, or less than 30 minutes have elapsed since the match started' },
+        { error: 'Cannot vote: match has no referee assigned, match has not actually started yet (or was cancelled), or less than 30 minutes have elapsed since the match started' },
         { status: 400 }
       )
     }

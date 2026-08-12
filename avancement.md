@@ -12,7 +12,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 
 | Priorité | Epic | Statut | Objectif |
 |---|---|---|---|
-| P0 | E01 – Cohérence Match / ArbiNote | ⏳ | empêcher les votes sur matchs non réellement commencés |
+| P0 | E01 – Cohérence Match / ArbiNote | ✅ | empêcher les votes sur matchs non réellement commencés |
 | P0 | E02 – Marketplace API | 🔄 | compléter le domaine marketplace multi-vendeurs |
 | P0 | E03 – Modération Marketplace | ✅ | permettre au club de valider/rejeter les produits vendeurs |
 | P0 | E04 – Fiabilité événements paiement | ⏳ | garantir les événements post-paiement via outbox transactionnel |
@@ -37,16 +37,17 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 
 # EPIC E01 — Cohérence Matchsheet / ArbiNote
 
-**Priorité : P0**
+**Priorité : P0**  
+**Statut :** ✅ Livré
 
 ## US-01 — Utiliser le statut réel du match pour autoriser les votes
 
 **Projet :** `arbinote`  
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
-### Problème
+### Problème (résolu)
 
-La fonction `canVoteMatch()` utilise actuellement `arbitre attribué + date programmée dépassée de 30 minutes`. Elle n'utilise pas `matches.status`.
+`canVoteMatch()` utilisait `arbitre attribué + date programmée dépassée de 30 minutes`, sans jamais lire `matches.status`. Elle utilise désormais `arbitre_id`, `matches.status` et `matches.actual_started_at` (voir TS-02).
 
 ### User Story
 
@@ -62,23 +63,23 @@ AND actual_started_at + 30 min <= now
 
 ### Critères d'acceptation
 
-- `UPCOMING` → vote impossible.
-- `CANCELLED` → vote impossible.
-- `IN_PROGRESS` depuis moins de 30 minutes → impossible.
-- `IN_PROGRESS` depuis au moins 30 minutes → possible.
-- `FINISHED` → possible selon la politique de délai.
-- les règles sont contrôlées côté API, pas uniquement côté frontend.
-- tests unitaires présents.
+- `UPCOMING` → vote impossible. ✅
+- `CANCELLED` → vote impossible. ✅
+- `IN_PROGRESS` depuis moins de 30 minutes → impossible. ✅
+- `IN_PROGRESS` depuis au moins 30 minutes → possible. ✅
+- `FINISHED` → possible selon la politique de délai. ✅
+- les règles sont contrôlées côté API, pas uniquement côté frontend. ✅ (`POST /api/votes` relit `status`/`actual_started_at` en base et rejette avec 400 si `canVoteMatch()` renvoie faux — le frontend ne fait que refléter la même règle pour l'UX, il ne peut pas la contourner).
+- tests unitaires présents. ✅ (`arbinote/src/lib/utils.test.ts`, 9 cas : arbitre absent, `UPCOMING`, `CANCELLED`, `IN_PROGRESS` < 30 min, `IN_PROGRESS`/`FINISHED` ≥ 30 min, `FINISHED` sans `actual_started_at`, `IN_PROGRESS` sans `actual_started_at`, statut absent).
 
 ### Notes d'avancement
 
-- Vote actuellement sans compte : repose sur empreinte appareil/cookie, pas d'authentification.
-- 4 erreurs de lint react-hooks non traitées : `HomeClient`, `LiveMatchBadge`, `ThemeToggle`, `VotedBadge`.
+- Vote actuellement sans compte : repose sur empreinte appareil/cookie, pas d'authentification (hors périmètre de cette US, reste ouvert).
+- 4 erreurs de lint react-hooks non traitées : `HomeClient`, `LiveMatchBadge`, `ThemeToggle`, `VotedBadge` (hors périmètre de cette US, reste ouvert).
 
 ## TS-02 — Ajouter l'heure réelle de début du match
 
 **Projet :** `matchsheet` / référentiel `matches`  
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
 Ajouter les champs :
 
@@ -107,14 +108,15 @@ matches.actual_finished_at = now
 
 ### Critères
 
-- l'heure programmée reste séparée de l'heure réelle ;
-- une réouverture de feuille ne doit pas écraser l'heure initiale sans règle explicite.
+- l'heure programmée reste séparée de l'heure réelle ; ✅ (`matches.date` reste l'horaire programmé, `actual_started_at`/`actual_finished_at` sont des colonnes distinctes, migration `superadmin/mysql/migration_add_match_actual_times.sql`).
+- une réouverture de feuille ne doit pas écraser l'heure initiale sans règle explicite. ✅ (`SheetService.mirrorMatchStatus` ne fixe `actual_started_at` qu'au tout premier passage `IN_PROGRESS` ; `reopenMatchAdmin` côté superadmin efface `actual_finished_at` sans jamais toucher `actual_started_at`).
 
 ### Notes d'avancement
 
 - Les services de saisie live (`CardEventService`, `GoalService`, `InjuryService`, `SubstitutionService`) refusent désormais toute écriture quand la feuille est `CLOSED` ✅
 - Une feuille rouverte par `superadmin` redevient éditable ✅
 - Réouverture d'un match `FINISHED` en place : motif requis, audit horodaté, notification aux clubs ✅
+- `matches.actual_started_at`/`actual_finished_at` alimentés par `SheetService.mirrorMatchStatus` (`matchsheet`), consommés par `canVoteMatch()` (`arbinote`, voir US-01) ✅ — tests `matchsheet/src/services/SheetService.test.ts` (4 cas) et `superadmin/src/lib/adminMatches.reopen.test.ts` (assertions ajoutées sur la préservation/nettoyage de ces deux colonnes à la réouverture).
 
 ---
 
@@ -1261,7 +1263,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ```text
 ✅ Services saisie live refusent écriture si CLOSED
 ✅ Réouverture de feuille editable
-⏳ actual_started_at / actual_finished_at
+✅ actual_started_at / actual_finished_at
 ⏳ Event publishing
 ⏳ Réduire écritures dans domaines TeamManager
 ⏳ Activer tests CI
@@ -1297,8 +1299,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ## `arbinote`
 
 ```text
-⏳ Utiliser statut réel match pour autoriser votes
-⏳ Bloquer CANCELLED
+✅ Utiliser statut réel match pour autoriser votes
+✅ Bloquer CANCELLED
 ⏳ Vote authentifié (actuellement sans compte)
 ⏳ reviewed_by alimenté
 ⏳ Audit complet modération
@@ -1390,8 +1392,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 ```text
 ✅ TS-33 tests CI existants (activé)
-⏳ US-01 ArbiNote status réel
-⏳ TS-02 actualStartedAt
+✅ US-01 ArbiNote status réel
+✅ TS-02 actualStartedAt
 ⏳ TS-39 reviewed_by
 ```
 
@@ -1449,7 +1451,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 # Priorités immédiates recommandées
 
-1. **Corriger ArbiNote / statut réel du match (US-01, TS-02)** : petit développement, impact métier élevé.
+1. ~~Corriger ArbiNote / statut réel du match (US-01, TS-02)~~ ✅ Livré (12/08/2026).
 2. **Activer les tests existants dans la CI (TS-33)** avant d'entreprendre les gros refactorings.
 3. **Introduire Transactional Outbox dans Payment API (TS-12)**.
 4. **Compléter le fulfillment des commandes (TS-20 à US-24)**.

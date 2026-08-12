@@ -7,7 +7,7 @@ import SuccessModal from "./voteForm/SuccessModal";
 import { useVoteForm } from "./voteForm/useVoteForm";
 import type { VoteFormProps } from "./voteForm/types";
 
-export default function VoteForm({ matchId, arbitreId, arbitreNom, criteresDefs, matchDate, onSuccess }: VoteFormProps) {
+export default function VoteForm({ matchId, arbitreId, arbitreNom, criteresDefs, matchStatus, actualStartedAt, onSuccess }: VoteFormProps) {
   const {
     t,
     locale,
@@ -26,7 +26,7 @@ export default function VoteForm({ matchId, arbitreId, arbitreNom, criteresDefs,
     noteGlobale,
     handleSubmit,
     handleCloseSuccessModal,
-  } = useVoteForm({ matchId, arbitreId, arbitreNom, criteresDefs, matchDate, onSuccess });
+  } = useVoteForm({ matchId, arbitreId, arbitreNom, criteresDefs, matchStatus, actualStartedAt, onSuccess });
 
   // Afficher un loader pendant la vérification
   if (checkingVote) {

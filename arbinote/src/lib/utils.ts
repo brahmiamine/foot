@@ -129,38 +129,47 @@ export function getJourneeDisplayName(
   return 'Journée'
 }
 
+const VOTE_DELAY_MINUTES = 30
+
 /**
- * Vérifie si un match peut être voté
- * Conditions:
- * - Le match doit avoir un arbitre attribué
- * - La date/heure du match doit être dans le passé
- * - Au moins 30 minutes doivent s'être écoulées depuis le début du match
+ * Vérifie si un match peut être voté, à partir du statut réel du match
+ * (matches.status, matches.actual_started_at) plutôt que de la date
+ * programmée — voir avancement.md, US-01 : la date programmée peut être
+ * dépassée sans que le match n'ait réellement commencé (retard, report non
+ * reflété, match annulé...), ce qui autorisait des votes prématurés.
+ *
+ * Conditions :
+ * - un arbitre doit être attribué ;
+ * - le match doit être IN_PROGRESS ou FINISHED (jamais UPCOMING ni CANCELLED) ;
+ * - au moins 30 minutes doivent s'être écoulées depuis actual_started_at.
  */
-export function canVoteMatch(match: { arbitre_id?: string | null; date?: string | null }): boolean {
+export function canVoteMatch(match: {
+  arbitre_id?: string | null
+  status?: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED' | null
+  actual_started_at?: string | Date | null
+}): boolean {
   // Vérifier que l'arbitre est attribué
   if (!match.arbitre_id) {
     return false
   }
 
-  // Si pas de date, on ne peut pas voter
-  if (!match.date) {
+  // Le match doit avoir réellement commencé — jamais UPCOMING ni CANCELLED
+  if (match.status !== 'IN_PROGRESS' && match.status !== 'FINISHED') {
     return false
   }
 
-  const matchDate = new Date(match.date)
+  // Un match FINISHED a nécessairement dépassé le délai (il a démarré puis
+  // s'est terminé), mais on vérifie quand même actual_started_at s'il est
+  // disponible pour rester cohérent avec la règle de délai.
+  if (!match.actual_started_at) {
+    return match.status === 'FINISHED'
+  }
+
+  const startedAt = typeof match.actual_started_at === 'string' ? new Date(match.actual_started_at) : match.actual_started_at
   const now = new Date()
+  const diffMinutes = Math.floor((now.getTime() - startedAt.getTime()) / (1000 * 60))
 
-  // Vérifier que la date/heure du match est passée
-  if (matchDate > now) {
-    return false
-  }
-
-  // Calculer la différence en millisecondes
-  const diffMs = now.getTime() - matchDate.getTime()
-  const diffMinutes = Math.floor(diffMs / (1000 * 60))
-
-  // Au moins 30 minutes doivent s'être écoulées depuis le début du match
-  return diffMinutes >= 30
+  return diffMinutes >= VOTE_DELAY_MINUTES
 }
 
 /**

@@ -129,8 +129,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const locale = await getServerLocale();
   const t = (key: string, params?: Record<string, string | number>) => translate(key, locale, params);
   const arbitre = (match.arbitre || null) as unknown as ArbitreType | null;
-  const matchDateISO = match.date ? (typeof match.date === "string" ? match.date : match.date.toISOString()) : null;
-  const canVote = canVoteMatch({ arbitre_id: match.arbitre_id, date: matchDateISO });
+  const actualStartedAtISO = match.actual_started_at
+    ? (typeof match.actual_started_at === "string" ? match.actual_started_at : match.actual_started_at.toISOString())
+    : null;
+  const canVote = canVoteMatch({ arbitre_id: match.arbitre_id, status: match.status, actual_started_at: actualStartedAtISO });
   const journeeLabel = match.journee?.numero;
   const saisonLabel = match.journee?.saison?.nom;
   const homeName = getLocalizedName(locale, {
@@ -407,7 +409,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           arbitreId={arbitre.id}
           arbitreNom={refereeName ?? arbitre.nom}
           criteresDefs={criteresDefinitions}
-          matchDate={matchDateISO}
+          matchStatus={match.status}
+          actualStartedAt={actualStartedAtISO}
         />
       )}
 
@@ -416,14 +419,16 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       )}
 
       {arbitre && typeof arbitre === "object" && !canVote && (() => {
-        const matchDate = match.date ? (typeof match.date === "string" ? new Date(match.date) : match.date) : null;
-        const now = new Date();
         let reasonMessage = t("matchDetail.cannotVote");
 
-        if (matchDate && matchDate > now) {
+        if (match.status === "CANCELLED") {
+          reasonMessage = t("matchDetail.matchCancelled") || "Ce match a été annulé, le vote n'est pas possible.";
+        } else if (match.status === "UPCOMING" || !match.status) {
           reasonMessage = t("matchDetail.matchNotStarted") || "Le match n'a pas encore commencé.";
-        } else if (matchDate) {
-          const diffMs = now.getTime() - matchDate.getTime();
+        } else if (actualStartedAtISO) {
+          const startedAt = new Date(actualStartedAtISO);
+          const now = new Date();
+          const diffMs = now.getTime() - startedAt.getTime();
           const diffMinutes = Math.floor(diffMs / (1000 * 60));
           if (diffMinutes < 30) {
             const remainingMinutes = 30 - diffMinutes;
