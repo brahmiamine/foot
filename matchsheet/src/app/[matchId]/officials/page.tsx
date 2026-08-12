@@ -3,6 +3,7 @@ import { MatchService } from "@/services/MatchService";
 import { SheetService } from "@/services/SheetService";
 import { MatchOfficialService } from "@/services/MatchOfficialService";
 import { OfficialsForm } from "./OfficialsForm";
+import { serverTranslate } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,10 @@ export default async function OfficialsPage({ params }: { params: Promise<{ matc
 
   const sheet = await sheetService.getOrCreate(matchId);
   const officials = await officialService.findBySheet(sheet.id);
+  const [homeTeamFallback, awayTeamFallback] = await Promise.all([
+    serverTranslate("teams.home"),
+    serverTranslate("teams.away"),
+  ]);
 
   const officialsData = officials.map((o) => ({
     role: o.role,
@@ -32,8 +37,8 @@ export default async function OfficialsPage({ params }: { params: Promise<{ matc
     <OfficialsForm
       matchId={matchId}
       sheetId={sheet.id}
-      homeTeamName={match.homeTeam?.nom ?? "Équipe domicile"}
-      awayTeamName={match.awayTeam?.nom ?? "Équipe extérieure"}
+      homeTeamName={match.homeTeam?.nom ?? homeTeamFallback}
+      awayTeamName={match.awayTeam?.nom ?? awayTeamFallback}
       officials={officialsData}
     />
   );

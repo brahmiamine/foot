@@ -156,10 +156,10 @@ export function LiveMatchSheet({
     try {
       const result = await startMatch(sheetId, matchId);
       if (result.success) {
-        setSuccess(result.message ?? t("events.live.started"));
+        setSuccess(result.message ? t(result.message, result.messageParams) : t("events.live.started"));
         refresh();
       } else {
-        setError(result.error);
+        setError(t(result.error, result.errorParams));
       }
     } finally {
       setStartingMatch(false);
@@ -353,14 +353,14 @@ function CardsSection({
     try {
       const result = await addCard(sheetId, matchId, playerId, type, minute ? Number(minute) : null, period, cardReasonId || null, comment || null);
       if (result.success) {
-        setSuccess(result.message ?? t("events.card.messages.saved"));
+        setSuccess(result.message ? t(result.message, result.messageParams) : t("events.card.messages.saved"));
         setPlayerId("");
         setMinute("");
         setCardReasonId("");
         setComment("");
         refresh();
       } else {
-        setError(result.error);
+        setError(t(result.error, result.errorParams));
       }
     } finally {
       setAdding(false);
@@ -373,7 +373,7 @@ function CardsSection({
     try {
       const result = await deleteCard(id, matchId);
       if (result.success) refresh();
-      else setError(result.error);
+      else setError(t(result.error, result.errorParams));
     } finally {
       setDeletingId(null);
     }
@@ -613,14 +613,14 @@ function GoalsSection({
     try {
       const result = await addGoal(sheetId, matchId, teamId, playerId || null, Number(minute), period, isOwnGoal, isPenalty);
       if (result.success) {
-        setSuccess(result.message ?? t("events.goal.messages.saved"));
+        setSuccess(result.message ? t(result.message, result.messageParams) : t("events.goal.messages.saved"));
         setPlayerId("");
         setMinute("");
         setIsOwnGoal(false);
         setIsPenalty(false);
         refresh();
       } else {
-        setError(result.error);
+        setError(t(result.error, result.errorParams));
       }
     } finally {
       setAdding(false);
@@ -633,7 +633,7 @@ function GoalsSection({
     try {
       const result = await deleteGoal(id, matchId);
       if (result.success) refresh();
-      else setError(result.error);
+      else setError(t(result.error, result.errorParams));
     } finally {
       setDeletingId(null);
     }
@@ -838,7 +838,7 @@ function InjuriesSection({
         requiresSubstitution,
       );
       if (result.success) {
-        setSuccess(result.message ?? t("events.injury.messages.saved"));
+        setSuccess(result.message ? t(result.message, result.messageParams) : t("events.injury.messages.saved"));
         setPlayerId("");
         setMinute("");
         setPeriod("");
@@ -846,7 +846,7 @@ function InjuriesSection({
         setRequiresSubstitution(false);
         refresh();
       } else {
-        setError(result.error);
+        setError(t(result.error, result.errorParams));
       }
     } finally {
       setAdding(false);
@@ -859,7 +859,7 @@ function InjuriesSection({
     try {
       const result = await deleteInjury(id, matchId);
       if (result.success) refresh();
-      else setError(result.error);
+      else setError(t(result.error, result.errorParams));
     } finally {
       setDeletingId(null);
     }
@@ -1057,13 +1057,13 @@ function SubstitutionsSection({
     try {
       const result = await addSubstitution(sheetId, matchId, teamId, playerOutId, playerInId, Number(minute), period);
       if (result.success) {
-        setSuccess(result.message ?? t("events.substitution.messages.saved"));
+        setSuccess(result.message ? t(result.message, result.messageParams) : t("events.substitution.messages.saved"));
         setPlayerOutId("");
         setPlayerInId("");
         setMinute("");
         refresh();
       } else {
-        setError(result.error);
+        setError(t(result.error, result.errorParams));
       }
     } finally {
       setAdding(false);
@@ -1076,7 +1076,7 @@ function SubstitutionsSection({
     try {
       const result = await deleteSubstitution(id, matchId);
       if (result.success) refresh();
-      else setError(result.error);
+      else setError(t(result.error, result.errorParams));
     } finally {
       setDeletingId(null);
     }

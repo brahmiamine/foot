@@ -115,7 +115,7 @@ function OfficialCard({
       if (result.success) {
         onSaved();
       } else {
-        setError(result.error || t("common.errors.save"));
+        setError(result.error ? t(result.error, result.errorParams) : t("common.errors.save"));
       }
     } finally {
       setSaving(false);
@@ -135,7 +135,7 @@ function OfficialCard({
       if (result.success) {
         onSaved();
       } else {
-        setError(result.error || t("common.errors.validation"));
+        setError(result.error ? t(result.error, result.errorParams) : t("common.errors.validation"));
       }
     } finally {
       setConfirming(false);

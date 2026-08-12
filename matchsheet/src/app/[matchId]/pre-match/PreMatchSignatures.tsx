@@ -82,7 +82,7 @@ export function PreMatchSignatures({
       if (result.success) {
         router.push(`/${matchId}/live`);
       } else {
-        setPageError(result.error || t("common.errors.confirm"));
+        setPageError(result.error ? t(result.error, result.errorParams) : t("common.errors.confirm"));
       }
     } finally {
       setConfirming(false);
@@ -202,9 +202,9 @@ function SignatureSlot({
       if (result.success) {
         setEditing(false);
         setPendingSignature(null);
-        onSaved(result.message ?? t("signatures.messages.saved"));
+        onSaved(result.message ? t(result.message, result.messageParams) : t("signatures.messages.saved"));
       } else {
-        setError(result.error || t("common.errors.save"));
+        setError(result.error ? t(result.error, result.errorParams) : t("common.errors.save"));
       }
     } finally {
       setSaving(false);
@@ -328,7 +328,7 @@ function ReservationsSection({
         setContent("");
         onChanged();
       } else {
-        setError(result.error || t("common.errors.add"));
+        setError(result.error ? t(result.error, result.errorParams) : t("common.errors.add"));
       }
     } finally {
       setSubmitting(false);
@@ -343,7 +343,7 @@ function ReservationsSection({
       if (result.success) {
         onChanged();
       } else {
-        setError(result.error || t("common.errors.delete"));
+        setError(result.error ? t(result.error, result.errorParams) : t("common.errors.delete"));
       }
     } finally {
       setDeletingId(null);

@@ -1,7 +1,5 @@
 "use server";
 
-import { serverTranslate } from "@/lib/i18n/server";
-
 import { revalidatePath } from "next/cache";
 import { CardEventService } from "@/services/CardEventService";
 import { GoalService } from "@/services/GoalService";
@@ -9,8 +7,7 @@ import { InjuryService } from "@/services/InjuryService";
 import { SubstitutionService } from "@/services/SubstitutionService";
 import { SheetService } from "@/services/SheetService";
 import type { CardType, MatchPeriod } from "@/entities/Card";
-
-type ActionResult = { success: true; message?: string } | { success: false; error: string };
+import type { ActionResult } from "@/lib/i18n/actionFeedback";
 
 /** Ajoute un carton (jaune/rouge/double jaune) — écrit directement dans la table Card partagée. */
 export async function addCard(
@@ -24,13 +21,13 @@ export async function addCard(
   commentFr: string | null,
 ): Promise<ActionResult> {
   try {
-    if (!playerId) return { success: false, error: await serverTranslate("events.validation.selectPlayer") };
+    if (!playerId) return { success: false, error: "events.validation.selectPlayer" };
     const cardEventService = new CardEventService();
     await cardEventService.create({ sheetId, matchId, playerId, type, minute, period, cardReasonId, commentFr });
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "Carton enregistré" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'ajout du carton" };
+    return { success: true, message: "actions.events.card.saved" };
+  } catch {
+    return { success: false, error: "actions.events.card.addError" };
   }
 }
 
@@ -39,9 +36,9 @@ export async function deleteCard(id: string, matchId: string): Promise<ActionRes
     const cardEventService = new CardEventService();
     await cardEventService.delete(id);
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "Carton supprimé" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la suppression du carton" };
+    return { success: true, message: "actions.events.card.deleted" };
+  } catch {
+    return { success: false, error: "actions.events.card.deleteError" };
   }
 }
 
@@ -57,13 +54,13 @@ export async function addGoal(
   isPenalty: boolean,
 ): Promise<ActionResult> {
   try {
-    if (!teamId) return { success: false, error: await serverTranslate("events.validation.selectTeam") };
+    if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     const goalService = new GoalService();
     await goalService.create({ sheetId, matchId, teamId, playerId, minute, period, isOwnGoal, isPenalty });
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "But enregistré" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'ajout du but" };
+    return { success: true, message: "actions.events.goal.saved" };
+  } catch {
+    return { success: false, error: "actions.events.goal.addError" };
   }
 }
 
@@ -72,9 +69,9 @@ export async function deleteGoal(id: number, matchId: string): Promise<ActionRes
     const goalService = new GoalService();
     await goalService.delete(id);
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "But supprimé" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la suppression du but" };
+    return { success: true, message: "actions.events.goal.deleted" };
+  } catch {
+    return { success: false, error: "actions.events.goal.deleteError" };
   }
 }
 
@@ -90,13 +87,13 @@ export async function addInjury(
   requiresSubstitution: boolean,
 ): Promise<ActionResult> {
   try {
-    if (!teamId) return { success: false, error: await serverTranslate("events.validation.selectTeam") };
+    if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     const injuryService = new InjuryService();
     await injuryService.create({ sheetId, matchId, teamId, playerId, minute, period, description, requiresSubstitution });
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "Blessure enregistrée" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'ajout de la blessure" };
+    return { success: true, message: "actions.events.injury.saved" };
+  } catch {
+    return { success: false, error: "actions.events.injury.addError" };
   }
 }
 
@@ -105,9 +102,9 @@ export async function deleteInjury(id: number, matchId: string): Promise<ActionR
     const injuryService = new InjuryService();
     await injuryService.delete(id);
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "Blessure supprimée" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la suppression de la blessure" };
+    return { success: true, message: "actions.events.injury.deleted" };
+  } catch {
+    return { success: false, error: "actions.events.injury.deleteError" };
   }
 }
 
@@ -122,15 +119,15 @@ export async function addSubstitution(
   period: MatchPeriod,
 ): Promise<ActionResult> {
   try {
-    if (!teamId) return { success: false, error: await serverTranslate("events.validation.selectTeam") };
-    if (!playerOutId || !playerInId) return { success: false, error: await serverTranslate("events.validation.selectBothPlayers") };
-    if (playerOutId === playerInId) return { success: false, error: "Le joueur sortant et le joueur entrant doivent être différents" };
+    if (!teamId) return { success: false, error: "events.validation.selectTeam" };
+    if (!playerOutId || !playerInId) return { success: false, error: "events.validation.selectBothPlayers" };
+    if (playerOutId === playerInId) return { success: false, error: "actions.events.substitution.samePlayer" };
     const substitutionService = new SubstitutionService();
     await substitutionService.create({ sheetId, matchId, teamId, playerOutId, playerInId, minute, period });
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "Remplacement enregistré" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'ajout du remplacement" };
+    return { success: true, message: "actions.events.substitution.saved" };
+  } catch {
+    return { success: false, error: "actions.events.substitution.addError" };
   }
 }
 
@@ -139,9 +136,9 @@ export async function deleteSubstitution(id: number, matchId: string): Promise<A
     const substitutionService = new SubstitutionService();
     await substitutionService.delete(id);
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "Remplacement supprimé" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la suppression du remplacement" };
+    return { success: true, message: "actions.events.substitution.deleted" };
+  } catch {
+    return { success: false, error: "actions.events.substitution.deleteError" };
   }
 }
 
@@ -151,8 +148,8 @@ export async function startMatch(sheetId: number, matchId: string): Promise<Acti
     const sheetService = new SheetService();
     await sheetService.updateStatus(sheetId, "IN_PROGRESS");
     revalidatePath(`/${matchId}/live`);
-    return { success: true, message: "Match démarré" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors du démarrage du match" };
+    return { success: true, message: "actions.events.start.saved" };
+  } catch {
+    return { success: false, error: "actions.events.start.error" };
   }
 }
