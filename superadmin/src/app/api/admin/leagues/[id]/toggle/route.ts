@@ -52,7 +52,7 @@ export async function PATCH(
     }
 
     // Sauvegarder la nouvelle valeur avec une requête SQL directe pour garantir la sauvegarde
-    console.log('Updating league:', id, 'is_active from', (league as any).is_active, 'to', is_active)
+    console.log('Updating league:', id, 'is_active from', league.is_active, 'to', is_active)
     
     // Utiliser une requête SQL UPDATE directe pour s'assurer que la valeur est bien sauvegardée
     await dataSource.query(

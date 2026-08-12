@@ -127,7 +127,6 @@ non audités de bout en bout.
 
 ### `superadmin`
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).
-- Dette de lint pré-existante (~11 erreurs, essentiellement `@typescript-eslint/no-explicit-any`), rendue visible par la CI mais pas corrigée.
 
 ### `arbinote`
 - Vote sans compte reposant sur empreinte appareil/cookie — pas de vote authentifié.

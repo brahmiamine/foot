@@ -8,6 +8,21 @@ import { logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
 
+/** Ligne brute renvoyée par les requêtes SQL directes ci-dessous (JOIN ligues/federations). */
+interface RawLeagueRow {
+  id: string
+  federation_id: string
+  nom: string
+  nom_en: string | null
+  nom_ar: string | null
+  logo_url: string | null
+  is_active?: boolean | number | string | null
+  created_at: string
+  federation_id_ref: string | null
+  federation_nom: string | null
+  federation_code: string | null
+}
+
 export async function GET(request: NextRequest) {
   const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
@@ -16,8 +31,8 @@ export async function GET(request: NextRequest) {
     const dataSource = await getDataSource()
     // Utiliser une requête SQL directe pour éviter les problèmes de métadonnées TypeORM
     // Ne pas utiliser COALESCE pour récupérer la vraie valeur de la base de données
-    const leagues = await dataSource.query(`
-      SELECT 
+    const leagues: RawLeagueRow[] = await dataSource.query(`
+      SELECT
         l.id,
         l.federation_id,
         l.nom,
@@ -33,9 +48,9 @@ export async function GET(request: NextRequest) {
       LEFT JOIN federations f ON l.federation_id = f.id
       ORDER BY l.nom ASC
     `)
-    
+
     // Transformer les résultats pour correspondre au format attendu
-    const formattedLeagues = leagues.map((row: any) => {
+    const formattedLeagues = leagues.map((row) => {
       // Gérer correctement la conversion booléenne depuis MySQL
       // MySQL retourne 0/1 ou true/false selon la version
       let isActive: boolean
@@ -77,8 +92,8 @@ export async function GET(request: NextRequest) {
       console.warn('Column is_active might not exist, trying without it...')
       try {
         const dataSource = await getDataSource()
-        const leagues = await dataSource.query(`
-          SELECT 
+        const leagues: RawLeagueRow[] = await dataSource.query(`
+          SELECT
             l.id,
             l.federation_id,
             l.nom,
@@ -93,7 +108,7 @@ export async function GET(request: NextRequest) {
           LEFT JOIN federations f ON l.federation_id = f.id
           ORDER BY l.nom ASC
         `)
-        const formattedLeagues = leagues.map((row: any) => ({
+        const formattedLeagues = leagues.map((row) => ({
           ...row,
           is_active: true, // Par défaut si la colonne n'existe pas
           federation: row.federation_id_ref ? {
