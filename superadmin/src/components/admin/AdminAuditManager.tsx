@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from '@/lib/i18n'
 
 interface AuditLogEntry {
   id: string
@@ -27,6 +28,7 @@ const ACTION_LABELS: Record<string, string> = {
 const PAGE_SIZE = 25
 
 export default function AdminAuditManager() {
+  const { locale } = useTranslations()
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -98,7 +100,7 @@ export default function AdminAuditManager() {
                 logs.map((log) => (
                   <tr key={log.id}>
                     <td className="text-muted">
-                      {new Date(log.created_at).toLocaleString('fr-FR')}
+                      {new Date(log.created_at).toLocaleString(locale === 'ar' ? 'ar-TN' : 'fr-FR')}
                     </td>
                     <td className="fw-medium">
                       {log.admin_username || '—'}

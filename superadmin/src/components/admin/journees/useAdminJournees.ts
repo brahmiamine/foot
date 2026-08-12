@@ -54,7 +54,7 @@ export function useAdminJournees() {
       if (b.nom_fr) return 1
       return 0
     })
-  }, [journees, searchQuery, filterSaisonId])
+  }, [journees, searchQuery, filterSaisonId, locale])
 
   useEffect(() => {
     loadData()

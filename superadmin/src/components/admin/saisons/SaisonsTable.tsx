@@ -1,6 +1,7 @@
 'use client'
 
 import type { Federation, League, Saison } from '@/types'
+import { useTranslations } from '@/lib/i18n'
 
 interface SaisonsTableProps {
   saisons: Saison[]
@@ -39,6 +40,7 @@ export default function SaisonsTable({
   onStartEdit,
   onDelete,
 }: SaisonsTableProps) {
+  const { locale } = useTranslations()
   return (
     <div className={editingId ? 'col-12 col-lg-8' : 'col-12'}>
       <div className="card">
@@ -150,12 +152,12 @@ export default function SaisonsTable({
                         <td>{saison.league?.nom || '—'}</td>
                         <td>
                           {saison.date_debut
-                            ? new Date(saison.date_debut).toLocaleDateString('fr-FR')
+                            ? new Date(saison.date_debut).toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'fr-FR')
                             : '—'}
                         </td>
                         <td>
                           {saison.date_fin
-                            ? new Date(saison.date_fin).toLocaleDateString('fr-FR')
+                            ? new Date(saison.date_fin).toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'fr-FR')
                             : '—'}
                         </td>
                         <td className="text-end">

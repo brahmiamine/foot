@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import type { Arbitre } from '@/types'
+import { useTranslations } from '@/lib/i18n'
 
 interface ArbitresTableProps {
   arbitres: Arbitre[]
@@ -22,6 +23,7 @@ export default function ArbitresTable({
   onStartEdit,
   onViewPhoto,
 }: ArbitresTableProps) {
+  const { locale } = useTranslations()
   return (
     <section className="bg-white shadow rounded-lg p-5" id="arbitres">
       <div className="flex items-center justify-between mb-4">
@@ -73,7 +75,7 @@ export default function ArbitresTable({
                   <td className="p-3">{arbitre.nom_ar || '—'}</td>
                   <td className="p-3">
                     {arbitre.date_naissance
-                      ? new Date(arbitre.date_naissance).toLocaleDateString('fr-FR')
+                      ? new Date(arbitre.date_naissance).toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'fr-FR')
                       : '—'}
                   </td>
                   <td className="p-3">

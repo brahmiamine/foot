@@ -157,7 +157,7 @@ export default function MatchesTable({
                       </div>
                       {match.journee.date_journee && (
                         <div className="text-muted small">
-                          {new Date(match.journee.date_journee).toLocaleDateString('fr-FR')}
+                          {new Date(match.journee.date_journee).toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'fr-FR')}
                         </div>
                       )}
                     </div>
