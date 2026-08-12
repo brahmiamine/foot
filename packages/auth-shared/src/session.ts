@@ -70,6 +70,77 @@ export function getSsoTokenFromRequest(request: CookieReader): string | null {
   return request.cookies.get(getSsoCookieName())?.value ?? null;
 }
 
+const REVOCATION_CACHE_TTL_MS = 30_000;
+const REVOCATION_FETCH_TIMEOUT_MS = 2_000;
+const REVOCATION_CACHE_PRUNE_THRESHOLD = 5_000;
+
+interface RevocationCacheEntry {
+  active: boolean;
+  expiresAt: number;
+}
+
+const revocationCache = new Map<string, RevocationCacheEntry>();
+
+function pruneRevocationCacheIfNeeded(now: number) {
+  if (revocationCache.size < REVOCATION_CACHE_PRUNE_THRESHOLD) return;
+  for (const [key, entry] of revocationCache) {
+    if (entry.expiresAt <= now) revocationCache.delete(key);
+  }
+}
+
+/**
+ * verifySsoToken() PUIS révocation réelle auprès de `sso`
+ * (GET /api/session/introspect, voir sso/src/app/api/session/introspect),
+ * avec un cache en mémoire de 30s par jeton pour ne pas appeler `sso` à
+ * chaque requête authentifiée — voir avancement.md, "Propagation de la
+ * révocation de session (tokenVersion) aux 6 apps clientes". C'est la
+ * fonction à utiliser à la place de verifySsoToken() partout où une
+ * révocation (mot de passe changé, MFA modifiée, déconnexion partout) doit
+ * fermer l'accès en quelques secondes plutôt qu'en jusqu'à 12h (durée de
+ * vie du JWT).
+ *
+ * Edge-safe (fetch uniquement, cache en mémoire du runtime — best-effort,
+ * pas partagé entre instances, ce qui reste cohérent avec le choix "TTL
+ * court" plutôt que "cache partagé" documenté dans avancement.md). Si `sso`
+ * est injoignable (panne, timeout) ou si `SSO_URL` n'est pas configuré, on
+ * retombe sur le résultat de verifySsoToken() (fail-open) plutôt que de
+ * couper tout le trafic authentifié des 6 apps clientes pour un incident
+ * réseau transitoire — seule une révocation confirmée par `sso` invalide le
+ * jeton.
+ */
+export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTokenPayload | null> {
+  const payload = await verifySsoToken(token);
+  if (!payload) return null;
+
+  const now = Date.now();
+  const cached = revocationCache.get(token);
+  if (cached && cached.expiresAt > now) {
+    return cached.active ? payload : null;
+  }
+
+  const ssoUrl = process.env.SSO_URL;
+  if (!ssoUrl) return payload;
+
+  try {
+    const res = await fetch(`${ssoUrl.replace(/\/$/, "")}/api/session/introspect`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(REVOCATION_FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) return payload;
+
+    const body = (await res.json()) as { active?: boolean };
+    const active = body.active === true;
+
+    pruneRevocationCacheIfNeeded(now);
+    revocationCache.set(token, { active, expiresAt: now + REVOCATION_CACHE_TTL_MS });
+
+    return active ? payload : null;
+  } catch {
+    return payload;
+  }
+}
+
 /**
  * @param loginPath Chemin sur l'app `sso` vers lequel rediriger — `/login`
  * (staff/club), `/membre/login` (espace membre), `/api/logout`, etc.

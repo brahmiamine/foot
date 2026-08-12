@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getDataSource } from "@/lib/db";
 import { Card, CardType, MatchPeriod } from "@/entities/Card";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 
 interface CreateCardInput {
   matchId: string;
@@ -11,6 +11,25 @@ interface CreateCardInput {
   period: MatchPeriod;
   cardReasonId?: string | null;
   commentFr?: string | null;
+}
+
+/**
+ * Un carton du même type existe déjà pour ce joueur sur ce match —
+ * physiquement impossible en vrai (un carton rouge/double jaune expulse le
+ * joueur, un deuxième jaune isolé doit être saisi comme DOUBLE_YELLOW).
+ * Voir CardService.create côté teamManager pour le même garde-fou et
+ * db/OWNERSHIP.md, « Card a deux écrivains ».
+ */
+export class DuplicateCardError extends Error {
+  constructor(type: CardType) {
+    super(`Un carton ${type} existe déjà pour ce joueur sur ce match.`);
+    this.name = "DuplicateCardError";
+  }
+}
+
+/** MySQL/MariaDB : code d'erreur natif d'une violation de contrainte UNIQUE. */
+function isDuplicateEntryError(error: unknown): boolean {
+  return error instanceof QueryFailedError && (error.driverError as { code?: string } | undefined)?.code === "ER_DUP_ENTRY";
 }
 
 /**
@@ -36,8 +55,15 @@ export class CardEventService {
     });
   }
 
+  /** @throws DuplicateCardError si un carton du même type existe déjà pour ce joueur sur ce match. */
   async create(data: CreateCardInput): Promise<Card> {
     const repository = await this.getRepository();
+
+    const existing = await repository.findOne({
+      where: { playerId: data.playerId, matchId: data.matchId, type: data.type },
+    });
+    if (existing) throw new DuplicateCardError(data.type);
+
     const card = repository.create({
       id: randomUUID(),
       matchId: data.matchId,
@@ -50,7 +76,15 @@ export class CardEventService {
       createdBy: "matchsheet",
       isNeutralized: false,
     });
-    return repository.save(card);
+    try {
+      return await repository.save(card);
+    } catch (error) {
+      // Filet de sécurité si un carton identique a été inséré (par
+      // teamManager ou un autre kiosque) entre le SELECT ci-dessus et cet
+      // INSERT — voir contrainte UNIQUE(playerId, matchId, type).
+      if (isDuplicateEntryError(error)) throw new DuplicateCardError(data.type);
+      throw error;
+    }
   }
 
   async delete(id: string): Promise<void> {

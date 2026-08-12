@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
   let activeLeague = null
   if (leagueId) {
     for (const fed of federations) {
-      const league = fed.leagues.find((l: any) => l.id === leagueId)
+      const league = fed.leagues.find((l) => l.id === leagueId)
       if (league) {
         activeLeague = league
         break

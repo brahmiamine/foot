@@ -15,9 +15,8 @@ export type StandingsRow = {
 };
 
 /**
- * Aucune table "classement" n'existe encore dans le schéma partagé (voir
- * roadmap.md § 1 : le mapping API-Football et la synchro live restent à
- * faire). En attendant, ce classement est calculé à la volée à partir des
+ * Aucune table "classement" n'existe encore dans le schéma partagé. En
+ * attendant, ce classement est calculé à la volée à partir des
  * matchs `FINISHED` enregistrés dans `matches` entre équipes de la même
  * fédération/catégorie/sport que le club — donc seulement aussi complet
  * que les matchs déjà saisis côté ArbiNote/cardManager.

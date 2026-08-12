@@ -33,7 +33,8 @@ export default function PWAInstallPrompt() {
 
     // Vérifier si l'app est déjà installée
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-    const isIOSStandalone = (window.navigator as any).standalone === true;
+    // `standalone` est une propriété non standard exposée par Safari/iOS uniquement.
+    const isIOSStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
     if (isStandalone || isIOSStandalone) {
       return; // L'app est déjà installée

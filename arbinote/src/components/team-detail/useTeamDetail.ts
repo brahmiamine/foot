@@ -65,7 +65,7 @@ export function useTeamDetail(
         }
       }
 
-      const journeeId = (match.journee as any)?.id || 'unknown'
+      const journeeId = match.journee?.id || 'unknown'
       if (!grouped.has(journeeId)) {
         grouped.set(journeeId, [])
       }
@@ -81,7 +81,7 @@ export function useTeamDetail(
           return dateB - dateA
         })
         return {
-          journee: journeeMatches[0].journee as any,
+          journee: journeeMatches[0].journee,
           matches: sortedMatches,
         }
       })

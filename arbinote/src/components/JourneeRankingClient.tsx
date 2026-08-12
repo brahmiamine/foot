@@ -3,10 +3,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { getLocalizedName, getJourneeDisplayName } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n";
+import type { BayesianRankingEntry } from "@/lib/bayesianRanking";
+
+export interface JourneeSummary {
+  id: string;
+  numero: number;
+  saison_id: string;
+  date_journee?: string | null;
+}
 
 interface JourneeRankingClientProps {
-  journee: any;
-  ranking: any[];
+  journee: JourneeSummary;
+  ranking: BayesianRankingEntry[];
   locale: string;
 }
 

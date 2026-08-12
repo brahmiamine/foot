@@ -6,6 +6,7 @@ import StructuredData from '@/components/StructuredData'
 import TeamDetailClient from '@/components/TeamDetailClient'
 import type { Metadata } from 'next'
 import { CritereDefinition, Team, Match } from '@/types'
+import type { TopMatch, RefereeStat } from '@/components/team-detail/types'
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
 
@@ -164,7 +165,7 @@ async function getTeamData(id: string) {
   const allVotes = matchIds.length > 0 ? await fetchVotesByMatchIds(matchIds) : []
   
   const matchRatings: Record<string, { average: number; count: number }> = {}
-  allVotes.forEach((vote: any) => {
+  allVotes.forEach((vote) => {
     if (!matchRatings[vote.match_id]) {
       matchRatings[vote.match_id] = { average: 0, count: 0 }
     }
@@ -318,10 +319,10 @@ export default async function TeamPage({
       <TeamDetailClient
         team={team as Team}
         matches={matches as Match[]}
-        refereeStats={refereeStats}
-        topMatchesArbitre={topMatchesArbitre}
-        topMatchesVar={topMatchesVar}
-        topMatchesAssistant={topMatchesAssistant}
+        refereeStats={refereeStats as unknown as RefereeStat[]}
+        topMatchesArbitre={topMatchesArbitre as unknown as TopMatch[]}
+        topMatchesVar={topMatchesVar as unknown as TopMatch[]}
+        topMatchesAssistant={topMatchesAssistant as unknown as TopMatch[]}
         criteresDefs={criteresDefs}
         matchRatings={matchRatings}
       />

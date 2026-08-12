@@ -1,0 +1,90 @@
+# Ordre d'application reproductible des migrations SQL incrémentales de
+# l'écosystème `foot` — voir db/migrate.sh et avancement.md, "Outillage de
+# migrations partagé". Un chemin par ligne, relatif à la racine du dépôt.
+# Lignes vides et commentaires (#) ignorés.
+#
+# Ce fichier NE remplace PAS db/foot.sql (dump de bootstrap du schéma de
+# base, voir db/README.md) : les migrations listées ici sont des deltas
+# additifs appliqués PAR-DESSUS ce schéma de base, pas un rejeu depuis zéro.
+# Sur une base de dev existante qui a déjà ces deltas (appliqués à la main
+# au fil du temps avant l'existence de cet outil), utiliser
+# `db/migrate.sh --baseline` pour les marquer comme déjà appliquées sans
+# les rejouer.
+#
+# Volontairement exclus de ce fichier (voir db/migrate.sh en tête) :
+# - les dumps de schéma complets (superadmin/mysql/arbitres.sql,
+#   teamManager/sql/olympique_beja_db_complete.sql) : déjà couverts par
+#   db/foot.sql, pas des deltas ;
+# - superadmin/mysql/drop-old-schema.sql : destructif (DROP TABLE), jamais
+#   à rejouer automatiquement ;
+# - les fichiers de données d'exemple/seed (teamManager/sql/seed_*.sql,
+#   insert_*_example.sql) : données de démo, pas du schéma ;
+# - arbinote/migrations/*.sql et arbinote/mysql/*.sql : copies identiques
+#   (voir `diff`) des fichiers superadmin/migrations et superadmin/mysql
+#   correspondants — un seul exemplaire de chaque référencé ici, pour ne
+#   pas rejouer deux fois la même altération.
+#
+# Ordre : par app dans un ordre de dépendance de domaine best-effort (sso
+# avant superadmin avant les apps qui dépendent du référentiel sportif),
+# puis par ordre de fichier au sein d'une app. La plupart de ces migrations
+# sont additives et indépendantes entre elles (ALTER TABLE ADD COLUMN sur
+# une table déjà existante, ou CREATE TABLE IF NOT EXISTS pour une nouvelle
+# table propre à une app) ; seules quelques-unes ont une dépendance connue
+# et documentée (annotée ci-dessous).
+
+# --- sso (User, authentification — fondation) ---
+sso/sql/migration_add_token_version_to_user.sql
+sso/sql/migration_add_mfa_to_user.sql
+sso/sql/migration_add_password_reset_tokens.sql
+sso/sql/migration_add_security_events.sql
+sso/sql/migration_add_member_profile_fields.sql
+sso/sql/migration_add_member_role.sql
+sso/sql/migration_add_member_team_affiliations.sql
+sso/sql/migration_add_mfa_enrollment_challenges.sql
+
+# --- superadmin (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
+superadmin/mysql/migration_add_audit_logs.sql
+superadmin/mysql/migration_add_ip_address_to_votes.sql
+superadmin/mysql/migration_add_team_fields.sql
+superadmin/mysql/migration_add_team_gender_and_youth_categories.sql
+superadmin/mysql/migration_add_tournois_type.sql
+superadmin/mysql/migration_add_vote_alerts.sql
+superadmin/mysql/migration_add_vote_moderation.sql
+superadmin/mysql/migration_add_staff_invitations.sql
+superadmin/migrations/add_is_active_to_federations.sql
+superadmin/migrations/add_is_active_to_leagues.sql
+superadmin/migrations/add_unique_vote_per_match_device.sql
+superadmin/migrations/add_team_branding.sql
+superadmin/migrations/add_team_branding_icons.sql
+
+# --- teamManager (Player, discipline, cms_*) ---
+teamManager/sql/migration_unify_players.sql
+teamManager/sql/migration_add_match_lineups.sql
+teamManager/sql/migrate_matches_external_teams.sql
+teamManager/sql/migration_cms_unification.sql
+teamManager/sql/migration_add_shop_sponsors_notifications.sql
+teamManager/sql/migration_add_notification_scope.sql
+teamManager/sql/migration_add_roles_scheduling_and_formations.sql
+teamManager/sql/migration_add_tactics_boards.sql
+teamManager/sql/migration_add_training_details_and_presence_states.sql
+teamManager/sql/migration_add_trips.sql
+teamManager/sql/migration_add_player_stats.sql
+teamManager/sql/migration_add_injuries.sql
+teamManager/sql/migration_add_club_pages_academy_applications.sql
+# Dépend de Card (table de base, voir db/foot.sql) et de teamManager/matchsheet
+# alignés sur la même contrainte (voir db/OWNERSHIP.md, "Card a deux écrivains").
+teamManager/sql/migration_add_card_unique_constraint.sql
+
+# --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
+matchsheet/sql/migration_matchsheet_init.sql
+# Dépend explicitement de migration_matchsheet_init.sql (voir son en-tête).
+matchsheet/sql/migration_matchsheet_officials_controls.sql
+
+# --- billetterie (tk_*, dépend de teams/matches) ---
+billetterie/sql/schema.sql
+billetterie/sql/migration_add_payment_id.sql
+billetterie/sql/migration_add_audience_declaration.sql
+
+# --- sellerPortal (sp_*, dépend de teams) ---
+sellerPortal/sql/schema.sql
+sellerPortal/sql/migration_add_club_id.sql

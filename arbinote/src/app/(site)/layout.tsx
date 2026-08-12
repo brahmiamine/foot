@@ -11,13 +11,13 @@ import { getActiveLeagueId } from '@/lib/leagueSelection'
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   const federations = await fetchFederationsWithLeagues()
   const availableLeagueIds = new Set(
-    federations.flatMap((fed: any) => fed.leagues.map((league: any) => league.id))
+    federations.flatMap((fed) => fed.leagues.map((league) => league.id))
   )
 
   const preferredLeagueId =
     federations
-      .find((fed: any) => fed.code === 'TUN')
-      ?.leagues.find((league: any) => league.nom === 'Ligue Professionnelle 1')?.id ?? null
+      .find((fed) => fed.code === 'TUN')
+      ?.leagues.find((league) => league.nom === 'Ligue Professionnelle 1')?.id ?? null
 
   let activeLeagueId = await getActiveLeagueId()
   if (!activeLeagueId || !availableLeagueIds.has(activeLeagueId)) {

@@ -173,7 +173,7 @@ export async function fetchVotesGrouped(): Promise<VoteInput[]> {
 
   // Grouper les votes par match pour calculer les poids
   const votesByMatch = new Map<string, typeof filteredVotes>()
-  filteredVotes.forEach((vote: any) => {
+  filteredVotes.forEach((vote) => {
     if (vote.match_id) {
       const matchVotes = votesByMatch.get(vote.match_id) || []
       matchVotes.push(vote)
@@ -198,7 +198,7 @@ export async function fetchVotesGrouped(): Promise<VoteInput[]> {
     const matchDate = matchDates.get(matchId)
 
     // Préparer les votes pour l'analyse
-    const votesForAnalysis = matchVotes.map((v: any) => ({
+    const votesForAnalysis = matchVotes.map((v) => ({
       note_globale: typeof v.note_globale === 'string' ? parseFloat(v.note_globale) : Number(v.note_globale),
       created_at: v.created_at || new Date(),
       device_fingerprint: v.device_fingerprint || null,
@@ -264,7 +264,7 @@ export interface BayesianRankingEntry {
  * @returns Tableau trié par score bayésien décroissant
  */
 export function buildBayesianRanking(
-  votes: Array<{ arbitre?: { id: string; nom: string; nom_en?: string | null; nom_ar?: string | null; photo_url?: string | null } | null; note_globale: number; criteres?: Record<string, number> }>,
+  votes: Array<{ arbitre?: { id: string; nom: string; nom_en?: string | null; nom_ar?: string | null; photo_url?: string | null } | null; note_globale: number; criteres?: Record<string, number>; weight?: number }>,
   options: {
     criteres?: Array<{ id: string; categorie: string }>
     includeCategories?: string[]
@@ -295,7 +295,7 @@ export function buildBayesianRanking(
 
   votes.forEach((vote) => {
     if (!vote.arbitre) return
-    const weight = (vote as any).weight ?? 1.0 // Poids par défaut = 1.0
+    const weight = vote.weight ?? 1.0 // Poids par défaut = 1.0
     const current = map.get(vote.arbitre.id) ?? {
       nom: vote.arbitre.nom,
       nom_en: vote.arbitre.nom_en,

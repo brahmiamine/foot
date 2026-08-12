@@ -60,3 +60,54 @@ export async function listRecentSecurityEvents(
 
   return events.map((event) => ({ type: event.type, ip: event.ip ?? null, createdAt: event.createdAt }));
 }
+
+export interface SecurityEventRow {
+  id: string;
+  type: SecurityEventType;
+  email: string | null;
+  userId: string | null;
+  ip: string | null;
+  createdAt: Date;
+}
+
+export interface SecurityEventFilters {
+  type?: SecurityEventType;
+  email?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Alimente le viewer admin (/security-events, réservé SUPERADMIN) : jusqu'ici
+ * `security_events` n'était interrogeable qu'en SQL direct (voir
+ * avancement.md). Filtrage par type et email (préfixe), pagination.
+ */
+export async function listSecurityEventsForAdmin(
+  filters: SecurityEventFilters = {},
+): Promise<{ events: SecurityEventRow[]; total: number }> {
+  const limit = Math.min(100, Math.max(1, filters.limit ?? 25));
+  const offset = Math.max(0, filters.offset ?? 0);
+
+  const dataSource = await getDataSource();
+  const qb = dataSource
+    .getRepository(SecurityEvent)
+    .createQueryBuilder("event")
+    .orderBy("event.created_at", "DESC");
+
+  if (filters.type) qb.andWhere("event.type = :type", { type: filters.type });
+  if (filters.email) qb.andWhere("event.email LIKE :email", { email: `%${filters.email}%` });
+
+  const [events, total] = await qb.take(limit).skip(offset).getManyAndCount();
+
+  return {
+    events: events.map((event) => ({
+      id: event.id,
+      type: event.type,
+      email: event.email ?? null,
+      userId: event.userId ?? null,
+      ip: event.ip ?? null,
+      createdAt: event.createdAt,
+    })),
+    total,
+  };
+}

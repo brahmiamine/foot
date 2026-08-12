@@ -11,6 +11,7 @@ import { validateEnv } from './config/env.validation';
 import { serviceClientsConfig } from './config/service-clients.config';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentModule } from './payment/payment.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PaymentModule } from './payment/payment.module';
     AuthModule,
     NotificationsModule,
     PaymentModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

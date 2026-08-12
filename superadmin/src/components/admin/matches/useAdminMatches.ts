@@ -18,6 +18,7 @@ export function useAdminMatches() {
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
+  const [reopeningId, setReopeningId] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
   const [selectedSaisonId, setSelectedSaisonId] = useState<string>('')
   const [selectedJourneeId, setSelectedJourneeId] = useState<string>('')
@@ -404,6 +405,39 @@ export function useAdminMatches() {
     }
   }
 
+  async function handleReopen(match: Match) {
+    const reason = prompt(`Motif de réouverture du match ${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'} :`)
+    if (reason === null) return
+    if (!reason.trim()) {
+      setError('Un motif de réouverture est requis')
+      return
+    }
+    if (!confirm('Rouvrir ce match ? La feuille redevient modifiable.')) {
+      return
+    }
+
+    setReopeningId(match.id)
+    try {
+      const response = await fetch(`/api/admin/matches/${match.id}/reopen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason: reason.trim() }),
+      })
+      if (!response.ok) {
+        const result = await response.json().catch(() => null)
+        throw new Error(result?.error ?? 'Réouverture impossible')
+      }
+      setMatches((prev) => prev.map((m) => (m.id === match.id ? { ...m, status: 'IN_PROGRESS' } : m)))
+      setError(null)
+    } catch (err) {
+      console.error('Error reopening match:', err)
+      setError(err instanceof Error ? err.message : 'Erreur lors de la réouverture')
+    } finally {
+      setReopeningId(null)
+    }
+  }
+
   return {
     locale,
     matches,
@@ -419,6 +453,7 @@ export function useAdminMatches() {
     creating,
     deletingId,
     cancelingId,
+    reopeningId,
     showNewForm,
     setShowNewForm,
     selectedSaisonId,
@@ -436,5 +471,6 @@ export function useAdminMatches() {
     handleCreate,
     handleDelete,
     handleCancel,
+    handleReopen,
   }
 }

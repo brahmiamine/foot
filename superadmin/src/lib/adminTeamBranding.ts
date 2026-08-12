@@ -4,6 +4,8 @@ import { toPlain } from './serialization'
 
 export interface TeamBrandingInput {
   faviconUrl?: string | null
+  icon192Url?: string | null
+  icon512Url?: string | null
   primaryColor?: string | null
   secondaryColor?: string | null
   accentColor?: string | null
@@ -40,6 +42,8 @@ export async function upsertTeamBranding(teamId: string, input: TeamBrandingInpu
   }
 
   if (input.faviconUrl !== undefined) branding.faviconUrl = input.faviconUrl
+  if (input.icon192Url !== undefined) branding.icon192Url = input.icon192Url
+  if (input.icon512Url !== undefined) branding.icon512Url = input.icon512Url
   if (input.primaryColor !== undefined) branding.primaryColor = input.primaryColor
   if (input.secondaryColor !== undefined) branding.secondaryColor = input.secondaryColor
   if (input.accentColor !== undefined) branding.accentColor = input.accentColor

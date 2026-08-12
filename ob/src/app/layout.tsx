@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Source_Sans_3 } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import "./globals.css";
 
 const barlowCondensed = Barlow_Condensed({
@@ -21,6 +22,15 @@ export const metadata: Metadata = {
   title: "Olympique de Béja",
   description:
     "Site officiel de l'Olympique de Béja — Les Cigognes de Béja, club omnisports tunisien fondé en 1929. Calendrier, résultats, actualités, effectif et classement.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/icon-192x192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#c8102e",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -29,6 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <ServiceWorkerRegistration />
+        <PwaInstallPrompt />
       </body>
     </html>
   );

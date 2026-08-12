@@ -203,11 +203,11 @@ export interface PurgeStaleReservationsResult {
  * Libère toutes les réservations PENDING abandonnées depuis plus de
  * PENDING_RESERVATION_TTL_MS, toutes catégories/matchs confondus — pas
  * seulement celle en cours d'achat (voir le rattrapage opportuniste dans
- * purchaseTickets, limité à la catégorie visée). Destinée à être appelée
- * périodiquement par un ordonnanceur externe (pas de scheduler in-process
- * dans ce dépôt, voir avancement.md § C) via POST
- * /api/cron/purge-pending-reservations. Idempotente : ré-exécuter sur des
- * billets déjà CANCELLED ne les affecte pas (le WHERE ne cible que PENDING).
+ * purchaseTickets, limité à la catégorie visée). Appelée périodiquement par
+ * le scheduler in-process (instrumentation.ts) et, en option, par un
+ * ordonnanceur externe via POST /api/cron/purge-pending-reservations.
+ * Idempotente : ré-exécuter sur des billets déjà CANCELLED ne les affecte
+ * pas (le WHERE ne cible que PENDING).
  */
 export async function purgeStalePendingTickets(): Promise<PurgeStaleReservationsResult> {
   const ds = await getDataSource();
@@ -503,4 +503,85 @@ export async function listMyTickets(purchaserId: string): Promise<MyTicket[]> {
       categoryName: category?.name ?? "Catégorie",
     };
   });
+}
+
+export interface AudienceMismatchTicketSummary {
+  id: string;
+  reference: string;
+  status: Ticket["status"];
+  declaredAudience: Ticket["declaredAudience"];
+  createdAt: Date;
+  matchId: string;
+  matchDate: Date | null;
+  homeTeamName: string;
+  awayTeamName: string;
+  categoryName: string;
+  purchaserId: string;
+}
+
+/**
+ * Alimente l'écran admin /admin/audience-mismatch : liste les billets où
+ * l'acheteur a déclaré une audience (HOME_SUPPORTERS/AWAY_SUPPORTERS) non
+ * couverte par ses affiliations sso au moment de l'achat (voir
+ * flagAudienceMismatchIfNeeded ci-dessus). Signal de modération non
+ * bloquant — un billet listé ici reste valide tant qu'il n'est pas traité
+ * manuellement (voir dismissAudienceMismatch).
+ */
+export async function listAudienceMismatchTickets(matchId?: string): Promise<AudienceMismatchTicketSummary[]> {
+  const ds = await getDataSource();
+  const ticketRepo = ds.getRepository(Ticket);
+
+  const tickets = await ticketRepo.find({
+    where: matchId ? { audienceMismatch: true, matchId } : { audienceMismatch: true },
+    order: { createdAt: "DESC" },
+    take: 200,
+  });
+  if (tickets.length === 0) return [];
+
+  const mtcIds = Array.from(new Set(tickets.map((t) => t.matchTicketCategoryId)));
+  const mtcs = await ds.getRepository(MatchTicketCategory).find({ where: { id: In(mtcIds) } });
+  const mtcById = new Map(mtcs.map((m) => [m.id, m]));
+
+  const categoryIds = Array.from(new Set(mtcs.map((m) => m.categoryId)));
+  const categories = await ds.getRepository(TicketCategory).find({ where: { id: In(categoryIds) } });
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+  const matchIds = Array.from(new Set(tickets.map((t) => t.matchId)));
+  const matches = await ds.getRepository(Match).find({ where: { id: In(matchIds) }, relations: ["homeTeam", "awayTeam"] });
+  const matchById = new Map(matches.map((m) => [m.id, m]));
+
+  return tickets.map((t) => {
+    const mtc = mtcById.get(t.matchTicketCategoryId);
+    const category = mtc ? categoryById.get(mtc.categoryId) : undefined;
+    const match = matchById.get(t.matchId);
+    return {
+      id: t.id,
+      reference: t.reference,
+      status: t.status,
+      declaredAudience: t.declaredAudience,
+      createdAt: t.createdAt,
+      matchId: t.matchId,
+      matchDate: match?.date ?? null,
+      homeTeamName: match?.homeTeam?.nom ?? "Équipe à domicile",
+      awayTeamName: match?.awayTeam?.nom ?? "Équipe visiteuse",
+      categoryName: category?.name ?? "Catégorie",
+      purchaserId: t.purchaserId,
+    };
+  });
+}
+
+/**
+ * Marque un billet comme traité par la modération : lève le signal une
+ * fois qu'un admin l'a examiné (ex. faux positif, ou cas accepté). N'annule
+ * jamais le billet — voir Ticket.audienceMismatch pour pourquoi ce signal
+ * ne bloque jamais un achat.
+ */
+export async function dismissAudienceMismatch(ticketId: string): Promise<void> {
+  const ds = await getDataSource();
+  const ticketRepo = ds.getRepository(Ticket);
+  const ticket = await ticketRepo.findOne({ where: { id: ticketId } });
+  if (!ticket) {
+    throw new NotFoundError("Billet introuvable.");
+  }
+  await ticketRepo.update({ id: ticketId }, { audienceMismatch: false });
 }

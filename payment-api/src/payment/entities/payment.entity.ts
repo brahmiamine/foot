@@ -30,6 +30,14 @@ export class Payment {
   @Column({ type: 'varchar', length: 36, nullable: true })
   userId: string | null;
 
+  // Application backend having called /payments/*/init (resolved from the
+  // service API key by ServiceAuthGuard, see CurrentService decorator) —
+  // used to route the outgoing payment webhook to the right app once PAID,
+  // see src/webhooks/payment-webhook.listener.ts. Never trusted from the
+  // request body: always derived server-side from the authenticated caller.
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  callerApplication: string | null;
+
   @Column({
     type: 'enum',
     enum: PaymentProviderName,

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { requireTeamId } from "@/lib/team-context";
-import { CardService, DoubleYellowRequiredError } from "@/services/CardService";
+import { CardAlreadyProcessedError, CardService, DoubleYellowRequiredError } from "@/services/CardService";
 import { AuditLogService } from "@/services/AuditLogService";
 
 const createCardSchema = z.object({
@@ -61,7 +61,7 @@ export async function createCard(formData: FormData) {
     revalidatePath("/admin/fines");
     return { success: true, message: "Carton enregistré avec succès" };
   } catch (error) {
-    if (error instanceof DoubleYellowRequiredError) {
+    if (error instanceof DoubleYellowRequiredError || error instanceof CardAlreadyProcessedError) {
       return { success: false, error: error.message };
     }
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'enregistrement" };

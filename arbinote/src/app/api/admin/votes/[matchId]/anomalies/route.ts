@@ -61,7 +61,7 @@ export async function GET(
     }
 
     // Préparer les données pour l'analyse
-    const votesForAnalysis = toPlainArray(votes).map((v: any) => ({
+    const votesForAnalysis = toPlainArray(votes).map((v) => ({
       note_globale: typeof v.note_globale === 'string'
         ? parseFloat(v.note_globale)
         : Number(v.note_globale),

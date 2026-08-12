@@ -59,6 +59,11 @@ export default async function Home() {
                 <Link href="/account/mfa">Authentification à deux facteurs</Link>
               </li>
             )}
+            {session.role === "SUPERADMIN" && (
+              <li>
+                <Link href="/security-events">Journal de sécurité (tous comptes)</Link>
+              </li>
+            )}
             <li>
               <LogoutEverywhereButton />
             </li>

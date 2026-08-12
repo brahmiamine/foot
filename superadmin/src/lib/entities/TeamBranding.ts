@@ -20,6 +20,12 @@ export class TeamBranding {
   @Column({ type: 'text', nullable: true, name: 'favicon_url' })
   faviconUrl?: string | null
 
+  @Column({ type: 'text', nullable: true, name: 'icon_192_url' })
+  icon192Url?: string | null
+
+  @Column({ type: 'text', nullable: true, name: 'icon_512_url' })
+  icon512Url?: string | null
+
   @Column({ type: 'varchar', length: 16, nullable: true, name: 'primary_color' })
   primaryColor?: string | null
 

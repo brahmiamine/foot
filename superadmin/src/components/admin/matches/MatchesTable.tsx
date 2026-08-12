@@ -16,11 +16,13 @@ interface MatchesTableProps {
   savingId: string | null
   deletingId: string | null
   cancelingId: string | null
+  reopeningId: string | null
   updateEdit: (matchId: string, field: keyof MatchEdit, value: string) => void
   hasChanges: (match: Match) => boolean
   handleSave: (match: Match) => void
   handleDelete: (match: Match) => void
   handleCancel: (match: Match) => void
+  handleReopen: (match: Match) => void
 }
 
 export default function MatchesTable({
@@ -33,11 +35,13 @@ export default function MatchesTable({
   savingId,
   deletingId,
   cancelingId,
+  reopeningId,
   updateEdit,
   hasChanges,
   handleSave,
   handleDelete,
   handleCancel,
+  handleReopen,
 }: MatchesTableProps) {
   if (loading) {
     return <p className="text-muted mb-0">Chargement...</p>
@@ -258,6 +262,15 @@ export default function MatchesTable({
                         onClick={() => handleCancel(match)}
                       >
                         {cancelingId === match.id ? 'Annulation...' : 'Annuler'}
+                      </button>
+                    )}
+                    {match.status === 'FINISHED' && (
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={reopeningId === match.id}
+                        onClick={() => handleReopen(match)}
+                      >
+                        {reopeningId === match.id ? 'Réouverture...' : 'Rouvrir'}
                       </button>
                     )}
                     <button

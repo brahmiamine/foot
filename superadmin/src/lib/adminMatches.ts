@@ -1,5 +1,5 @@
 import { getDataSource } from './db'
-import { Match, Journee } from './entities'
+import { Match, Journee, Sheet } from './entities'
 import { toPlain, toPlainArray } from './serialization'
 import { notify } from './notificationClient'
 
@@ -348,6 +348,64 @@ export async function cancelMatchAdmin(id: string, reason: string) {
       category: 'MATCH_CANCELLED',
       title: 'Match annulé',
       body: `Le match ${matchName} a été annulé. Motif : ${reason}`,
+      data,
+    })
+  }
+
+  return { success: true }
+}
+
+/**
+ * Rouvre un match FINISHED (matches.status -> IN_PROGRESS) avec motif
+ * obligatoire et trace d'audit — voir avancement.md : jusqu'ici, corriger
+ * une feuille après clôture était une opération technique directe en base,
+ * jamais un processus métier approuvé. SUPERADMIN n'a pas accès à
+ * `matchsheet` (choix produit assumé), donc cette action pilote directement
+ * `ms_sheets.status` en plus de `matches.status` — exception documentée et
+ * étroite (voir entities/Sheet.ts), jamais un accès général à cette table
+ * propriété de `matchsheet`. Restreinte aux matchs FINISHED avec une
+ * feuille CLOSED : un match CANCELLED ne se rouvre pas depuis cette action
+ * (décision produit distincte), et un match qui n'a jamais été clôturé n'a
+ * rien à rouvrir.
+ */
+export async function reopenMatchAdmin(id: string, reason: string) {
+  const dataSource = await getDataSource()
+  const matchRepo = dataSource.getRepository<Match>('matches')
+  const sheetRepo = dataSource.getRepository(Sheet)
+
+  const match = await matchRepo.findOne({
+    where: { id },
+    relations: { equipe_home: true, equipe_away: true },
+  })
+  if (!match) {
+    throw new Error('Match introuvable')
+  }
+  if (match.status !== 'FINISHED') {
+    throw new Error(`Impossible de rouvrir un match au statut ${match.status} (seul un match Terminé peut être rouvert)`)
+  }
+
+  const sheet = await sheetRepo.findOne({ where: { matchId: id } })
+  if (!sheet || sheet.status !== 'CLOSED') {
+    throw new Error("Aucune feuille de match clôturée à rouvrir pour ce match")
+  }
+
+  await sheetRepo.update(sheet.id, { status: 'IN_PROGRESS', closedAt: null })
+  await matchRepo.update(id, { status: 'IN_PROGRESS' })
+
+  const matchName = `${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'}`
+  const data = { matchId: match.id, matchName, reason }
+  for (const [side, teamId] of [
+    ['home', match.equipe_home_id],
+    ['away', match.equipe_away_id],
+  ] as const) {
+    await notify({
+      eventId: `match_reopened:${match.id}:${side}:${Date.now()}`,
+      type: 'MATCH_REOPENED',
+      target: { type: 'TEAM', teamId },
+      teamId,
+      category: 'MATCH_REOPENED',
+      title: 'Match rouvert',
+      body: `La feuille du match ${matchName} a été rouverte pour correction. Motif : ${reason}`,
       data,
     })
   }

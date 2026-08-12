@@ -64,7 +64,7 @@ export async function fetchMatchesByArbitre(arbitreId: string) {
 async function computeWeightedCriteresScores(
   matchIds: string[],
   critereCategory: 'var' | 'assistant'
-): Promise<Array<{ match: any; averageBrute: number; totalWeight: number; voteCount: number }>> {
+): Promise<Array<{ match: Match; averageBrute: number; totalWeight: number; voteCount: number }>> {
   if (matchIds.length === 0) {
     return []
   }
@@ -97,7 +97,7 @@ async function computeWeightedCriteresScores(
     id: string
     match_id?: string
     note_globale: number | string
-    criteres: any
+    criteres: Record<string, number>
     created_at?: Date | string
     device_fingerprint?: string | null
     ip_address?: string | null
@@ -119,7 +119,7 @@ async function computeWeightedCriteresScores(
   const { calculateVoteWeight } = await import('../voteWeighting')
   const { detectVoteAnomalies } = await import('../voteAnomalyDetection')
   const votesByMatch = new Map<string, typeof filteredVotes>()
-  filteredVotes.forEach((vote: any) => {
+  filteredVotes.forEach((vote) => {
     if (vote.match_id) {
       const matchVotes = votesByMatch.get(vote.match_id) || []
       matchVotes.push(vote)
@@ -130,7 +130,7 @@ async function computeWeightedCriteresScores(
   const votesWithWeights = new Map<string, number>()
   for (const [matchId, matchVotes] of votesByMatch.entries()) {
     const matchDate = matchDates.get(matchId)
-    const votesForAnalysis = matchVotes.map((v: any) => ({
+    const votesForAnalysis = matchVotes.map((v) => ({
       note_globale: typeof v.note_globale === 'string' ? parseFloat(v.note_globale) : Number(v.note_globale),
       created_at: v.created_at || new Date(),
       device_fingerprint: v.device_fingerprint || null,
@@ -162,15 +162,16 @@ async function computeWeightedCriteresScores(
   const matchScores = new Map<
     string,
     {
-      match: any
+      match: Match
       weightedScores: number[]
       totalWeights: number[]
       voteCount: number
     }
   >()
 
-  filteredVotes.forEach((vote: any) => {
+  filteredVotes.forEach((vote) => {
     const matchId = vote.match_id
+    if (!matchId) return
     const weight = votesWithWeights.get(vote.id) ?? 1.0
     const criteresData = vote.criteres as Record<string, number>
 
@@ -189,7 +190,7 @@ async function computeWeightedCriteresScores(
     if (!matchScores.has(matchId)) {
       const originalVote = votesMap.get(vote.id)
       matchScores.set(matchId, {
-        match: originalVote?.match,
+        match: originalVote!.match,
         weightedScores: [],
         totalWeights: [],
         voteCount: 0,

@@ -34,7 +34,7 @@ export async function GET(
     })
 
     // Serialize votes properly
-    const votesData = toPlainArray(votes).map((vote: any) => ({
+    const votesData = toPlainArray(votes).map((vote) => ({
       ...vote,
       note_globale: typeof vote.note_globale === 'string' 
         ? parseFloat(vote.note_globale) 

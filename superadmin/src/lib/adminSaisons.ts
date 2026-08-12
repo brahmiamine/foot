@@ -1,3 +1,4 @@
+import { IsNull, type FindOptionsWhere } from 'typeorm'
 import { getDataSource } from './db'
 import { Saison } from './entities'
 import { toPlain, toPlainArray } from './serialization'
@@ -18,13 +19,14 @@ export interface SaisonUpdateInput {
   league_id?: string | null
 }
 
-function parseDate(value?: string | null) {
+/** Valide `value` et le normalise en `YYYY-MM-DD`, format de la colonne `date` (voir Saison.date_debut/date_fin). */
+function parseDate(value?: string | null): string | null {
   if (!value) return null
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) {
     return null
   }
-  return parsed
+  return parsed.toISOString().slice(0, 10)
 }
 
 export async function listSaisonsForAdmin(leagueId?: string | null) {
@@ -61,13 +63,9 @@ export async function createSaisonAdmin(payload: SaisonCreateInput, leagueId?: s
   }
 
   // Vérifier l'unicité du nom pour cette ligue
-  const whereClause: any = {
+  const whereClause: FindOptionsWhere<Saison> = {
     nom: payload.nom,
-  }
-  if (payload.league_id) {
-    whereClause.league_id = payload.league_id
-  } else {
-    whereClause.league_id = null
+    league_id: payload.league_id || IsNull(),
   }
   const existing = await repo.findOne({
     where: whereClause,
@@ -81,8 +79,8 @@ export async function createSaisonAdmin(payload: SaisonCreateInput, leagueId?: s
   const newSaisonData: Partial<Saison> = {
     nom: payload.nom,
     type_competition: payload.type_competition,
-    date_debut: parseDate(payload.date_debut) as any,
-    date_fin: parseDate(payload.date_fin) as any,
+    date_debut: parseDate(payload.date_debut),
+    date_fin: parseDate(payload.date_fin),
     league_id: payload.league_id || null,
   }
   const newSaison = repo.create(newSaisonData)
@@ -135,13 +133,9 @@ export async function updateSaisonAdmin(id: string, payload: SaisonUpdateInput, 
   // Vérifier l'unicité du nom si modifié
   if (payload.nom !== undefined && payload.nom !== saison.nom) {
     const targetLeagueId = payload.league_id !== undefined ? payload.league_id : saison.league_id
-    const whereClause: any = {
+    const whereClause: FindOptionsWhere<Saison> = {
       nom: payload.nom,
-    }
-    if (targetLeagueId) {
-      whereClause.league_id = targetLeagueId
-    } else {
-      whereClause.league_id = null
+      league_id: targetLeagueId || IsNull(),
     }
     const existing = await repo.findOne({
       where: whereClause,
@@ -164,11 +158,11 @@ export async function updateSaisonAdmin(id: string, payload: SaisonUpdateInput, 
   }
   
   if (payload.date_debut !== undefined) {
-    updateData.date_debut = parseDate(payload.date_debut) as any
+    updateData.date_debut = parseDate(payload.date_debut)
   }
-  
+
   if (payload.date_fin !== undefined) {
-    updateData.date_fin = parseDate(payload.date_fin) as any
+    updateData.date_fin = parseDate(payload.date_fin)
   }
   
   if (payload.league_id !== undefined) {

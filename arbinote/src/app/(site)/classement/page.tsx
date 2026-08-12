@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { buildBayesianRanking } from "@/lib/bayesianRanking";
+import { buildBayesianRanking, type BayesianRankingEntry } from "@/lib/bayesianRanking";
 import { CritereDefinition, Vote } from "@/types";
+import type { TopMatchItem } from "@/components/ClassementClient";
 import { getServerLocale, translate } from "@/lib/i18nServer";
 import { getLocalizedName, getJourneeDisplayName } from "@/lib/utils";
 import {
@@ -27,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
   let activeLeague = null
   if (leagueId) {
     for (const fed of federations) {
-      const league = fed.leagues.find((l: any) => l.id === leagueId)
+      const league = fed.leagues.find((l) => l.id === leagueId)
       if (league) {
         activeLeague = league
         break
@@ -159,10 +160,10 @@ export default async function ClassementPage() {
   const criteresDefinitions = (await fetchCritereDefinitions()) as unknown as CritereDefinition[];
   const arbitreCriteres = criteresDefinitions.filter((c) => c.categorie === "arbitre");
 
-  let currentRanking: any[] = [];
-  let previousRanking: any[] = [];
-  let topVarMatches: any[] = [];
-  let topAssistantMatches: any[] = [];
+  let currentRanking: BayesianRankingEntry[] = [];
+  let previousRanking: BayesianRankingEntry[] = [];
+  let topVarMatches: TopMatchItem[] = [];
+  let topAssistantMatches: TopMatchItem[] = [];
   const allMatchIds: string[] = [];
 
   // Charger les classements pour la journée courante avec score bayésien
@@ -191,8 +192,8 @@ export default async function ClassementPage() {
 
   // Charger les top matchs VAR et Assistants avec score bayésien
   if (allMatchIds.length > 0) {
-    topVarMatches = await fetchTopMatchesByCriteresBayesian(allMatchIds, "var", 5);
-    topAssistantMatches = await fetchTopMatchesByCriteresBayesian(allMatchIds, "assistant", 5);
+    topVarMatches = (await fetchTopMatchesByCriteresBayesian(allMatchIds, "var", 5)) as unknown as TopMatchItem[];
+    topAssistantMatches = (await fetchTopMatchesByCriteresBayesian(allMatchIds, "assistant", 5)) as unknown as TopMatchItem[];
   }
 
   // Structured Data JSON-LD pour le SEO

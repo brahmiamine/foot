@@ -1,9 +1,9 @@
-import { Team, Match, CritereDefinition } from '@/types'
+import { Team, Match, CritereDefinition, Arbitre } from '@/types'
 
 export type TFunction = (key: string, params?: Record<string, string | number>) => string
 
 export interface RefereeStat {
-  arbitre: any
+  arbitre: Arbitre | null
   matchCount: number
   averageNote: number
   voteCount: number

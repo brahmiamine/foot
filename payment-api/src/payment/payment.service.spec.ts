@@ -49,6 +49,7 @@ describe('PaymentService', () => {
       id: 'payment-1',
       orderId: 'ORDER-1',
       userId: null,
+      callerApplication: 'billetterie',
       provider: PaymentProviderName.KONNECT,
       amount: '25.500',
       currency: 'TND',
@@ -123,11 +124,14 @@ describe('PaymentService', () => {
         providerRef: 'ref-123',
       });
 
-      const result = await service.initiateKonnectPayment({
-        orderId: 'ORDER-1',
-        amount: 25.5,
-        currency: 'TND',
-      });
+      const result = await service.initiateKonnectPayment(
+        {
+          orderId: 'ORDER-1',
+          amount: 25.5,
+          currency: 'TND',
+        },
+        'billetterie',
+      );
 
       expect(result).toEqual({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -265,15 +269,18 @@ describe('PaymentService', () => {
         payUrl: 'https://sandbox.paymee.tn/gateway/paymee-token-1',
       });
 
-      const result = await service.initiatePaymeePayment({
-        orderId: 'ORDER-1',
-        amount: 220.25,
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'test@paymee.tn',
-        phoneNumber: '+21611222333',
-        mode: PaymeeIntegrationMode.REDIRECT,
-      });
+      const result = await service.initiatePaymeePayment(
+        {
+          orderId: 'ORDER-1',
+          amount: 220.25,
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'test@paymee.tn',
+          phoneNumber: '+21611222333',
+          mode: PaymeeIntegrationMode.REDIRECT,
+        },
+        'billetterie',
+      );
 
       expect(result).toEqual({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -290,15 +297,18 @@ describe('PaymentService', () => {
         payUrl: 'https://sandbox.paymee.tn/gateway/paymee-token-2',
       });
 
-      const result = await service.initiatePaymeePayment({
-        orderId: 'ORDER-2',
-        amount: 10.5,
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'test@paymee.tn',
-        phoneNumber: '+21611222333',
-        mode: PaymeeIntegrationMode.IFRAME,
-      });
+      const result = await service.initiatePaymeePayment(
+        {
+          orderId: 'ORDER-2',
+          amount: 10.5,
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'test@paymee.tn',
+          phoneNumber: '+21611222333',
+          mode: PaymeeIntegrationMode.IFRAME,
+        },
+        'billetterie',
+      );
 
       expect(result.token).toBe('paymee-token-2');
       expect(result.payUrl).toBeUndefined();
@@ -453,11 +463,14 @@ describe('PaymentService', () => {
         providerRef: 'FoPKKHqfQIKfBqhEj8M47A',
       });
 
-      const result = await service.initiateFlouciPayment({
-        orderId: 'ORDER-1',
-        amount: 25.5,
-        currency: 'TND',
-      });
+      const result = await service.initiateFlouciPayment(
+        {
+          orderId: 'ORDER-1',
+          amount: 25.5,
+          currency: 'TND',
+        },
+        'billetterie',
+      );
 
       expect(result).toEqual({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

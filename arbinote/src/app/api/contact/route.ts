@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       (meta) => meta.name === 'Contact' || meta.tableName === 'contact_messages'
     )
 
-    let saved: any
+    let saved: { id: string | number | null }
 
     if (hasContactEntity) {
       try {

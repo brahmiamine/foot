@@ -52,7 +52,7 @@ export async function fetchMatchesByJourneeWithUserVote(
   // Si pas de fingerprint, retourner les matches sans votes
   if (!fingerprint) {
     const plainMatches = toPlainArray(matches)
-    return plainMatches.map((match: any) => ({
+    return plainMatches.map((match) => ({
       ...match,
       user_vote: null,
     }))
@@ -81,14 +81,31 @@ export async function fetchMatchesByJourneeWithUserVote(
     }
   })
 
+  interface MatchUserVote {
+    id: string
+    match_id: string
+    arbitre_id: string
+    criteres: Record<string, number>
+    note_globale: number
+    device_fingerprint?: string | null
+    ip_address?: string | null
+    moderation_status?: 'pending' | 'validated' | 'excluded'
+    created_at?: Date | string
+  }
+
   // Combiner les matches avec les votes utilisateur
   const plainMatches = toPlainArray(matches)
-  const matchesWithVotes = plainMatches.map((match: any) => {
+  const matchesWithVotes = plainMatches.map((match): Match & { user_vote: MatchUserVote | null } => {
     const userVote = voteMap.get(match.id)
 
-    if (userVote) {
-      const plainVote = toPlain(userVote)
-      match.user_vote = {
+    if (!userVote) {
+      return { ...match, user_vote: null }
+    }
+
+    const plainVote = toPlain(userVote)
+    return {
+      ...match,
+      user_vote: {
         id: plainVote.id,
         match_id: plainVote.match_id,
         arbitre_id: plainVote.arbitre_id,
@@ -100,12 +117,8 @@ export async function fetchMatchesByJourneeWithUserVote(
         ip_address: plainVote.ip_address,
         moderation_status: plainVote.moderation_status,
         created_at: plainVote.created_at,
-      }
-    } else {
-      match.user_vote = null
+      },
     }
-
-    return match
   })
 
   return matchesWithVotes

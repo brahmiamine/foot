@@ -3,7 +3,7 @@ import StarsRating from '@/components/StarsRating'
 import { formatDate, formatNote, getLocalizedName, getJourneeDisplayName } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Vote, Criteres, Match as MatchType, CritereDefinition } from '@/types'
+import { Vote, Criteres, Match as MatchType, CritereDefinition, Arbitre as ArbitreType } from '@/types'
 import { getServerLocale, translate } from '@/lib/i18nServer'
 import { fetchArbitreById, fetchVotesByArbitre, fetchMatchesByArbitre, fetchVotesByMatchIds, fetchCritereDefinitions } from '@/lib/dataAccess'
 import StructuredData from '@/components/StructuredData'
@@ -147,12 +147,12 @@ async function getArbitreStats(id: string) {
   const matches = await fetchMatchesByArbitre(id)
   
   // Récupérer les votes pour chaque match afin de calculer les moyennes
-  const matchIds = matches.map((m: any) => m.id)
+  const matchIds = matches.map((m) => m.id)
   const allMatchVotes = matchIds.length > 0 ? await fetchVotesByMatchIds(matchIds) : []
-  
+
   // Calculer la note moyenne par match
   const matchRatings: Record<string, { average: number; count: number }> = {}
-  allMatchVotes.forEach((vote: any) => {
+  allMatchVotes.forEach((vote) => {
     if (!matchRatings[vote.match_id]) {
       matchRatings[vote.match_id] = { average: 0, count: 0 }
     }
@@ -194,7 +194,8 @@ export default async function ArbitrePage({
 
   const locale = await getServerLocale()
   const t = (key: string, params?: Record<string, string | number>) => translate(key, locale, params)
-  const { arbitre, stats, matches, matchRatings, criteresDefs } = data
+  const { stats, matches, matchRatings, criteresDefs } = data
+  const arbitre = data.arbitre as unknown as ArbitreType
   const displayName = getLocalizedName(locale, {
     defaultValue: arbitre.nom,
     fr: arbitre.nom,
@@ -202,11 +203,11 @@ export default async function ArbitrePage({
     ar: arbitre.nom_ar ?? undefined,
   })
   const displayCategory =
-    (arbitre as any).categorie || (arbitre as any).categorie_ar
+    arbitre.categorie || arbitre.categorie_ar
       ? getLocalizedName(locale, {
-          defaultValue: (arbitre as any).categorie ?? (arbitre as any).categorie_ar ?? '',
-          fr: (arbitre as any).categorie ?? undefined,
-          ar: (arbitre as any).categorie_ar ?? undefined,
+          defaultValue: arbitre.categorie ?? arbitre.categorie_ar ?? '',
+          fr: arbitre.categorie ?? undefined,
+          ar: arbitre.categorie_ar ?? undefined,
         })
       : null
   const displayNationality =
@@ -369,7 +370,7 @@ export default async function ArbitrePage({
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-lg p-6 border border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{t('arbitre.matchesTitle')}</h2>
           <div className="space-y-3">
-            {(matches as any[]).map((match: any) => {
+            {matches.map((match) => {
               const homeName = getLocalizedName(locale, {
                 defaultValue: match.equipe_home.nom,
                 fr: match.equipe_home.nom,

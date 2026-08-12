@@ -17,17 +17,27 @@ vi.mock('typeorm', async (importOriginal) => {
   const SQLITE_TYPE_OVERRIDES: Record<string, string> = {
     timestamp: 'datetime',
     enum: 'simple-enum',
+    char: 'varchar',
+    // better-sqlite3 only allows AUTOINCREMENT on a column declared exactly
+    // "INTEGER PRIMARY KEY" ; 'bigint' (used by Sheet.id) doesn't qualify.
+    bigint: 'int',
   }
 
-  const patchedColumn = ((options?: unknown, ...rest: unknown[]) => {
-    if (options && typeof options === 'object' && 'type' in options) {
-      const type = (options as { type?: unknown }).type
-      if (typeof type === 'string' && SQLITE_TYPE_OVERRIDES[type]) {
-        options = { ...options, type: SQLITE_TYPE_OVERRIDES[type] }
+  function withTypeOverride(decorator: (...args: unknown[]) => PropertyDecorator) {
+    return ((options?: unknown, ...rest: unknown[]) => {
+      if (options && typeof options === 'object' && 'type' in options) {
+        const type = (options as { type?: unknown }).type
+        if (typeof type === 'string' && SQLITE_TYPE_OVERRIDES[type]) {
+          options = { ...options, type: SQLITE_TYPE_OVERRIDES[type] }
+        }
       }
-    }
-    return (actual.Column as (...args: unknown[]) => PropertyDecorator)(options, ...rest)
-  }) as typeof actual.Column
+      return decorator(options, ...rest)
+    }) as typeof actual.Column
+  }
 
-  return { ...actual, Column: patchedColumn }
+  return {
+    ...actual,
+    Column: withTypeOverride(actual.Column as (...args: unknown[]) => PropertyDecorator),
+    PrimaryGeneratedColumn: withTypeOverride(actual.PrimaryGeneratedColumn as (...args: unknown[]) => PropertyDecorator),
+  }
 })

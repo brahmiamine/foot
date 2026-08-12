@@ -1,3 +1,5 @@
+import type { VoteAnomalyResult } from "@/lib/voteAnomalyDetection";
+
 export interface Vote {
   id: string;
   note_globale: number;
@@ -35,7 +37,7 @@ export interface AlertDetails {
     isSuspicious: boolean;
     confidence: number;
     reasons: string[];
-    details: any;
+    details: VoteAnomalyResult["details"];
   };
   credibility: number;
   moderationStats: {

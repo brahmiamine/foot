@@ -4,16 +4,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getLocalizedName, getJourneeDisplayName } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n";
-import JourneeRankingClient from "./JourneeRankingClient";
+import type { Match } from "@/types";
+import type { BayesianRankingEntry } from "@/lib/bayesianRanking";
+import JourneeRankingClient, { type JourneeSummary } from "./JourneeRankingClient";
 import ClassementPageSkeleton from "./ClassementPageSkeleton";
 
+export interface TopMatchItem {
+  match: Match;
+  average: number;
+  voteCount: number;
+}
+
 interface ClassementClientProps {
-  current: any;
-  previous: any;
-  currentRanking: any[];
-  previousRanking: any[];
-  topVarMatches: any[];
-  topAssistantMatches: any[];
+  current: JourneeSummary | null;
+  previous: JourneeSummary | null;
+  currentRanking: BayesianRankingEntry[];
+  previousRanking: BayesianRankingEntry[];
+  topVarMatches: TopMatchItem[];
+  topAssistantMatches: TopMatchItem[];
   locale: string;
 }
 

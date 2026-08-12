@@ -4,9 +4,11 @@ import { generateSecret, generateURI, verify } from "otplib";
 import QRCode from "qrcode";
 import { getDataSource } from "./db";
 import { User } from "@/entities/User";
+import { MfaEnrollmentChallenge } from "@/entities/MfaEnrollmentChallenge";
 
 const ISSUER = "foot-sso";
 const RECOVERY_CODE_COUNT = 10;
+const ENROLLMENT_CHALLENGE_TTL_MS = 10 * 60 * 1000; // 10 min
 
 export function generateMfaSecret(): string {
   return generateSecret();
@@ -25,6 +27,40 @@ export async function verifyTotpCode(secret: string, token: string): Promise<boo
   if (!/^\d{6}$/.test(token)) return false;
   const result = await verify({ secret, token });
   return result.valid;
+}
+
+/**
+ * Enregistre le secret généré par /api/mfa/setup côté serveur, pour que
+ * /api/mfa/enable n'ait plus besoin de le recevoir du client — seul `code`
+ * reste requis. Un nouvel appel remplace toute tentative précédente pour
+ * cet utilisateur (PK = userId).
+ */
+export async function createMfaEnrollmentChallenge(userId: string, secret: string): Promise<void> {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(MfaEnrollmentChallenge);
+  await repo.save(
+    repo.create({ userId, secret, expiresAt: new Date(Date.now() + ENROLLMENT_CHALLENGE_TTL_MS) })
+  );
+}
+
+/**
+ * Lit le secret en attente pour cet utilisateur, sans le consommer — un
+ * code invalide ne doit pas obliger à rescanner le QR code, l'utilisateur
+ * doit pouvoir réessayer jusqu'à expiration. Voir consumeMfaEnrollmentChallenge
+ * pour la suppression après succès.
+ */
+export async function getPendingMfaSecret(userId: string): Promise<string | null> {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(MfaEnrollmentChallenge);
+  const challenge = await repo.findOne({ where: { userId } });
+  if (!challenge || challenge.expiresAt.getTime() < Date.now()) return null;
+  return challenge.secret;
+}
+
+/** Supprime le challenge après une activation réussie (usage unique). */
+export async function consumeMfaEnrollmentChallenge(userId: string): Promise<void> {
+  const dataSource = await getDataSource();
+  await dataSource.getRepository(MfaEnrollmentChallenge).delete({ userId });
 }
 
 export async function isMfaEnabled(userId: string): Promise<boolean> {

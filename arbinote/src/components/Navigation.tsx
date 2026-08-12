@@ -25,10 +25,15 @@ export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fermer le sidebar quand on change de page
-  useEffect(() => {
+  // Fermer le sidebar quand on change de page.
+  // Ajustement de state pendant le rendu (plutôt que dans un effet) : c'est le
+  // pattern recommandé par React pour "réinitialiser un state quand une prop change"
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setSidebarOpen(false);
-  }, [pathname]);
+  }
 
   // Empêcher le scroll du body quand le sidebar est ouvert
   useEffect(() => {

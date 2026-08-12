@@ -42,17 +42,26 @@ export async function fetchJourneesWithMatchDates(leagueId?: string | null): Pro
     LEFT JOIN saisons s ON s.id = j.saison_id
   `
   
-  const params: any[] = []
+  const params: string[] = []
   if (leagueId) {
     query += ` WHERE s.league_id = ?`
     params.push(leagueId)
   }
-  
-  query += ` GROUP BY j.id, j.numero, j.saison_id, j.date_journee ORDER BY j.numero ASC`
-  
-  const results = await dataSource.query(query, params)
 
-  return results.map((row: any) => ({
+  query += ` GROUP BY j.id, j.numero, j.saison_id, j.date_journee ORDER BY j.numero ASC`
+
+  interface JourneeMatchDatesRow {
+    id: string
+    numero: number
+    saison_id: string
+    date_journee: string | null
+    first_match_date: string | null
+    last_match_date: string | null
+  }
+
+  const results = await dataSource.query<JourneeMatchDatesRow[]>(query, params)
+
+  return results.map((row) => ({
     id: row.id,
     numero: row.numero,
     saison_id: row.saison_id,

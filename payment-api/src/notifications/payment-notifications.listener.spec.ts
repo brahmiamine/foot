@@ -13,6 +13,7 @@ describe('PaymentNotificationsListener', () => {
       provider: PaymentProviderName.KONNECT,
       providerRef: 'ref-123',
       userId: null,
+      callerApplication: 'billetterie',
       amount: '25.500',
       currency: 'TND',
       ...overrides,

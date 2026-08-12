@@ -83,8 +83,8 @@ describe('dataAccess/matches (real SQLite)', () => {
     const matches = await fetchMatchesByJourneeWithUserVote(journee.id, 'fp-mine')
     expect(matches).toHaveLength(1)
     expect(matches[0].user_vote).toBeTruthy()
-    expect(matches[0].user_vote.device_fingerprint).toBe('fp-mine')
-    expect(matches[0].user_vote.note_globale).toBe(4.5)
+    expect(matches[0].user_vote!.device_fingerprint).toBe('fp-mine')
+    expect(matches[0].user_vote!.note_globale).toBe(4.5)
   })
 
   it("fetchMatchesByJourneeWithUserVote keeps user_vote null when the fingerprint hasn't voted", async () => {

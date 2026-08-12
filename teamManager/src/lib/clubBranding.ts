@@ -16,13 +16,15 @@ export interface ClubBranding {
   shortName: string;
   logoUrl: string | null;
   faviconUrl: string;
+  icon192Url: string | null;
+  icon512Url: string | null;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
   font: string | null;
 }
 
-const DEFAULT_BRANDING: Omit<ClubBranding, "name" | "shortName" | "logoUrl"> = {
+const DEFAULT_BRANDING: Omit<ClubBranding, "name" | "shortName" | "logoUrl" | "icon192Url" | "icon512Url"> = {
   faviconUrl: "/images/favicon.png",
   primaryColor: "#c8102e",
   secondaryColor: "#0d0d0d",
@@ -40,6 +42,8 @@ export async function getClubBranding(teamId: string): Promise<ClubBranding> {
     shortName: team?.abbr ?? "TM",
     logoUrl: team?.logoUrl ?? null,
     faviconUrl: branding?.faviconUrl || DEFAULT_BRANDING.faviconUrl,
+    icon192Url: branding?.icon192Url || null,
+    icon512Url: branding?.icon512Url || null,
     primaryColor: branding?.primaryColor || DEFAULT_BRANDING.primaryColor,
     secondaryColor: branding?.secondaryColor || DEFAULT_BRANDING.secondaryColor,
     accentColor: branding?.accentColor || DEFAULT_BRANDING.accentColor,

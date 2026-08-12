@@ -9,6 +9,8 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
+import { CurrentService } from '../../../auth/decorators/current-service.decorator';
+import type { AuthenticatedService } from '../../../auth/interfaces/authenticated-service.interface';
 import { PaymentService } from '../../payment.service';
 import { InitPaymentDto } from '../../dto/init-payment.dto';
 import { InitPaymentResultDto } from '../../dto/init-payment-result.dto';
@@ -28,9 +30,15 @@ export class FlouciController {
   /** Reserved to backend applications of the ecosystem. */
   @Post('init')
   @UseGuards(ServiceAuthGuard)
-  async init(@Body() dto: InitPaymentDto): Promise<InitPaymentResultDto> {
+  async init(
+    @Body() dto: InitPaymentDto,
+    @CurrentService() service: AuthenticatedService,
+  ): Promise<InitPaymentResultDto> {
     try {
-      return await this.paymentService.initiateFlouciPayment(dto);
+      return await this.paymentService.initiateFlouciPayment(
+        dto,
+        service.application,
+      );
     } catch (error) {
       if (error instanceof FlouciError) {
         throw toHttpException(error);

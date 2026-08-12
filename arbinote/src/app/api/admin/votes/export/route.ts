@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       'Adresse IP',
     ]
 
-    const rows = votes.map((vote: any) => {
+    const rows = votes.map((vote) => {
       const homeName = vote.match?.equipe_home ? getLocalizedName('fr', {
         defaultValue: vote.match.equipe_home.nom,
         fr: vote.match.equipe_home.nom,

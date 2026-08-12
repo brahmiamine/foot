@@ -122,8 +122,8 @@ echo "🚀 Lancement de matchsheet sur http://localhost:3001 ..."
 (cd "$ROOT_DIR/matchsheet" && PORT=3001 pnpm run dev 2>&1 | sed -u 's/^/[matchsheet] /') &
 
 # ── superadmin sur le port 3002 (outil interne : référentiel fédérations/
-# ligues/saisons/journées/équipes/matchs/arbitres, journal d'audit, test
-# API-Football, + gestion des comptes clubs) ─────────────────────────────────
+# ligues/saisons/journées/équipes/matchs/arbitres, journal d'audit,
+# gestion des comptes clubs) ──────────────────────────────────────────────────
 echo "🚀 Lancement de superadmin sur http://localhost:3002 ..."
 (cd "$ROOT_DIR/superadmin" && PORT=3002 pnpm run dev 2>&1 | sed -u 's/^/[superadmin]  /') &
 

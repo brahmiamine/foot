@@ -9,7 +9,7 @@ livrés ne sont plus détaillés ici (voir l'historique git et les README de
 chaque app pour le détail de ce qui a été fait) : ce fichier ne garde que ce
 qui reste à faire, pour rester utilisable comme backlog.
 
-État vérifié sur le code au 11/08/2026.
+État vérifié sur le code au 12/08/2026.
 
 ---
 
@@ -17,16 +17,11 @@ qui reste à faire, pour rester utilisable comme backlog.
 
 | Rang | Action | Portée |
 |---|---|---|
-| 1 | Backup/restauration testée pour la base `foot` et les uploads | Infra — aucune stratégie au-delà du volume Docker local |
-| 2 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
-| 3 | Propagation de la révocation de session (`tokenVersion`) aux 6 apps clientes de `sso` | Sécurité — décision d'architecture (vérification DB/cache partagé vs TTL court) |
-| 4 | `superadmin` : synchronisation live API-Football (colonnes de matching, job, écran de mapping) | Produit |
-| 5 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
-| 6 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
-| 7 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
-| 8 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
-| 9 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
-
+| 1 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
+| 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
+| 3 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
+| 4 | Boucles fermées post-annulation (remboursements, avoirs, notification métier) | Paiement/Billetterie — webhook post-paiement fermé (payment-api → billetterie), remboursements toujours absents |
+| 5 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
 
 ---
 
@@ -36,23 +31,6 @@ Ces points ne sont pas seulement des fonctionnalités isolées : ce sont des
 flux qui traversent plusieurs projets et qui restent incomplets, fragiles ou
 non audités de bout en bout.
 
-### Authentification / révocation SSO
-- `sso` émet le cookie JWT commun et sait invalider une session via
-  `tokenVersion`, mais les apps clientes vérifient seulement signature,
-  issuer et expiration. Le circuit « mot de passe changé / MFA modifiée /
-  déconnexion partout → accès coupé partout » n'est donc pas fermé tant que
-  `arbinote`, `superadmin`, `teamManager`, `ob`, `billetterie` et les appels
-  API publics de `notification-api` n'ont pas un mécanisme de révocation
-  partagé (DB/cache/introspection/TTL court).
-- L'enrôlement MFA garde le secret TOTP côté navigateur entre `/api/mfa/setup`
-  et `/api/mfa/enable`. C'est documenté dans le code et acceptable pour une
-  V1, mais le circuit idéal serait un challenge d'enrôlement court, stocké
-  serveur, pour éviter de refaire transiter le secret en clair dans le POST
-  de confirmation.
-- `security_events` existe côté `sso`, mais aucun écran `superadmin` ou outil
-  opérationnel ne permet de filtrer les connexions, resets, MFA et révocations
-  sans accès SQL direct.
-
 ### Référentiel sportif → feuille de match → résultats publics
 - `superadmin` crée les fédérations/ligues/saisons/journées/matchs et
   `matchsheet` fait évoluer `matches.status` vers `IN_PROGRESS`/`FINISHED` ;
@@ -60,26 +38,29 @@ non audités de bout en bout.
   fermé parce qu'une annulation ne déclenche pas encore la cascade métier
   attendue : fermeture/gel de la feuille, arrêt des ventes, remboursement ou
   avoir des billets déjà payés, message aux acheteurs, trace métier unique.
-- La réouverture d'une feuille clôturée n'est pas modélisée : pas d'état
-  `REOPENED`, pas de motif, pas d'approbation `superadmin`, pas d'audit
-  horodaté. Toute correction post-match reste donc une opération technique,
-  pas un processus métier contrôlé.
+- La réouverture d'une feuille clôturée est désormais un processus contrôlé :
+  `superadmin` (`POST /api/admin/matches/[id]/reopen`, bouton "Rouvrir" sur
+  un match Terminé) exige un motif, remet `matches.status` et
+  `ms_sheets.status` à `IN_PROGRESS` (feuille de nouveau modifiable), notifie
+  les deux clubs et journalise l'action dans `audit_logs` (`action: 'reopen'`,
+  horodatée). Restreint aux matchs `FINISHED` avec feuille `CLOSED`.
 - Les données live (`goals`, `cards`, `injuries`, `substitutions`) alimentent
   `ob` en lecture, mais il n'existe pas de contrat d'API/versionnement entre
   `matchsheet` et les frontends publics. Un changement de schéma partagé peut
   casser le live sans garde automatisée.
 
 ### Billetterie / paiement / contrôle d'accès
-- Le parcours achat est partiel : `billetterie` crée une réservation
-  `PENDING`, appelle `payment-api`, puis réconcilie par lecture de l'état de
-  paiement au retour navigateur ou sur `/mes-billets`. Le circuit
-  `payment-api → application appelante` n'existe pas : pas de webhook
-  applicatif signé, pas de file d'événement, pas de garantie que l'app métier
-  marque rapidement l'achat si l'utilisateur ne revient jamais.
-- La libération des réservations expirées dépend d'un endpoint cron externe
-  (`/api/cron/purge-pending-reservations`) ; aucun scheduler n'est fourni par
-  le dépôt, donc la capacité peut rester bloquée si l'exploitation oublie ce
-  cron.
+- Le parcours achat : `billetterie` crée une réservation `PENDING`, appelle
+  `payment-api`, puis réconcilie soit via le webhook applicatif signé
+  `payment-api → billetterie` (`POST /api/payments/webhook`, HMAC-SHA256,
+  déclenché dès que le paiement passe PAID côté `payment-api`), soit au
+  retour navigateur ou sur `/mes-billets` en secours. Dans les deux cas le
+  corps du webhook n'est jamais source de vérité : billetterie relit
+  `GET /payments/:id` avant de marquer les billets PAID. Reste manquant :
+  file d'événement/retry persistant au-delà des 2 tentatives en mémoire de
+  `payment-api`, et les autres apps appelantes de `payment-api` (`ob`,
+  `teamManager`, `sellerPortal`…) n'ont pas d'URL configurée dans
+  `WEBHOOK_URLS` — elles restent en polling pur tant que ça n'est pas fait.
 - Le contrôle d'accès au stade n'existe pas : pas d'app scanner, pas de QR code
   signé/rotation, pas d'état `USED` horodaté, pas de journal d'entrée, pas de
   mode offline scanner, pas de détection de double scan.
@@ -98,9 +79,11 @@ non audités de bout en bout.
   `sellerPortal`) coexistent avec `notification-api`. Il manque une règle de
   gouvernance : ce qui reste local, ce qui devient notification plateforme,
   comment éviter les doublons in-app/email/push.
-- Les canaux push Web fonctionnent pour les apps branchées, mais le FCM natif
-  et le SMS sont encore des stubs. Les notifications critiques qui exigent
-  mobile natif ou SMS ne doivent donc pas être promises commercialement.
+- Les canaux push Web et FCM (mobile natif, HTTP v1) fonctionnent pour les
+  apps branchées, mais le SMS reste un stub. Les notifications critiques qui
+  exigent SMS ne doivent donc pas être promises commercialement, et FCM
+  reste à valider avec un vrai compte de service Firebase (jamais testé en
+  conditions réelles ici, faute de credentials).
 
 ### Marketplace / boutique / seller portal
 - `teamManager` administre une boutique catalogue legacy et `sellerPortal`
@@ -117,10 +100,15 @@ non audités de bout en bout.
   avec `payment-api` ou une comptabilité.
 
 ### Données partagées / migrations / déploiement
-- Les migrations SQL restent dispersées dans les apps (`sql/`, `mysql/`,
-  `migrations/`) sans outil unique, sans table de versions globale et sans
-  ordre d'application reproductible. C'est risqué pour une base `foot`
-  partagée par plusieurs écrivains.
+- Les migrations SQL restent physiquement dispersées dans les apps (`sql/`,
+  `mysql/`, `migrations/`), mais `db/migrate.sh` + `db/migrations.manifest`
+  donnent désormais un ordre d'application reproductible et une table de
+  version globale (`schema_migrations`) par-dessus, sans déplacer les
+  fichiers existants (voir db/migrate.sh pour ce qui est volontairement
+  exclu : dumps complets, scripts destructifs, données de seed). Logique de
+  suivi/idempotence testée via un harnais qui simule `docker`/`mariadb`,
+  jamais exécuté contre un vrai `mariadb_container` — à valider une fois en
+  conditions réelles (`--baseline` d'abord sur une base de dev existante).
 - Les tables `Card` et `matches.status` montrent que plusieurs apps peuvent
   écrire ou dépendre d'un même domaine. Il manque des tests de contrat
   inter-projets et des validations CI qui vérifient qu'une évolution de schéma
@@ -134,12 +122,6 @@ non audités de bout en bout.
 
 ## Reste à faire, par projet
 
-### `sso`
-- Révocation de session (`tokenVersion`) vérifiée uniquement dans `sso` lui-même : un JWT « révoqué » reste valide jusqu'à 12h dans les 6 apps clientes (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob`, `billetterie`), qui ne vérifient que signature/expiration (`packages/auth-shared`, volontairement sans DB pour rester Edge-safe). Étendre la vérification demanderait un appel DB par requête authentifiée dans 6 apps déployées indépendamment, ou un mécanisme différent (cache partagé, révocation courte) — décision à prendre consciemment.
-- Pas de viewer admin pour le journal de sécurité (`security_events`) : table interrogeable directement seulement.
-- MFA : le secret TOTP d'enrôlement est renvoyé au client puis reposté vers `/api/mfa/enable`; à durcir avec un challenge serveur court et expirant.
-- Pas d'endpoint d'introspection de session pour les apps clientes : toute solution de révocation centralisée devra être ajoutée explicitement.
-
 ### `teamManager`
 - Pas de checkout/paiement réel pour la boutique client (seule la gestion admin du catalogue existe, `admin/shop/`) — aucun tunnel d'achat, aucun appel à `payment-api`.
 - Pas de facturation sponsors (aucun module comptable) — seule la génération du résumé PDF de convention existe.
@@ -148,65 +130,49 @@ non audités de bout en bout.
 - Pas de workflow de validation juridique/comptable des conventions sponsor : le PDF généré est un résumé administratif, pas un contrat validé ni facturé.
 - Aucun espace supporter/communauté.
 - Notifications convocation/composition d'équipe/sponsor non branchées : le destinataire n'est pas un `User` résolvable dans le modèle actuel.
-- `Card` a deux écrivains (`teamManager` en discipline, `matchsheet` en live) sans verrou de concurrence ni propriétaire unique désigné.
 
 ### `matchsheet`
-- Pas de tests automatisés.
 - Pas de synchronisation offline des écritures ni file locale de retry pour les événements live saisis en stade.
-- Réouverture d'une feuille après clôture non modélisée ni auditée (pas de raison de réouverture tracée).
-- Pas de mot de passe de match/compte FMI dédié (app kiosque sans authentification).
-- Concurrence sur `Card` avec `teamManager` (voir ci-dessus) à encadrer.
+- Les services de saisie live (`CardEventService`, buts, remplacements, blessures) ne vérifient pas eux-mêmes le statut de la feuille/du match avant d'écrire — seul `post-match/actions.ts` bloque explicitement sur `CLOSED`. Une feuille rouverte par `superadmin` redevient donc éditable via ces services (comportement voulu), mais rien n'empêche non plus, par construction actuelle, une écriture après clôture par un autre chemin non audité — à durcir si ce cas se confirme en usage réel.
 
 ### `superadmin`
-- Colonnes de matching API-Football (`api_football_id`/`fixture_id`, live score/minute) absentes du schéma.
-- Aucun job de synchronisation live, aucun écran de mapping équipes/fixtures.
-- Icônes PWA personnalisables par club absentes de `ClubBranding`.
-- PWA orpheline : `public/manifest.json`/`sw.js` existent mais ne sont référencés nulle part dans `src/app` — aucun service worker n'y est jamais enregistré côté navigateur.
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).
-- Dette de lint pré-existante (~11 erreurs, essentiellement `@typescript-eslint/no-explicit-any`), rendue visible par la CI mais pas corrigée.
+- Réouverture d'un match `FINISHED` en place (motif requis, audit horodaté, notification aux clubs — voir circuit "Référentiel sportif" ci-dessus), mais reste un geste manuel au cas par cas : pas de règle produit sur qui peut/doit demander une réouverture, ni de délai limite après lequel un match Terminé ne peut plus être rouvert.
 
 ### `arbinote`
-- Intégration API-Football encore limitée par le mapping live (dépend du rang `superadmin` ci-dessus).
 - Vote sans compte reposant sur empreinte appareil/cookie — pas de vote authentifié.
 - Règles anti-fraude au-delà des anomalies/statistiques déjà en place non décrites/étendues.
-- Dette de lint pré-existante (~106 erreurs, essentiellement `@typescript-eslint/no-explicit-any`, + quelques `setState` synchrone dans un effet React), rendue visible par la CI mais pas corrigée.
+- Reste 4 erreurs de lint `react-hooks/set-state-in-effect` (`HomeClient`, `LiveMatchBadge`, `ThemeToggle`, `VotedBadge`) : effets de synchronisation externe (localStorage, timer, détection de montage) où une réécriture "dérivation au rendu" n'est pas un changement sûr à faire sans revue au cas par cas.
 
 ### `ob`
-- Pas de PWA installable.
-- N'émet aucun événement métier vers `notification-api` (reste un émetteur muet, en lecture seule) hors actions espace membre qui consomment les notifications existantes.
+- Émet désormais 3 événements métier vers `notification-api` (profil membre modifié, abonnement push ajouté/retiré) depuis `src/app/espace-membre/actions.ts`, seules mutations que `ob` effectue lui-même (le reste du site est en lecture seule sur la base `foot`, les formulaires publics — académie, recrutement, sponsors — sont hébergés côté `teamManager`).
 - Pages billets/commandes toujours dépendantes des apps génériques (`billetterie`), pas de tunnel intégré.
 
 ### `billetterie`
 - Scanner de contrôle d'accès au stade : jamais commencé, aucun dossier/route dans le dépôt.
-- Pas de tests automatisés.
 - Audience réservée à l'achat toujours auto-déclarée par conception (tracée et recoupée avec les affiliations `sso` comme signal de modération non bloquant, mais pas un mécanisme d'identité fiable — aucun n'existe dans ce dépôt pour la remplacer).
-- Aucun écran d'administration ne consomme le signal `audienceMismatch` aujourd'hui.
-- Pas de webhook applicatif venant de `payment-api` : la confirmation dépend du retour utilisateur ou d'une reconciliation à la prochaine visite.
-- Purge des réservations expirées dépendante d'un cron externe à configurer ; pas de scheduler livré dans le dépôt.
+- Webhook applicatif signé venant de `payment-api` en place (`POST /api/payments/webhook`) ; la reconciliation par retour utilisateur / `/mes-billets` reste le filet de sécurité si le webhook échoue ou n'est pas configuré.
 
 ### `payment-api`
-- Pas de callback/webhook applicatif vers les apps métier (seuls les providers rappellent `payment-api`) — la confirmation reste à la charge de chaque app appelante (polling/reconciliation).
+- Webhook applicatif signé (`WEBHOOK_URLS` + `PAYMENT_WEBHOOK_SECRET`, HMAC-SHA256, 2 retries en mémoire) vers l'app appelante quand un paiement passe PAID — configuré pour `billetterie` uniquement pour l'instant ; une app absente de `WEBHOOK_URLS` reste sur sa reconciliation par polling existante.
 - Pas de remboursements ni de payouts.
 - Pas d'état comptable exploitable pour les apps métier (facture/reçu, rapprochement, export compta, avoir/remboursement partiel).
 - Notifications limitées à `PAYMENT_SUCCEEDED`, uniquement si `userId` fourni par l'appelant.
 
 ### `notification-api`
 - Canal SMS non implémenté (`NotImplementedSmsProvider` lève une erreur explicite — décision produit documentée, pas un oubli).
-- Canal FCM (mobile natif) toujours un stub (`FcmProvider`), intégration HTTP v1 Firebase non faite.
 - Plusieurs notifications métier non branchées faute de destinataires résolvables (voir `teamManager` ci-dessus).
 - Monitoring/alerting externe absent (agrégation des `/health`, alerte) — suppose un outil externe (Datadog, Uptime Kuma…) à provisionner, rien à câbler côté dépôt tant que ce choix n'est pas fait.
 
 ### `sellerPortal`
-- Pas de tests automatisés.
 - Authentification vendeur séparée du SSO : pas de MFA, pas de révocation centrale, pas de viewer sécurité partagé.
 - Paiement direct, transporteur/logistique, payout automatique, enchères, abonnement publicité vendeur : tous hors périmètre actuel.
 - Dépendance temporaire aux tables `sp_*` dans la base partagée `foot`, en attendant une éventuelle Marketplace API dédiée.
 - Pas d'intégration `payment-api`/`notification-api` pour le cycle commande vendeur (paiement client, confirmation commande, notification vendeur, payout).
 
 ### Infra / `db`
-- Sauvegarde/restauration de `foot` et des uploads jamais testée (au-delà du volume Docker local).
+- `db/backup.sh`/`db/restore.sh` existent (dump `mariadb-dump` compressé de `foot` + archive des dossiers `public/uploads` d'arbinote/superadmin/teamManager, restauration avec confirmation). Logique testée via un harnais qui simule `docker`/`mariadb` (round-trip dump→gzip→restore et tar→untar vérifiés), mais jamais exécutés contre un vrai `mariadb_container` avec de vraies données — à valider une fois en conditions réelles avant de s'y fier en production.
 - Aucune passerelle API unique, aucun domaine de production configuré.
-- Aucun migrateur SQL partagé ni table de version globale pour la base `foot` ; ordre d'application des scripts encore manuel par projet.
 - Séparation des bases par domaine partielle (`payment-api`/`notification-api` isolées, le reste partage encore `foot`).
 - Monitoring/alerting des healthchecks absent.
 - Modèle multi-club toujours partiel : un compte staff (`User.teamId`) reste lié à un seul club (les affiliations `sso` ne couvrent que les `MEMBER`).

@@ -1,8 +1,10 @@
 import { cookies, headers } from "next/headers";
+import { NextRequest } from "next/server";
 import {
   buildSsoRedirectUrl,
   getSsoCookieName,
-  verifySsoToken,
+  getSsoTokenFromRequest,
+  verifySsoTokenWithRevocation,
 } from "../../../packages/auth-shared/src/session";
 
 /**
@@ -22,12 +24,18 @@ export interface SsoUser {
 }
 
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {
-  return (await verifySsoToken(token)) as SsoUser | null;
+  return (await verifySsoTokenWithRevocation(token)) as SsoUser | null;
 }
 
 export async function getSsoSession(): Promise<SsoUser | null> {
   const store = await cookies();
   const token = store.get(getSsoCookieName())?.value;
+  if (!token) return null;
+  return verifySessionToken(token);
+}
+
+export async function getSsoSessionFromRequest(request: NextRequest): Promise<SsoUser | null> {
+  const token = getSsoTokenFromRequest(request);
   if (!token) return null;
   return verifySessionToken(token);
 }
@@ -47,6 +55,15 @@ export function buildMemberLoginUrl(currentUrl: string): string {
 }
 
 /**
+ * Login staff (ADMIN/SUPERADMIN/OBSERVATEUR) — distinct de
+ * buildMemberLoginUrl, qui redirige vers l'espace membre. Utilisé par les
+ * pages sous /admin (voir src/lib/adminAuth.ts).
+ */
+export function buildAdminLoginUrl(currentUrl: string): string {
+  return buildSsoRedirectUrl(currentUrl, "/login");
+}
+
+/**
  * Variante pour les Server Components (pas de NextRequest disponible) :
  * reconstruit l'URL absolue de l'app à partir des en-têtes de la requête
  * entrante, pour que `sso` puisse rediriger vers le bon hôte après connexion.
@@ -57,4 +74,13 @@ export async function buildMemberLoginUrlForPath(path: string): Promise<string> 
   const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
   const currentUrl = `${proto}://${host}${path}`;
   return buildMemberLoginUrl(currentUrl);
+}
+
+/** Variante staff de buildMemberLoginUrlForPath, voir buildAdminLoginUrl. */
+export async function buildAdminLoginUrlForPath(path: string): Promise<string> {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const currentUrl = `${proto}://${host}${path}`;
+  return buildAdminLoginUrl(currentUrl);
 }

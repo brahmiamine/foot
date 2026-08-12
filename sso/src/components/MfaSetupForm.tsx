@@ -44,7 +44,7 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
       const response = await fetch("/api/mfa/enable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret, code: confirmCode }),
+        body: JSON.stringify({ code: confirmCode }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
