@@ -62,8 +62,8 @@ export function TranslationProvider({
     const nextLocale = isLocale(newLocale) ? newLocale : defaultLocale
     setLocale(nextLocale)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('arbinote-locale', nextLocale)
-      document.cookie = `arbinote-locale=${nextLocale}; path=/; max-age=31536000`
+      localStorage.setItem('superadmin-locale', nextLocale)
+      document.cookie = `superadmin_locale=${nextLocale}; path=/; max-age=31536000; samesite=lax`
     }
   }
 
@@ -77,13 +77,7 @@ export function TranslationProvider({
     if (typeof window === 'undefined') {
       return
     }
-    const stored = localStorage.getItem('arbinote-locale')
-    if (stored && isLocale(stored)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLocale((current) => (stored !== current ? stored : current))
-    } else {
-      localStorage.setItem('arbinote-locale', sanitizedInitialLocale)
-    }
+    localStorage.setItem('superadmin-locale', sanitizedInitialLocale)
   }, [sanitizedInitialLocale])
 
   useEffect(() => {
@@ -103,5 +97,3 @@ export function TranslationProvider({
 export function useTranslations() {
   return useContext(TranslationContext)
 }
-
-

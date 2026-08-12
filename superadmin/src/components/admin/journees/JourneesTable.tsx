@@ -1,6 +1,7 @@
 'use client'
 
 import type { Journee, Saison } from '@/types'
+import { useTranslations } from '@/lib/i18n'
 import { getSaisonDisplayName } from './constants'
 
 interface JourneesTableProps {
@@ -30,18 +31,19 @@ export default function JourneesTable({
   onStartEdit,
   onDelete,
 }: JourneesTableProps) {
+  const { locale, t } = useTranslations()
   return (
     <div className={editingId ? 'col-12 col-lg-8' : 'col-12'}>
       <div className="card">
         <div className="card-header bg-transparent">
-          <h5 className="card-title mb-0">Journées ({journees.length})</h5>
+          <h5 className="card-title mb-0">{t('admin.journees.listTitle', { count: journees.length })}</h5>
         </div>
         <div className="card-body">
           <div className="row g-3 mb-3">
             <div className="col-12 col-sm-8">
               <input
                 type="text"
-                placeholder="Rechercher par nom ou saison..."
+                placeholder={t('admin.journees.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="form-control"
@@ -53,7 +55,7 @@ export default function JourneesTable({
                 onChange={(e) => setFilterSaisonId(e.target.value)}
                 className="form-select"
               >
-                <option value="">Toutes les saisons</option>
+                <option value="">{t('admin.journees.allSeasons')}</option>
                 {saisons.map((saison) => (
                   <option key={saison.id} value={saison.id}>
                     {getSaisonDisplayName(saison)}
@@ -63,20 +65,20 @@ export default function JourneesTable({
             </div>
           </div>
           {loading ? (
-            <p className="text-muted mb-0">Chargement...</p>
+            <p className="text-muted mb-0">{t('admin.common.loading')}</p>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover align-middle mb-0">
                 <thead className="table-light">
                   <tr>
                     <th>N°</th>
-                    <th>Nom (FR)</th>
-                    <th>Nom (EN)</th>
-                    <th>Nom (AR)</th>
-                    <th>Fédération</th>
-                    <th>Saison</th>
-                    <th>Date</th>
-                    <th className="text-end">Actions</th>
+                    <th>{t('admin.journees.nameFr')}</th>
+                    <th>{t('admin.journees.nameEn')}</th>
+                    <th>{t('admin.journees.nameAr')}</th>
+                    <th>{t('admin.journees.federation')}</th>
+                    <th>{t('admin.journees.season')}</th>
+                    <th>{t('admin.journees.date')}</th>
+                    <th className="text-end">{t('admin.common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -84,15 +86,15 @@ export default function JourneesTable({
                     <tr>
                       <td colSpan={8} className="text-center text-muted py-5">
                         {searchQuery.trim() || filterSaisonId
-                          ? 'Aucune journée trouvée pour ces critères'
-                          : 'Aucune journée'}
+                          ? t('admin.journees.noResults')
+                          : t('admin.journees.empty')}
                       </td>
                     </tr>
                   ) : (
                     journees.map((journee) => {
                       // Format saison comme dans les dropdowns: Ligue (Saison)
                       const saisonDisplay = journee.saison
-                        ? `${journee.saison.league?.nom || 'Sans ligue'} (${journee.saison.nom})`
+                        ? `${journee.saison.league?.nom || t('admin.journees.noLeague')} (${journee.saison.nom})`
                         : '—'
 
                       // Fédération via saison -> league -> federation
@@ -125,7 +127,7 @@ export default function JourneesTable({
                           </td>
                           <td className="text-muted">
                             {journee.date_journee
-                              ? new Date(journee.date_journee).toLocaleDateString('fr-FR')
+                              ? new Date(journee.date_journee).toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'fr-FR')
                               : '—'}
                           </td>
                           <td className="text-end">
@@ -137,7 +139,7 @@ export default function JourneesTable({
                                 }}
                                 className={`btn btn-sm ${editingId === journee.id ? 'btn-primary' : 'btn-outline-primary'}`}
                               >
-                                {editingId === journee.id ? 'En cours...' : 'Modifier'}
+                                {editingId === journee.id ? t('admin.journees.editing') : t('admin.common.edit')}
                               </button>
                               <button
                                 onClick={(e) => {
@@ -147,7 +149,7 @@ export default function JourneesTable({
                                 disabled={deletingId === journee.id}
                                 className="btn btn-sm btn-outline-danger"
                               >
-                                {deletingId === journee.id ? 'Suppression...' : 'Supprimer'}
+                                {deletingId === journee.id ? t('admin.common.deleting') : t('admin.common.delete')}
                               </button>
                             </div>
                           </td>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from '@/lib/i18n'
 
 interface ClubUser {
   id: string
@@ -18,9 +19,9 @@ interface ClubInfo {
   logo_url?: string | null
 }
 
-const roleLabels: Record<string, string> = { ADMIN: 'Admin', OBSERVATEUR: 'Observateur', SUPERADMIN: 'Superadmin' }
-
 export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
+  const { t } = useTranslations()
+  const roleLabels: Record<string, string> = { ADMIN: t('admin.clubUsers.roles.admin'), OBSERVATEUR: t('admin.clubUsers.roles.observer'), SUPERADMIN: t('admin.clubUsers.roles.superadmin') }
   const [club, setClub] = useState<ClubInfo | null>(null)
   const [users, setUsers] = useState<ClubUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,12 +39,12 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
   async function load() {
     try {
       const response = await fetch(`/api/admin/club/${teamId}`, { cache: 'no-store', credentials: 'include' })
-      if (!response.ok) throw new Error('Impossible de charger ce club')
+      if (!response.ok) throw new Error(t('admin.clubUsers.errors.load'))
       const data = await response.json()
       setClub(data.club)
       setUsers(data.users)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+      setError(err instanceof Error ? err.message : t('admin.common.unknownError'))
     } finally {
       setLoading(false)
     }
@@ -67,12 +68,12 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         body: JSON.stringify(form),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error ?? 'Erreur')
+      if (!response.ok) throw new Error(data.error ?? t('admin.common.error'))
       setInviteSent(form.email)
       setForm({ name: '', email: '', role: 'ADMIN' })
       setShowForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+      setError(err instanceof Error ? err.message : t('admin.common.unknownError'))
     } finally {
       setSaving(false)
     }
@@ -89,7 +90,7 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
       if (!response.ok) throw new Error()
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u)))
     } catch {
-      setError('Erreur lors de la mise à jour')
+      setError(t('admin.clubUsers.errors.update'))
     }
   }
 
@@ -101,7 +102,7 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
       setUsers((prev) => prev.filter((u) => u.id !== deleteId))
       setDeleteId(null)
     } catch {
-      setError('Erreur lors de la suppression')
+      setError(t('admin.clubUsers.errors.delete'))
     }
   }
 
@@ -118,11 +119,11 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
       setResetId(null)
       setResetPassword('')
     } catch {
-      setError('Erreur lors de la réinitialisation')
+      setError(t('admin.clubUsers.errors.reset'))
     }
   }
 
-  if (loading) return <p className="text-muted">Chargement...</p>
+  if (loading) return <p className="text-muted">{t('admin.common.loading')}</p>
 
   return (
     <div className="d-flex flex-column gap-4">
@@ -135,21 +136,21 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
 
       <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3">
         <div>
-          <h2 className="mb-1">{club?.nom ?? 'Club'}</h2>
-          <p className="text-muted mb-0">Comptes de connexion (CardManager / TeamManager)</p>
+          <h2 className="mb-1">{club?.nom ?? t('admin.clubUsers.club')}</h2>
+          <p className="text-muted mb-0">{t('admin.clubUsers.subtitle')}</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="btn btn-primary"
         >
-          {showForm ? 'Annuler' : '+ Inviter un compte'}
+          {showForm ? t('admin.common.cancel') : t('admin.clubUsers.invite')}
         </button>
       </div>
 
       {error && <div className="alert alert-danger mb-0">{error}</div>}
       {inviteSent && (
         <div className="alert alert-success mb-0">
-          Invitation envoyée à {inviteSent}. Le compte sera créé quand la personne l&apos;acceptera (lien valable 7 jours).
+          {t('admin.clubUsers.invitationSent', { email: inviteSent })}
         </div>
       )}
 
@@ -157,12 +158,11 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         <form onSubmit={handleInvite} className="card shadow-sm border-0">
           <div className="card-body">
             <p className="text-muted small mb-3">
-              Un email avec un lien d&apos;invitation à usage unique sera envoyé. La personne invitée choisit
-              elle-même son mot de passe en l&apos;acceptant.
+              {t('admin.clubUsers.invitationHelp')}
             </p>
             <div className="row g-3">
               <div className="col-12 col-md-6">
-                <label className="form-label">Nom complet</label>
+                <label className="form-label">{t('admin.clubUsers.fullName')}</label>
                 <input
                   required
                   minLength={2}
@@ -172,7 +172,7 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
                 />
               </div>
               <div className="col-12 col-md-6">
-                <label className="form-label">Email</label>
+                <label className="form-label">{t('admin.clubUsers.email')}</label>
                 <input
                   required
                   type="email"
@@ -182,7 +182,7 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
                 />
               </div>
               <div className="col-12 col-md-6">
-                <label className="form-label">Rôle</label>
+                <label className="form-label">{t('admin.clubUsers.role')}</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as 'ADMIN' | 'OBSERVATEUR' }))}
@@ -200,7 +200,7 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
               disabled={saving}
               className="btn btn-primary"
             >
-              {saving ? 'Envoi...' : "Envoyer l'invitation"}
+              {saving ? t('admin.clubUsers.sending') : t('admin.clubUsers.sendInvitation')}
             </button>
           </div>
         </form>
@@ -209,17 +209,17 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
       <div className="card shadow-sm border-0">
         <div className="card-body p-0">
           {users.length === 0 ? (
-            <p className="text-center text-muted py-4 mb-0">Aucun compte pour ce club</p>
+            <p className="text-center text-muted py-4 mb-0">{t('admin.clubUsers.empty')}</p>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover align-middle mb-0">
                 <thead className="table-light">
                   <tr>
-                    <th>Nom</th>
-                    <th>Email</th>
-                    <th>Rôle</th>
-                    <th>Statut</th>
-                    <th className="text-end">Actions</th>
+                    <th>{t('admin.clubUsers.name')}</th>
+                    <th>{t('admin.clubUsers.email')}</th>
+                    <th>{t('admin.clubUsers.role')}</th>
+                    <th>{t('admin.clubUsers.status')}</th>
+                    <th className="text-end">{t('admin.common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,18 +236,18 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
                             user.isActive ? 'bg-success-subtle text-success' : 'bg-dark-subtle text-dark'
                           }`}
                         >
-                          {user.isActive ? 'Actif' : 'Inactif'}
+                          {user.isActive ? t('admin.clubUsers.active') : t('admin.clubUsers.inactive')}
                         </span>
                       </td>
                       <td className="text-end">
                         <div className="d-inline-flex gap-2">
-                          <button type="button" onClick={() => { setResetId(user.id); setResetPassword('') }} className="btn btn-sm btn-light" title="Réinitialiser mot de passe">
+                          <button type="button" onClick={() => { setResetId(user.id); setResetPassword('') }} className="btn btn-sm btn-light" title={t('admin.clubUsers.resetPassword')}>
                             <i className="bx bx-key" aria-hidden="true" />
                           </button>
-                          <button type="button" onClick={() => toggleActive(user)} className={`btn btn-sm ${user.isActive ? 'btn-warning' : 'btn-success'}`} title="Activer / Désactiver">
+                          <button type="button" onClick={() => toggleActive(user)} className={`btn btn-sm ${user.isActive ? 'btn-warning' : 'btn-success'}`} title={t('admin.clubUsers.toggleActive')}>
                             <i className={`bx ${user.isActive ? 'bx-pause' : 'bx-play'}`} aria-hidden="true" />
                           </button>
-                          <button type="button" onClick={() => setDeleteId(user.id)} className="btn btn-sm btn-danger" title="Supprimer">
+                          <button type="button" onClick={() => setDeleteId(user.id)} className="btn btn-sm btn-danger" title={t('admin.common.delete')}>
                             <i className="bx bx-trash" aria-hidden="true" />
                           </button>
                         </div>
@@ -265,19 +265,19 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 px-3" style={{ zIndex: 1050 }}>
           <div className="card shadow border-0" style={{ maxWidth: '420px', width: '100%' }}>
             <div className="card-body">
-              <h3 className="h6 mb-3">Nouveau mot de passe</h3>
+              <h3 className="h6 mb-3">{t('admin.clubUsers.newPassword')}</h3>
               <input
                 type="password"
                 autoFocus
                 minLength={8}
                 value={resetPassword}
                 onChange={(e) => setResetPassword(e.target.value)}
-                placeholder="Min. 8 caractères"
+                placeholder={t('admin.clubUsers.passwordPlaceholder')}
                 className="form-control"
               />
               <div className="d-flex justify-content-end gap-2 pt-3">
                 <button type="button" onClick={() => setResetId(null)} className="btn btn-light btn-sm">
-                  Annuler
+                  {t('admin.common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -285,7 +285,7 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
                   disabled={resetPassword.length < 8}
                   className="btn btn-primary btn-sm"
                 >
-                  Enregistrer
+                  {t('admin.common.save')}
                 </button>
               </div>
             </div>
@@ -297,14 +297,14 @@ export default function AdminClubUsersManager({ teamId }: { teamId: string }) {
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 px-3" style={{ zIndex: 1050 }}>
           <div className="card shadow border-0" style={{ maxWidth: '420px', width: '100%' }}>
             <div className="card-body">
-              <h3 className="h6 mb-2">Supprimer ce compte ?</h3>
-              <p className="small text-muted">Cette action est irréversible.</p>
+              <h3 className="h6 mb-2">{t('admin.clubUsers.deleteTitle')}</h3>
+              <p className="small text-muted">{t('admin.common.irreversible')}</p>
               <div className="d-flex justify-content-end gap-2 pt-2">
                 <button type="button" onClick={() => setDeleteId(null)} className="btn btn-light btn-sm">
-                  Annuler
+                  {t('admin.common.cancel')}
                 </button>
                 <button type="button" onClick={confirmDelete} className="btn btn-danger btn-sm">
-                  Supprimer
+                  {t('admin.common.delete')}
                 </button>
               </div>
             </div>
