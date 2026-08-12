@@ -2,11 +2,14 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/i18n/provider";
+import { apiErrorKey } from "@/i18n/apiErrors";
+import type { TranslationKey } from "@/i18n";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  google: "La connexion avec Google a échoué. Réessayez.",
-  google_unverified: "Votre compte Google doit avoir un email vérifié.",
-  staff_email: "Cet email est déjà utilisé par un compte interne. Contactez un administrateur.",
+const ERROR_MESSAGES: Record<string, TranslationKey> = {
+  google: "auth.login.googleError",
+  google_unverified: "auth.login.googleUnverified",
+  staff_email: "auth.login.staffEmail",
 };
 
 export default function MemberLoginForm({
@@ -16,10 +19,11 @@ export default function MemberLoginForm({
   redirectTo: string;
   initialError?: string | null;
 }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
-    initialError ? ERROR_MESSAGES[initialError] ?? "Connexion impossible." : null
+    initialError ? t(ERROR_MESSAGES[initialError] ?? "auth.login.unavailable") : null
   );
   const [loading, setLoading] = useState(false);
 
@@ -36,12 +40,12 @@ export default function MemberLoginForm({
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Email ou mot de passe incorrect");
+        throw new Error(t(apiErrorKey(payload.error, "auth.login.invalidCredentials")));
       }
 
       window.location.href = payload.redirect || "/";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de se connecter");
+      setError(err instanceof Error ? err.message : t("auth.login.unavailable"));
     } finally {
       setLoading(false);
     }
@@ -52,15 +56,15 @@ export default function MemberLoginForm({
   return (
     <form onSubmit={handleSubmit} className="sso-form">
       <a href={googleHref} className="sso-google">
-        Continuer avec Google
+        {t("auth.login.google")}
       </a>
 
       <div className="sso-divider">
-        <span>ou</span>
+        <span>{t("common.or")}</span>
       </div>
 
       <div className="sso-field">
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{t("common.email")}</label>
         <input
           id="email"
           type="email"
@@ -72,7 +76,7 @@ export default function MemberLoginForm({
       </div>
 
       <div className="sso-field">
-        <label htmlFor="password">Mot de passe</label>
+        <label htmlFor="password">{t("auth.password.label")}</label>
         <input
           id="password"
           type="password"
@@ -86,11 +90,11 @@ export default function MemberLoginForm({
       {error && <p className="sso-error">{error}</p>}
 
       <button type="submit" disabled={loading} className="sso-submit">
-        {loading ? "Connexion..." : "Se connecter"}
+        {loading ? t("auth.login.pending") : t("auth.login.submit")}
       </button>
 
       <Link href={`/membre/register?redirect=${encodeURIComponent(redirectTo)}`} className="sso-switch">
-        Pas encore de compte ? Inscrivez-vous
+        {t("auth.login.registerPrompt")}
       </Link>
 
       <style jsx>{`

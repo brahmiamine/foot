@@ -18,12 +18,12 @@ const MIN_PASSWORD_LENGTH = 8;
 export async function POST(request: NextRequest) {
   try {
     if (!isTrustedOrigin(request)) {
-      return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
     const session = await getCurrentSession();
     if (!session) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
     const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
 
     if (!currentPassword) {
-      return NextResponse.json({ error: "Mot de passe actuel requis" }, { status: 400 });
+      return NextResponse.json({ error: "CURRENT_PASSWORD_REQUIRED" }, { status: 400 });
     }
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
       return NextResponse.json(
-        { error: `Le nouveau mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères` },
+        { error: "PASSWORD_TOO_SHORT" },
         { status: 400 },
       );
     }
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       logSecurityEvent({ type: "PASSWORD_CHANGE_FAILED", userId: session.id, ip: getClientIP(request) });
       const message =
-        result.error === "invalid_current_password" ? "Mot de passe actuel incorrect." : "Ce compte est désactivé.";
+        result.error === "invalid_current_password" ? "INVALID_CURRENT_PASSWORD" : "ACCOUNT_DISABLED";
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
@@ -62,6 +62,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("SSO change-password error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
 }

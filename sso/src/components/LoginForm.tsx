@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/i18n/provider";
+import { apiErrorKey } from "@/i18n/apiErrors";
 
 interface TeamOption {
   id: string;
@@ -11,6 +13,7 @@ interface TeamOption {
 }
 
 export default function LoginForm({ redirectTo }: { redirectTo: string }) {
+  const { locale, t } = useI18n();
   const [mode, setMode] = useState<"club" | "superadmin">("club");
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
@@ -35,7 +38,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
     setError(null);
 
     if (mode === "club" && !selectedTeamId) {
-      setError("Choisissez votre club.");
+      setError(t("auth.clubSelection.required"));
       return;
     }
 
@@ -54,7 +57,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Identifiants incorrects");
+        throw new Error(t(apiErrorKey(payload.error, "auth.login.invalidCredentials")));
       }
 
       if (payload.mfaRequired) {
@@ -64,7 +67,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
 
       window.location.href = payload.redirect || "/";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de se connecter");
+      setError(err instanceof Error ? err.message : t("auth.login.unavailable"));
     } finally {
       setLoading(false);
     }
@@ -84,12 +87,12 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Code invalide");
+        throw new Error(t(apiErrorKey(payload.error, "auth.mfa.invalid")));
       }
 
       window.location.href = payload.redirect || "/";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Code invalide");
+      setError(err instanceof Error ? err.message : t("auth.mfa.invalid"));
     } finally {
       setLoading(false);
     }
@@ -99,13 +102,13 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
     return (
       <form onSubmit={handleMfaSubmit} className="sso-form">
         <div className="sso-field">
-          <label htmlFor="mfaCode">Code de vérification</label>
+          <label htmlFor="mfaCode">{t("auth.mfa.code.label")}</label>
           <input
             id="mfaCode"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="123456 ou code de récupération"
+            placeholder={t("auth.mfa.code.placeholder")}
             value={mfaCode}
             onChange={(event) => setMfaCode(event.target.value)}
             autoFocus
@@ -116,7 +119,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         {error && <p className="sso-error">{error}</p>}
 
         <button type="submit" disabled={loading} className="sso-submit">
-          {loading ? "Vérification..." : "Vérifier"}
+          {loading ? t("auth.mfa.verifying") : t("auth.mfa.verify")}
         </button>
 
         <button
@@ -128,7 +131,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
             setError(null);
           }}
         >
-          Retour à la connexion
+          {t("auth.mfa.back")}
         </button>
 
         <style jsx>{`
@@ -192,7 +195,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
     <form onSubmit={handleSubmit} className="sso-form">
       {mode === "club" && (
         <div className="sso-field">
-          <label htmlFor="teamId">Club</label>
+          <label htmlFor="teamId">{t("auth.clubSelection.label")}</label>
           <select
             id="teamId"
             value={selectedTeamId}
@@ -200,11 +203,11 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
             required
           >
             <option value="">
-              {loadingTeams ? "Chargement..." : "Sélectionnez un club"}
+              {loadingTeams ? t("common.loading") : t("auth.clubSelection.select")}
             </option>
             {teams.map((team) => (
               <option key={team.id} value={team.id}>
-                {team.nom}
+                {locale === "ar" && team.nomAr ? team.nomAr : team.nom}
               </option>
             ))}
           </select>
@@ -212,7 +215,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
       )}
 
       <div className="sso-field">
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{t("common.email")}</label>
         <input
           id="email"
           type="email"
@@ -224,7 +227,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
       </div>
 
       <div className="sso-field">
-        <label htmlFor="password">Mot de passe</label>
+        <label htmlFor="password">{t("auth.password.label")}</label>
         <input
           id="password"
           type="password"
@@ -238,11 +241,11 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
       {error && <p className="sso-error">{error}</p>}
 
       <button type="submit" disabled={loading} className="sso-submit">
-        {loading ? "Connexion..." : "Se connecter"}
+        {loading ? t("auth.login.pending") : t("auth.login.submit")}
       </button>
 
       <Link href="/forgot-password" className="sso-switch sso-switch-link">
-        Mot de passe oublié ?
+        {t("auth.password.forgot")}
       </Link>
 
       <button
@@ -253,7 +256,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
           setError(null);
         }}
       >
-        {mode === "club" ? "Connexion super-admin" : "Retour à la connexion club"}
+        {mode === "club" ? t("auth.login.superadmin") : t("auth.login.clubBack")}
       </button>
 
       <style jsx>{`

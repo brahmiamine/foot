@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 /** Même raison que /api/login : formulaire rendu uniquement par `sso`. */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
-    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   try {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (isLoginRateLimited(clientIP)) {
       logSecurityEvent({ type: "LOGIN_RATE_LIMITED", ip: clientIP });
       return NextResponse.json(
-        { error: "Trop de tentatives échouées. Réessayez dans quelques minutes." },
+        { error: "RATE_LIMITED" },
         { status: 429 }
       );
     }
@@ -35,13 +35,13 @@ export async function POST(request: NextRequest) {
     const redirect = sanitizeRedirect(typeof body.redirect === "string" ? body.redirect : null);
 
     if (!mfaToken || !code) {
-      return NextResponse.json({ error: "Code requis" }, { status: 400 });
+      return NextResponse.json({ error: "MFA_CODE_REQUIRED" }, { status: 400 });
     }
 
     const userId = await verifyMfaPendingToken(mfaToken);
     if (!userId) {
       return NextResponse.json(
-        { error: "Session de connexion expirée, reconnectez-vous." },
+        { error: "MFA_SESSION_EXPIRED" },
         { status: 401 }
       );
     }
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     if (!user || !user.isActive || !user.mfaEnabled || !user.mfaSecret) {
       recordFailedLoginAttempt(clientIP);
       logSecurityEvent({ type: "MFA_FAILED", userId: user?.id, ip: clientIP });
-      return NextResponse.json({ error: "Code invalide" }, { status: 401 });
+      return NextResponse.json({ error: "MFA_CODE_INVALID" }, { status: 401 });
     }
 
     let valid = await verifyTotpCode(user.mfaSecret, code);
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     if (!valid) {
       recordFailedLoginAttempt(clientIP);
       logSecurityEvent({ type: "MFA_FAILED", userId: user.id, ip: clientIP });
-      return NextResponse.json({ error: "Code invalide" }, { status: 401 });
+      return NextResponse.json({ error: "MFA_CODE_INVALID" }, { status: 401 });
     }
 
     clearFailedLoginAttempts(clientIP);
@@ -89,6 +89,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("SSO login MFA error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
 }
