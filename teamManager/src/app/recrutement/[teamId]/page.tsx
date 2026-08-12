@@ -32,14 +32,14 @@ export default async function RecruitmentPage({ params }: { params: Promise<{ te
             fallbackIcon="fas fa-shield-alt fa-2x"
           />
         )}
-        <h1 className="h3 mb-2">{t("recruitmentTitle", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
-        <p className="text-muted">{t("recruitmentHelp")}</p>
+        <h1 className="h3 mb-2">{t("recruitment.page.title", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
+        <p className="text-muted">{t("recruitment.page.help")}</p>
       </div>
 
       {needs.length > 0 && (
         <div className="card shadow-sm mb-4">
           <div className="card-body">
-            <h2 className="h6 text-uppercase text-muted mb-3">{t("requestedPositions")}</h2>
+            <h2 className="h6 text-uppercase text-muted mb-3">{t("recruitment.page.requestedPositions")}</h2>
             <ul className="list-unstyled mb-0">
               {needs.map((need) => (
                 <li key={need.id} className="mb-2">

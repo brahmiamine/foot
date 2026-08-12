@@ -38,9 +38,9 @@ export default async function InscriptionPage({ params }: { params: Promise<{ te
             fallbackIcon="fas fa-shield-alt fa-2x"
           />
         )}
-        <h1 className="h3 mb-2">{t("registerChild", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
+        <h1 className="h3 mb-2">{t("academy.application.page.title", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
         <p className="text-muted">
-          {t("registerHelp")}
+          {t("academy.application.page.help")}
         </p>
       </div>
 

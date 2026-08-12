@@ -20,20 +20,20 @@ export function AdminHeader({ userName }: { userName: string }) {
           <button
             onClick={toggleSidebar}
             className="btn btn-sm px-3 header-item d-lg-none"
-            aria-label={t("openMenu")}
+            aria-label={t("navigation.menu.open")}
           >
             <i className="fas fa-bars" aria-hidden="true" />
           </button>
           <button
             onClick={toggleCollapse}
             className="btn btn-sm px-3 header-item d-none d-lg-inline-flex"
-            aria-label={isCollapsed ? t("openMenu") : t("collapseMenu")}
+            aria-label={isCollapsed ? t("navigation.menu.open") : t("navigation.menu.collapse")}
           >
             <i className={`fas ${isCollapsed ? "fa-angles-right" : "fa-angles-left"}`} aria-hidden="true" />
           </button>
           <div>
-            <p className="text-muted mb-0 small">{t("adminSpace")}</p>
-            <h1 className="skote-topbar-title">{t("administration")}</h1>
+            <p className="text-muted mb-0 small">{t("admin.header.space")}</p>
+            <h1 className="skote-topbar-title">{t("admin.header.title")}</h1>
           </div>
         </div>
         <div className="d-flex align-items-center gap-2 gap-sm-3">
@@ -43,7 +43,7 @@ export function AdminHeader({ userName }: { userName: string }) {
           <form method="POST" action="/api/logout">
             <button type="submit" className="btn btn-outline-secondary btn-sm">
               <i className="fas fa-sign-out-alt me-2" aria-hidden="true" />
-              {t("logout")}
+              {t("auth.actions.logout")}
             </button>
           </form>
         </div>

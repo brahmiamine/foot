@@ -6,7 +6,8 @@ import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { getSsoSession } from "@/lib/ssoSession";
 import { getClubBranding } from "@/lib/clubBranding";
 import "./globals.css";
-import { getLocale } from "@/i18n/server";
+import { getLocale, getTranslator } from "@/i18n/server";
+import { createAppMetadata } from "@/i18n/metadata";
 import { I18nProvider } from "@/i18n/I18nProvider";
 
 /**
@@ -16,20 +17,10 @@ import { I18nProvider } from "@/i18n/I18nProvider";
  * /admin ou /login), on retombe sur un intitulé générique "TeamManager".
  */
 export async function generateMetadata(): Promise<Metadata> {
-  const session = await getSsoSession();
+  const [{ t }, session] = await Promise.all([getTranslator(), getSsoSession()]);
   const branding = session?.teamId ? await getClubBranding(session.teamId) : null;
 
-  return {
-    title: branding ? `${branding.name} — TeamManager` : "TeamManager",
-    description: branding
-      ? `Gestion de club : effectif, staff, discipline, actualités, boutique et sponsors — ${branding.name}.`
-      : "Gestion de club : effectif, staff, discipline, actualités, boutique et sponsors.",
-    manifest: "/manifest.webmanifest",
-    icons: {
-      icon: branding?.faviconUrl || "/images/favicon.png",
-      apple: "/icons/apple-touch-icon.png",
-    },
-  };
+  return createAppMetadata(branding, t);
 }
 
 export async function generateViewport(): Promise<Viewport> {

@@ -22,13 +22,13 @@ export function ContactForm({ teamId }: { teamId: string }) {
       const formData = new FormData(e.currentTarget);
       const result = await submitContactMessage(teamId, formData);
       if (result.success) {
-        setSuccess(result.message ?? null);
+        setSuccess(t(result.messageKey));
         formRef.current?.reset();
       } else {
-        setError(result.error || "Erreur lors de l'envoi du message");
+        setError(t(result.messageKey));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'envoi du message");
+    } catch {
+      setError(t("contact.form.feedback.error"));
     } finally {
       setSubmitting(false);
     }
@@ -49,44 +49,44 @@ export function ContactForm({ teamId }: { teamId: string }) {
         <div className="col-12">
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-0">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label={t("close")} className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
           </div>
         </div>
       )}
 
       <div className="col-md-6">
         <label htmlFor="name" className="form-label">
-          {t("lastName")} *
+          {t("common.fields.lastName")} *
         </label>
         <input id="name" name="name" type="text" className="form-control" required maxLength={150} />
       </div>
       <div className="col-md-6">
         <label htmlFor="email" className="form-label">
-          {t("email")} *
+          {t("contact.form.fields.email")} *
         </label>
         <input id="email" name="email" type="email" className="form-control" required maxLength={190} />
       </div>
       <div className="col-md-4">
         <label htmlFor="department" className="form-label">
-          {t("department")}
+          {t("contact.form.fields.department")}
         </label>
         <select id="department" name="department" className="form-select" defaultValue="GENERAL">
-          <option value="GENERAL">{t("general")}</option>
-          <option value="ADMINISTRATIF">{t("administrative")}</option>
-          <option value="SPORTIF">{t("sport")}</option>
-          <option value="ACADEMIE">{t("academy")}</option>
-          <option value="PARTENARIAT">{t("partnerships")}</option>
+          <option value="GENERAL">{t("contact.departments.general")}</option>
+          <option value="ADMINISTRATIF">{t("contact.departments.administrative")}</option>
+          <option value="SPORTIF">{t("contact.departments.sport")}</option>
+          <option value="ACADEMIE">{t("navigation.academy")}</option>
+          <option value="PARTENARIAT">{t("contact.departments.partnerships")}</option>
         </select>
       </div>
       <div className="col-md-8">
         <label htmlFor="subject" className="form-label">
-          {t("subject")} *
+          {t("contact.form.fields.subject")} *
         </label>
         <input id="subject" name="subject" type="text" className="form-control" required maxLength={200} />
       </div>
       <div className="col-12">
         <label htmlFor="message" className="form-label">
-          {t("message")} *
+          {t("common.fields.message")} *
         </label>
         <textarea id="message" name="message" className="form-control" rows={5} required maxLength={3000} />
       </div>
@@ -96,10 +96,10 @@ export function ContactForm({ teamId }: { teamId: string }) {
           {submitting ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-              {t("sending")}
+              {t("common.status.sending")}
             </>
           ) : (
-            t("sendMessage")
+            t("contact.form.actions.send")
           )}
         </button>
       </div>
