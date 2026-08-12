@@ -18,7 +18,7 @@ qui reste à faire, pour rester utilisable comme backlog.
 | Rang | Action | Portée |
 |---|---|---|
 | 1 | `teamManager` : facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — boutique client avec paiement réel livrée, reste des gros lots à traiter, voir détail par app |
-| 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — v1 en place (QR signé, marquage USED, double scan, journal d'entrée) ; mode offline et lecture caméra restent à faire |
+| 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — v1 en place (QR signé, marquage USED, double scan, journal d'entrée), lecture caméra et mode offline (manifeste + file de synchronisation) désormais livrés — voir détail par app |
 | 3 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
 | 4 | Boucles fermées post-annulation (remboursements, avoirs, notification métier) | Paiement/Billetterie — webhook post-paiement fermé (payment-api → billetterie), remboursements toujours absents |
 | 5 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
@@ -67,12 +67,18 @@ non audités de bout en bout.
   statut réel en base, marque `USED` + horodate, détecte le double scan
   (`ALREADY_USED`) et journalise chaque tentative — succès ou refus — dans
   `tk_ticket_scans` (`src/entities/TicketScanLog.ts`, "journal d'entrée").
-  Volontairement hors périmètre de cette v1 : pas de lecture caméra dans le
-  navigateur (scan pensé pour une douchette QR/code-barres en mode clavier,
-  ou collage manuel du contenu), pas de mode offline (le scan exige une
-  connexion à la base à chaque passage), pas de sélection de match par
-  gate — le nom des équipes/catégorie s'affiche pour vérification visuelle
-  du staff plutôt qu'un blocage automatique par événement.
+  La lecture caméra (`CameraScanner.tsx`, décodage `jsqr` 100% navigateur
+  sur les frames `getUserMedia`) et le mode offline (téléchargement d'un
+  manifeste de billets `PAID`/`USED` par match avant de perdre le réseau,
+  scans mis en file locale et synchronisés ensuite via le même
+  `POST /api/admin/tickets/scan` qui reste seul juge final) sont désormais
+  livrés — voir `offlineScan.ts` pour le compromis assumé : un jeton
+  scanné hors-ligne n'est reconnu que par son `ticketId` lu sans
+  vérification de signature (le secret HS256 reste serveur-only), la
+  vérification cryptographique réelle n'a lieu qu'à la synchronisation.
+  Reste hors périmètre : pas de sélection de match par gate pour le scan
+  en ligne — le nom des équipes/catégorie s'affiche pour vérification
+  visuelle du staff plutôt qu'un blocage automatique par événement.
 - L'annulation d'un match n'est pas reliée à `payment-api` : remboursements,
   avoirs, notifications aux acheteurs et rapprochement comptable restent à
   concevoir.
@@ -178,7 +184,7 @@ non audités de bout en bout.
 - Pages billets/commandes toujours dépendantes des apps génériques (`billetterie`), pas de tunnel intégré.
 
 ### `billetterie`
-- Scanner de contrôle d'accès au stade : v1 en place (`/admin/scan`, voir circuit "Billetterie / paiement / contrôle d'accès" ci-dessus) — non vérifié dans un navigateur réel dans ce bac à sable (pas de base MariaDB disponible ici), validé via `vitest`/`tsc`/build production uniquement.
+- Scanner de contrôle d'accès au stade : v1 + lecture caméra + mode offline en place (`/admin/scan`, voir circuit "Billetterie / paiement / contrôle d'accès" ci-dessus) — non vérifié dans un navigateur réel dans ce bac à sable (pas de base MariaDB disponible ici, ni de caméra), validé via `vitest`/`tsc`/build production uniquement. La lecture caméra et le mode offline n'ont donc jamais tourné devant une vraie caméra ou un vrai réseau coupé — à valider en conditions réelles avant le premier match.
 - Audience réservée à l'achat toujours auto-déclarée par conception (tracée et recoupée avec les affiliations `sso` comme signal de modération non bloquant, mais pas un mécanisme d'identité fiable — aucun n'existe dans ce dépôt pour la remplacer).
 - Webhook applicatif signé venant de `payment-api` en place (`POST /api/payments/webhook`) ; la reconciliation par retour utilisateur / `/mes-billets` reste le filet de sécurité si le webhook échoue ou n'est pas configuré.
 
