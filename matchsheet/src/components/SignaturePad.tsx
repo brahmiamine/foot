@@ -106,7 +106,7 @@ export function SignaturePad({ onChange, disabled }: SignaturePadProps) {
       <div className="d-flex justify-content-end mt-2">
         <button type="button" className="btn btn-sm btn-outline-secondary" onClick={handleClear} disabled={disabled}>
           <i className="bx bx-eraser me-1" aria-hidden="true" />
-          {t("clear")}
+          {t("common.actions.clear")}
         </button>
       </div>
     </div>

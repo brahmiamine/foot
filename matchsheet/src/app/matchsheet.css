@@ -132,3 +132,17 @@ body {
   border-style: solid;
   border-color: #34c38f;
 }
+
+/* Direction-aware alignment for Bootstrap utilities and match-sheet surfaces. */
+[dir="rtl"] .matchsheet-app .text-end { text-align: end !important; }
+[dir="rtl"] .matchsheet-app .ms-1 { margin-inline-start: .25rem !important; margin-left: 0 !important; }
+[dir="rtl"] .matchsheet-app .ms-2 { margin-inline-start: .5rem !important; margin-left: 0 !important; }
+[dir="rtl"] .matchsheet-app .me-2 { margin-inline-end: .5rem !important; margin-right: 0 !important; }
+[dir="rtl"] .matchsheet-app .form-check { padding-inline-start: 1.5em; padding-left: 0; }
+[dir="rtl"] .matchsheet-app .form-check-input { float: inline-start; margin-inline-start: -1.5em; margin-left: 0; }
+[dir="rtl"] .matchsheet-app .table { text-align: start; }
+[dir="rtl"] .matchsheet-app .btn-close { margin-inline-start: auto; margin-left: 0; }
+[dir="rtl"] .matchsheet-app .offcanvas,
+[dir="rtl"] .matchsheet-app .modal-content,
+[dir="rtl"] .matchsheet-app .card,
+[dir="rtl"] .matchsheet-app .signature-pad-canvas { text-align: start; }

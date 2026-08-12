@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import "@/assets/scss/skote-theme.scss";
 import "./matchsheet.css";
@@ -8,16 +9,20 @@ import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import { translate } from "@/lib/i18n/dictionaries";
+import { directionFor, LANGUAGE_COOKIE, resolveLanguage } from "@/lib/i18n/locale";
 
-export const metadata: Metadata = {
-  title: "FTF — Feuille de Match Électronique",
-  description: "Fédération Tunisienne de Football — feuille de match électronique : composition, événements et signatures.",
-  robots: { index: false, follow: false },
-  manifest: "/manifest.json",
-  icons: {
-    apple: "/icons/apple-touch-icon.png",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = resolveLanguage((await cookies()).get(LANGUAGE_COOKIE)?.value);
+  return {
+    title: translate(lang, "metadata.title"),
+    description: translate(lang, "metadata.description"),
+    applicationName: translate(lang, "metadata.applicationName"),
+    robots: { index: false, follow: false },
+    manifest: "/manifest.json",
+    icons: { apple: "/icons/apple-touch-icon.png" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#1f2530",
@@ -30,6 +35,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const lang = resolveLanguage((await cookies()).get(LANGUAGE_COOKIE)?.value);
   const matchService = new MatchService();
   const matches = await matchService.findRecent();
 
@@ -44,9 +50,9 @@ export default async function RootLayout({
   }));
 
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang={lang} dir={directionFor(lang)} suppressHydrationWarning>
       <body data-layout-mode="light" className="matchsheet-app">
-        <LanguageProvider>
+        <LanguageProvider initialLang={lang}>
           <div className="matchsheet-shell">
             <LanguageToggle />
             <main className="matchsheet-main">{children}</main>

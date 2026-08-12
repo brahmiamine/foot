@@ -32,16 +32,16 @@ export function TeamLineupCard({
       </div>
       <div className="card-body">
         {!hasComposition ? (
-          <p className="text-muted mb-0">{t("lineupMissing")}</p>
+          <p className="text-muted mb-0">{t("lineup.missing.long")}</p>
         ) : (
           <>
-            <h6 className="text-uppercase small text-muted fw-semibold">{t("starters")} ({starters.length}/11)</h6>
+            <h6 className="text-uppercase small text-muted fw-semibold">{t("lineup.players.starters")} ({starters.length}/11)</h6>
             <ul className="list-unstyled mb-3">
               {starters.map((e) => (
                 <PlayerLine key={e.id} entry={e} />
               ))}
             </ul>
-            <h6 className="text-uppercase small text-muted fw-semibold">{t("substitutes")} ({substitutes.length})</h6>
+            <h6 className="text-uppercase small text-muted fw-semibold">{t("lineup.players.substitutes")} ({substitutes.length})</h6>
             <ul className="list-unstyled mb-0">
               {substitutes.map((e) => (
                 <PlayerLine key={e.id} entry={e} />

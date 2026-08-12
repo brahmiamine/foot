@@ -53,7 +53,7 @@ export default function PwaInstallPrompt() {
   return (
     <div
       role="dialog"
-      aria-label={t("installLabel")}
+      aria-label={t("pwa.install.label")}
       style={{
         position: "fixed",
         bottom: 16,
@@ -74,12 +74,12 @@ export default function PwaInstallPrompt() {
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
       }}
     >
-      <span style={{ flex: 1, fontSize: 14 }}>{t("installMessage")}</span>
+      <span style={{ flex: 1, fontSize: 14 }}>{t("pwa.install.message")}</span>
       <button
         onClick={dismiss}
         style={{ background: "transparent", border: "none", color: "#adb5bd", cursor: "pointer", fontSize: 13 }}
       >
-        {t("later")}
+        {t("common.actions.later")}
       </button>
       <button
         onClick={install}
@@ -94,7 +94,7 @@ export default function PwaInstallPrompt() {
           fontWeight: 600,
         }}
       >
-        {t("install")}
+        {t("common.actions.install")}
       </button>
     </div>
   );
