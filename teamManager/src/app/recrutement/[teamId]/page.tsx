@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { notFound } from "next/navigation";
 import { TeamService } from "@/services/TeamService";
 import { RecruitmentService } from "@/services/RecruitmentService";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** Page publique — détection/recrutement (jeunes et seniors) : /recrutement/[teamId]. */
 export default async function RecruitmentPage({ params }: { params: Promise<{ teamId: string }> }) {
+  const { locale, t } = await getTranslator();
   const { teamId } = await params;
   const teamService = new TeamService();
   const team = await teamService.findById(teamId);
@@ -30,14 +32,14 @@ export default async function RecruitmentPage({ params }: { params: Promise<{ te
             fallbackIcon="fas fa-shield-alt fa-2x"
           />
         )}
-        <h1 className="h3 mb-2">Recrutement — {team.nom}</h1>
-        <p className="text-muted">Le club recrute des joueurs pour certaines catégories.</p>
+        <h1 className="h3 mb-2">{t("recruitmentTitle", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
+        <p className="text-muted">{t("recruitmentHelp")}</p>
       </div>
 
       {needs.length > 0 && (
         <div className="card shadow-sm mb-4">
           <div className="card-body">
-            <h2 className="h6 text-uppercase text-muted mb-3">Postes recherchés</h2>
+            <h2 className="h6 text-uppercase text-muted mb-3">{t("requestedPositions")}</h2>
             <ul className="list-unstyled mb-0">
               {needs.map((need) => (
                 <li key={need.id} className="mb-2">

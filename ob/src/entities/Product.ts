@@ -11,6 +11,8 @@ export class Product {
 
   @Column({ type: "varchar", length: 200, name: "name_fr" })
   nameFr!: string;
+  @Column({ type: "varchar", length: 200, nullable: true, name: "name_ar" })
+  nameAr?: string | null;
 
   @Column({ type: "decimal", precision: 10, scale: 3, default: 0 })
   price!: string;

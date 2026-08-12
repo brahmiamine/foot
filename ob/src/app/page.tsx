@@ -21,6 +21,8 @@ import { GallerySection } from "@/components/GallerySection";
 import { ShopTicketingSection } from "@/components/ShopTicketingSection";
 import { Footer } from "@/components/Footer";
 import { Reveal } from "@/components/Reveal";
+import { getLocale } from "@/i18n/server";
+import { localized } from "@/i18n/localized";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,8 @@ export default async function HomePage() {
   if (!team) {
     notFound();
   }
+  const locale = await getLocale();
+  const teamName = localized(locale, team.nom, team.nomAr);
 
   const matchService = new PublicMatchService();
   const stadiumService = new PublicStadiumService();
@@ -54,13 +58,13 @@ export default async function HomePage() {
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <Nav teamName={team.nom} />
+      <Nav teamName={teamName} />
       <Hero />
       {isLive && nextMatch && liveEvents && liveScore ? (
         <LiveMatchSection
           matchId={nextMatch.id}
-          homeTeamName={nextMatch.homeTeam?.nom ?? "?"}
-          awayTeamName={nextMatch.awayTeam?.nom ?? "?"}
+          homeTeamName={nextMatch.homeTeam ? localized(locale, nextMatch.homeTeam.nom, nextMatch.homeTeam.nomAr) : "?"}
+          awayTeamName={nextMatch.awayTeam ? localized(locale, nextMatch.awayTeam.nom, nextMatch.awayTeam.nomAr) : "?"}
           initialStatus={nextMatch.status}
           initialScore={liveScore}
           initialEvents={liveEvents}
@@ -89,7 +93,7 @@ export default async function HomePage() {
       <Reveal variant="up">
         <ShopTicketingSection products={products} />
       </Reveal>
-      <Footer teamId={team.id} teamName={team.nom} stadium={homeStadium} />
+      <Footer teamId={team.id} teamName={teamName} stadium={homeStadium} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { CSSProperties, FormEvent, useState, useTransition } from "react";
 import type { MemberProfile } from "@/lib/ssoProfileClient";
 import { updateMemberProfileAction } from "@/app/espace-membre/actions";
 import shared from "./shared.module.css";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
@@ -22,6 +23,7 @@ const inputStyle: CSSProperties = {
  * l'espace membre.
  */
 export function MemberProfileForm({ initialProfile }: { initialProfile: MemberProfile }) {
+  const { t } = useI18n();
   const [firstName, setFirstName] = useState(initialProfile.firstName ?? "");
   const [lastName, setLastName] = useState(initialProfile.lastName ?? "");
   const [phoneNumber, setPhoneNumber] = useState(initialProfile.phoneNumber ?? "");
@@ -34,10 +36,10 @@ export function MemberProfileForm({ initialProfile }: { initialProfile: MemberPr
     startTransition(async () => {
       try {
         await updateMemberProfileAction({ firstName, lastName, phoneNumber });
-        setStatus("Profil mis à jour.");
+        setStatus(t("member.saved"));
       } catch (error) {
         console.error(error);
-        setStatus("Impossible de mettre à jour le profil.");
+        setStatus(t("member.updateError"));
       }
     });
   }
@@ -45,7 +47,7 @@ export function MemberProfileForm({ initialProfile }: { initialProfile: MemberPr
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
       <label style={{ fontSize: 13, color: "var(--ob-text-faint)" }}>
-        Prénom
+        {t("member.firstName")}
         <input
           type="text"
           value={firstName}
@@ -54,7 +56,7 @@ export function MemberProfileForm({ initialProfile }: { initialProfile: MemberPr
         />
       </label>
       <label style={{ fontSize: 13, color: "var(--ob-text-faint)" }}>
-        Nom de famille
+        {t("member.lastName")}
         <input
           type="text"
           value={lastName}
@@ -63,7 +65,7 @@ export function MemberProfileForm({ initialProfile }: { initialProfile: MemberPr
         />
       </label>
       <label style={{ fontSize: 13, color: "var(--ob-text-faint)" }}>
-        Téléphone
+        {t("member.phone")}
         <input
           type="tel"
           value={phoneNumber}
@@ -72,7 +74,7 @@ export function MemberProfileForm({ initialProfile }: { initialProfile: MemberPr
         />
       </label>
       <button type="submit" className={shared.btnOutline} disabled={isPending} style={{ alignSelf: "flex-start" }}>
-        {isPending ? "Enregistrement..." : "Enregistrer"}
+        {isPending ? t("member.saving") : t("member.save")}
       </button>
       {status && <p style={{ margin: 0, fontSize: 13, color: "var(--ob-text-muted)" }}>{status}</p>}
     </form>

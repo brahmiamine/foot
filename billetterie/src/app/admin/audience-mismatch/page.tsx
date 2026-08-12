@@ -4,12 +4,10 @@ import { buildAdminLoginUrlForPath } from "@/lib/ssoSession";
 import { listAudienceMismatchTickets } from "@/lib/tickets";
 import { formatMatchDateTime } from "@/lib/format";
 import { AudienceMismatchTable } from "@/components/admin/AudienceMismatchTable";
+import { getTranslator } from "@/i18n/server";
+import { localized } from "@/i18n/localized";
 
-const AUDIENCE_LABELS: Record<string, string> = {
-  HOME_SUPPORTERS: "Domicile",
-  AWAY_SUPPORTERS: "Visiteurs",
-  PUBLIC: "Public",
-};
+const AUDIENCE_KEYS = { HOME_SUPPORTERS: "admin.home", AWAY_SUPPORTERS: "admin.away", PUBLIC: "admin.public" } as const;
 
 export const dynamic = "force-dynamic";
 
@@ -20,31 +18,29 @@ export const dynamic = "force-dynamic";
  * ADMIN/SUPERADMIN (src/lib/adminAuth.ts) — jamais un blocage d'achat.
  */
 export default async function AudienceMismatchPage() {
+  const { locale, t } = await getTranslator();
   const authorized = await hasAdminSession();
   if (!authorized) {
     redirect(await buildAdminLoginUrlForPath("/admin/audience-mismatch"));
   }
 
   const tickets = await listAudienceMismatchTickets();
-  const rows = tickets.map((t) => ({
-    id: t.id,
-    reference: t.reference,
-    status: t.status,
-    declaredAudienceLabel: AUDIENCE_LABELS[t.declaredAudience] ?? t.declaredAudience,
-    matchLabel: `${t.homeTeamName} vs ${t.awayTeamName}`,
-    matchDateLabel: t.matchDate ? formatMatchDateTime(t.matchDate) : "Date à confirmer",
-    categoryName: t.categoryName,
-    createdAtLabel: formatMatchDateTime(t.createdAt),
+  const rows = tickets.map((ticket) => ({
+    id: ticket.id,
+    reference: ticket.reference,
+    status: ticket.status,
+    declaredAudienceLabel: ticket.declaredAudience in AUDIENCE_KEYS ? t(AUDIENCE_KEYS[ticket.declaredAudience as keyof typeof AUDIENCE_KEYS]) : ticket.declaredAudience,
+    matchLabel: `${localized(locale, ticket.homeTeamName, ticket.homeTeamNameAr)} ${t("common.vs")} ${localized(locale, ticket.awayTeamName, ticket.awayTeamNameAr)}`,
+    matchDateLabel: ticket.matchDate ? formatMatchDateTime(ticket.matchDate, locale) : t("common.dateTbc"),
+    categoryName: ticket.categoryName,
+    createdAtLabel: formatMatchDateTime(ticket.createdAt, locale),
   }));
 
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: "2rem 1.25rem" }}>
-      <h1 style={{ fontSize: "1.35rem", marginBottom: "0.35rem" }}>Signal d&rsquo;audience</h1>
+      <h1 style={{ fontSize: "1.35rem", marginBottom: "0.35rem" }}>{t("admin.title")}</h1>
       <p style={{ fontSize: "0.85rem", color: "var(--tk-text-muted)", marginBottom: "1.5rem" }}>
-        Billets dont l&rsquo;audience déclarée (tribune domicile/visiteurs) ne correspond pas aux
-        affiliations sso de l&rsquo;acheteur au moment de l&rsquo;achat. Signal de modération non
-        bloquant : l&rsquo;achat reste valide, à vous de décider d&rsquo;une suite (contact,
-        surveillance à l&rsquo;entrée) puis de marquer le cas comme traité.
+        {t("admin.description")}
       </p>
       <AudienceMismatchTable initialTickets={rows} />
     </main>

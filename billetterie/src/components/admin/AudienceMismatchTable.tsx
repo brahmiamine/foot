@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export interface AudienceMismatchRow {
   id: string;
@@ -13,14 +14,10 @@ export interface AudienceMismatchRow {
   createdAtLabel: string;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "En attente",
-  PAID: "Payé",
-  CANCELLED: "Annulé",
-  USED: "Utilisé",
-};
+const STATUS_KEYS = { PENDING: "status.pending", PAID: "status.paid", CANCELLED: "status.cancelled", USED: "status.used" } as const;
 
 export function AudienceMismatchTable({ initialTickets }: { initialTickets: AudienceMismatchRow[] }) {
+  const { t } = useI18n();
   const [tickets, setTickets] = useState(initialTickets);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,18 +32,18 @@ export function AudienceMismatchTable({ initialTickets }: { initialTickets: Audi
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "Échec du traitement.");
+        throw new Error(body?.error ?? t("admin.failed"));
       }
       setTickets((current) => current.filter((t) => t.id !== id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Échec du traitement.");
+      setError(e instanceof Error ? e.message : t("admin.failed"));
     } finally {
       setPendingId(null);
     }
   }
 
   if (tickets.length === 0) {
-    return <p style={{ color: "var(--tk-text-muted)" }}>Aucun signal en attente.</p>;
+    return <p style={{ color: "var(--tk-text-muted)" }}>{t("admin.empty")}</p>;
   }
 
   return (
@@ -73,14 +70,14 @@ export function AudienceMismatchTable({ initialTickets }: { initialTickets: Audi
               <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                 <strong>{ticket.matchLabel}</strong>
                 <span style={{ fontSize: "0.72rem", color: "var(--tk-text-muted)" }}>
-                  {STATUS_LABELS[ticket.status] ?? ticket.status}
+                  {ticket.status in STATUS_KEYS ? t(STATUS_KEYS[ticket.status as keyof typeof STATUS_KEYS]) : ticket.status}
                 </span>
               </div>
               <div style={{ fontSize: "0.78rem", color: "var(--tk-text-muted)", marginTop: 4 }}>
-                {ticket.matchDateLabel} · {ticket.categoryName} · Réf. <code>{ticket.reference}</code>
+                {ticket.matchDateLabel} · {ticket.categoryName} · {t("common.reference")} <code>{ticket.reference}</code>
               </div>
               <div style={{ fontSize: "0.78rem", marginTop: 4 }}>
-                Audience déclarée : <strong>{ticket.declaredAudienceLabel}</strong> · acheté le{" "}
+                {t("admin.audience")} <strong>{ticket.declaredAudienceLabel}</strong> · {t("admin.boughtOn")} {" "}
                 {ticket.createdAtLabel}
               </div>
             </div>
@@ -100,7 +97,7 @@ export function AudienceMismatchTable({ initialTickets }: { initialTickets: Audi
                 whiteSpace: "nowrap",
               }}
             >
-              {pendingId === ticket.id ? "..." : "Marquer traité"}
+              {pendingId === ticket.id ? "..." : t("admin.dismiss")}
             </button>
           </div>
         ))}

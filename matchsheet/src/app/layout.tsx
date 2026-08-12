@@ -37,6 +37,8 @@ export default async function RootLayout({
     id: m.id,
     homeTeam: m.homeTeam?.nom ?? "?",
     awayTeam: m.awayTeam?.nom ?? "?",
+    homeTeamAr: m.homeTeam?.nomAr ?? null,
+    awayTeamAr: m.awayTeam?.nomAr ?? null,
     date: m.date ? m.date.toISOString() : null,
     status: m.status,
   }));

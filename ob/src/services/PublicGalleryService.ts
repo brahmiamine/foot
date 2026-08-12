@@ -3,8 +3,8 @@ import { getDataSource } from "@/lib/database";
 import { MediaGallery } from "@/entities/MediaGallery";
 import { MediaGalleryItem } from "@/entities/MediaGalleryItem";
 
-export type GalleryPhoto = { id: number; url: string; alt: string | null };
-export type GalleryWithPhotos = { id: number; title: string; photos: GalleryPhoto[] };
+export type GalleryPhoto = { id: number; url: string; altFr: string | null; altAr: string | null };
+export type GalleryWithPhotos = { id: number; titleFr: string; titleAr: string | null; photos: GalleryPhoto[] };
 
 export class PublicGalleryService {
   async getPhotos(teamId: string, limit = 5): Promise<GalleryPhoto[]> {
@@ -22,7 +22,7 @@ export class PublicGalleryService {
     return items
       .filter((item) => item.mediaItem?.type === "IMAGE")
       .slice(0, limit)
-      .map((item) => ({ id: item.mediaItem.id, url: item.mediaItem.url, alt: item.mediaItem.altTextFr ?? null }));
+      .map((item) => ({ id: item.mediaItem.id, url: item.mediaItem.url, altFr: item.mediaItem.altTextFr ?? null, altAr: item.mediaItem.altTextAr ?? null }));
   }
 
   /** Toutes les galeries publiques avec leurs photos, pour la page /galerie. */
@@ -42,10 +42,11 @@ export class PublicGalleryService {
 
     return galleries.map((gallery) => ({
       id: gallery.id,
-      title: gallery.titleFr,
+      titleFr: gallery.titleFr,
+      titleAr: gallery.titleAr ?? null,
       photos: items
         .filter((item) => item.galleryId === gallery.id && item.mediaItem?.type === "IMAGE")
-        .map((item) => ({ id: item.mediaItem.id, url: item.mediaItem.url, alt: item.mediaItem.altTextFr ?? null })),
+        .map((item) => ({ id: item.mediaItem.id, url: item.mediaItem.url, altFr: item.mediaItem.altTextFr ?? null, altAr: item.mediaItem.altTextAr ?? null })),
     }));
   }
 }

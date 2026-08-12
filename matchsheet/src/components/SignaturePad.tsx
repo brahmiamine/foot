@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 import { useEffect, useRef, useState } from "react";
 
 interface SignaturePadProps {
@@ -14,6 +16,7 @@ interface SignaturePadProps {
  * par une action explicite de réinitialisation).
  */
 export function SignaturePad({ onChange, disabled }: SignaturePadProps) {
+  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -103,7 +106,7 @@ export function SignaturePad({ onChange, disabled }: SignaturePadProps) {
       <div className="d-flex justify-content-end mt-2">
         <button type="button" className="btn btn-sm btn-outline-secondary" onClick={handleClear} disabled={disabled}>
           <i className="bx bx-eraser me-1" aria-hidden="true" />
-          Effacer
+          {t("clear")}
         </button>
       </div>
     </div>

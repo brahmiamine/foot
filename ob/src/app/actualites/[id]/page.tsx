@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getObTeam } from "@/lib/ob-team";
@@ -11,6 +12,7 @@ import styles from "./article.module.css";
 export const dynamic = "force-dynamic";
 
 export default async function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
+  const { locale, t } = await getTranslator();
   const { id } = await params;
   const numericId = Number(id);
   if (!Number.isInteger(numericId)) {
@@ -33,14 +35,14 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
     <PageChrome>
       <div className={styles.wrap}>
         <Link href="/actualites" className={styles.back}>
-          ← Toutes les actualités
+          {t("news.all")}
         </Link>
         <h1 className={styles.title}>{article.title}</h1>
-        {date && <div className={styles.date}>{formatShortDate(date)}</div>}
+        {date && <div className={styles.date}>{formatShortDate(date, locale)}</div>}
         <PlaceholderImage
           src={resolveAssetUrl(article.coverImage)}
           alt={article.title}
-          label="Photo à venir"
+          label={t("common.photoSoon")}
           className={styles.cover}
         />
         {/* Contenu HTML rédigé par le club via l'éditeur riche de teamManager (Tiptap) — CMS interne, pas une saisie publique. */}

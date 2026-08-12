@@ -11,6 +11,8 @@ export class Honor {
 
   @Column({ type: "varchar", length: 150, name: "competition_fr" })
   competitionFr!: string;
+  @Column({ type: "varchar", length: 150, nullable: true, name: "competition_ar" })
+  competitionAr?: string | null;
 
   @Column({ type: "int", default: 0, name: "title_count" })
   titleCount!: number;

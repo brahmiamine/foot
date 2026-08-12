@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 import { useLocalizedName } from "@/lib/i18n/LanguageContext";
 
 interface LineupEntry {
@@ -22,6 +24,7 @@ export function TeamLineupCard({
   substitutes: LineupEntry[];
   hasComposition: boolean;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="card h-100">
       <div className="card-header bg-transparent">
@@ -29,16 +32,16 @@ export function TeamLineupCard({
       </div>
       <div className="card-body">
         {!hasComposition ? (
-          <p className="text-muted mb-0">Composition non renseignée (à faire depuis teamManager).</p>
+          <p className="text-muted mb-0">{t("lineupMissing")}</p>
         ) : (
           <>
-            <h6 className="text-uppercase small text-muted fw-semibold">Titulaires ({starters.length}/11)</h6>
+            <h6 className="text-uppercase small text-muted fw-semibold">{t("starters")} ({starters.length}/11)</h6>
             <ul className="list-unstyled mb-3">
               {starters.map((e) => (
                 <PlayerLine key={e.id} entry={e} />
               ))}
             </ul>
-            <h6 className="text-uppercase small text-muted fw-semibold">Remplaçants ({substitutes.length})</h6>
+            <h6 className="text-uppercase small text-muted fw-semibold">{t("substitutes")} ({substitutes.length})</h6>
             <ul className="list-unstyled mb-0">
               {substitutes.map((e) => (
                 <PlayerLine key={e.id} entry={e} />

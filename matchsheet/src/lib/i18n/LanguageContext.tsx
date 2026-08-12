@@ -2,15 +2,17 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { translate, type TranslationKey } from "./dictionaries";
 
 export type Lang = "fr" | "ar";
 
 interface LanguageContextValue {
   lang: Lang;
   toggle: () => void;
+  t: (key: TranslationKey, values?: Record<string, string | number>) => string;
 }
 
-const LanguageContext = createContext<LanguageContextValue>({ lang: "fr", toggle: () => {} });
+const LanguageContext = createContext<LanguageContextValue>({ lang: "fr", toggle: () => {}, t: (key) => translate("fr", key) });
 
 /**
  * État tenu en mémoire (pas de localStorage) : le kiosque reste ouvert sur
@@ -30,7 +32,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLang((prev) => (prev === "fr" ? "ar" : "fr"));
   }, []);
 
-  const value = useMemo(() => ({ lang, toggle }), [lang, toggle]);
+  const value = useMemo(() => ({ lang, toggle, t: (key: TranslationKey, values?: Record<string, string | number>) => translate(lang, key, values) }), [lang, toggle]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }

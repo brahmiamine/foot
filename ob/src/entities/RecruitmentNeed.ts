@@ -17,6 +17,8 @@ export class RecruitmentNeed {
 
   @Column({ type: "text", nullable: true, name: "description_fr" })
   descriptionFr?: string | null;
+  @Column({ type: "text", nullable: true, name: "description_ar" })
+  descriptionAr?: string | null;
 
   @Column({ type: "boolean", default: true, name: "is_active" })
   isActive!: boolean;

@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -16,6 +18,7 @@ const DISMISSED_KEY = "ms_pwa_install_dismissed";
  * (Safari/iOS notamment).
  */
 export default function PwaInstallPrompt() {
+  const { t } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -50,7 +53,7 @@ export default function PwaInstallPrompt() {
   return (
     <div
       role="dialog"
-      aria-label="Installer MatchSheet"
+      aria-label={t("installLabel")}
       style={{
         position: "fixed",
         bottom: 16,
@@ -71,12 +74,12 @@ export default function PwaInstallPrompt() {
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
       }}
     >
-      <span style={{ flex: 1, fontSize: 14 }}>Installer MatchSheet sur cet appareil pour un accès rapide.</span>
+      <span style={{ flex: 1, fontSize: 14 }}>{t("installMessage")}</span>
       <button
         onClick={dismiss}
         style={{ background: "transparent", border: "none", color: "#adb5bd", cursor: "pointer", fontSize: 13 }}
       >
-        Plus tard
+        {t("later")}
       </button>
       <button
         onClick={install}
@@ -91,7 +94,7 @@ export default function PwaInstallPrompt() {
           fontWeight: 600,
         }}
       >
-        Installer
+        {t("install")}
       </button>
     </div>
   );

@@ -1,3 +1,4 @@
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { headers } from "next/headers";
 import { getSsoSession, buildLogoutUrl } from "@/lib/ssoSession";
 import { fetchMemberProfile, type MemberProfile } from "@/lib/ssoProfileClient";
@@ -6,11 +7,10 @@ import shared from "@/components/shared.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Mon profil — Espace membre — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.profile");
 
 export default async function ProfilPage() {
+  const { t } = await getTranslator();
   const session = await getSsoSession();
   if (!session) return null; // garde déjà assurée par le layout parent
 
@@ -28,23 +28,23 @@ export default async function ProfilPage() {
 
   return (
     <div className={shared.card} style={{ padding: 24, maxWidth: 480 }}>
-      <h2 style={{ marginTop: 0 }}>Profil</h2>
+      <h2 style={{ marginTop: 0 }}>{t("member.profile")}</h2>
       <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", margin: "16px 0" }}>
-        <dt style={{ color: "var(--ob-text-faint)" }}>Nom</dt>
+        <dt style={{ color: "var(--ob-text-faint)" }}>{t("member.name")}</dt>
         <dd style={{ margin: 0 }}>{session.name}</dd>
-        <dt style={{ color: "var(--ob-text-faint)" }}>Email</dt>
+        <dt style={{ color: "var(--ob-text-faint)" }}>{t("member.email")}</dt>
         <dd style={{ margin: 0 }}>{session.email}</dd>
       </dl>
 
-      <h3 style={{ fontSize: 15, marginBottom: 0 }}>Prénom, nom, téléphone</h3>
+      <h3 style={{ fontSize: 15, marginBottom: 0 }}>{t("member.details")}</h3>
       <p style={{ fontSize: 13, color: "var(--ob-text-faint)", margin: "4px 0 0" }}>
-        Optionnel — utile pour payer par Paymee dans la billetterie.
+        {t("member.profileHint")}
       </p>
       <MemberProfileForm initialProfile={profile} />
 
       <form method="POST" action={logoutUrl} style={{ marginTop: 20 }}>
         <button type="submit" className={shared.btnPrimary} style={{ border: "none", cursor: "pointer" }}>
-          Se déconnecter
+          {t("member.logout")}
         </button>
       </form>
     </div>

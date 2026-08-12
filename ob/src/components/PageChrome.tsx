@@ -3,6 +3,8 @@ import { getObTeam } from "@/lib/ob-team";
 import { PublicStadiumService } from "@/services/PublicStadiumService";
 import { Nav } from "./Nav";
 import { Footer } from "./Footer";
+import { getLocale } from "@/i18n/server";
+import { localized } from "@/i18n/localized";
 
 /**
  * Enveloppe Nav/Footer partagée par les pages secondaires (actualités,
@@ -17,12 +19,14 @@ export async function PageChrome({ children }: { children: React.ReactNode }) {
   }
 
   const homeStadium = await new PublicStadiumService().getHomeStadium(team.id);
+  const locale = await getLocale();
+  const teamName = localized(locale, team.nom, team.nomAr);
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <Nav teamName={team.nom} />
+      <Nav teamName={teamName} />
       <main>{children}</main>
-      <Footer teamId={team.id} teamName={team.nom} stadium={homeStadium} />
+      <Footer teamId={team.id} teamName={teamName} stadium={homeStadium} />
     </div>
   );
 }

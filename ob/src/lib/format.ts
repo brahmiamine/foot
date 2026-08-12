@@ -1,36 +1,52 @@
-const DAY_FORMATTER = new Intl.DateTimeFormat("fr-FR", { weekday: "long", timeZone: "Africa/Tunis" });
-const DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Tunis" });
+import type { Locale } from "@/i18n/config";
+
+function intlLocale(locale: Locale): string {
+  return locale === "ar" ? "ar-TN" : "fr-FR";
+}
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-/** "Dimanche · 18h00" */
-export function formatMatchDateTime(date: Date): string {
-  const day = capitalize(DAY_FORMATTER.format(date));
-  const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis" })
-    .format(date)
-    .replace(":", "h");
+export function formatMatchDateTime(date: Date, locale: Locale = "fr"): string {
+  const day = capitalize(
+    new Intl.DateTimeFormat(intlLocale(locale), { weekday: "long", timeZone: "Africa/Tunis" }).format(date),
+  );
+  const time = new Intl.DateTimeFormat(intlLocale(locale), {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Tunis",
+  }).format(date);
   return `${day} · ${time}`;
 }
 
-/** "13 Fév 2026" */
-export function formatShortDate(date: Date): string {
-  return capitalize(DATE_FORMATTER.format(date));
+export function formatShortDate(date: Date, locale: Locale = "fr"): string {
+  return capitalize(
+    new Intl.DateTimeFormat(intlLocale(locale), {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "Africa/Tunis",
+    }).format(date),
+  );
 }
 
-/** "21 nov. 2026 · 15h00" — utilisé partout où plusieurs dates coexistent (calendrier complet). */
-export function formatFullDateTime(date: Date): string {
-  const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis" })
-    .format(date)
-    .replace(":", "h");
-  return `${formatShortDate(date)} · ${time}`;
+export function formatFullDateTime(date: Date, locale: Locale = "fr"): string {
+  const time = new Intl.DateTimeFormat(intlLocale(locale), {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Tunis",
+  }).format(date);
+  return `${formatShortDate(date, locale)} · ${time}`;
 }
 
 /** Product.price est stocké en `decimal` (donc en string côté TypeORM). */
-export function formatPriceTnd(price: string): string {
-  const value = Number(price);
-  return `${value.toFixed(3)} DT`;
+export function formatPriceTnd(price: string, locale: Locale = "fr"): string {
+  return new Intl.NumberFormat(intlLocale(locale), {
+    style: "currency",
+    currency: "TND",
+    minimumFractionDigits: 3,
+  }).format(Number(price));
 }
 
 export function calcAge(birthDate: Date): number {
