@@ -1,10 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
 import { PaymentProviderName } from './enums/payment-provider.enum';
 import { PaymentStatus } from './enums/payment-status.enum';
-import { PAYMENT_PAID_EVENT, PaymentService } from './payment.service';
+import { PAYMENT_PAID_EVENT_TYPE, PaymentService } from './payment.service';
 import { KonnectPaymentMismatchError } from './providers/konnect/konnect.exceptions';
 import { KonnectProvider } from './providers/konnect/konnect.provider';
 import { PaymeeIntegrationMode } from './providers/paymee/dto/init-paymee-payment.dto';
@@ -17,21 +16,21 @@ import { PaymeeProvider } from './providers/paymee/paymee.provider';
 import { PaymeeWebhookPayload } from './providers/paymee/paymee.types';
 import { FlouciProvider } from './providers/flouci/flouci.provider';
 import { FlouciPaymentMismatchError } from './providers/flouci/flouci.exceptions';
+import { OutboxService } from '../outbox/outbox.service';
 
 describe('PaymentService', () => {
   let repository: jest.Mocked<
-    Pick<
-      Repository<Payment>,
-      'create' | 'save' | 'findOne' | 'update' | 'createQueryBuilder'
-    >
+    Pick<Repository<Payment>, 'create' | 'save' | 'findOne' | 'update'>
   >;
-  let queryBuilder: {
+  let managerQueryBuilder: {
     update: jest.Mock;
     set: jest.Mock;
     where: jest.Mock;
     andWhere: jest.Mock;
     execute: jest.Mock;
   };
+  let manager: { createQueryBuilder: jest.Mock };
+  let dataSource: jest.Mocked<Pick<DataSource, 'transaction'>>;
   let konnectProvider: jest.Mocked<
     Pick<KonnectProvider, 'initiatePayment' | 'verifyPayment'>
   >;
@@ -41,7 +40,7 @@ describe('PaymentService', () => {
   let flouciProvider: jest.Mocked<
     Pick<FlouciProvider, 'initiatePayment' | 'verifyPayment'>
   >;
-  let eventEmitter: jest.Mocked<Pick<EventEmitter2, 'emit'>>;
+  let outboxService: jest.Mocked<Pick<OutboxService, 'enqueue'>>;
   let service: PaymentService;
 
   function buildPayment(overrides: Partial<Payment> = {}): Payment {
@@ -69,12 +68,23 @@ describe('PaymentService', () => {
   }
 
   beforeEach(() => {
-    queryBuilder = {
+    managerQueryBuilder = {
       update: jest.fn().mockReturnThis(),
       set: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    manager = {
+      createQueryBuilder: jest.fn().mockReturnValue(managerQueryBuilder),
+    };
+    dataSource = {
+      transaction: jest
+        .fn()
+        .mockImplementation(
+          (cb: (manager: EntityManager) => Promise<unknown>) =>
+            cb(manager as unknown as EntityManager),
+        ),
     };
 
     repository = {
@@ -87,7 +97,6 @@ describe('PaymentService', () => {
       }),
       findOne: jest.fn(),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
-      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
 
     konnectProvider = {
@@ -106,14 +115,15 @@ describe('PaymentService', () => {
       verifyPayment: jest.fn(),
     };
 
-    eventEmitter = { emit: jest.fn() };
+    outboxService = { enqueue: jest.fn().mockResolvedValue(undefined) };
 
     service = new PaymentService(
       repository as unknown as Repository<Payment>,
+      dataSource as unknown as DataSource,
       konnectProvider as unknown as KonnectProvider,
       paymeeProvider as unknown as PaymeeProvider,
       flouciProvider as unknown as FlouciProvider,
-      eventEmitter as unknown as EventEmitter2,
+      outboxService,
     );
   });
 
@@ -160,7 +170,7 @@ describe('PaymentService', () => {
       expect(konnectProvider.verifyPayment).not.toHaveBeenCalled();
     });
 
-    it('marks the payment PAID and emits payment.paid for a completed payment', async () => {
+    it('marks the payment PAID and enqueues a PAYMENT_PAID outbox event, in the same transaction as the status update', async () => {
       const payment = buildPayment({ status: PaymentStatus.PENDING });
       repository.findOne.mockResolvedValue(payment);
       konnectProvider.verifyPayment.mockResolvedValue({
@@ -184,16 +194,51 @@ describe('PaymentService', () => {
         amount: '25.500',
         currency: 'TND',
       });
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith('status != :paid', {
-        paid: PaymentStatus.PAID,
-      });
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        PAYMENT_PAID_EVENT,
-        expect.objectContaining({ paymentId: payment.id, orderId: 'ORDER-1' }),
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(managerQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'status != :paid',
+        {
+          paid: PaymentStatus.PAID,
+        },
+      );
+      expect(outboxService.enqueue).toHaveBeenCalledWith(
+        manager,
+        expect.objectContaining({
+          eventType: PAYMENT_PAID_EVENT_TYPE,
+          aggregateId: payment.id,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          payload: expect.objectContaining({
+            paymentId: payment.id,
+            orderId: 'ORDER-1',
+          }),
+        }),
       );
     });
 
-    it('updates the payment to PENDING (no event) for a pending payment', async () => {
+    it('does not enqueue an outbox event when the conditional update affects no row (lost the race)', async () => {
+      const payment = buildPayment({ status: PaymentStatus.PENDING });
+      repository.findOne.mockResolvedValue(payment);
+      konnectProvider.verifyPayment.mockResolvedValue({
+        providerStatus: 'completed',
+        internalStatus: PaymentStatus.PAID,
+        details: {
+          id: 'pay_1',
+          status: 'completed',
+          amountDue: 25500,
+          reachedAmount: 25500,
+          amount: 25500,
+          token: 'TND',
+          orderId: 'ORDER-1',
+        },
+      });
+      managerQueryBuilder.execute.mockResolvedValue({ affected: 0 });
+
+      await service.handleKonnectWebhook('ref-123');
+
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('updates the payment to PENDING (no outbox event) for a pending payment', async () => {
       const payment = buildPayment({ status: PaymentStatus.PENDING });
       repository.findOne.mockResolvedValue(payment);
       konnectProvider.verifyPayment.mockResolvedValue({
@@ -219,7 +264,8 @@ describe('PaymentService', () => {
           lastProviderStatus: 'pending',
         }),
       );
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('is idempotent: a second webhook for an already-PAID payment is a no-op', async () => {
@@ -232,7 +278,7 @@ describe('PaymentService', () => {
       await service.handleKonnectWebhook('ref-123');
 
       expect(konnectProvider.verifyPayment).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('propagates a mismatch and never flips the payment to PAID', async () => {
@@ -245,8 +291,8 @@ describe('PaymentService', () => {
       await expect(service.handleKonnectWebhook('ref-123')).rejects.toThrow(
         KonnectPaymentMismatchError,
       );
-      expect(queryBuilder.execute).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('always records the webhook delivery, even before checking idempotency', async () => {
@@ -359,7 +405,7 @@ describe('PaymentService', () => {
       expect(paymeeProvider.verifyPayment).not.toHaveBeenCalled();
     });
 
-    it('marks the payment PAID and emits payment.paid for a successful payment', async () => {
+    it('marks the payment PAID and enqueues a PAYMENT_PAID outbox event for a successful payment', async () => {
       const payment = buildPaymeePayment({ status: PaymentStatus.PENDING });
       repository.findOne.mockResolvedValue(payment);
       paymeeProvider.verifyPayment.mockReturnValue({
@@ -381,20 +427,27 @@ describe('PaymentService', () => {
         true,
         'checksum-value',
       );
-      expect(queryBuilder.set).toHaveBeenCalledWith(
+      expect(managerQueryBuilder.set).toHaveBeenCalledWith(
         expect.objectContaining({
           status: PaymentStatus.PAID,
           receivedAmount: '210.250',
           providerFee: '10.000',
         }),
       );
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        PAYMENT_PAID_EVENT,
-        expect.objectContaining({ paymentId: payment.id, orderId: 'ORDER-1' }),
+      expect(outboxService.enqueue).toHaveBeenCalledWith(
+        manager,
+        expect.objectContaining({
+          eventType: PAYMENT_PAID_EVENT_TYPE,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          payload: expect.objectContaining({
+            paymentId: payment.id,
+            orderId: 'ORDER-1',
+          }),
+        }),
       );
     });
 
-    it('marks the payment FAILED (no event) for a failed payment', async () => {
+    it('marks the payment FAILED (no outbox event) for a failed payment', async () => {
       const payment = buildPaymeePayment({ status: PaymentStatus.PENDING });
       repository.findOne.mockResolvedValue(payment);
       paymeeProvider.verifyPayment.mockReturnValue({
@@ -413,7 +466,7 @@ describe('PaymentService', () => {
           lastProviderStatus: 'false',
         }),
       );
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('is idempotent: a second webhook for an already-PAID payment is a no-op', async () => {
@@ -426,7 +479,7 @@ describe('PaymentService', () => {
       await service.handlePaymeeWebhook(buildPaymeeWebhookPayload());
 
       expect(paymeeProvider.verifyPayment).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('always records the webhook delivery, even before checking idempotency', async () => {
@@ -451,8 +504,8 @@ describe('PaymentService', () => {
       await expect(
         service.handlePaymeeWebhook(buildPaymeeWebhookPayload({ amount: 1 })),
       ).rejects.toThrow(PaymeePaymentMismatchError);
-      expect(queryBuilder.execute).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
   });
 
@@ -508,7 +561,7 @@ describe('PaymentService', () => {
       expect(flouciProvider.verifyPayment).not.toHaveBeenCalled();
     });
 
-    it('marks the payment PAID and emits payment.paid for a SUCCESS verification', async () => {
+    it('marks the payment PAID and enqueues a PAYMENT_PAID outbox event for a SUCCESS verification', async () => {
       const payment = buildFlouciPayment({ status: PaymentStatus.PENDING });
       repository.findOne.mockResolvedValue(payment);
       flouciProvider.verifyPayment.mockResolvedValue({
@@ -522,13 +575,20 @@ describe('PaymentService', () => {
         'FoPKKHqfQIKfBqhEj8M47A',
         { trackingId: payment.id, amount: '25.500' },
       );
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        PAYMENT_PAID_EVENT,
-        expect.objectContaining({ paymentId: payment.id, orderId: 'ORDER-1' }),
+      expect(outboxService.enqueue).toHaveBeenCalledWith(
+        manager,
+        expect.objectContaining({
+          eventType: PAYMENT_PAID_EVENT_TYPE,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          payload: expect.objectContaining({
+            paymentId: payment.id,
+            orderId: 'ORDER-1',
+          }),
+        }),
       );
     });
 
-    it('updates the payment to PENDING (no event) for a PENDING verification', async () => {
+    it('updates the payment to PENDING (no outbox event) for a PENDING verification', async () => {
       const payment = buildFlouciPayment({ status: PaymentStatus.PENDING });
       repository.findOne.mockResolvedValue(payment);
       flouciProvider.verifyPayment.mockResolvedValue({
@@ -545,7 +605,7 @@ describe('PaymentService', () => {
           lastProviderStatus: 'PENDING',
         }),
       );
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('updates the payment to EXPIRED for an EXPIRED verification', async () => {
@@ -562,7 +622,7 @@ describe('PaymentService', () => {
         payment.id,
         expect.objectContaining({ status: PaymentStatus.EXPIRED }),
       );
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('updates the payment to FAILED for a FAILURE verification', async () => {
@@ -579,7 +639,7 @@ describe('PaymentService', () => {
         payment.id,
         expect.objectContaining({ status: PaymentStatus.FAILED }),
       );
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('is idempotent: a second webhook for an already-PAID payment is a no-op and skips verify_payment', async () => {
@@ -592,7 +652,7 @@ describe('PaymentService', () => {
       await service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A');
 
       expect(flouciProvider.verifyPayment).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
 
     it('always records the webhook delivery, even before checking idempotency', async () => {
@@ -617,8 +677,8 @@ describe('PaymentService', () => {
       await expect(
         service.handleFlouciWebhook('FoPKKHqfQIKfBqhEj8M47A'),
       ).rejects.toThrow(FlouciPaymentMismatchError);
-      expect(queryBuilder.execute).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(outboxService.enqueue).not.toHaveBeenCalled();
     });
   });
 });

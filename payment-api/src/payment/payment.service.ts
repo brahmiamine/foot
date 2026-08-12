@@ -1,7 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
 import { PaymentProviderName } from './enums/payment-provider.enum';
 import { PaymentStatus } from './enums/payment-status.enum';
@@ -18,8 +17,9 @@ import { PaymeeProvider } from './providers/paymee/paymee.provider';
 import { PaymeePaymentNotFoundError } from './providers/paymee/paymee.exceptions';
 import { PaymeeWebhookPayload } from './providers/paymee/paymee.types';
 import { FlouciProvider } from './providers/flouci/flouci.provider';
+import { OutboxService } from '../outbox/outbox.service';
 
-export const PAYMENT_PAID_EVENT = 'payment.paid';
+export const PAYMENT_PAID_EVENT_TYPE = 'PAYMENT_PAID';
 
 export interface PaymentPaidEvent {
   paymentId: string;
@@ -39,10 +39,12 @@ export class PaymentService {
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly konnectProvider: KonnectProvider,
     private readonly paymeeProvider: PaymeeProvider,
     private readonly flouciProvider: FlouciProvider,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly outboxService: OutboxService,
   ) {}
 
   async findById(id: string): Promise<Payment> {
@@ -51,6 +53,59 @@ export class PaymentService {
       throw new NotFoundException('Payment not found');
     }
     return payment;
+  }
+
+  /**
+   * Transition atomique PENDING/... → PAID + écriture de l'événement outbox
+   * (TS-12, avancement.md) dans LA MÊME transaction : soit les deux
+   * committent ensemble, soit aucun des deux — remplace le couple
+   * "UPDATE conditionnel puis eventEmitter.emit()" qui pouvait committer le
+   * premier et perdre le second (crash process, listener en échec sans
+   * persistance). Ne déclenche jamais elle-même de webhook/notification :
+   * voir OutboxWorkerService (../outbox/outbox-worker.service.ts).
+   * Retourne `true` seulement si CET appel a fait la transition (garantie
+   * d'exactly-once même sous livraisons concurrentes/dupliquées du webhook
+   * provider).
+   */
+  private async transitionToPaid(
+    payment: Payment,
+    extra: Partial<
+      Pick<Payment, 'lastProviderStatus' | 'receivedAmount' | 'providerFee'>
+    >,
+  ): Promise<boolean> {
+    return this.dataSource.transaction(async (manager) => {
+      const result = await manager
+        .createQueryBuilder()
+        .update(Payment)
+        .set({
+          status: PaymentStatus.PAID,
+          paidAt: new Date(),
+          ...extra,
+        })
+        .where('id = :id', { id: payment.id })
+        .andWhere('status != :paid', { paid: PaymentStatus.PAID })
+        .execute();
+
+      const didTransition = !!result.affected && result.affected > 0;
+      if (didTransition) {
+        const event: PaymentPaidEvent = {
+          paymentId: payment.id,
+          orderId: payment.orderId,
+          provider: payment.provider,
+          providerRef: payment.providerRef ?? '',
+          userId: payment.userId,
+          callerApplication: payment.callerApplication,
+          amount: payment.amount,
+          currency: payment.currency,
+        };
+        await this.outboxService.enqueue(manager, {
+          eventType: PAYMENT_PAID_EVENT_TYPE,
+          aggregateId: payment.id,
+          payload: event as unknown as Record<string, unknown>,
+        });
+      }
+      return didTransition;
+    });
   }
 
   async initiateKonnectPayment(
@@ -128,33 +183,10 @@ export class PaymentService {
     });
 
     if (verification.internalStatus === PaymentStatus.PAID) {
-      // Atomic, conditional transition: only the first webhook delivery to
-      // reach this point actually flips the row and fires the event, even
-      // under concurrent/duplicate deliveries.
-      const result = await this.paymentRepository
-        .createQueryBuilder()
-        .update(Payment)
-        .set({
-          status: PaymentStatus.PAID,
-          paidAt: new Date(),
-          lastProviderStatus: verification.providerStatus,
-        })
-        .where('id = :id', { id: payment.id })
-        .andWhere('status != :paid', { paid: PaymentStatus.PAID })
-        .execute();
-
-      if (result.affected && result.affected > 0) {
-        const event: PaymentPaidEvent = {
-          paymentId: payment.id,
-          orderId: payment.orderId,
-          provider: payment.provider,
-          providerRef,
-          userId: payment.userId,
-          callerApplication: payment.callerApplication,
-          amount: payment.amount,
-          currency: payment.currency,
-        };
-        this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
+      const didTransition = await this.transitionToPaid(payment, {
+        lastProviderStatus: verification.providerStatus,
+      });
+      if (didTransition) {
         this.logger.log(
           `Payment ${payment.id} marked PAID (order ${payment.orderId}).`,
         );
@@ -253,35 +285,12 @@ export class PaymentService {
     });
 
     if (verification.internalStatus === PaymentStatus.PAID) {
-      // Atomic, conditional transition: only the first webhook delivery to
-      // reach this point actually flips the row and fires the event, even
-      // under concurrent/duplicate deliveries.
-      const result = await this.paymentRepository
-        .createQueryBuilder()
-        .update(Payment)
-        .set({
-          status: PaymentStatus.PAID,
-          paidAt: new Date(),
-          lastProviderStatus: verification.providerStatus,
-          receivedAmount: verification.receivedAmount ?? null,
-          providerFee: verification.fee ?? null,
-        })
-        .where('id = :id', { id: payment.id })
-        .andWhere('status != :paid', { paid: PaymentStatus.PAID })
-        .execute();
-
-      if (result.affected && result.affected > 0) {
-        const event: PaymentPaidEvent = {
-          paymentId: payment.id,
-          orderId: payment.orderId,
-          provider: payment.provider,
-          providerRef: payload.token,
-          userId: payment.userId,
-          callerApplication: payment.callerApplication,
-          amount: payment.amount,
-          currency: payment.currency,
-        };
-        this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
+      const didTransition = await this.transitionToPaid(payment, {
+        lastProviderStatus: verification.providerStatus,
+        receivedAmount: verification.receivedAmount ?? null,
+        providerFee: verification.fee ?? null,
+      });
+      if (didTransition) {
         this.logger.log(
           `Payment ${payment.id} marked PAID via Paymee (order ${payment.orderId}).`,
         );
@@ -370,33 +379,10 @@ export class PaymentService {
     });
 
     if (verification.internalStatus === PaymentStatus.PAID) {
-      // Atomic, conditional transition: only the first webhook delivery to
-      // reach this point actually flips the row and fires the event, even
-      // under concurrent/duplicate deliveries.
-      const result = await this.paymentRepository
-        .createQueryBuilder()
-        .update(Payment)
-        .set({
-          status: PaymentStatus.PAID,
-          paidAt: new Date(),
-          lastProviderStatus: verification.providerStatus,
-        })
-        .where('id = :id', { id: payment.id })
-        .andWhere('status != :paid', { paid: PaymentStatus.PAID })
-        .execute();
-
-      if (result.affected && result.affected > 0) {
-        const event: PaymentPaidEvent = {
-          paymentId: payment.id,
-          orderId: payment.orderId,
-          provider: payment.provider,
-          providerRef: paymentId,
-          userId: payment.userId,
-          callerApplication: payment.callerApplication,
-          amount: payment.amount,
-          currency: payment.currency,
-        };
-        this.eventEmitter.emit(PAYMENT_PAID_EVENT, event);
+      const didTransition = await this.transitionToPaid(payment, {
+        lastProviderStatus: verification.providerStatus,
+      });
+      if (didTransition) {
         this.logger.log(
           `Payment ${payment.id} marked PAID via Flouci (order ${payment.orderId}).`,
         );

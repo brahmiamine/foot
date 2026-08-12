@@ -15,7 +15,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P0 | E01 – Cohérence Match / ArbiNote | ✅ | empêcher les votes sur matchs non réellement commencés |
 | P0 | E02 – Marketplace API | 🔄 | compléter le domaine marketplace multi-vendeurs |
 | P0 | E03 – Modération Marketplace | ✅ | permettre au club de valider/rejeter les produits vendeurs |
-| P0 | E04 – Fiabilité événements paiement | ⏳ | garantir les événements post-paiement via outbox transactionnel |
+| P0 | E04 – Fiabilité événements paiement | 🔄 | garantir les événements post-paiement via outbox transactionnel |
 | P1 | E05 – Boutique OB | ✅ | fermer le parcours catalogue → achat → commande |
 | P1 | E06 – Fulfillment boutique | ⏳ | gérer préparation, expédition, livraison et retours |
 | P1 | E07 – Notifications fiables | ⏳ | éviter la perte d'événements métiers via outbox |
@@ -343,19 +343,25 @@ DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED → PUBLISHED
 
 - Webhook applicatif signé en place : `payment-api → billetterie` (`POST /api/payments/webhook`, HMAC-SHA256) ✅
 - Configuré pour `billetterie` uniquement ; autres apps (`ob`, `teamManager`, `sellerPortal`) n'ont pas d'URL dans `WEBHOOK_URLS` et restent en polling.
+- Transactional outbox + retry durable livrés (TS-12/TS-13, voir ci-dessous) ✅
 - Pas de remboursements ni de payouts.
 - Pas d'état comptable exploitable.
 - Notifications limitées à `PAYMENT_SUCCEEDED` si `userId` fourni.
 
 ## TS-12 — Implémenter Transactional Outbox dans Payment API
 
-Aujourd'hui :
+**Statut :** ✅ Livré
+
+Avant :
 
 ```text
-Payment → PAID → EventEmitter → webhook / notification
+Payment → PAID → EventEmitter2 → listeners (transitoire, perdu si le
+                                             process crashe entre le
+                                             commit et l'émission, ou si
+                                             un listener échoue)
 ```
 
-Cible :
+Désormais :
 
 ```text
 BEGIN TRANSACTION
@@ -364,11 +370,27 @@ BEGIN TRANSACTION
 COMMIT
 ```
 
-Worker :
+`PaymentService.transitionToPaid()` (`payment-api/src/payment/payment.service.ts`)
+fait l'UPDATE conditionnel (`status != PAID`, garantie exactly-once déjà en
+place) et l'insertion `OutboxEvent` dans **la même transaction**
+(`DataSource.transaction`, voir `outbox/outbox.service.ts`) — les deux
+committent ensemble ou aucun des deux. Remplace `EventEmitter2` et les
+anciens `PaymentNotificationsListener`/`PaymentWebhookListener` (supprimés),
+dont l'exécution ne survivait jamais à un redémarrage entre le commit et la
+livraison.
+
+Worker (`OutboxWorkerService`, poll toutes les 5s, pas de dépendance
+`@nestjs/schedule` — cohérent avec le reste du monorepo) :
 
 ```text
-outbox → notification-api → business webhook
+outbox (PENDING dû) → notification-api (best-effort, payeur) → business webhook (bloquant, TS-13)
 ```
+
+Seul le webhook métier (application appelante) détermine le succès/échec de
+l'événement — c'est lui que d'autres apps attendent pour confirmer une
+commande. La notification du payeur via notification-api reste best-effort
+(elle avalait déjà ses propres erreurs avant ce chantier) : jamais
+bloquante, jamais retentée par le worker.
 
 ### Table
 
@@ -379,7 +401,7 @@ id
 event_type
 aggregate_id
 payload
-status
+status        -- PENDING | PROCESSED | FAILED
 attempts
 next_retry_at
 created_at
@@ -387,15 +409,34 @@ processed_at
 last_error
 ```
 
+`synchronize` TypeORM (dev, comme le reste de payment-api) — pas de fichier
+SQL versionné, cohérent avec la convention déjà en place pour cette app.
+
 ## TS-13 — Retry durable des callbacks métiers
 
-Remplacer les 2 retries courts en mémoire par :
+**Statut :** ✅ Livré
+
+Remplace les 2 retries courts en mémoire de l'ancien `WebhookDispatchService`
+(~2 secondes, perdus au moindre redémarrage) par un calendrier durable porté
+par `OutboxEvent.attempts`/`next_retry_at` (survit à un redémarrage entre
+deux tentatives) :
 
 ```text
-1 min → 5 min → 15 min → 1 h → 6 h → ...
+1 min → 5 min → 15 min → 1 h → 6 h → FAILED (DLQ)
 ```
 
-avec DLQ ou statut `FAILED`.
+`WebhookDispatchService.dispatch()` ne retente plus lui-même : un seul essai,
+lève en cas d'échec — c'est `OutboxWorkerService` qui possède le calendrier
+et rejoue tout l'événement (`computeNextRetryAt()`,
+`outbox/retry-schedule.ts`). Après épuisement du calendrier (6 tentatives),
+l'événement passe `FAILED` (DLQ) : billetterie garde son filet de sécurité
+existant (retour payeur / `/mes-billets`) pour ce cas résiduel.
+
+Tests : `outbox/retry-schedule.spec.ts`,
+`outbox/outbox-worker.service.spec.ts` (9 cas — livraison réussie, retry
+programmé, DLQ après épuisement, type d'événement inconnu, garde-fou contre
+le chevauchement de deux passages), `outbox/outbox.service.spec.ts`,
+`payment/payment.service.spec.ts` (réécrit pour la transaction réelle).
 
 ## TS-14 — Idempotence côté consommateur
 
@@ -1234,12 +1275,13 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 - Parcours achat complet : `billetterie` → `payment-api` → webhook signé → billets `PAID`.
 - Webhook applicatif en place (HMAC-SHA256, réconciliation via lecture API).
+- File d'événement/retry persistante côté `payment-api` (TS-12/TS-13 : outbox transactionnel, calendrier 1min→5min→15min→1h→6h puis DLQ).
+- Idempotence du webhook côté `billetterie` (TS-14 : eventId mémorisé).
 - Scanner v1 + caméra + mode offline livré.
 - QR signé, double scan détecté, journal d'entrée.
 
 ### Reste à faire
 
-- File d'événement/retry persistant au-delà des 2 tentatives en mémoire.
 - Autres apps (`ob`, `teamManager`, `sellerPortal`) n'ont pas d'URL dans `WEBHOOK_URLS` — polling pur.
 - Annulation de match non reliée à `payment-api` : remboursements, avoirs, notifications, rapprochement comptable absent.
 - Lecture caméra + mode offline jamais testés en conditions réelles (pas de caméra/réseau réels).
@@ -1425,9 +1467,9 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ```text
 ✅ Webhook applicatif signé
 ✅ Reconciliation webhook + retour payeur
-⏳ Transactional outbox
-⏳ Retry callback durable (au-delà des 2 retries mémoire)
-⏳ DLQ / monitoring
+✅ Transactional outbox (TS-12)
+✅ Retry callback durable (TS-13, 1min→5min→15min→1h→6h puis DLQ)
+✅ DLQ (statut FAILED en base) — monitoring/alerting externe hors périmètre (voir E19)
 ⏳ Configurer webhooks pour autres apps (ob, teamManager, sellerPortal)
 ⏳ Refund API
 ⏳ Payout provider abstraction
@@ -1493,8 +1535,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ## Sprint 4 — Paiement fiable
 
 ```text
-⏳ TS-12 payment outbox
-⏳ TS-13 retry durable
+✅ TS-12 payment outbox
+✅ TS-13 retry durable
 ✅ TS-14 consumer idempotency (billetterie)
 ```
 
@@ -1536,8 +1578,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 # Priorités immédiates recommandées
 
 1. ~~Corriger ArbiNote / statut réel du match (US-01, TS-02)~~ ✅ Livré (12/08/2026).
-2. **Activer les tests existants dans la CI (TS-33)** avant d'entreprendre les gros refactorings.
-3. **Introduire Transactional Outbox dans Payment API (TS-12)**.
+2. ~~Activer les tests existants dans la CI (TS-33)~~ ✅ Livré (12/08/2026).
+3. ~~Introduire Transactional Outbox dans Payment API (TS-12)~~ ✅ Livré (12/08/2026, avec TS-13 retry durable).
 4. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
 5. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
 6. **Découpler progressivement les accès directs à la base (TS-31)**.

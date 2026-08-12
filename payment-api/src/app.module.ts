@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -28,7 +27,6 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     ThrottlerModule.forRootAsync({
       useFactory: () => [{ ttl: 60_000, limit: 120 }],
     }),
-    EventEmitterModule.forRoot(),
     AuthModule,
     NotificationsModule,
     PaymentModule,

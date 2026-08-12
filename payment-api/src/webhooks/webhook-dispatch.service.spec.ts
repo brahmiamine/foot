@@ -95,25 +95,7 @@ describe('WebhookDispatchService', () => {
     );
   });
 
-  it('retries on failure and succeeds once a later attempt gets through', async () => {
-    process.env.PAYMENT_WEBHOOK_SECRET = 'secret';
-    const { service, httpService } = buildService({
-      billetterie: 'https://billetterie.example.com/api/payments/webhook',
-    });
-    httpService.post
-      .mockReturnValueOnce(throwError(() => new Error('network down')))
-      .mockReturnValueOnce(of({ data: {} } as AxiosResponse<unknown>));
-    jest.spyOn(global, 'setTimeout').mockImplementation((fn: () => void) => {
-      fn();
-      return 0 as unknown as NodeJS.Timeout;
-    });
-
-    await service.dispatch('billetterie', payload);
-
-    expect(httpService.post).toHaveBeenCalledTimes(2);
-  });
-
-  it('gives up silently (never throws) after exhausting all retries', async () => {
+  it('makes a single attempt and throws on failure — retry ownership moved to OutboxWorkerService (TS-13)', async () => {
     process.env.PAYMENT_WEBHOOK_SECRET = 'secret';
     const { service, httpService } = buildService({
       billetterie: 'https://billetterie.example.com/api/payments/webhook',
@@ -121,14 +103,10 @@ describe('WebhookDispatchService', () => {
     httpService.post.mockReturnValue(
       throwError(() => new Error('network down')),
     );
-    jest.spyOn(global, 'setTimeout').mockImplementation((fn: () => void) => {
-      fn();
-      return 0 as unknown as NodeJS.Timeout;
-    });
 
-    await expect(
-      service.dispatch('billetterie', payload),
-    ).resolves.toBeUndefined();
-    expect(httpService.post).toHaveBeenCalledTimes(3);
+    await expect(service.dispatch('billetterie', payload)).rejects.toThrow(
+      'network down',
+    );
+    expect(httpService.post).toHaveBeenCalledTimes(1);
   });
 });
