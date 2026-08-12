@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FORMATIONS, FORMATION_CODES, DEFAULT_FORMATION, type FormationSlot } from "@/lib/formations";
 import { saveMatchLineup, setMatchFormation, sendMatchConvocations } from "@/lib/lineup-actions";
 import type { MatchRef } from "@/services/MatchFormationService";
+import { useI18n } from "@/i18n/I18nProvider";
 
 type Role = "NONE" | "STARTER" | "SUBSTITUTE";
 
@@ -63,6 +64,7 @@ export function PitchLineupEditor({
   backHref: string;
   backLabel: string;
 }) {
+  const { locale, t } = useI18n();
   const editable = canEdit && !isLocked;
   const lineupByPlayer = useMemo(() => new Map(initialLineup.map((l) => [l.playerId, l])), [initialLineup]);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
@@ -212,10 +214,10 @@ export function PitchLineupEditor({
 
       const result = await saveMatchLineup(ref, JSON.stringify(entries));
       if (result.success) {
-        setSuccess(result.message ?? null);
+        setSuccess(t(result.messageKey));
         setDirty(false);
       } else {
-        setError(result.error || "Erreur lors de l'enregistrement");
+        setError(t(result.errorKey));
       }
     } finally {
       setSaving(false);
@@ -229,9 +231,9 @@ export function PitchLineupEditor({
     try {
       const result = await sendMatchConvocations(ref);
       if (result.success) {
-        setSuccess(result.message ?? null);
+        setSuccess(t(result.messageKey, result.values));
       } else {
-        setError(result.error || "Erreur lors de l'envoi des convocations");
+        setError(t(result.errorKey));
       }
     } finally {
       setSending(false);
@@ -245,9 +247,9 @@ export function PitchLineupEditor({
     <div className="container-fluid px-0">
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2 flex-wrap">
         <div>
-          <h1 className="h4 mb-1">Composition — {matchLabel}</h1>
+          <h1 className="h4 mb-1">{t("lineup.page.title", { match: matchLabel })}</h1>
           <p className="text-muted mb-0">
-            {matchDate ? new Date(matchDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Date non définie"}
+            {matchDate ? new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date(matchDate)) : t("lineup.date.undefined")}
           </p>
         </div>
         <Link href={backHref} className="btn btn-outline-secondary btn-sm">
@@ -258,21 +260,22 @@ export function PitchLineupEditor({
       {isLocked && (
         <div className="alert alert-secondary d-flex align-items-center gap-2 mb-3">
           <i className="fas fa-lock" aria-hidden="true" />
-          <span>Ce match est terminé (ou annulé) : la composition et la formation ne peuvent plus être modifiées.</span>
+          <span>{t("lineup.locked.help")}</span>
         </div>
       )}
 
       <div className="d-flex gap-2 mb-3 flex-wrap align-items-center">
         <span className={`badge ${starterCount === 11 ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning"}`}>
-          {starterCount} / 11 titulaires
+          {t("lineup.count.starters", { count: starterCount })}
         </span>
-        <span className="badge bg-info-subtle text-info">{substituteCount} remplaçant(s)</span>
+        <span className="badge bg-info-subtle text-info">{t("lineup.count.substitutes", { count: substituteCount })}</span>
         <select
           className="form-select form-select-sm ms-auto"
           style={{ width: "160px" }}
           value={formation}
           onChange={(e) => handleFormationChange(e.target.value)}
           disabled={!editable}
+          aria-label={t("lineup.formation.label")}
         >
           {FORMATION_CODES.map((code) => (
             <option key={code} value={code}>
@@ -283,13 +286,13 @@ export function PitchLineupEditor({
         {canSendConvocations && (
           <button type="button" className="btn btn-outline-primary btn-sm" onClick={handleSendConvocations} disabled={sending || starterCount + substituteCount === 0}>
             {sending ? <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" /> : <i className="fas fa-paper-plane me-2" aria-hidden="true" />}
-            Envoyer les convocations
+            {sending ? t("lineup.callups.sending") : t("lineup.callups.send")}
           </button>
         )}
         {editable && (
           <button type="button" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
             {saving ? <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" /> : <i className="fas fa-save me-2" aria-hidden="true" />}
-            {dirty ? "Enregistrer les modifications" : "Enregistrer"}
+            {saving ? t("lineup.save.saving") : dirty ? t("lineup.save.changes") : t("lineup.save.action")}
           </button>
         )}
       </div>
@@ -297,13 +300,13 @@ export function PitchLineupEditor({
       {error && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-3">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}
       {success && (
         <div className="alert alert-success d-flex justify-content-between align-items-start mb-3">
           <span>{success}</span>
-          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setSuccess(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}
 
@@ -311,7 +314,7 @@ export function PitchLineupEditor({
         <div className="col-lg-6">
           <div className="card">
             <div className="card-header">
-              <h5 className="card-title mb-0">Terrain — glissez les joueurs pour ajuster leur position</h5>
+              <h5 className="card-title mb-0">{t("lineup.pitch.heading")}</h5>
             </div>
             <div className="card-body">
               <div
@@ -360,10 +363,10 @@ export function PitchLineupEditor({
               </div>
 
               <div className="mt-3">
-                <div className="text-muted small mb-1">Remplaçants</div>
+                <div className="text-muted small mb-1">{t("lineup.substitutes.heading")}</div>
                 <div className="d-flex flex-wrap gap-2">
                   {substitutes.length === 0 ? (
-                    <span className="text-muted small">Aucun remplaçant sélectionné</span>
+                    <span className="text-muted small">{t("lineup.substitutes.empty")}</span>
                   ) : (
                     substitutes.map((p) => (
                       <span key={p.id} className="badge bg-secondary-subtle text-dark border">
@@ -380,21 +383,21 @@ export function PitchLineupEditor({
         <div className="col-lg-6">
           <div className="card">
             <div className="card-header">
-              <h5 className="card-title mb-0">Effectif</h5>
+              <h5 className="card-title mb-0">{t("lineup.squad.heading")}</h5>
             </div>
             <div className="card-body p-0">
               {players.length === 0 ? (
-                <p className="text-muted mb-0 p-3">Aucun joueur actif dans l&apos;effectif</p>
+                <p className="text-muted mb-0 p-3">{t("lineup.squad.empty")}</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
                       <tr>
-                        <th style={{ width: "70px" }}>N°</th>
-                        <th>Joueur</th>
-                        <th style={{ width: "230px" }}>Rôle</th>
+                        <th style={{ width: "70px" }}>{t("lineup.table.number")}</th>
+                        <th>{t("lineup.table.player")}</th>
+                        <th style={{ width: "230px" }}>{t("lineup.table.role")}</th>
                         <th style={{ width: "70px" }} className="text-center">
-                          C
+                          {t("lineup.table.captainShort")}
                         </th>
                       </tr>
                     </thead>
@@ -413,18 +416,19 @@ export function PitchLineupEditor({
                                 onChange={(e) => setShirtNumber(p.id, e.target.value)}
                                 min={1}
                                 max={99}
+                                aria-label={t("lineup.shirtNumber.aria", { player: p.name })}
                               />
                             </td>
                             <td className="text-truncate">{p.name}</td>
                             <td>
-                              <div className="btn-group btn-group-sm" role="group">
+                              <div className="btn-group btn-group-sm" role="group" aria-label={t("lineup.role.aria", { player: p.name })}>
                                 <button
                                   type="button"
                                   className={`btn ${row.role === "NONE" ? "btn-secondary" : "btn-outline-secondary"}`}
                                   onClick={() => setRole(p.id, "NONE")}
                                   disabled={!editable}
                                 >
-                                  Aucun
+                                  {t("lineup.role.none")}
                                 </button>
                                 <button
                                   type="button"
@@ -432,7 +436,7 @@ export function PitchLineupEditor({
                                   onClick={() => setRole(p.id, "STARTER")}
                                   disabled={!editable || (row.role !== "STARTER" && starterCount >= 11)}
                                 >
-                                  Titulaire
+                                  {t("lineup.role.starter")}
                                 </button>
                                 <button
                                   type="button"
@@ -440,7 +444,7 @@ export function PitchLineupEditor({
                                   onClick={() => setRole(p.id, "SUBSTITUTE")}
                                   disabled={!editable}
                                 >
-                                  Remp.
+                                  {t("lineup.role.substituteShort")}
                                 </button>
                               </div>
                             </td>
@@ -452,6 +456,7 @@ export function PitchLineupEditor({
                                 checked={row.isCaptain}
                                 disabled={row.role === "NONE" || !editable}
                                 onChange={() => setCaptain(p.id)}
+                                aria-label={t("lineup.captain.aria", { player: p.name })}
                               />
                             </td>
                           </tr>

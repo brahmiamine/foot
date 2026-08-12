@@ -37,6 +37,36 @@ function flatten(value, prefix = "", output = {}) {
   return output;
 }
 
+/** Inventories user-visible string candidates without pretending to parse TypeScript. */
+function literalInventory(app) {
+  const sourceRoot = path.join(root, app, "src");
+  const roots = ["app", "components"].map((directory) => path.join(sourceRoot, directory)).filter(fs.existsSync);
+  const files = [];
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      else if (/\.(?:tsx?|jsx?)$/.test(entry.name)) files.push(absolute);
+    }
+  };
+  roots.forEach(visit);
+
+  const candidates = [];
+  for (const file of files) {
+    const source = fs.readFileSync(file, "utf8");
+    const lines = source.split(/\r?\n/);
+    lines.forEach((line, index) => {
+      const visibleText = [...line.matchAll(/>([^<{]*[A-Za-zÀ-ÿ\u0600-\u06ff][^<{]*)</g)];
+      const attributes = [...line.matchAll(/\b(?:aria-label|title|placeholder|alt)=["']([^"']*[A-Za-zÀ-ÿ\u0600-\u06ff][^"']*)["']/g)];
+      for (const match of [...visibleText, ...attributes]) {
+        const value = match[1].replace(/&(?:apos|quot|amp|lt|gt);/g, " ").trim();
+        if (value) candidates.push({ file: path.relative(path.join(root, app), file), line: index + 1, value });
+      }
+    });
+  }
+  return candidates;
+}
+
 export function audit(app) {
   const dictionaries = catalog(app);
   const fr = flatten(dictionaries.fr), ar = flatten(dictionaries.ar);
@@ -57,7 +87,13 @@ for (const app of selected) {
   try {
     const result = audit(app);
     if (result.errors.length) { failed = true; console.error(`✗ ${app}\n  ${result.errors.join("\n  ")}`); }
-    else console.log(`✓ ${app}: ${result.keys} clés fr/ar valides`);
+    else {
+      const literals = literalInventory(app);
+      console.log(`✓ ${app}: ${result.keys} clés fr/ar valides; ${literals.length} littéraux UI à inventorier dans src/app et src/components`);
+      if (process.argv.includes("--literals")) {
+        for (const item of literals) console.log(`  ${item.file}:${item.line}\t${item.value}`);
+      }
+    }
   } catch (error) { failed = true; console.error(`✗ ${error.message}`); }
 }
 if (failed) process.exitCode = 1;
