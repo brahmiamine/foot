@@ -6,6 +6,7 @@ import { Team } from "@/entities/Team";
 import { Ticket } from "@/entities/Ticket";
 import { TicketCategory } from "@/entities/TicketCategory";
 import { TicketSaleRule } from "@/entities/TicketSaleRule";
+import { TicketScanLog } from "@/entities/TicketScanLog";
 
 /**
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
@@ -19,7 +20,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Match, MatchTicketCategory, Team, Ticket, TicketCategory, TicketSaleRule],
+    entities: [Match, MatchTicketCategory, Team, Ticket, TicketCategory, TicketSaleRule, TicketScanLog],
   });
 
   await dataSource.initialize();

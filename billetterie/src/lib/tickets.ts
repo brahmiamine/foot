@@ -5,10 +5,12 @@ import { TicketCategory } from "@/entities/TicketCategory";
 import { MatchTicketCategory } from "@/entities/MatchTicketCategory";
 import { TicketSaleRule } from "@/entities/TicketSaleRule";
 import { Ticket } from "@/entities/Ticket";
+import { TicketScanLog } from "@/entities/TicketScanLog";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { generateTicketReference } from "@/lib/reference";
 import { getPaymentProvider, getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
 import { fetchMemberAffiliatedTeamIds, fetchMemberProfile } from "@/lib/ssoProfileClient";
+import { verifyTicketToken } from "@/lib/ticketQr";
 
 export interface OpenMatchSummary {
   id: string;
@@ -584,4 +586,94 @@ export async function dismissAudienceMismatch(ticketId: string): Promise<void> {
     throw new NotFoundError("Billet introuvable.");
   }
   await ticketRepo.update({ id: ticketId }, { audienceMismatch: false });
+}
+
+export type ScanOutcome = "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID";
+
+export interface ScanResult {
+  outcome: ScanOutcome;
+  reference?: string;
+  matchLabel?: string;
+  categoryName?: string;
+  /** Horodatage du premier scan, fourni sur ALREADY_USED pour que le staff voie depuis quand. */
+  usedAt?: Date | null;
+}
+
+/**
+ * Scanner de contrôle d'accès (avancement.md, rang 2). Le jeton scanné
+ * n'est jamais source de vérité : il ne fait qu'identifier le billet
+ * (voir src/lib/ticketQr.ts) — le statut réel est toujours relu ici. Ne
+ * vérifie pas que le billet correspond à un match précis (pas de sélection
+ * de match par le staff) : le nom des équipes et la catégorie sont
+ * retournés pour que le staff les confronte visuellement à l'écran,
+ * comme dans la plupart des scanners d'entrée en usage réel.
+ */
+export async function scanTicket(token: string, scannedBy: string): Promise<ScanResult> {
+  const ds = await getDataSource();
+  const scanLogRepo = ds.getRepository(TicketScanLog);
+
+  const ticketId = await verifyTicketToken(token);
+  if (!ticketId) {
+    await scanLogRepo.save(scanLogRepo.create({ ticketId: null, result: "INVALID", scannedBy }));
+    return { outcome: "INVALID" };
+  }
+
+  const ticketRepo = ds.getRepository(Ticket);
+  const ticket = await ticketRepo.findOne({ where: { id: ticketId } });
+  if (!ticket) {
+    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "INVALID", scannedBy }));
+    return { outcome: "INVALID" };
+  }
+
+  const match = await ds.getRepository(Match).findOne({ where: { id: ticket.matchId }, relations: ["homeTeam", "awayTeam"] });
+  const matchLabel = match ? `${match.homeTeam?.nom ?? "?"} - ${match.awayTeam?.nom ?? "?"}` : undefined;
+  const mtc = await ds.getRepository(MatchTicketCategory).findOne({ where: { id: ticket.matchTicketCategoryId } });
+  const category = mtc ? await ds.getRepository(TicketCategory).findOne({ where: { id: mtc.categoryId } }) : null;
+
+  const base = { reference: ticket.reference, matchLabel, categoryName: category?.name };
+
+  if (match?.status === "CANCELLED") {
+    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "MATCH_CANCELLED", scannedBy }));
+    return { outcome: "MATCH_CANCELLED", ...base };
+  }
+
+  if (ticket.status === "USED") {
+    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "ALREADY_USED", scannedBy }));
+    return { outcome: "ALREADY_USED", ...base, usedAt: ticket.usedAt };
+  }
+
+  if (ticket.status !== "PAID") {
+    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "NOT_PAID", scannedBy }));
+    return { outcome: "NOT_PAID", ...base };
+  }
+
+  await ticketRepo.update({ id: ticketId }, { status: "USED", usedAt: new Date() });
+  await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "SUCCESS", scannedBy }));
+  return { outcome: "SUCCESS", ...base };
+}
+
+export interface RecentScan {
+  id: string;
+  result: ScanOutcome;
+  scannedBy: string;
+  scannedAt: Date;
+  reference: string | null;
+}
+
+export async function listRecentScans(limit = 20): Promise<RecentScan[]> {
+  const ds = await getDataSource();
+  const logs = await ds.getRepository(TicketScanLog).find({ order: { scannedAt: "DESC" }, take: limit });
+  if (logs.length === 0) return [];
+
+  const ticketIds = Array.from(new Set(logs.map((l) => l.ticketId).filter((id): id is string => !!id)));
+  const tickets = ticketIds.length > 0 ? await ds.getRepository(Ticket).find({ where: { id: In(ticketIds) } }) : [];
+  const referenceByTicketId = new Map(tickets.map((t) => [t.id, t.reference]));
+
+  return logs.map((l) => ({
+    id: l.id,
+    result: l.result,
+    scannedBy: l.scannedBy,
+    scannedAt: l.scannedAt,
+    reference: l.ticketId ? (referenceByTicketId.get(l.ticketId) ?? null) : null,
+  }));
 }

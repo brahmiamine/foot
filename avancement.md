@@ -18,7 +18,7 @@ qui reste à faire, pour rester utilisable comme backlog.
 | Rang | Action | Portée |
 |---|---|---|
 | 1 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
-| 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
+| 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — v1 en place (QR signé, marquage USED, double scan, journal d'entrée) ; mode offline et lecture caméra restent à faire |
 | 3 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
 | 4 | Boucles fermées post-annulation (remboursements, avoirs, notification métier) | Paiement/Billetterie — webhook post-paiement fermé (payment-api → billetterie), remboursements toujours absents |
 | 5 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
@@ -61,9 +61,18 @@ non audités de bout en bout.
   `payment-api`, et les autres apps appelantes de `payment-api` (`ob`,
   `teamManager`, `sellerPortal`…) n'ont pas d'URL configurée dans
   `WEBHOOK_URLS` — elles restent en polling pur tant que ça n'est pas fait.
-- Le contrôle d'accès au stade n'existe pas : pas d'app scanner, pas de QR code
-  signé/rotation, pas d'état `USED` horodaté, pas de journal d'entrée, pas de
-  mode offline scanner, pas de détection de double scan.
+- Le contrôle d'accès au stade a une v1 : QR signé par billet (`jose` HS256,
+  `src/lib/ticketQr.ts`, affiché sur `/mes-billets` pour les billets `PAID`),
+  scan admin (`/admin/scan`, `POST /api/admin/tickets/scan`) qui relit le
+  statut réel en base, marque `USED` + horodate, détecte le double scan
+  (`ALREADY_USED`) et journalise chaque tentative — succès ou refus — dans
+  `tk_ticket_scans` (`src/entities/TicketScanLog.ts`, "journal d'entrée").
+  Volontairement hors périmètre de cette v1 : pas de lecture caméra dans le
+  navigateur (scan pensé pour une douchette QR/code-barres en mode clavier,
+  ou collage manuel du contenu), pas de mode offline (le scan exige une
+  connexion à la base à chaque passage), pas de sélection de match par
+  gate — le nom des équipes/catégorie s'affiche pour vérification visuelle
+  du staff plutôt qu'un blocage automatique par événement.
 - L'annulation d'un match n'est pas reliée à `payment-api` : remboursements,
   avoirs, notifications aux acheteurs et rapprochement comptable restent à
   concevoir.
@@ -149,7 +158,7 @@ non audités de bout en bout.
 - Pages billets/commandes toujours dépendantes des apps génériques (`billetterie`), pas de tunnel intégré.
 
 ### `billetterie`
-- Scanner de contrôle d'accès au stade : jamais commencé, aucun dossier/route dans le dépôt.
+- Scanner de contrôle d'accès au stade : v1 en place (`/admin/scan`, voir circuit "Billetterie / paiement / contrôle d'accès" ci-dessus) — non vérifié dans un navigateur réel dans ce bac à sable (pas de base MariaDB disponible ici), validé via `vitest`/`tsc`/build production uniquement.
 - Audience réservée à l'achat toujours auto-déclarée par conception (tracée et recoupée avec les affiliations `sso` comme signal de modération non bloquant, mais pas un mécanisme d'identité fiable — aucun n'existe dans ce dépôt pour la remplacer).
 - Webhook applicatif signé venant de `payment-api` en place (`POST /api/payments/webhook`) ; la reconciliation par retour utilisateur / `/mes-billets` reste le filet de sécurité si le webhook échoue ou n'est pas configuré.
 
