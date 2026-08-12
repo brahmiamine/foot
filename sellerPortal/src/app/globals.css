@@ -72,3 +72,9 @@ textarea {
 ::selection {
   background: var(--sp-primary-soft);
 }
+
+/* Internationalisation: logical positioning keeps both writing directions usable. */
+.language-selector { position: fixed; inset-block-start: .75rem; inset-inline-end: .75rem; z-index: 1000; }
+.language-selector select { padding-block: .4rem; padding-inline: .65rem; }
+[dir="rtl"] { text-align: start; }
+[dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] select { text-align: start; }
