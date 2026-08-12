@@ -873,16 +873,45 @@ silencieusement au lieu de faire échouer le job.
 
 ## TS-34 — Ajouter tests SSO
 
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
-Tester :
+`sso` n'avait jusqu'ici que des tests `node --test` sur le texte source
+(parité des dictionnaires i18n, présence de clés de traduction — voir
+`test/*.test.mjs`), aucune exécution réelle de la logique métier. Ajout
+d'un harnais vitest + SQLite en mémoire (même pattern que `arbinote`/
+`billetterie` : `src/test/testDataSource.ts`, `setupSqliteTypes.ts`,
+`fixtures.ts`), le script `test` exécute désormais les deux runtimes
+(`node --test test/*.test.mjs && vitest run`).
 
-- login ;
-- MFA ;
-- reset password ;
-- tokenVersion ;
-- introspection ;
-- logout everywhere.
+Testé (49 tests au total, dont 43 nouveaux) :
+
+- **login** — `src/lib/authenticate.test.ts` (7 cas : identifiants valides,
+  mot de passe erroné, email inconnu, compte désactivé, SUPERADMIN avec
+  teamId refusé, ADMIN scopé à son club, MEMBER sans teamId) ;
+- **MFA** — `src/lib/mfa.test.ts` (11 cas : challenge d'enrôlement
+  (créé/consommé/remplacé), `isMfaEnabled` (secret+flag requis ensemble),
+  format du code TOTP, génération/hash/consommation à usage unique des
+  codes de récupération) ;
+- **reset password** — `src/lib/passwordReset.test.ts` (11 cas :
+  `requestPasswordReset` anti-énumération, `resetPassword` — jeton
+  inconnu/expiré/déjà utilisé/à usage unique, `tokenVersion` incrémenté et
+  hash effectivement changé —, `changePassword` avec mot de passe actuel
+  invalide/compte désactivé) ;
+- **tokenVersion** — `src/lib/session.test.ts` (6 cas : génération à jour
+  acceptée, génération périmée rejetée, jeton pré-migration sans claim
+  traité comme génération 0, compte désactivé/supprimé rejeté, mauvais
+  secret rejeté) ;
+- **introspection** — `src/app/api/session/introspect/route.test.ts` (4
+  cas : header manquant, `tokenVersion` périmé, jeton forgé sans 500,
+  jeton valide) — c'est l'endpoint que `packages/auth-shared` interroge
+  pour la révocation (TS-29) ;
+- **logout everywhere** — `src/app/api/logout-everywhere/route.test.ts` (4
+  cas : origine non fiable, non authentifié, `tokenVersion` incrémenté +
+  cookie effacé, compte supprimé). `getCurrentSession()` dépend de
+  `next/headers` (indisponible hors contexte de requête réel) : la session
+  courante est mockée via `vi.mock("@/lib/session", ...)`, comme les autres
+  tests de route de ce dépôt mockent les dépendances liées au runtime Next
+  plutôt que le HTTP lui-même.
 
 ## TS-35 — Tests SellerPortal
 
@@ -1482,7 +1511,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Migration HS256 → asymétrique
 ✅ Configurer fail-open / fail-closed (par app, packages/auth-shared)
 ✅ Ajouter audience JWT (aud = foot-platform)
-⏳ Tests complets (login, MFA, reset, tokenVersion, introspection, logout)
+✅ Tests complets (login, MFA, reset, tokenVersion, introspection, logout)
 ⏳ Déplacer invitation staff dans SSO
 ⏳ API Identity interne
 ```
