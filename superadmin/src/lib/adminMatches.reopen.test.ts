@@ -13,6 +13,11 @@ vi.mock('@/lib/notificationClient', () => ({
   notify: vi.fn(async () => {}),
 }))
 
+const reopenSheetMock = vi.fn(async (_matchId: string) => {})
+vi.mock('@/lib/matchsheetClient', () => ({
+  reopenSheet: (matchId: string) => reopenSheetMock(matchId),
+}))
+
 async function seedFinishedMatchWithClosedSheet(overrides: { matchStatus?: Match['status']; sheetStatus?: Sheet['status'] } = {}) {
   const federation = await dataSource.getRepository(Federation).save({ code: 'FTF', nom: 'Fédération Tunisienne' })
   const league = await dataSource.getRepository(League).save({ federation_id: federation.id, nom: 'Ligue 1', is_active: true })
@@ -46,24 +51,32 @@ describe('reopenMatchAdmin (SQLite réel)', () => {
   afterEach(async () => {
     await dataSource.destroy()
     vi.restoreAllMocks()
+    vi.clearAllMocks()
   })
 
-  it('remet matches.status et ms_sheets.status à IN_PROGRESS, efface closed_at', async () => {
+  it("délègue la réouverture à matchsheet (TS-31) plutôt que d'écrire directement dans ms_sheets/matches", async () => {
     const { reopenMatchAdmin } = await import('./adminMatches')
-    const { match, sheet } = await seedFinishedMatchWithClosedSheet()
+    const { match } = await seedFinishedMatchWithClosedSheet()
 
     const result = await reopenMatchAdmin(match.id, 'Erreur de saisie constatée après clôture')
 
     expect(result).toEqual({ success: true })
+    expect(reopenSheetMock).toHaveBeenCalledWith(match.id)
 
+    // superadmin ne mute plus matches/ms_sheets lui-même pour cette action —
+    // c'est matchsheet (mocké ici) qui en est désormais seul responsable.
     const reloadedMatch = await dataSource.getRepository(Match).findOneOrFail({ where: { id: match.id } })
-    expect(reloadedMatch.status).toBe('IN_PROGRESS')
-    expect(reloadedMatch.actual_finished_at).toBeNull()
-    expect(reloadedMatch.actual_started_at?.toISOString()).toBe('2026-01-01T10:00:00.000Z')
+    expect(reloadedMatch.status).toBe('FINISHED')
+  })
 
-    const reloadedSheet = await dataSource.getRepository(Sheet).findOneOrFail({ where: { id: sheet.id } })
-    expect(reloadedSheet.status).toBe('IN_PROGRESS')
-    expect(reloadedSheet.closedAt).toBeNull()
+  it('propage une erreur de matchsheet sans notifier les clubs', async () => {
+    const { reopenMatchAdmin } = await import('./adminMatches')
+    const { notify } = await import('@/lib/notificationClient')
+    const { match } = await seedFinishedMatchWithClosedSheet()
+    reopenSheetMock.mockRejectedValueOnce(new Error('matchsheet a répondu 409'))
+
+    await expect(reopenMatchAdmin(match.id, 'motif')).rejects.toThrow('matchsheet a répondu 409')
+    expect(notify).not.toHaveBeenCalled()
   })
 
   it("refuse de rouvrir un match qui n'est pas FINISHED", async () => {

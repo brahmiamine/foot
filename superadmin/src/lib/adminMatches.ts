@@ -2,6 +2,7 @@ import { getDataSource } from './db'
 import { Match, Journee, Sheet } from './entities'
 import { toPlain, toPlainArray } from './serialization'
 import { notify } from './notificationClient'
+import { reopenSheet } from './matchsheetClient'
 
 export interface MatchCreateInput {
   journee_id: string
@@ -359,14 +360,23 @@ export async function cancelMatchAdmin(id: string, reason: string) {
  * Rouvre un match FINISHED (matches.status -> IN_PROGRESS) avec motif
  * obligatoire et trace d'audit — voir avancement.md : jusqu'ici, corriger
  * une feuille après clôture était une opération technique directe en base,
- * jamais un processus métier approuvé. SUPERADMIN n'a pas accès à
- * `matchsheet` (choix produit assumé), donc cette action pilote directement
- * `ms_sheets.status` en plus de `matches.status` — exception documentée et
- * étroite (voir entities/Sheet.ts), jamais un accès général à cette table
- * propriété de `matchsheet`. Restreinte aux matchs FINISHED avec une
- * feuille CLOSED : un match CANCELLED ne se rouvre pas depuis cette action
- * (décision produit distincte), et un match qui n'a jamais été clôturé n'a
- * rien à rouvrir.
+ * jamais un processus métier approuvé.
+ *
+ * TS-31 (avancement.md) : SUPERADMIN n'a pas accès à `matchsheet` en tant
+ * qu'utilisateur (choix produit assumé), mais n'écrit plus directement dans
+ * `ms_sheets`/`matches` pour autant — la transition (sheet -> IN_PROGRESS,
+ * closed_at effacé, match -> IN_PROGRESS, actual_finished_at effacé) est
+ * désormais pilotée par matchsheet lui-même via un appel HTTP authentifié
+ * (voir matchsheetClient.ts, POST /api/internal/matches/:id/reopen) —
+ * remplace l'ancien accès direct TypeORM à `ms_sheets`, table propriété de
+ * `matchsheet`. La lecture de `sheet.status` ci-dessous reste locale
+ * (préchargée pour un message d'erreur clair sans aller-retour réseau
+ * inutile quand la condition est déjà visiblement fausse) — seule
+ * l'écriture change de propriétaire, matchsheet revalide de toute façon
+ * l'état de la feuille avant d'agir. Restreinte aux matchs FINISHED avec
+ * une feuille CLOSED : un match CANCELLED ne se rouvre pas depuis cette
+ * action (décision produit distincte), et un match qui n'a jamais été
+ * clôturé n'a rien à rouvrir.
  */
 export async function reopenMatchAdmin(id: string, reason: string) {
   const dataSource = await getDataSource()
@@ -389,12 +399,7 @@ export async function reopenMatchAdmin(id: string, reason: string) {
     throw new Error("Aucune feuille de match clôturée à rouvrir pour ce match")
   }
 
-  await sheetRepo.update(sheet.id, { status: 'IN_PROGRESS', closedAt: null })
-  // actual_started_at n'est jamais réinitialisé (le match a réellement
-  // commencé à cette heure-là, une réouverture ne change pas ce fait) ;
-  // actual_finished_at est effacé car le match n'est plus FINISHED — il
-  // sera refixé par matchsheet à la prochaine clôture réelle de la feuille.
-  await matchRepo.update(id, { status: 'IN_PROGRESS', actual_finished_at: null })
+  await reopenSheet(id)
 
   const matchName = `${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'}`
   const data = { matchId: match.id, matchName, reason }

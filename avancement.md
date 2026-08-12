@@ -668,23 +668,52 @@ Objectif : une table métier = un owner principal.
 
 ## TS-31 — Supprimer progressivement les écritures cross-domain
 
-Exemple actuel :
+**Statut :** 🔄 Premier cas traité (le seul écrivain cross-domain concret identifié)
+
+Avant :
 
 ```text
-Superadmin → ms_sheets
+Superadmin → ms_sheets (TypeORM direct, reopenMatchAdmin)
 ```
 
-Cible :
+Désormais :
 
 ```text
-Superadmin → Match API → Matchsheet
+Superadmin → POST /api/internal/matches/:id/reopen (x-api-key) → Matchsheet → ms_sheets/matches
 ```
+
+`matchsheet` expose son premier endpoint interne service-à-service
+(`matchsheet/src/app/api/internal/matches/[matchId]/reopen`, authentifié par
+`MATCHSHEET_SERVICE_API_KEY` — voir `lib/serviceAuth.ts`, même pattern que
+`x-api-key` déjà utilisé par marketplace-api/notification-api).
+`SheetService.reopen()` (nouveau, `matchsheet/src/services/SheetService.ts`)
+fait la transition sheet `CLOSED → IN_PROGRESS` (efface `closed_at`) et
+`matches.status → IN_PROGRESS` (efface `actual_finished_at`, préserve
+`actual_started_at`) — matchsheet reste seul propriétaire, plus d'écriture
+TypeORM directe depuis superadmin (`reopenMatchAdmin` dans
+`superadmin/src/lib/adminMatches.ts` appelle désormais
+`matchsheetClient.reopenSheet()`, propage l'erreur si l'appel échoue plutôt
+que de l'avaler). `src/middleware.ts` de matchsheet exempte `/api/internal/*`
+de la vérification de session SSO (service-à-service, pas un utilisateur).
+
+Tests : `SheetService.test.ts` (4 cas ajoutés pour `reopen()`),
+`adminMatches.reopen.test.ts` (réécrit — vérifie la délégation à
+`matchsheetClient`, plus l'écriture DB locale directe ; nouveau cas
+d'erreur propagée).
 
 ### Points à traiter
 
-- Superadmin écrit directement `ms_sheets` et autres tables Matchsheet.
-- Plusieurs apps écrivent ou dépendent d'un même domaine (ex: `Card`, `matches.status`).
-- Tests de contrat inter-projets et validations CI manquants.
+- Superadmin écrivait directement `ms_sheets` — ✅ traité (voir ci-dessus),
+  c'était le seul point d'écriture cross-domain concret identifié dans le
+  code (les autres tables Matchsheet ne sont lues nulle part ailleurs).
+- Plusieurs apps écrivent ou dépendent d'un même domaine (ex: `Card`,
+  `matches.status` — `matchsheet` et `superadmin` écrivent tous deux
+  `matches.status`, chacun sur un sous-ensemble de valeurs disjoint et
+  documenté : reste un partage assumé, pas une duplication accidentelle,
+  hors périmètre de ce ticket).
+- Tests de contrat inter-projets et validations CI manquants (aucun test qui
+  vérifie que le contrat HTTP matchsheet/superadmin reste stable dans le
+  temps — les tests actuels couvrent chaque côté isolément, avec mocks).
 
 ## TS-32 — Centraliser discipline officielle
 
@@ -1358,7 +1387,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Création fédérations/ligues/saisons/journées/matchs
 ✅ Réouverture match FINISHED (motif, audit, notification)
 ⏳ Annulation de match en tant que processus complet
-⏳ Ne plus écrire directement tables Matchsheet
+✅ Ne plus écrire directement tables Matchsheet (TS-31 : réouverture passe par matchsheetClient → matchsheet)
 ⏳ Contrôles métier avant suppression match
 ⏳ Améliorer audit inter-domaines
 ```
@@ -1557,7 +1586,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ TS-28 aud
 ⏳ TS-29 fail mode
 ⏳ TS-30 ownership
-⏳ TS-31 cross-domain cleanup
+🔄 TS-31 cross-domain cleanup (premier cas traité : reopenMatchAdmin)
 ```
 
 ## Sprint 7+ — Architecture événementielle
@@ -1582,7 +1611,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 3. ~~Introduire Transactional Outbox dans Payment API (TS-12)~~ ✅ Livré (12/08/2026, avec TS-13 retry durable).
 4. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
 5. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
-6. **Découpler progressivement les accès directs à la base (TS-31)**.
+6. 🔄 **Découpler progressivement les accès directs à la base (TS-31)** — premier cas traité (12/08/2026, `reopenMatchAdmin`), reste à généraliser au fur et à mesure que d'autres cas apparaissent.
 7. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
 
 ### Point important
