@@ -134,7 +134,6 @@ non audités de bout en bout.
 - Dette de lint pré-existante (~106 erreurs, essentiellement `@typescript-eslint/no-explicit-any`, + quelques `setState` synchrone dans un effet React), rendue visible par la CI mais pas corrigée.
 
 ### `ob`
-- Pas de PWA installable.
 - N'émet aucun événement métier vers `notification-api` (reste un émetteur muet, en lecture seule) hors actions espace membre qui consomment les notifications existantes.
 - Pages billets/commandes toujours dépendantes des apps génériques (`billetterie`), pas de tunnel intégré.
 
