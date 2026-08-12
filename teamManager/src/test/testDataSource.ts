@@ -1,6 +1,8 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { Federation } from "@/entities/Federation";
+import { News } from "@/entities/News";
+import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
 import { Product } from "@/entities/Product";
 import { ProductCategory } from "@/entities/ProductCategory";
 import { ShopOrder } from "@/entities/ShopOrder";
@@ -12,7 +14,8 @@ import { Team } from "@/entities/Team";
  * TypeORM — utilisée par les tests d'intégration pour exécuter du vrai SQL
  * sans dépendre d'un serveur MySQL. Même pattern que
  * billetterie/src/test/testDataSource.ts. Scope volontairement limité aux
- * entités touchées par la boutique (voir ShopOrderService.ts).
+ * entités touchées par la boutique (voir ShopOrderService.ts) et l'outbox
+ * notification (voir NotificationOutboxService.ts, TS-25/TS-26).
  */
 export async function createTestDataSource(): Promise<DataSource> {
   const dataSource = new DataSource({
@@ -20,7 +23,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Federation, Product, ProductCategory, ShopOrder, ShopOrderItem, Team],
+    entities: [Federation, News, NotificationOutboxEvent, Product, ProductCategory, ShopOrder, ShopOrderItem, Team],
   });
 
   await dataSource.initialize();

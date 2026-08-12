@@ -77,6 +77,8 @@ teamManager/sql/migration_add_club_pages_academy_applications.sql
 teamManager/sql/migration_add_card_unique_constraint.sql
 # Dépend de teams (base) et cms_products (migration_add_shop_sponsors_notifications.sql).
 teamManager/sql/migration_add_shop_orders.sql
+# Table propre à teamManager, aucune dépendance (TS-25/TS-26, avancement.md).
+teamManager/sql/migration_add_notification_outbox.sql
 
 # --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
 matchsheet/sql/migration_matchsheet_init.sql

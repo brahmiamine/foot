@@ -22,6 +22,7 @@ vi.mock("typeorm", async (importOriginal) => {
     // better-sqlite3 only allows AUTOINCREMENT on a column declared exactly
     // "INTEGER PRIMARY KEY" ; 'bigint' doesn't qualify.
     bigint: "int",
+    longtext: "text",
   };
 
   function withTypeOverride(decorator: (...args: unknown[]) => PropertyDecorator) {

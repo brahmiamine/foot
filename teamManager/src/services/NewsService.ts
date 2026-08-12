@@ -2,7 +2,7 @@ import { getDataSource } from "@/lib/database";
 import { News } from "@/entities/News";
 import { NewsMedia } from "@/entities/NewsMedia";
 import { MediaItem } from "@/entities/MediaItem";
-import { Repository } from "typeorm";
+import { EntityManager, Repository } from "typeorm";
 
 /**
  * Service for News operations
@@ -36,7 +36,13 @@ export class NewsService {
   }
 
   /**
-   * Create a new news article
+   * Create a new news article.
+   *
+   * `manager` : passer l'EntityManager d'une transaction en cours (voir
+   * `dataSource.transaction(...)`) pour committer cette écriture avec
+   * d'autres dans la même transaction — ex: l'outbox notification (TS-25,
+   * voir app/admin/news/actions.ts). Sans `manager`, se comporte comme
+   * avant (repository indépendant, sa propre transaction implicite).
    */
   async create(
     data: {
@@ -48,9 +54,10 @@ export class NewsService {
       isPublished?: boolean;
       publishedAt?: Date | null;
     },
-    teamId: string
+    teamId: string,
+    manager?: EntityManager
   ): Promise<News> {
-    const repository = await this.getRepository();
+    const repository = manager ? manager.getRepository(News) : await this.getRepository();
 
     const news = repository.create({
       teamId,
@@ -67,7 +74,7 @@ export class NewsService {
   }
 
   /**
-   * Update a news article
+   * Update a news article. `manager` : voir create() ci-dessus.
    */
   async update(
     id: number,
@@ -80,10 +87,11 @@ export class NewsService {
       status?: "DRAFT" | "PUBLISHED";
       isPublished?: boolean;
       publishedAt?: Date | null;
-    }
+    },
+    manager?: EntityManager
   ): Promise<News> {
-    const repository = await this.getRepository();
-    const news = await this.findById(id, teamId);
+    const repository = manager ? manager.getRepository(News) : await this.getRepository();
+    const news = await repository.findOne({ where: { id, teamId } });
 
     if (!news) {
       throw new Error("Actualité non trouvée");

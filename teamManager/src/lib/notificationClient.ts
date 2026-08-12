@@ -57,3 +57,32 @@ export async function notify(payload: NotifyPayload): Promise<void> {
     console.error(`[notificationClient] failed to reach notification-api for type=${payload.type}`, error)
   }
 }
+
+/**
+ * Variante qui LÈVE en cas d'échec (URL/clé absents inclus), pour
+ * `NotificationOutboxService` (TS-25/TS-26) — c'est le worker outbox qui
+ * doit savoir qu'une tentative a échoué pour programmer un retry, jamais
+ * cette fonction elle-même. Ne pas utiliser ailleurs qu'à l'intérieur du
+ * worker : tout autre appelant doit passer par `notify()` (best-effort)
+ * ou, mieux, par l'outbox.
+ */
+export async function deliverNotification(payload: NotifyPayload): Promise<void> {
+  const baseUrl = process.env.NOTIFICATION_API_URL
+  const apiKey = process.env.NOTIFICATION_API_KEY
+  if (!baseUrl || !apiKey) {
+    throw new Error('NOTIFICATION_API_URL/NOTIFICATION_API_KEY not configured')
+  }
+
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/internal/notifications`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(5000),
+  })
+  if (!response.ok) {
+    throw new Error(`notification-api responded ${response.status} for type=${payload.type}`)
+  }
+}

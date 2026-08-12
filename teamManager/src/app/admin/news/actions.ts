@@ -1,18 +1,29 @@
 "use server";
 
 import { NewsService } from "@/services/NewsService";
+import { NotificationOutboxService } from "@/services/NotificationOutboxService";
 import { requireTeamId } from "@/lib/team-context";
 import { createNewsSchema, updateNewsSchema } from "@/types/news";
 import { revalidatePath } from "next/cache";
-import { notify } from "@/lib/notificationClient";
+import { getDataSource } from "@/lib/database";
+import type { NotifyPayload } from "@/lib/notificationClient";
+import type { News } from "@/entities/News";
+import type { EntityManager } from "typeorm";
+
+const newsService = new NewsService();
+const notificationOutbox = new NotificationOutboxService();
 
 /**
- * Notifie les supporters (comptes MEMBER du club) via notification-api
- * qu'une actualité vient d'être publiée. N'échoue jamais l'opération
- * d'origine : une erreur ici est journalisée et avalée par notificationClient.
+ * TS-25 (avancement.md, Epic E07) : la publication (au sens large — voir
+ * appelants) et la mise en file de la notification s'engagent dans la
+ * MÊME transaction, remplaçant l'ancien `notify(...)` best-effort appelé
+ * après coup (perdu si le process crashait entre le commit News et
+ * l'appel réseau, ou si notification-api était injoignable au même
+ * instant). `NotificationOutboxService.processDue()` livre effectivement
+ * l'événement (voir /api/internal/outbox/process, TS-26).
  */
-async function notifyNewsPublished(newsId: number, title: string, teamId: string) {
-  await notify({
+function newsPublishedPayload(newsId: number, title: string, teamId: string): NotifyPayload {
+  return {
     eventId: `news-published:${newsId}`,
     type: "NEWS_PUBLISHED",
     target: { type: "MEMBERS", teamId },
@@ -21,7 +32,7 @@ async function notifyNewsPublished(newsId: number, title: string, teamId: string
     title: "Nouvelle actualité",
     body: title,
     data: { newsId, newsTitle: title },
-  });
+  };
 }
 
 /**
@@ -45,8 +56,21 @@ export async function createNews(formData: FormData) {
 
     const validatedData = createNewsSchema.parse(data);
     const teamId = await requireTeamId();
-    const newsService = new NewsService();
-    const news = await newsService.create(validatedData, teamId);
+
+    let news: News;
+    if (validatedData.status === "PUBLISHED") {
+      const dataSource = await getDataSource();
+      news = await dataSource.transaction(async (manager: EntityManager) => {
+        const created = await newsService.create(validatedData, teamId, manager);
+        await notificationOutbox.enqueue(
+          manager,
+          newsPublishedPayload(created.id, validatedData.title, teamId)
+        );
+        return created;
+      });
+    } else {
+      news = await newsService.create(validatedData, teamId);
+    }
 
     // Associate media items if provided
     const mediaIdsStr = formData.get("mediaIds") as string | null;
@@ -63,9 +87,6 @@ export async function createNews(formData: FormData) {
     }
 
     revalidatePath("/admin/news");
-    if (validatedData.status === "PUBLISHED") {
-      await notifyNewsPublished(news.id, validatedData.title, teamId);
-    }
     return { success: true, message: "Actualité créée avec succès", id: news.id };
   } catch (error) {
     return {
@@ -95,14 +116,20 @@ export async function updateNews(id: number, formData: FormData) {
 
     const validatedData = updateNewsSchema.parse(cleanData);
     const teamId = await requireTeamId();
-    const newsService = new NewsService();
     const before = await newsService.findById(id, teamId);
-    const updated = await newsService.update(id, teamId, validatedData);
+    const justPublished = before?.status !== "PUBLISHED" && validatedData.status === "PUBLISHED";
+
+    if (justPublished) {
+      const dataSource = await getDataSource();
+      await dataSource.transaction(async (manager: EntityManager) => {
+        const saved = await newsService.update(id, teamId, validatedData, manager);
+        await notificationOutbox.enqueue(manager, newsPublishedPayload(id, saved.title, teamId));
+      });
+    } else {
+      await newsService.update(id, teamId, validatedData);
+    }
 
     revalidatePath("/admin/news");
-    if (before?.status !== "PUBLISHED" && updated.status === "PUBLISHED") {
-      await notifyNewsPublished(id, updated.title, teamId);
-    }
     return { success: true, message: "Actualité modifiée avec succès" };
   } catch (error) {
     return {

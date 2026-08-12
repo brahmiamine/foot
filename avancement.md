@@ -18,7 +18,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P0 | E04 – Fiabilité événements paiement | 🔄 | garantir les événements post-paiement via outbox transactionnel |
 | P1 | E05 – Boutique OB | ✅ | fermer le parcours catalogue → achat → commande |
 | P1 | E06 – Fulfillment boutique | 🔄 | gérer préparation, expédition, livraison et retours |
-| P1 | E07 – Notifications fiables | ⏳ | éviter la perte d'événements métiers via outbox |
+| P1 | E07 – Notifications fiables | 🔄 | éviter la perte d'événements métiers via outbox |
 | P1 | E08 – Sécurisation SSO | 🔄 | réduire les risques liés à HS256/fail-open |
 | P1 | E09 – Ownership des domaines | ⏳ | réduire les écritures DB cross-projects |
 | P1 | E10 – CI et tests | ✅ | exécuter les tests existants sur tous les projets (TS-33/34/35/36 ✅) |
@@ -601,6 +601,9 @@ préparation depuis un statut non `CONFIRMED`, expédition hors
 - `notification-api` centralise préférences, templates, queue et canaux ✅
 - Chaque application métier doit décider quoi émettre — catalogue d'événements inter-projets non figé.
 - Paiements confirmés : événements branchés ✅
+- Outbox transactionnelle livrée pour `teamManager` (TS-25/TS-26, voir
+  ci-dessous — premier des 4 apps de la liste de priorité) ; `superadmin`,
+  `matchsheet`, `billetterie` restent en `notify(...)` best-effort.
 - Convocations/compositions/sponsors, billetterie, marketplace, modération de votes, sécurité SSO, actions `superadmin` : non tous branchés avec `eventId` idempotents.
 - Modules de notification internes (`teamManager`, `sellerPortal`) coexistent avec `notification-api` — pas de règle de gouvernance.
 - Push Web et FCM fonctionnent pour apps branchées ✅
@@ -609,12 +612,14 @@ préparation depuis un statut non `CONFIRMED`, expédition hors
 
 ## TS-25 — Ajouter une outbox aux applications critiques
 
+**Statut :** 🔄 1/4 livré (TeamManager)
+
 Priorité :
 
-1. TeamManager ;
-2. Superadmin ;
-3. Matchsheet ;
-4. Billetterie.
+1. TeamManager ; ✅
+2. Superadmin ; ⏳
+3. Matchsheet ; ⏳
+4. Billetterie. ⏳
 
 Au lieu d'un appel `notify(...)` best-effort :
 
@@ -622,11 +627,51 @@ Au lieu d'un appel `notify(...)` best-effort :
 transaction métier + notification_outbox
 ```
 
+`teamManager` n'avait qu'un seul point d'émission de notification
+(`notifyNewsPublished`, publication d'actualité — `app/admin/news/
+actions.ts`) : `notification_outbox_events` (table dédiée,
+`migration_add_notification_outbox.sql`) est désormais insérée dans **la
+même transaction DB** que l'écriture `News` (`dataSource.transaction(...)`,
+`NotificationOutboxService.enqueue`) — `NewsService.create`/`update`
+acceptent un `EntityManager` optionnel pour participer à cette transaction
+plutôt que d'ouvrir la leur. Si l'insertion outbox échoue, toute la
+transaction (y compris l'écriture `News`) est annulée — testé
+explicitement (`actions.test.ts`, « rolls back the News row if the outbox
+enqueue fails »).
+
 ## TS-26 — Worker de publication Notification API
+
+**Statut :** 🔄 Livré pour TeamManager, sous une forme poll-once plutôt qu'un worker persistant
 
 ```text
 local outbox → POST notification-api → 200 / idempotent → mark processed
 ```
+
+`NotificationOutboxService.processDue()` traite un lot d'événements dus
+(`PENDING`, `nextRetryAt` NULL ou passé), calendrier de retry durable
+identique à `payment-api` (TS-13 : 1min → 5min → 15min → 1h → 6h → `FAILED`
+en DLQ, voir `notificationOutboxRetrySchedule.ts`). Exposé via `POST
+/api/internal/outbox/process` (service-à-service, `x-api-key`,
+`TEAMMANAGER_SERVICE_API_KEY`), **pas** un worker persistant en boucle
+comme `OutboxWorkerService` côté `payment-api` : `teamManager` (Next.js)
+n'a pas de process long-running dédié dans ce dépôt — cette route est
+conçue pour être invoquée périodiquement par un ordonnanceur externe
+(cron), à provisionner (même limite que le reste du monitoring/
+scheduling externe documenté ailleurs dans ce fichier).
+
+### Reste à faire
+
+Généraliser le même pattern (table outbox + `POST /api/internal/outbox/
+process` + ordonnanceur externe) à `superadmin`, `matchsheet` et
+`billetterie` — chacun devra d'abord recenser ses propres points
+d'émission `notify(...)` (plus nombreux que le point unique de
+`teamManager`) avant de les faire participer à une transaction.
+
+Tests : `NotificationOutboxService.test.ts` (8 cas — enqueue/rollback,
+livraison, retry programmé, DLQ après épuisement, jamais retraiter un
+événement déjà terminé), `notificationOutboxRetrySchedule.test.ts` (2
+cas), `route.test.ts` de `/api/internal/outbox/process` (3 cas),
+`actions.test.ts` (5 cas — dont l'atomicité News/outbox).
 
 ---
 
@@ -1908,7 +1953,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Workflow validation juridique/comptable conventions
 ⏳ Notifications convocation/composition/sponsor branchées
 ⏳ Fulfillment boutique (gestion livraison/expédition)
-⏳ Notifications via outbox
+✅ Notifications via outbox (TS-25/TS-26 : publication d'actualité — seul point d'émission existant)
 ⏳ Réduire accès direct tables externes
 ✅ Activer tests CI
 ⏳ Projections discipline depuis événements Matchsheet
