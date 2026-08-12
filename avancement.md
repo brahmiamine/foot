@@ -274,20 +274,25 @@ explicite) pour `sellerPortal` — mêmes opérations, même logique métier
 
 ## US-06 — Variantes et stock
 
-**Statut :** 🔄 Partiellement livré (`marketplace-api/src/variants`, `src/inventory`)
+**Statut :** ✅ Livré (`marketplace-api/src/variants`, `src/inventory`)
 
 Fonctions livrées :
 
 - tailles/couleurs (`attributes` libre en JSON) ;
 - SKU ;
 - prix (hérite du produit si non renseigné) ;
-- stock disponible (`available`, ajustable par le vendeur).
+- stock disponible (`available`, ajustable par le vendeur) ;
+- seuil d'alerte bas-stock (`InventoryItem.lowStockThreshold`, optionnel
+  par ligne de stock) : notification `LOW_STOCK` envoyée au vendeur au
+  moment précis où `available` franchit le seuil vers le bas (pas à
+  chaque sauvegarde tant que le stock reste sous le seuil, pour éviter le
+  spam) ; réglable via le même `PATCH /inventory/:id` que `available` ;
+- désactivation dédiée d'une variante : `POST /products/:productId/
+  variants/:id/toggle-active` (même logique que `ProductsService.
+  toggleActive` — bascule `isActive` sans autre modification).
 
 Reste à faire :
 
-- seuil d'alerte (pas de champ ni de notification bas-stock) ;
-- désactivation dédiée (`isActive` existe sur la variante mais aucun
-  endpoint pour le basculer) ;
 - décrément/réservation automatique du stock lors d'une commande (dépend de
   `seller-orders`, actuellement en scaffolding, voir E06).
 
@@ -1329,7 +1334,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Connectée à la base partagée `foot` (tables sp_* existantes, synchronize désactivé)
 ✅ Catalogue vendeur (US-05)
 ✅ sellerPortal/teamManager branchés dessus (TS-04) — endpoints internal/products pour sellerPortal, moderation/sellers/categories pour teamManager
-🔄 Variantes et stock (US-06) — pas de seuil d'alerte ni décrément automatique
+✅ Variantes et stock (US-06) — seuil d'alerte bas-stock + désactivation dédiée livrés ; décrément automatique toujours dépendant de seller-orders (E06)
 ⏳ Swagger
 ⏳ Business logic orders/seller-orders/returns/payouts (actuellement scaffolding — E06/E15/E16)
 ⏳ Jamais démarré contre une vraie base MariaDB (pas de Docker/MariaDB dans ce bac à sable)
@@ -1403,7 +1408,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ TS-03 marketplace-api (NestJS)
 ✅ US-05 catalogue vendeur
 ✅ TS-04 bascule sellerPortal/teamManager vers marketplace-api
-🔄 US-06 variantes/stock (seuil d'alerte + décrément auto restants)
+✅ US-06 variantes/stock (seuil d'alerte + désactivation dédiée ; décrément auto reste dépendant de E06)
 ```
 
 ## Sprint 4 — Paiement fiable

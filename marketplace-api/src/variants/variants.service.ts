@@ -64,6 +64,25 @@ export class VariantsService {
     return this.repository.save(variant);
   }
 
+  /**
+   * Active/désactive une variante indépendamment de sa modification —
+   * même logique que ProductsService.toggleActive (US-06 : jusqu'ici
+   * `isActive` existait sur la variante mais aucun endpoint ne pouvait le
+   * faire basculer).
+   */
+  async toggleActive(
+    id: string,
+    productId: string,
+    sellerId: string,
+  ): Promise<ProductVariant> {
+    await this.assertOwnership(productId, sellerId);
+    const variant = await this.repository.findOne({ where: { id, productId } });
+    if (!variant) throw new NotFoundException('Variante introuvable');
+
+    variant.isActive = !variant.isActive;
+    return this.repository.save(variant);
+  }
+
   async remove(id: string, productId: string, sellerId: string): Promise<void> {
     await this.assertOwnership(productId, sellerId);
     const result = await this.repository.delete({ id, productId });
