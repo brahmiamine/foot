@@ -73,9 +73,11 @@ non audités de bout en bout.
   `sellerPortal`) coexistent avec `notification-api`. Il manque une règle de
   gouvernance : ce qui reste local, ce qui devient notification plateforme,
   comment éviter les doublons in-app/email/push.
-- Les canaux push Web fonctionnent pour les apps branchées, mais le FCM natif
-  et le SMS sont encore des stubs. Les notifications critiques qui exigent
-  mobile natif ou SMS ne doivent donc pas être promises commercialement.
+- Les canaux push Web et FCM (mobile natif, HTTP v1) fonctionnent pour les
+  apps branchées, mais le SMS reste un stub. Les notifications critiques qui
+  exigent SMS ne doivent donc pas être promises commercialement, et FCM
+  reste à valider avec un vrai compte de service Firebase (jamais testé en
+  conditions réelles ici, faute de credentials).
 
 ### Marketplace / boutique / seller portal
 - `teamManager` administre une boutique catalogue legacy et `sellerPortal`
@@ -147,7 +149,6 @@ non audités de bout en bout.
 
 ### `notification-api`
 - Canal SMS non implémenté (`NotImplementedSmsProvider` lève une erreur explicite — décision produit documentée, pas un oubli).
-- Canal FCM (mobile natif) toujours un stub (`FcmProvider`), intégration HTTP v1 Firebase non faite.
 - Plusieurs notifications métier non branchées faute de destinataires résolvables (voir `teamManager` ci-dessus).
 - Monitoring/alerting externe absent (agrégation des `/health`, alerte) — suppose un outil externe (Datadog, Uptime Kuma…) à provisionner, rien à câbler côté dépôt tant que ce choix n'est pas fait.
 
