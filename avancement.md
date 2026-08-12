@@ -38,10 +38,12 @@ non audités de bout en bout.
   fermé parce qu'une annulation ne déclenche pas encore la cascade métier
   attendue : fermeture/gel de la feuille, arrêt des ventes, remboursement ou
   avoir des billets déjà payés, message aux acheteurs, trace métier unique.
-- La réouverture d'une feuille clôturée n'est pas modélisée : pas d'état
-  `REOPENED`, pas de motif, pas d'approbation `superadmin`, pas d'audit
-  horodaté. Toute correction post-match reste donc une opération technique,
-  pas un processus métier contrôlé.
+- La réouverture d'une feuille clôturée est désormais un processus contrôlé :
+  `superadmin` (`POST /api/admin/matches/[id]/reopen`, bouton "Rouvrir" sur
+  un match Terminé) exige un motif, remet `matches.status` et
+  `ms_sheets.status` à `IN_PROGRESS` (feuille de nouveau modifiable), notifie
+  les deux clubs et journalise l'action dans `audit_logs` (`action: 'reopen'`,
+  horodatée). Restreint aux matchs `FINISHED` avec feuille `CLOSED`.
 - Les données live (`goals`, `cards`, `injuries`, `substitutions`) alimentent
   `ob` en lecture, mais il n'existe pas de contrat d'API/versionnement entre
   `matchsheet` et les frontends publics. Un changement de schéma partagé peut
@@ -131,10 +133,11 @@ non audités de bout en bout.
 
 ### `matchsheet`
 - Pas de synchronisation offline des écritures ni file locale de retry pour les événements live saisis en stade.
-- Réouverture d'une feuille après clôture non modélisée ni auditée (pas de raison de réouverture tracée).
+- Les services de saisie live (`CardEventService`, buts, remplacements, blessures) ne vérifient pas eux-mêmes le statut de la feuille/du match avant d'écrire — seul `post-match/actions.ts` bloque explicitement sur `CLOSED`. Une feuille rouverte par `superadmin` redevient donc éditable via ces services (comportement voulu), mais rien n'empêche non plus, par construction actuelle, une écriture après clôture par un autre chemin non audité — à durcir si ce cas se confirme en usage réel.
 
 ### `superadmin`
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).
+- Réouverture d'un match `FINISHED` en place (motif requis, audit horodaté, notification aux clubs — voir circuit "Référentiel sportif" ci-dessus), mais reste un geste manuel au cas par cas : pas de règle produit sur qui peut/doit demander une réouverture, ni de délai limite après lequel un match Terminé ne peut plus être rouvert.
 
 ### `arbinote`
 - Vote sans compte reposant sur empreinte appareil/cookie — pas de vote authentifié.

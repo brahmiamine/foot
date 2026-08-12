@@ -20,6 +20,7 @@ export default function AdminMatchesManager() {
     creating,
     deletingId,
     cancelingId,
+    reopeningId,
     showNewForm,
     setShowNewForm,
     selectedSaisonId,
@@ -36,6 +37,7 @@ export default function AdminMatchesManager() {
     handleCreate,
     handleDelete,
     handleCancel,
+    handleReopen,
   } = useAdminMatches()
 
   return (
@@ -130,11 +132,13 @@ export default function AdminMatchesManager() {
           savingId={savingId}
           deletingId={deletingId}
           cancelingId={cancelingId}
+          reopeningId={reopeningId}
           updateEdit={updateEdit}
           hasChanges={hasChanges}
           handleSave={handleSave}
           handleDelete={handleDelete}
           handleCancel={handleCancel}
+          handleReopen={handleReopen}
         />
         </div>
       </section>

@@ -14,5 +14,6 @@ export { AuditLog, type AuditAction } from './AuditLog'
 export { User, type UserRole } from './User'
 export { CardReason, type CardReasonType } from './CardReason'
 export { StaffInvitation } from './StaffInvitation'
+export { Sheet, type SheetStatus } from './Sheet'
 
 
