@@ -138,7 +138,6 @@ non audités de bout en bout.
 - Pas de tests automatisés.
 - Pas de synchronisation offline des écritures ni file locale de retry pour les événements live saisis en stade.
 - Réouverture d'une feuille après clôture non modélisée ni auditée (pas de raison de réouverture tracée).
-- Pas de mot de passe de match/compte FMI dédié (app kiosque sans authentification).
 - Concurrence sur `Card` avec `teamManager` (voir ci-dessus) à encadrer.
 
 ### `superadmin`
