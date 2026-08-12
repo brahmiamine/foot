@@ -20,9 +20,8 @@ qui reste à faire, pour rester utilisable comme backlog.
 | 1 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
 | 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
 | 3 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
-| 4 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
-| 5 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
-| 6 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
+| 4 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
+| 5 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
 
 ---
 
@@ -94,10 +93,15 @@ non audités de bout en bout.
   avec `payment-api` ou une comptabilité.
 
 ### Données partagées / migrations / déploiement
-- Les migrations SQL restent dispersées dans les apps (`sql/`, `mysql/`,
-  `migrations/`) sans outil unique, sans table de versions globale et sans
-  ordre d'application reproductible. C'est risqué pour une base `foot`
-  partagée par plusieurs écrivains.
+- Les migrations SQL restent physiquement dispersées dans les apps (`sql/`,
+  `mysql/`, `migrations/`), mais `db/migrate.sh` + `db/migrations.manifest`
+  donnent désormais un ordre d'application reproductible et une table de
+  version globale (`schema_migrations`) par-dessus, sans déplacer les
+  fichiers existants (voir db/migrate.sh pour ce qui est volontairement
+  exclu : dumps complets, scripts destructifs, données de seed). Logique de
+  suivi/idempotence testée via un harnais qui simule `docker`/`mariadb`,
+  jamais exécuté contre un vrai `mariadb_container` — à valider une fois en
+  conditions réelles (`--baseline` d'abord sur une base de dev existante).
 - Les tables `Card` et `matches.status` montrent que plusieurs apps peuvent
   écrire ou dépendre d'un même domaine. Il manque des tests de contrat
   inter-projets et des validations CI qui vérifient qu'une évolution de schéma
@@ -161,7 +165,6 @@ non audités de bout en bout.
 ### Infra / `db`
 - `db/backup.sh`/`db/restore.sh` existent (dump `mariadb-dump` compressé de `foot` + archive des dossiers `public/uploads` d'arbinote/superadmin/teamManager, restauration avec confirmation). Logique testée via un harnais qui simule `docker`/`mariadb` (round-trip dump→gzip→restore et tar→untar vérifiés), mais jamais exécutés contre un vrai `mariadb_container` avec de vraies données — à valider une fois en conditions réelles avant de s'y fier en production.
 - Aucune passerelle API unique, aucun domaine de production configuré.
-- Aucun migrateur SQL partagé ni table de version globale pour la base `foot` ; ordre d'application des scripts encore manuel par projet.
 - Séparation des bases par domaine partielle (`payment-api`/`notification-api` isolées, le reste partage encore `foot`).
 - Monitoring/alerting des healthchecks absent.
 - Modèle multi-club toujours partiel : un compte staff (`User.teamId`) reste lié à un seul club (les affiliations `sso` ne couvrent que les `MEMBER`).
