@@ -73,6 +73,20 @@ export class SheetService {
     // Un match CANCELLED (superadmin, voir avancement.md) ne doit jamais
     // redevenir IN_PROGRESS/FINISHED parce qu'une feuille de match progresse
     // encore côté opérateur — l'annulation n'est réversible depuis aucune app.
-    await matchRepository.update({ id: matchId, status: Not("CANCELLED") }, { status: matchStatus });
+    const update: Partial<Match> = { status: matchStatus };
+    if (matchStatus === "IN_PROGRESS") {
+      // Ne jamais écraser l'heure de début initiale : une feuille rouverte
+      // par superadmin redevient IN_PROGRESS sans repasser ici (écriture
+      // directe, voir adminMatches.ts), donc actual_started_at n'est fixé
+      // qu'une seule fois, au tout premier passage IN_PROGRESS.
+      const match = await matchRepository.findOne({ where: { id: matchId } });
+      if (match && !match.actualStartedAt) {
+        update.actualStartedAt = new Date();
+      }
+    }
+    if (matchStatus === "FINISHED") {
+      update.actualFinishedAt = new Date();
+    }
+    await matchRepository.update({ id: matchId, status: Not("CANCELLED") }, update);
   }
 }

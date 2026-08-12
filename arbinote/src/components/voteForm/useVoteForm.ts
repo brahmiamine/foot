@@ -9,15 +9,15 @@ import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import { defaultCritereDefinitions } from "@/lib/defaultCriteres";
 import type { VoteFormProps, CriteresState } from "./types";
 
-export function useVoteForm({ matchId, arbitreId, criteresDefs, matchDate, onSuccess }: VoteFormProps) {
+export function useVoteForm({ matchId, arbitreId, criteresDefs, matchStatus, actualStartedAt, onSuccess }: VoteFormProps) {
   const { t, locale } = useTranslations();
   const router = useRouter();
   const { refreshVotedMatches } = useVote();
   const criteresList = criteresDefs.length ? criteresDefs : defaultCritereDefinitions;
 
   const canVote = useMemo(() => {
-    return canVoteMatch({ arbitre_id: arbitreId, date: matchDate });
-  }, [arbitreId, matchDate]);
+    return canVoteMatch({ arbitre_id: arbitreId, status: matchStatus, actual_started_at: actualStartedAt });
+  }, [arbitreId, matchStatus, actualStartedAt]);
 
   const emptyState = useMemo(() => {
     return criteresList.reduce<CriteresState>((acc, critere) => {
@@ -88,13 +88,14 @@ export function useVoteForm({ matchId, arbitreId, criteresDefs, matchDate, onSuc
 
   // Calculer le temps restant avant de pouvoir voter (doit être avant tout return conditionnel)
   const timeUntilCanVote = useMemo(() => {
-    if (!matchDate || canVote) return null;
+    if (!actualStartedAt || canVote) return null;
+    // Le match doit être réellement commencé (IN_PROGRESS/FINISHED) pour qu'un
+    // compte à rebours ait un sens ; sinon (UPCOMING/CANCELLED) rien à afficher.
+    if (matchStatus !== 'IN_PROGRESS' && matchStatus !== 'FINISHED') return null;
 
     try {
-      const matchStartDate = new Date(matchDate);
+      const matchStartDate = new Date(actualStartedAt);
       const now = new Date();
-
-      if (matchStartDate > now) return null; // Match pas encore commencé
 
       const diffMs = now.getTime() - matchStartDate.getTime();
       const diffMinutes = Math.floor(diffMs / (1000 * 60));
@@ -107,7 +108,7 @@ export function useVoteForm({ matchId, arbitreId, criteresDefs, matchDate, onSuc
     }
 
     return null;
-  }, [matchDate, canVote]);
+  }, [actualStartedAt, matchStatus, canVote]);
 
   const calculateNoteGlobale = (crits: CriteresState): number => {
     const values = Object.values(crits).filter((v) => v > 0);

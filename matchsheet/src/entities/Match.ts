@@ -53,6 +53,12 @@ export class Match {
   })
   status!: "UPCOMING" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
 
+  @Column({ type: "datetime", nullable: true, name: "actual_started_at" })
+  actualStartedAt?: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "actual_finished_at" })
+  actualFinishedAt?: Date | null;
+
   @Column({ type: "tinyint", name: "illegal_player_used" })
   illegalPlayerUsed!: boolean;
 

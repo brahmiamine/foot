@@ -65,6 +65,17 @@ export class Match {
    */
   @Column({ type: 'enum', enum: ['UPCOMING', 'IN_PROGRESS', 'FINISHED', 'CANCELLED'], default: 'UPCOMING' })
   status!: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
+
+  /**
+   * Écrit par `matchsheet` uniquement. `superadmin` les lit pour l'audit et
+   * les nettoie sur réouverture d'un match `FINISHED` (voir reopenMatchAdmin
+   * dans adminMatches.ts) mais ne les fixe jamais lui-même.
+   */
+  @Column({ type: 'datetime', nullable: true, name: 'actual_started_at' })
+  actual_started_at?: Date | null
+
+  @Column({ type: 'datetime', nullable: true, name: 'actual_finished_at' })
+  actual_finished_at?: Date | null
 }
 
 

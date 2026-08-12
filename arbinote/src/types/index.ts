@@ -116,6 +116,9 @@ export interface Match {
   score_home?: number | null
   score_away?: number | null
   arbitre_id?: string | null
+  status?: 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
+  actual_started_at?: string | null
+  actual_finished_at?: string | null
   journee?: {
     id: string
     numero?: number | null

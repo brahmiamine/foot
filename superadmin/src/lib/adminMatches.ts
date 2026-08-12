@@ -390,7 +390,11 @@ export async function reopenMatchAdmin(id: string, reason: string) {
   }
 
   await sheetRepo.update(sheet.id, { status: 'IN_PROGRESS', closedAt: null })
-  await matchRepo.update(id, { status: 'IN_PROGRESS' })
+  // actual_started_at n'est jamais réinitialisé (le match a réellement
+  // commencé à cette heure-là, une réouverture ne change pas ce fait) ;
+  // actual_finished_at est effacé car le match n'est plus FINISHED — il
+  // sera refixé par matchsheet à la prochaine clôture réelle de la feuille.
+  await matchRepo.update(id, { status: 'IN_PROGRESS', actual_finished_at: null })
 
   const matchName = `${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'}`
   const data = { matchId: match.id, matchName, reason }

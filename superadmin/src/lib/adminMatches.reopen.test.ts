@@ -27,6 +27,8 @@ async function seedFinishedMatchWithClosedSheet(overrides: { matchStatus?: Match
     equipe_home_id: home.id,
     equipe_away_id: away.id,
     status: overrides.matchStatus ?? 'FINISHED',
+    actual_started_at: new Date('2026-01-01T10:00:00Z'),
+    actual_finished_at: new Date('2026-01-01T12:00:00Z'),
   })
   const sheet = await dataSource.getRepository(Sheet).save({
     matchId: match.id,
@@ -56,6 +58,8 @@ describe('reopenMatchAdmin (SQLite réel)', () => {
 
     const reloadedMatch = await dataSource.getRepository(Match).findOneOrFail({ where: { id: match.id } })
     expect(reloadedMatch.status).toBe('IN_PROGRESS')
+    expect(reloadedMatch.actual_finished_at).toBeNull()
+    expect(reloadedMatch.actual_started_at?.toISOString()).toBe('2026-01-01T10:00:00.000Z')
 
     const reloadedSheet = await dataSource.getRepository(Sheet).findOneOrFail({ where: { id: sheet.id } })
     expect(reloadedSheet.status).toBe('IN_PROGRESS')
