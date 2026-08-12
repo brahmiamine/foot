@@ -654,15 +654,28 @@ au lieu de deux écrivains sur les mêmes tables.
 
 ## TS-33 — Activer tous les tests existants en CI
 
-**Statut :** 🔄 Partiellement activé
+**Statut :** ✅ Livré
 
-Activer au minimum pour :
+Activé au minimum pour :
 
 ```text
-matchsheet
-teamManager
-billetterie
+matchsheet ✅
+teamManager ✅
+billetterie ✅
 ```
+
+Étendu à toutes les suites de tests existantes qui n'étaient pas encore
+dans la matrice CI (`.github/workflows/ci.yml`), pas seulement le minimum
+demandé : `sellerPortal` (vitest), `sso` (`node --test`, nouveau script
+`test` ajouté — n'existait que sous `test:i18n`), `marketplace-api` (jest,
+**absente de la matrice CI jusqu'ici**, ajoutée entièrement). `ob` reste
+`test: false` : aucun fichier de test dans ce projet à ce jour.
+
+`marketplace-api` a aussi nécessité un correctif du step de lint : comme
+`payment-api`/`notification-api`, son script `lint` local (scaffolding
+NestJS) inclut `--fix` — la CI l'invoque désormais directement sans
+`--fix` (même traitement que les deux apps npm), pour ne pas corriger
+silencieusement au lieu de faire échouer le job.
 
 ## TS-34 — Ajouter tests SSO
 
@@ -1283,7 +1296,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Fulfillment boutique (gestion livraison/expédition)
 ⏳ Notifications via outbox
 ⏳ Réduire accès direct tables externes
-⏳ Activer tests CI
+✅ Activer tests CI
 ⏳ Projections discipline depuis événements Matchsheet
 ```
 
@@ -1295,7 +1308,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ actual_started_at / actual_finished_at
 ⏳ Event publishing
 ⏳ Réduire écritures dans domaines TeamManager
-⏳ Activer tests CI
+✅ Activer tests CI
 ⏳ SSE/WebSocket live
 ⏳ Synchronisation offline écritures
 ```
@@ -1321,7 +1334,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Contrôle supporter strict (affiliation vérifiée)
 ⏳ Politique configurable (STRICT/DECLARATIVE)
 ⏳ Outbox notifications
-⏳ Tests CI
+✅ Tests CI
 ⏳ Events ticket.purchased / scanned
 ```
 
@@ -1359,6 +1372,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Catalogue vendeur (US-05)
 ✅ sellerPortal/teamManager branchés dessus (TS-04) — endpoints internal/products pour sellerPortal, moderation/sellers/categories pour teamManager
 ✅ Variantes et stock (US-06) — seuil d'alerte bas-stock + désactivation dédiée livrés ; décrément automatique toujours dépendant de seller-orders (E06)
+✅ Tests CI (TS-33) — absente de la matrice CI jusqu'ici, ajoutée
 ⏳ Swagger
 ⏳ Business logic orders/seller-orders/returns/payouts (actuellement scaffolding — E06/E15/E16)
 ⏳ Jamais démarré contre une vraie base MariaDB (pas de Docker/MariaDB dans ce bac à sable)

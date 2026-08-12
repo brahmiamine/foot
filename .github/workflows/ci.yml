@@ -30,10 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: sso
-            dir: sso
-            pm: pnpm
-            test: false
           - name: arbinote
             dir: arbinote
             pm: pnpm
@@ -41,7 +37,7 @@ jobs:
           - name: matchsheet
             dir: matchsheet
             pm: pnpm
-            test: false
+            test: true
           - name: superadmin
             dir: superadmin
             pm: pnpm
@@ -49,7 +45,7 @@ jobs:
           - name: teamManager
             dir: teamManager
             pm: pnpm
-            test: false
+            test: true
           - name: ob
             dir: ob
             pm: pnpm
@@ -57,11 +53,19 @@ jobs:
           - name: sellerPortal
             dir: sellerPortal
             pm: pnpm
-            test: false
+            test: true
           - name: billetterie
             dir: billetterie
             pm: pnpm
-            test: false
+            test: true
+          - name: sso
+            dir: sso
+            pm: pnpm
+            test: true
+          - name: marketplace-api
+            dir: marketplace-api
+            pm: pnpm
+            test: true
           - name: payment-api
             dir: payment-api
             pm: npm
@@ -100,9 +104,18 @@ jobs:
         run: npm run build
 
       - name: Lint (pnpm apps)
-        if: matrix.pm == 'pnpm'
+        if: matrix.pm == 'pnpm' && matrix.name != 'marketplace-api'
         working-directory: ${{ matrix.dir }}
         run: pnpm run lint
+
+      # marketplace-api est un Nest app pnpm dont le script `lint` local inclut
+      # --fix (scaffolding Nest par défaut, même chose que payment-api/
+      # notification-api ci-dessous) : on l'invoque directement sans --fix ici
+      # pour que la CI échoue au lieu de corriger silencieusement.
+      - name: Lint (marketplace-api — sans --fix, contrairement au script pnpm run lint local)
+        if: matrix.name == 'marketplace-api'
+        working-directory: ${{ matrix.dir }}
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
       - name: Lint (npm apps — sans --fix, contrairement au script npm run lint local)
         if: matrix.pm == 'npm'
