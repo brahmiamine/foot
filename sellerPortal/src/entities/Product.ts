@@ -72,6 +72,15 @@ export class Product {
   @Column({ type: "text", nullable: true })
   rejectionReason!: string | null;
 
+  // Renseignés par teamManager lors d'une décision de modération (APPROVED
+  // ou REJECTED) — voir sql/migration_add_moderation_fields.sql. reviewedBy
+  // référence un User.id teamManager, pas un compte du Seller Portal.
+  @Column({ type: "varchar", length: 191, nullable: true })
+  reviewedBy!: string | null;
+
+  @Column({ type: "datetime", nullable: true })
+  reviewedAt!: Date | null;
+
   @Column({ type: "boolean", default: true })
   isActive!: boolean;
 

@@ -64,6 +64,10 @@ import { MatchTicketCategory } from "@/entities/MatchTicketCategory";
 import { TicketSaleRule } from "@/entities/TicketSaleRule";
 import { ShopOrder } from "@/entities/ShopOrder";
 import { ShopOrderItem } from "@/entities/ShopOrderItem";
+import { MarketplaceSeller } from "@/entities/MarketplaceSeller";
+import { MarketplaceProductCategory } from "@/entities/MarketplaceProductCategory";
+import { MarketplaceProduct } from "@/entities/MarketplaceProduct";
+import { MarketplaceNotification } from "@/entities/MarketplaceNotification";
 
 /**
  * Database connection configuration
@@ -97,7 +101,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Never use synchronize in production
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem], // Import entities directly instead of using glob patterns
+      entities: [Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Trip, TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem, MarketplaceSeller, MarketplaceProductCategory, MarketplaceProduct, MarketplaceNotification], // Import entities directly instead of using glob patterns
       migrations: [], // Add migrations as needed
       charset: "utf8mb4",
       timezone: "Z",

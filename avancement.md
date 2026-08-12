@@ -14,7 +14,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 |---|---|---|---|
 | P0 | E01 – Cohérence Match / ArbiNote | ⏳ | empêcher les votes sur matchs non réellement commencés |
 | P0 | E02 – Marketplace API | ⏳ | compléter le domaine marketplace multi-vendeurs |
-| P0 | E03 – Modération Marketplace | ⏳ | permettre au club de valider/rejeter les produits vendeurs |
+| P0 | E03 – Modération Marketplace | ✅ | permettre au club de valider/rejeter les produits vendeurs |
 | P0 | E04 – Fiabilité événements paiement | ⏳ | garantir les événements post-paiement via outbox transactionnel |
 | P1 | E05 – Boutique OB | ✅ | fermer le parcours catalogue → achat → commande |
 | P1 | E06 – Fulfillment boutique | ⏳ | gérer préparation, expédition, livraison et retours |
@@ -221,74 +221,39 @@ Fonctions :
 # EPIC E03 — Modération Marketplace club
 
 **Priorité : P0**  
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
-Le workflow produit possède les statuts :
+`teamManager` ferme désormais le processus de modération marketplace :
 
 ```text
 DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED → PUBLISHED
-                                  ↘ REJECTED → DRAFT (resubmit)
+                                  ↘ REJECTED → DRAFT (resubmit, côté sellerPortal)
 ```
 
-Mais `teamManager` ne ferme pas encore ce processus côté UI/modération.
+### État actuel ✅
 
-## US-07 — Liste des produits soumis
+- `/admin/marketplace/products` : liste des produits soumis par les vendeurs
+  du club, avec filtres vendeur/statut/catégorie/nom/date (voir
+  `MarketplaceModerationService.findAll`).
+- Transitions `SUBMITTED → UNDER_REVIEW → APPROVED → PUBLISHED` et
+  `UNDER_REVIEW → REJECTED` (motif obligatoire) implémentées côté
+  `teamManager`, réservées aux comptes ayant la permission
+  `marketplace.moderate`, scopées au club courant (`seller.clubId = teamId`).
+  `reviewedBy`/`reviewedAt` alimentés sur la décision finale
+  (APPROVED/REJECTED) ; migration `sp_products` correspondante livrée
+  (`sellerPortal/sql/migration_add_moderation_fields.sql`).
+- Chaque transition journalisée dans `AuditLog` (entité `MarketplaceProduct`).
+- Notification du vendeur à l'approbation/au rejet : écrite directement dans
+  `sp_notifications` (sellerPortal ne consomme pas encore `notification-api`,
+  voir circuit "Notifications plateforme").
+- Republication d'un produit corrigé (REJECTED → DRAFT → SUBMITTED) : déjà
+  gérée entièrement côté `sellerPortal`, rien à ajouter côté `teamManager`.
 
-**Projet UI :** `teamManager`  
-**Backend :** `marketplace-api`  
-**Statut :** ⏳ À faire
+### Limite connue
 
-Ajouter :
-
-```text
-/admin/marketplace/products
-```
-
-Filtres : vendeur, statut, catégorie, date, nom.
-
-## US-08 — Mettre un produit en review
-
-Transition :
-
-```text
-SUBMITTED → UNDER_REVIEW
-```
-
-### Critères
-
-- seuls les administrateurs autorisés du club peuvent effectuer l'action ;
-- produit appartenant au club courant ;
-- audit obligatoire.
-
-## US-09 — Approuver un produit
-
-Transition :
-
-```text
-UNDER_REVIEW → APPROVED → PUBLISHED
-```
-
-## US-10 — Rejeter un produit
-
-```text
-UNDER_REVIEW → REJECTED
-```
-
-Informations obligatoires :
-
-```text
-rejectionReason
-reviewedBy
-reviewedAt
-```
-
-Notification envoyée au vendeur.
-
-## US-11 — Republier un produit corrigé
-
-```text
-REJECTED → DRAFT → SUBMITTED
-```
+Accès direct cross-DB de `teamManager` vers les tables `sp_*` de
+`sellerPortal` (pas de `marketplace-api` HTTP dédiée — voir TS-04/TS-03).
+À migrer vers un appel HTTP le jour où cette API existe.
 
 ---
 
@@ -1148,6 +1113,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 - `teamManager` a tunnel d'achat client complet ✅ (`/boutique/[teamId]` : panier, paiement réel, décrément stock, webhook + retour payeur, suivi commande).
 - `sellerPortal` reste séparé (vendeurs/produits/commandes `sp_*`, pas d'intégration `payment-api`).
+- Modération club des produits vendeurs fermée ✅ (`teamManager` : `/admin/marketplace/products`, accès direct cross-DB à `sp_products`/`sp_sellers` en l'absence de marketplace-api — voir Epic E03).
 
 ### Reste à faire
 
@@ -1206,13 +1172,13 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ```text
 ✅ Boutique client avec paiement réel
 ✅ Comptes MEMBER reconnus
+✅ Modération marketplace (/admin/marketplace/products)
 ⏳ Facturation sponsors (aucun module comptable)
 ⏳ Finance/trésorerie
 ⏳ RGPD (consentement, export, suppression)
 ⏳ Espace supporter/communauté
 ⏳ Workflow validation juridique/comptable conventions
 ⏳ Notifications convocation/composition/sponsor branchées
-⏳ Modération marketplace
 ⏳ Fulfillment boutique (gestion livraison/expédition)
 ⏳ Notifications via outbox
 ⏳ Réduire accès direct tables externes
@@ -1274,8 +1240,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 ```text
 ✅ Portail vendeur fonctionnel
+✅ Workflow de modération fermé (côté teamManager, cf. `teamManager` ci-dessus)
 ⏳ Migrer vers Marketplace API
-⏳ Fermer workflow modération
 ⏳ Tests isolation multi-vendeurs
 ⏳ Intégration payment-api
 ⏳ Intégration notification-api
@@ -1354,16 +1320,6 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ US-06 variantes/stock
 ```
 
-## Sprint 3 — Modération marketplace
-
-```text
-⏳ US-07 liste submitted
-⏳ US-08 review
-⏳ US-09 approve
-⏳ US-10 reject
-⏳ US-11 resubmit
-```
-
 ## Sprint 4 — Paiement fiable
 
 ```text
@@ -1412,12 +1368,11 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 1. **Corriger ArbiNote / statut réel du match (US-01, TS-02)** : petit développement, impact métier élevé.
 2. **Activer les tests existants dans la CI (TS-33)** avant d'entreprendre les gros refactorings.
 3. **Créer Marketplace API (TS-03)**, car c'est aujourd'hui le plus grand processus incomplet.
-4. **Implémenter la modération marketplace dans TeamManager (US-07 à US-11)**.
-5. **Introduire Transactional Outbox dans Payment API (TS-12)**.
-6. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
-7. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
-8. **Découpler progressivement les accès directs à la base (TS-31)**.
-9. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
+4. **Introduire Transactional Outbox dans Payment API (TS-12)**.
+5. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
+6. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
+7. **Découpler progressivement les accès directs à la base (TS-31)**.
+8. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
 
 ### Point important
 

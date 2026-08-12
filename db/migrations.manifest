@@ -91,3 +91,4 @@ billetterie/sql/migration_add_ticket_scan_log.sql
 # --- sellerPortal (sp_*, dépend de teams) ---
 sellerPortal/sql/schema.sql
 sellerPortal/sql/migration_add_club_id.sql
+sellerPortal/sql/migration_add_moderation_fields.sql

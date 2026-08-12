@@ -126,6 +126,13 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    key: "marketplace",
+    label: "Marketplace",
+    permissions: [
+      { key: "marketplace.moderate", label: "Modérer les produits vendeurs (marketplace)" },
+    ],
+  },
+  {
     key: "billetterie",
     label: "Billetterie",
     permissions: [

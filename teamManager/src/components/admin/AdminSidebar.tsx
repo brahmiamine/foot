@@ -138,6 +138,13 @@ export function AdminSidebar({
             ],
           },
           {
+            title: "Marketplace",
+            icon: "fas fa-store",
+            href: "/admin/marketplace/products",
+            children: [],
+            permission: "marketplace.moderate",
+          },
+          {
             title: "Billetterie",
             icon: "fas fa-ticket",
             href: "/admin/billetterie/matches",
