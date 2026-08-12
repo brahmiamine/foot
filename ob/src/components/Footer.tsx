@@ -4,6 +4,7 @@ import { getSponsorRequestUrl } from "@/lib/sponsor";
 import { PublicTeamSocialsService } from "@/services/PublicTeamSocialsService";
 import { ClubBadge } from "./ClubBadge";
 import styles from "./Footer.module.css";
+import { getTranslator } from "@/i18n/server";
 
 export async function Footer({
   teamId,
@@ -17,6 +18,7 @@ export async function Footer({
   const address = [stadium?.nameFr, stadium?.addressFr, stadium?.cityFr].filter(Boolean).join(", ");
   const sponsorUrl = getSponsorRequestUrl(teamId);
   const socials = await new PublicTeamSocialsService().get(teamId);
+  const { t } = await getTranslator();
 
   return (
     <div id="contact" className={styles.footer}>
@@ -27,37 +29,31 @@ export async function Footer({
             <div className={styles.name}>{teamName}</div>
           </div>
           <div className={styles.address}>
-            {address || "Béja, Tunisie"}. Club fondé en 1929, membre de la Fédération Tunisienne de Football.
+            {t("footer.description", { address: address || "Béja, Tunisie" })}
           </div>
         </div>
 
         <div>
-          <div className={styles.heading}>Le club</div>
+          <div className={styles.heading}>{t("footer.club")}</div>
           <div className={styles.links}>
-            <Link href="/club">Le club</Link>
-            <Link href="/club/histoire">Histoire</Link>
-            <Link href="/formation">Formation</Link>
-            <Link href="/#effectif">Effectif</Link>
-            <Link href="/calendrier">Calendrier</Link>
-            <Link href="/actualites">Actualités</Link>
-            <Link href="/galerie">Galerie</Link>
-            <Link href="/boutique">Boutique</Link>
+            <Link href="/club">{t("nav.club")}</Link><Link href="/club/histoire">{t("footer.history")}</Link>
+            <Link href="/formation">{t("nav.academy")}</Link><Link href="/#effectif">{t("nav.squad")}</Link>
+            <Link href="/calendrier">{t("nav.calendar")}</Link><Link href="/actualites">{t("nav.news")}</Link>
+            <Link href="/galerie">{t("nav.gallery")}</Link><Link href="/boutique">{t("nav.shop")}</Link>
           </div>
         </div>
 
         <div>
-          <div className={styles.heading}>Le club et vous</div>
+          <div className={styles.heading}>{t("footer.clubAndYou")}</div>
           <div className={styles.links}>
-            <Link href="/communiques">Communiqués</Link>
-            <Link href="/recrutement">Recrutement</Link>
-            <Link href="/partenaires">Partenaires</Link>
-            {sponsorUrl && <a href={sponsorUrl}>Devenir sponsor</a>}
-            <Link href="/contact">Contact</Link>
+            <Link href="/communiques">{t("footer.releases")}</Link><Link href="/recrutement">{t("footer.recruitment")}</Link>
+            <Link href="/partenaires">{t("nav.partners")}</Link>{sponsorUrl && <a href={sponsorUrl}>{t("footer.becomeSponsor")}</a>}
+            <Link href="/contact">{t("nav.contact")}</Link>
           </div>
         </div>
 
         <div>
-          <div className={styles.heading}>Suivez-nous</div>
+          <div className={styles.heading}>{t("footer.follow")}</div>
           {socials?.facebookUrl || socials?.instagramUrl || socials?.tiktokUrl || socials?.youtubeUrl || socials?.xUrl ? (
             <div className={styles.links}>
               {socials.facebookUrl && (
@@ -87,11 +83,11 @@ export async function Footer({
               )}
             </div>
           ) : (
-            <p className={styles.address}>Réseaux sociaux à venir.</p>
+            <p className={styles.address}>{t("footer.socialSoon")}</p>
           )}
         </div>
       </div>
-      <div className={styles.bottom}>© {new Date().getFullYear()} {teamName}. Tous droits réservés.</div>
+      <div className={styles.bottom}>© {new Date().getFullYear()} {teamName}. {t("footer.rights")}</div>
     </div>
   );
 }

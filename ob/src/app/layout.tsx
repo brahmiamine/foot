@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Source_Sans_3 } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { getLocale } from "@/i18n/server";
 import "./globals.css";
 
 const barlowCondensed = Barlow_Condensed({
@@ -33,13 +35,16 @@ export const viewport: Viewport = {
   themeColor: "#c8102e",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
   return (
-    <html lang="fr" className={`${barlowCondensed.variable} ${sourceSans.variable}`}>
+    <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className={`${barlowCondensed.variable} ${sourceSans.variable}`}>
       <body>
-        {children}
-        <ServiceWorkerRegistration />
-        <PwaInstallPrompt />
+        <I18nProvider locale={locale}>
+          {children}
+          <ServiceWorkerRegistration />
+          <PwaInstallPrompt />
+        </I18nProvider>
       </body>
     </html>
   );

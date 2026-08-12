@@ -1,7 +1,8 @@
+import { getTranslator } from "@/i18n/server";
 import type { Match } from "@/entities/Match";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicMatchService } from "@/services/PublicMatchService";
-import { matchOutcomeForTeam, OUTCOME_LABELS } from "@/lib/match";
+import { matchOutcomeForTeam } from "@/lib/match";
 import { formatFullDateTime, formatShortDate } from "@/lib/format";
 import { PageChrome } from "@/components/PageChrome";
 import shared from "@/components/shared.module.css";
@@ -26,6 +27,7 @@ function opponentLine(match: Match, obTeamId: string): string {
 }
 
 export default async function CalendrierPage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const matches = team ? await new PublicMatchService().getAllPublic(team.id) : [];
 
@@ -39,21 +41,21 @@ export default async function CalendrierPage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-            Calendrier
+            {t("calendar.title")}
           </h1>
 
           {matches.length === 0 ? (
-            <p className={shared.empty}>Calendrier non publié pour le moment.</p>
+            <p className={shared.empty}>{t("calendar.empty")}</p>
           ) : (
             <>
               {upcoming.length > 0 && (
                 <div className={styles.group}>
-                  <div className={styles.groupLabel}>À venir</div>
+                  <div className={styles.groupLabel}>{t("calendar.upcoming")}</div>
                   <div className={styles.list}>
                     {upcoming.map((match) => (
                       <div key={match.id} className={`${shared.card} ${styles.row}`}>
                         <div className={styles.teams}>{team ? opponentLine(match, team.id) : ""}</div>
-                        <div className={styles.date}>{match.date ? formatFullDateTime(match.date) : "Date à confirmer"}</div>
+                        <div className={styles.date}>{match.date ? formatFullDateTime(match.date) : t("common.dateTbc")}</div>
                       </div>
                     ))}
                   </div>
@@ -62,7 +64,7 @@ export default async function CalendrierPage() {
 
               {finished.length > 0 && (
                 <div className={styles.group}>
-                  <div className={styles.groupLabel}>Résultats</div>
+                  <div className={styles.groupLabel}>{t("calendar.results")}</div>
                   <div className={styles.list}>
                     {finished.map((match) => {
                       const outcome = team ? matchOutcomeForTeam(match, team.id) : null;
@@ -79,7 +81,7 @@ export default async function CalendrierPage() {
                               {match.scoreHome} - {match.scoreAway}
                             </div>
                             {outcome && (
-                              <div className={`${styles.badge} ${OUTCOME_CLASSES[outcome]}`}>{OUTCOME_LABELS[outcome]}</div>
+                              <div className={`${styles.badge} ${OUTCOME_CLASSES[outcome]}`}>{t(`match.${outcome.toLowerCase()}` as "match.win" | "match.loss" | "match.draw")}</div>
                             )}
                           </div>
                         </div>

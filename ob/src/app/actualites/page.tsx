@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicNewsService } from "@/services/PublicNewsService";
 import { PageChrome } from "@/components/PageChrome";
@@ -12,6 +13,7 @@ export const metadata = {
 };
 
 export default async function ActualitesPage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const news = team ? await new PublicNewsService().getAll(team.id) : [];
 
@@ -20,11 +22,11 @@ export default async function ActualitesPage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-            Actualités
+            {t("news.title")}
           </h1>
 
           {news.length === 0 ? (
-            <p className={shared.empty}>Aucune actualité publiée pour le moment.</p>
+            <p className={shared.empty}>{t("news.empty")}</p>
           ) : (
             <div className={newsStyles.grid}>
               {news.map((item) => (

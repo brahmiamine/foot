@@ -37,6 +37,14 @@ body {
   overflow-x: hidden;
 }
 
+html[dir="rtl"] body {
+  font-family: "Tahoma", "Arial", sans-serif;
+}
+
+html[dir="rtl"] .ob-scroll {
+  direction: rtl;
+}
+
 html {
   scroll-behavior: smooth;
 }

@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicClubService } from "@/services/PublicClubService";
 import { PageChrome } from "@/components/PageChrome";
@@ -10,16 +11,12 @@ export const metadata = {
   title: "Histoire du club — Olympique de Béja",
 };
 
-const FIGURE_CATEGORY_LABELS: Record<string, string> = {
-  PRESIDENT: "Présidents historiques",
-  COACH: "Entraîneurs historiques",
-  PLAYER: "Grandes figures",
-  TEAM: "Grandes équipes",
-};
+const FIGURE_CATEGORY_LABELS = { PRESIDENT: "history.presidents", COACH: "history.coaches", PLAYER: "history.figures", TEAM: "history.teams" } as const;
 
 const FIGURE_CATEGORY_ORDER = ["PRESIDENT", "COACH", "PLAYER", "TEAM"];
 
 export default async function HistoirePage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const service = new PublicClubService();
   const [history, honors, figures] = team
@@ -33,27 +30,27 @@ export default async function HistoirePage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 8 }}>
-            Histoire du club
+            {t("history.title")}
           </h1>
-          {foundedYear && <div className={styles.founded}>Fondé en {foundedYear}</div>}
+          {foundedYear && <div className={styles.founded}>{t("history.founded", { year: foundedYear })}</div>}
 
           {history?.storyFr ? (
             <div className={styles.story}>{history.storyFr}</div>
           ) : (
-            <p className={shared.empty}>Le récit de l&apos;histoire du club sera bientôt disponible.</p>
+            <p className={shared.empty}>{t("history.empty")}</p>
           )}
 
           {honors.length > 0 && (
             <>
               <h2 className={shared.sectionTitle} style={{ fontSize: 24, marginBottom: 20 }}>
-                Palmarès
+                {t("history.honors")}
               </h2>
               <div className={styles.honorsGrid}>
                 {honors.map((honor) => (
                   <div key={honor.id} className={`${shared.card} ${styles.honorCard}`}>
                     {honor.icon && <div className={styles.honorIcon}>{honor.icon}</div>}
                     <div className={styles.honorCompetition}>{honor.competitionFr}</div>
-                    <div className={styles.honorCount}>{honor.titleCount} titre{honor.titleCount > 1 ? "s" : ""}</div>
+                    <div className={styles.honorCount}>{t("history.titles", { count: honor.titleCount })}</div>
                     {honor.yearsFr && <div className={styles.honorYears}>{honor.yearsFr}</div>}
                   </div>
                 ))}
@@ -64,7 +61,7 @@ export default async function HistoirePage() {
           {figures.length > 0 &&
             FIGURE_CATEGORY_ORDER.filter((category) => figures.some((f) => f.category === category)).map((category) => (
               <div key={category} className={styles.figuresGroup}>
-                <div className={styles.figuresGroupTitle}>{FIGURE_CATEGORY_LABELS[category]}</div>
+                <div className={styles.figuresGroupTitle}>{t(FIGURE_CATEGORY_LABELS[category as keyof typeof FIGURE_CATEGORY_LABELS])}</div>
                 <div className={styles.figuresGrid}>
                   {figures
                     .filter((f) => f.category === category)

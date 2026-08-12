@@ -1,22 +1,25 @@
 import type { SquadGroup } from "@/services/PublicPlayerService";
 import { calcAge } from "@/lib/format";
 import shared from "./shared.module.css";
+import { getTranslator } from "@/i18n/server";
 import styles from "./SquadSection.module.css";
 
-export function SquadSection({ groups }: { groups: SquadGroup[] }) {
+export async function SquadSection({ groups }: { groups: SquadGroup[] }) {
+  const { t } = await getTranslator();
+  const groupKeys = { Gardiens: "squad.goalkeepers", Défenseurs: "squad.defenders", Milieux: "squad.midfielders", Attaquants: "squad.forwards", Autres: "squad.others" } as const;
   return (
     <div id="effectif" className={shared.sectionPad}>
       <div className={shared.container}>
         <h2 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-          Effectif
+          {t("nav.squad")}
         </h2>
 
         {groups.length === 0 ? (
-          <p className={shared.empty}>Effectif non publié pour le moment.</p>
+          <p className={shared.empty}>{t("squad.empty")}</p>
         ) : (
           groups.map((group) => (
             <div key={group.label} className={styles.group}>
-              <div className={styles.groupLabel}>{group.label}</div>
+              <div className={styles.groupLabel}>{group.label in groupKeys ? t(groupKeys[group.label as keyof typeof groupKeys]) : group.label}</div>
               <div className={styles.grid}>
                 {group.players.map((player) => (
                   <div key={player.id} className={`${shared.card} ${styles.player}`}>
@@ -24,7 +27,7 @@ export function SquadSection({ groups }: { groups: SquadGroup[] }) {
                     <div className={styles.name}>
                       {player.firstNameFr} {player.lastNameFr}
                     </div>
-                    <div className={styles.sub}>{player.birthDate ? `${calcAge(player.birthDate)} ans` : ""}</div>
+                    <div className={styles.sub}>{player.birthDate ? t("squad.age", { age: calcAge(player.birthDate) }) : ""}</div>
                   </div>
                 ))}
               </div>

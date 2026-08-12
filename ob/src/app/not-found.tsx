@@ -1,4 +1,7 @@
-export default function NotFound() {
+import { getTranslator } from "@/i18n/server";
+
+export default async function NotFound() {
+  const { t } = await getTranslator();
   return (
     <div
       style={{
@@ -13,11 +16,10 @@ export default function NotFound() {
       }}
     >
       <h1 style={{ fontFamily: "var(--ob-font-display)", fontSize: 32, textTransform: "uppercase" }}>
-        Page introuvable
+        {t("notFound.title")}
       </h1>
       <p style={{ color: "var(--ob-text-muted)" }}>
-        Le club Olympique de Béja n&apos;a pas encore été configuré sur ce site (OB_TEAM_ID manquant ou introuvable
-        en base).
+        {t("notFound.message")}
       </p>
     </div>
   );

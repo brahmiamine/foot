@@ -5,12 +5,14 @@ import type { RemoteNotification } from "@/lib/notificationApi";
 import { markNotificationReadAction, markAllNotificationsReadAction } from "@/app/espace-membre/actions";
 import shared from "./shared.module.css";
 import styles from "./NotificationsList.module.css";
+import { useI18n } from "@/i18n/I18nProvider";
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+function formatDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleString(locale === "ar" ? "ar-TN" : "fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 export function NotificationsList({ initialItems }: { initialItems: RemoteNotification[] }) {
+  const { locale, t } = useI18n();
   const [items, setItems] = useState(initialItems);
   const [isPending, startTransition] = useTransition();
   const hasUnread = items.some((item) => !item.readAt);
@@ -33,8 +35,7 @@ export function NotificationsList({ initialItems }: { initialItems: RemoteNotifi
   if (items.length === 0) {
     return (
       <p className={shared.empty}>
-        Aucune notification pour le moment. Elles apparaîtront ici dès qu&apos;un événement vous concernant (billet,
-        commande, actualité...) sera publié.
+        {t("member.notificationsEmpty")}
       </p>
     );
   }
@@ -44,7 +45,7 @@ export function NotificationsList({ initialItems }: { initialItems: RemoteNotifi
       {hasUnread && (
         <div className={styles.toolbar}>
           <button className={styles.markBtn} onClick={markAllRead} disabled={isPending}>
-            Tout marquer comme lu
+            {t("member.markAllRead")}
           </button>
         </div>
       )}
@@ -54,11 +55,11 @@ export function NotificationsList({ initialItems }: { initialItems: RemoteNotifi
             <div>
               <p className={styles.title}>{item.title}</p>
               <p className={styles.body}>{item.body}</p>
-              <span className={styles.date}>{formatDate(item.createdAt)}</span>
+              <span className={styles.date}>{formatDate(item.createdAt, locale)}</span>
             </div>
             {!item.readAt && (
               <button className={styles.markBtn} onClick={() => markOneRead(item.id)} disabled={isPending}>
-                Marquer comme lue
+                {t("member.markRead")}
               </button>
             )}
           </div>

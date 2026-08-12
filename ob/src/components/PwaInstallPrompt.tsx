@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -18,6 +19,7 @@ const DISMISSED_KEY = "ob_pwa_install_dismissed";
  * sans branding dynamique (ob reste un seul club).
  */
 export default function PwaInstallPrompt() {
+  const { t } = useI18n();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -52,7 +54,7 @@ export default function PwaInstallPrompt() {
   return (
     <div
       role="dialog"
-      aria-label="Installer le site"
+      aria-label={t("pwa.label")}
       style={{
         position: "fixed",
         bottom: 16,
@@ -73,12 +75,12 @@ export default function PwaInstallPrompt() {
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
       }}
     >
-      <span style={{ flex: 1, fontSize: 14 }}>Installer Olympique de Béja sur cet appareil pour un accès rapide.</span>
+      <span style={{ flex: 1, fontSize: 14 }}>{t("pwa.message")}</span>
       <button
         onClick={dismiss}
         style={{ background: "transparent", border: "none", color: "#8a8580", cursor: "pointer", fontSize: 13 }}
       >
-        Plus tard
+        {t("pwa.later")}
       </button>
       <button
         onClick={install}
@@ -93,7 +95,7 @@ export default function PwaInstallPrompt() {
           fontWeight: 600,
         }}
       >
-        Installer
+        {t("pwa.install")}
       </button>
     </div>
   );

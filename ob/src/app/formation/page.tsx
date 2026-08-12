@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicAcademyService } from "@/services/PublicAcademyService";
 import { getInscriptionUrl } from "@/lib/publicForms";
@@ -12,6 +13,7 @@ export const metadata = {
 };
 
 export default async function FormationPage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const service = new PublicAcademyService();
   const [categories, info] = team
@@ -25,7 +27,7 @@ export default async function FormationPage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 8 }}>
-            Formation / Académie
+            {t("academy.title")} / Académie
           </h1>
           <p className={shared.sectionSubtitle} style={{ marginBottom: 28, display: "block" }}>
             De l&apos;initiation U6 aux Seniors — détection, encadrement et formation des jeunes talents.
@@ -45,37 +47,37 @@ export default async function FormationPage() {
 
           {info?.philosophyFr && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Philosophie de formation</div>
+              <div className={styles.sectionHeading}>{t("academy.philosophy")}</div>
               <div className={styles.text}>{info.philosophyFr}</div>
             </div>
           )}
           {info?.methodFr && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Méthode</div>
+              <div className={styles.sectionHeading}>{t("academy.method")}</div>
               <div className={styles.text}>{info.methodFr}</div>
             </div>
           )}
           {info?.supervisionFr && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Encadrement</div>
+              <div className={styles.sectionHeading}>{t("academy.staff")}</div>
               <div className={styles.text}>{info.supervisionFr}</div>
             </div>
           )}
           {info?.infrastructureFr && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Infrastructures</div>
+              <div className={styles.sectionHeading}>{t("academy.infrastructure")}</div>
               <div className={styles.text}>{info.infrastructureFr}</div>
             </div>
           )}
           {info?.detectionFr && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Détection</div>
+              <div className={styles.sectionHeading}>{t("academy.scouting")}</div>
               <div className={styles.text}>{info.detectionFr}</div>
             </div>
           )}
 
           {!info && categories.length === 0 && (
-            <p className={shared.empty}>Le contenu de la formation sera bientôt disponible.</p>
+            <p className={shared.empty}>{t("academy.empty")}</p>
           )}
 
           {inscriptionUrl && (

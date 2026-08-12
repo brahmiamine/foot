@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { headers } from "next/headers";
 import { getSsoSession, buildLogoutUrl } from "@/lib/ssoSession";
 import { fetchMemberProfile, type MemberProfile } from "@/lib/ssoProfileClient";
@@ -11,6 +12,7 @@ export const metadata = {
 };
 
 export default async function ProfilPage() {
+  const { t } = await getTranslator();
   const session = await getSsoSession();
   if (!session) return null; // garde déjà assurée par le layout parent
 
@@ -28,15 +30,15 @@ export default async function ProfilPage() {
 
   return (
     <div className={shared.card} style={{ padding: 24, maxWidth: 480 }}>
-      <h2 style={{ marginTop: 0 }}>Profil</h2>
+      <h2 style={{ marginTop: 0 }}>{t("member.profile")}</h2>
       <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", margin: "16px 0" }}>
-        <dt style={{ color: "var(--ob-text-faint)" }}>Nom</dt>
+        <dt style={{ color: "var(--ob-text-faint)" }}>{t("member.name")}</dt>
         <dd style={{ margin: 0 }}>{session.name}</dd>
-        <dt style={{ color: "var(--ob-text-faint)" }}>Email</dt>
+        <dt style={{ color: "var(--ob-text-faint)" }}>{t("member.email")}</dt>
         <dd style={{ margin: 0 }}>{session.email}</dd>
       </dl>
 
-      <h3 style={{ fontSize: 15, marginBottom: 0 }}>Prénom, nom, téléphone</h3>
+      <h3 style={{ fontSize: 15, marginBottom: 0 }}>{t("member.details")}</h3>
       <p style={{ fontSize: 13, color: "var(--ob-text-faint)", margin: "4px 0 0" }}>
         Optionnel — utile pour payer par Paymee dans la billetterie.
       </p>
