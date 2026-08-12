@@ -9,6 +9,7 @@ import { PaymeeController } from './providers/paymee/paymee.controller';
 import { PaymeeModule } from './providers/paymee/paymee.module';
 import { FlouciController } from './providers/flouci/flouci.controller';
 import { FlouciModule } from './providers/flouci/flouci.module';
+import { OutboxModule } from '../outbox/outbox.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { FlouciModule } from './providers/flouci/flouci.module';
     KonnectModule,
     PaymeeModule,
     FlouciModule,
+    OutboxModule,
   ],
   controllers: [
     PaymentController,

@@ -284,7 +284,7 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
 
   const ds = await getDataSource();
 
-  const { tickets, mtc, allowedAudience, homeTeamId, awayTeamId } = await ds.transaction(async (manager) => {
+  const { tickets, mtc, allowedAudience, audienceValidationMode, homeTeamId, awayTeamId } = await ds.transaction(async (manager) => {
     const mtc = await manager.findOne(MatchTicketCategory, {
       where: { id: input.matchTicketCategoryId },
       lock: { mode: "pessimistic_write" },
@@ -310,12 +310,29 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
     }
 
     const allowedAudience = rule?.allowedAudience ?? "PUBLIC";
-    if (allowedAudience !== "PUBLIC" && !input.audienceConfirmed) {
-      throw new ForbiddenError(
-        allowedAudience === "HOME_SUPPORTERS"
-          ? "Cette catégorie est réservée aux supporters du club recevant : merci de confirmer votre statut avant l'achat."
-          : "Cette catégorie est réservée aux supporters du club visiteur : merci de confirmer votre statut avant l'achat.",
-      );
+    const audienceValidationMode = rule?.audienceValidationMode ?? "DECLARATIVE";
+    if (allowedAudience !== "PUBLIC") {
+      if (audienceValidationMode === "STRICT") {
+        // US-37/US-38 : vérification bloquante, remplace l'auto-déclaration
+        // pour cette catégorie — affiliatedTeamIds reste déclaratif côté sso
+        // (member_team_affiliations), mais devient ici un critère d'achat
+        // et non plus un simple signal de modération après coup.
+        const relevantTeamId = allowedAudience === "HOME_SUPPORTERS" ? match.equipeHome : match.equipeAway;
+        const affiliatedTeamIds = await fetchMemberAffiliatedTeamIds();
+        if (!affiliatedTeamIds || !affiliatedTeamIds.has(relevantTeamId)) {
+          throw new ForbiddenError(
+            allowedAudience === "HOME_SUPPORTERS"
+              ? "Cette catégorie est réservée aux supporters affiliés au club recevant : votre profil ne l'indique pas."
+              : "Cette catégorie est réservée aux supporters affiliés au club visiteur : votre profil ne l'indique pas.",
+          );
+        }
+      } else if (!input.audienceConfirmed) {
+        throw new ForbiddenError(
+          allowedAudience === "HOME_SUPPORTERS"
+            ? "Cette catégorie est réservée aux supporters du club recevant : merci de confirmer votre statut avant l'achat."
+            : "Cette catégorie est réservée aux supporters du club visiteur : merci de confirmer votre statut avant l'achat.",
+        );
+      }
     }
 
     // Libère les réservations abandonnées de cette catégorie avant de
@@ -360,11 +377,21 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
       }),
     );
     const saved = await manager.save(tickets);
-    return { tickets: saved, mtc, allowedAudience, homeTeamId: match.equipeHome, awayTeamId: match.equipeAway };
+    return {
+      tickets: saved,
+      mtc,
+      allowedAudience,
+      audienceValidationMode,
+      homeTeamId: match.equipeHome,
+      awayTeamId: match.equipeAway,
+    };
   });
 
-  if (allowedAudience !== "PUBLIC") {
-    // Best-effort, jamais bloquant : voir flagAudienceMismatchIfNeeded.
+  if (allowedAudience !== "PUBLIC" && audienceValidationMode === "DECLARATIVE") {
+    // Best-effort, jamais bloquant : voir flagAudienceMismatchIfNeeded. En
+    // mode STRICT, inutile — l'affiliation vient déjà d'être vérifiée de
+    // façon bloquante ci-dessus, un billet STRICT ne peut pas être en
+    // mismatch.
     void flagAudienceMismatchIfNeeded(
       tickets.map((t) => t.id),
       allowedAudience === "HOME_SUPPORTERS" ? homeTeamId : awayTeamId,

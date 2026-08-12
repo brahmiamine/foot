@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getDataSource } from './db'
 import { AuditLog, type AuditAction } from './entities'
 import { getClientIP } from './utils'
+import { getSsoSessionFromRequest } from './ssoSession'
 
 interface LogAdminActionParams {
   request: NextRequest
@@ -12,9 +13,14 @@ interface LogAdminActionParams {
   adminUsername?: string | null
 }
 
-function getAdminUsername(request: NextRequest): string | null {
-  // Le token contient "username:password" en base64 (voir adminAuth.ts) : on
-  // récupère uniquement le nom d'utilisateur pour l'attribution du journal.
+/**
+ * Legacy : le login unique ADMIN_USER/ADMIN_PASS encodait "username:password"
+ * en base64 dans un header Basic ou le cookie `admin-token` (voir
+ * adminAuth.ts). Ce login a été remplacé par une vraie session SSO, mais le
+ * cookie/header legacy peut encore exister pour d'anciens clients — on le
+ * garde en fallback, la session SSO (avec une vraie identité : email) prime.
+ */
+function getLegacyAdminUsername(request: NextRequest): string | null {
   const header = request.headers.get('authorization')
   const token = header?.startsWith('Basic ')
     ? header.slice(6)
@@ -26,6 +32,12 @@ function getAdminUsername(request: NextRequest): string | null {
   } catch {
     return null
   }
+}
+
+async function resolveAdminUsername(request: NextRequest): Promise<string | null> {
+  const session = await getSsoSessionFromRequest(request)
+  if (session) return session.email
+  return getLegacyAdminUsername(request)
 }
 
 /**
@@ -49,7 +61,7 @@ export async function logAdminAction({
       entity_type: entityType,
       entity_id: entityId ?? null,
       summary: summary ?? null,
-      admin_username: adminUsername ?? getAdminUsername(request),
+      admin_username: adminUsername ?? (await resolveAdminUsername(request)),
       ip_address: getClientIP(request) !== 'unknown' ? getClientIP(request) : null,
     })
     await repo.save(entry)

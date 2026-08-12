@@ -15,7 +15,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P0 | E01 – Cohérence Match / ArbiNote | ✅ | empêcher les votes sur matchs non réellement commencés |
 | P0 | E02 – Marketplace API | 🔄 | compléter le domaine marketplace multi-vendeurs |
 | P0 | E03 – Modération Marketplace | ✅ | permettre au club de valider/rejeter les produits vendeurs |
-| P0 | E04 – Fiabilité événements paiement | ⏳ | garantir les événements post-paiement via outbox transactionnel |
+| P0 | E04 – Fiabilité événements paiement | 🔄 | garantir les événements post-paiement via outbox transactionnel |
 | P1 | E05 – Boutique OB | ✅ | fermer le parcours catalogue → achat → commande |
 | P1 | E06 – Fulfillment boutique | ⏳ | gérer préparation, expédition, livraison et retours |
 | P1 | E07 – Notifications fiables | ⏳ | éviter la perte d'événements métiers via outbox |
@@ -23,7 +23,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P1 | E09 – Ownership des domaines | ⏳ | réduire les écritures DB cross-projects |
 | P1 | E10 – CI et tests | 🔄 | exécuter les tests existants sur tous les projets |
 | P1 | E11 – Billetterie supporters | 🔄 | renforcer le contrôle de l'audience avec scanner/offline |
-| P2 | E12 – ArbiNote audit | ⏳ | compléter traçabilité et modération |
+| P2 | E12 – ArbiNote audit | ✅ | compléter traçabilité et modération |
 | P2 | E13 – Live temps réel | ⏳ | remplacer progressivement le polling par SSE/WebSocket |
 | P2 | E14 – SMS | ⏳ | finaliser le canal SMS (stub actuellement) |
 | P2 | E15 – Payout Marketplace | ⏳ | automatiser les paiements vendeurs |
@@ -274,20 +274,25 @@ explicite) pour `sellerPortal` — mêmes opérations, même logique métier
 
 ## US-06 — Variantes et stock
 
-**Statut :** 🔄 Partiellement livré (`marketplace-api/src/variants`, `src/inventory`)
+**Statut :** ✅ Livré (`marketplace-api/src/variants`, `src/inventory`)
 
 Fonctions livrées :
 
 - tailles/couleurs (`attributes` libre en JSON) ;
 - SKU ;
 - prix (hérite du produit si non renseigné) ;
-- stock disponible (`available`, ajustable par le vendeur).
+- stock disponible (`available`, ajustable par le vendeur) ;
+- seuil d'alerte bas-stock (`InventoryItem.lowStockThreshold`, optionnel
+  par ligne de stock) : notification `LOW_STOCK` envoyée au vendeur au
+  moment précis où `available` franchit le seuil vers le bas (pas à
+  chaque sauvegarde tant que le stock reste sous le seuil, pour éviter le
+  spam) ; réglable via le même `PATCH /inventory/:id` que `available` ;
+- désactivation dédiée d'une variante : `POST /products/:productId/
+  variants/:id/toggle-active` (même logique que `ProductsService.
+  toggleActive` — bascule `isActive` sans autre modification).
 
 Reste à faire :
 
-- seuil d'alerte (pas de champ ni de notification bas-stock) ;
-- désactivation dédiée (`isActive` existe sur la variante mais aucun
-  endpoint pour le basculer) ;
 - décrément/réservation automatique du stock lors d'une commande (dépend de
   `seller-orders`, actuellement en scaffolding, voir E06).
 
@@ -338,19 +343,25 @@ DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED → PUBLISHED
 
 - Webhook applicatif signé en place : `payment-api → billetterie` (`POST /api/payments/webhook`, HMAC-SHA256) ✅
 - Configuré pour `billetterie` uniquement ; autres apps (`ob`, `teamManager`, `sellerPortal`) n'ont pas d'URL dans `WEBHOOK_URLS` et restent en polling.
+- Transactional outbox + retry durable livrés (TS-12/TS-13, voir ci-dessous) ✅
 - Pas de remboursements ni de payouts.
 - Pas d'état comptable exploitable.
 - Notifications limitées à `PAYMENT_SUCCEEDED` si `userId` fourni.
 
 ## TS-12 — Implémenter Transactional Outbox dans Payment API
 
-Aujourd'hui :
+**Statut :** ✅ Livré
+
+Avant :
 
 ```text
-Payment → PAID → EventEmitter → webhook / notification
+Payment → PAID → EventEmitter2 → listeners (transitoire, perdu si le
+                                             process crashe entre le
+                                             commit et l'émission, ou si
+                                             un listener échoue)
 ```
 
-Cible :
+Désormais :
 
 ```text
 BEGIN TRANSACTION
@@ -359,11 +370,27 @@ BEGIN TRANSACTION
 COMMIT
 ```
 
-Worker :
+`PaymentService.transitionToPaid()` (`payment-api/src/payment/payment.service.ts`)
+fait l'UPDATE conditionnel (`status != PAID`, garantie exactly-once déjà en
+place) et l'insertion `OutboxEvent` dans **la même transaction**
+(`DataSource.transaction`, voir `outbox/outbox.service.ts`) — les deux
+committent ensemble ou aucun des deux. Remplace `EventEmitter2` et les
+anciens `PaymentNotificationsListener`/`PaymentWebhookListener` (supprimés),
+dont l'exécution ne survivait jamais à un redémarrage entre le commit et la
+livraison.
+
+Worker (`OutboxWorkerService`, poll toutes les 5s, pas de dépendance
+`@nestjs/schedule` — cohérent avec le reste du monorepo) :
 
 ```text
-outbox → notification-api → business webhook
+outbox (PENDING dû) → notification-api (best-effort, payeur) → business webhook (bloquant, TS-13)
 ```
+
+Seul le webhook métier (application appelante) détermine le succès/échec de
+l'événement — c'est lui que d'autres apps attendent pour confirmer une
+commande. La notification du payeur via notification-api reste best-effort
+(elle avalait déjà ses propres erreurs avant ce chantier) : jamais
+bloquante, jamais retentée par le worker.
 
 ### Table
 
@@ -374,7 +401,7 @@ id
 event_type
 aggregate_id
 payload
-status
+status        -- PENDING | PROCESSED | FAILED
 attempts
 next_retry_at
 created_at
@@ -382,23 +409,60 @@ processed_at
 last_error
 ```
 
+`synchronize` TypeORM (dev, comme le reste de payment-api) — pas de fichier
+SQL versionné, cohérent avec la convention déjà en place pour cette app.
+
 ## TS-13 — Retry durable des callbacks métiers
 
-Remplacer les 2 retries courts en mémoire par :
+**Statut :** ✅ Livré
+
+Remplace les 2 retries courts en mémoire de l'ancien `WebhookDispatchService`
+(~2 secondes, perdus au moindre redémarrage) par un calendrier durable porté
+par `OutboxEvent.attempts`/`next_retry_at` (survit à un redémarrage entre
+deux tentatives) :
 
 ```text
-1 min → 5 min → 15 min → 1 h → 6 h → ...
+1 min → 5 min → 15 min → 1 h → 6 h → FAILED (DLQ)
 ```
 
-avec DLQ ou statut `FAILED`.
+`WebhookDispatchService.dispatch()` ne retente plus lui-même : un seul essai,
+lève en cas d'échec — c'est `OutboxWorkerService` qui possède le calendrier
+et rejoue tout l'événement (`computeNextRetryAt()`,
+`outbox/retry-schedule.ts`). Après épuisement du calendrier (6 tentatives),
+l'événement passe `FAILED` (DLQ) : billetterie garde son filet de sécurité
+existant (retour payeur / `/mes-billets`) pour ce cas résiduel.
+
+Tests : `outbox/retry-schedule.spec.ts`,
+`outbox/outbox-worker.service.spec.ts` (9 cas — livraison réussie, retry
+programmé, DLQ après épuisement, type d'événement inconnu, garde-fou contre
+le chevauchement de deux passages), `outbox/outbox.service.spec.ts`,
+`payment/payment.service.spec.ts` (réécrit pour la transaction réelle).
 
 ## TS-14 — Idempotence côté consommateur
 
-Billetterie / TeamManager doivent mémoriser `eventId` afin de garantir :
+**Statut :** ✅ Livré pour `billetterie` (seul consommateur webhook branché aujourd'hui)
+
+Doit mémoriser `eventId` afin de garantir :
 
 ```text
 same event × N retries = 1 traitement métier
 ```
+
+Table `tk_processed_webhook_events` (`event_id` en clé primaire) : le
+premier appel avec un `eventId` donné insère la ligne et déclenche
+`reconcileTicketPayment` ; tout appel suivant échoue sur la contrainte
+d'unicité et reçoit `{ status: "ALREADY_PROCESSED" }` sans ré-exécuter le
+traitement métier ni le nouvel appel réseau à `payment-api` qu'il implique
+— y compris en cas de course entre deux retries reçus quasi
+simultanément (la contrainte d'unicité fait office de verrou).
+`reconcileTicketPayment` restait déjà idempotent sur l'état des billets
+(ne mute que les billets encore `PENDING`), mais rien n'empêchait de le
+ré-exécuter — et le réseau vers payment-api — à chaque retry avant ce
+correctif.
+
+`teamManager` n'est pas concerné aujourd'hui : `WEBHOOK_URLS` ne le
+référence pas encore (voir Epic E04), donc aucun webhook n'y arrive pour
+l'instant — ce point sera à traiter quand ce circuit sera branché.
 
 ---
 
@@ -604,23 +668,52 @@ Objectif : une table métier = un owner principal.
 
 ## TS-31 — Supprimer progressivement les écritures cross-domain
 
-Exemple actuel :
+**Statut :** 🔄 Premier cas traité (le seul écrivain cross-domain concret identifié)
+
+Avant :
 
 ```text
-Superadmin → ms_sheets
+Superadmin → ms_sheets (TypeORM direct, reopenMatchAdmin)
 ```
 
-Cible :
+Désormais :
 
 ```text
-Superadmin → Match API → Matchsheet
+Superadmin → POST /api/internal/matches/:id/reopen (x-api-key) → Matchsheet → ms_sheets/matches
 ```
+
+`matchsheet` expose son premier endpoint interne service-à-service
+(`matchsheet/src/app/api/internal/matches/[matchId]/reopen`, authentifié par
+`MATCHSHEET_SERVICE_API_KEY` — voir `lib/serviceAuth.ts`, même pattern que
+`x-api-key` déjà utilisé par marketplace-api/notification-api).
+`SheetService.reopen()` (nouveau, `matchsheet/src/services/SheetService.ts`)
+fait la transition sheet `CLOSED → IN_PROGRESS` (efface `closed_at`) et
+`matches.status → IN_PROGRESS` (efface `actual_finished_at`, préserve
+`actual_started_at`) — matchsheet reste seul propriétaire, plus d'écriture
+TypeORM directe depuis superadmin (`reopenMatchAdmin` dans
+`superadmin/src/lib/adminMatches.ts` appelle désormais
+`matchsheetClient.reopenSheet()`, propage l'erreur si l'appel échoue plutôt
+que de l'avaler). `src/middleware.ts` de matchsheet exempte `/api/internal/*`
+de la vérification de session SSO (service-à-service, pas un utilisateur).
+
+Tests : `SheetService.test.ts` (4 cas ajoutés pour `reopen()`),
+`adminMatches.reopen.test.ts` (réécrit — vérifie la délégation à
+`matchsheetClient`, plus l'écriture DB locale directe ; nouveau cas
+d'erreur propagée).
 
 ### Points à traiter
 
-- Superadmin écrit directement `ms_sheets` et autres tables Matchsheet.
-- Plusieurs apps écrivent ou dépendent d'un même domaine (ex: `Card`, `matches.status`).
-- Tests de contrat inter-projets et validations CI manquants.
+- Superadmin écrivait directement `ms_sheets` — ✅ traité (voir ci-dessus),
+  c'était le seul point d'écriture cross-domain concret identifié dans le
+  code (les autres tables Matchsheet ne sont lues nulle part ailleurs).
+- Plusieurs apps écrivent ou dépendent d'un même domaine (ex: `Card`,
+  `matches.status` — `matchsheet` et `superadmin` écrivent tous deux
+  `matches.status`, chacun sur un sous-ensemble de valeurs disjoint et
+  documenté : reste un partage assumé, pas une duplication accidentelle,
+  hors périmètre de ce ticket).
+- Tests de contrat inter-projets et validations CI manquants (aucun test qui
+  vérifie que le contrat HTTP matchsheet/superadmin reste stable dans le
+  temps — les tests actuels couvrent chaque côté isolément, avec mocks).
 
 ## TS-32 — Centraliser discipline officielle
 
@@ -649,15 +742,28 @@ au lieu de deux écrivains sur les mêmes tables.
 
 ## TS-33 — Activer tous les tests existants en CI
 
-**Statut :** 🔄 Partiellement activé
+**Statut :** ✅ Livré
 
-Activer au minimum pour :
+Activé au minimum pour :
 
 ```text
-matchsheet
-teamManager
-billetterie
+matchsheet ✅
+teamManager ✅
+billetterie ✅
 ```
+
+Étendu à toutes les suites de tests existantes qui n'étaient pas encore
+dans la matrice CI (`.github/workflows/ci.yml`), pas seulement le minimum
+demandé : `sellerPortal` (vitest), `sso` (`node --test`, nouveau script
+`test` ajouté — n'existait que sous `test:i18n`), `marketplace-api` (jest,
+**absente de la matrice CI jusqu'ici**, ajoutée entièrement). `ob` reste
+`test: false` : aucun fichier de test dans ce projet à ce jour.
+
+`marketplace-api` a aussi nécessité un correctif du step de lint : comme
+`payment-api`/`notification-api`, son script `lint` local (scaffolding
+NestJS) inclut `--fix` — la CI l'invoque désormais directement sans
+`--fix` (même traitement que les deux apps npm), pour ne pas corriger
+silencieusement au lieu de faire échouer le job.
 
 ## TS-34 — Ajouter tests SSO
 
@@ -717,11 +823,13 @@ Tester au minimum :
   - `payment-api → billetterie` signé
   - Reconciliation par retour utilisateur / `/mes-billets` comme filet de sécurité
 
-- **Audience auto-déclarée** — pas de mécanisme d'identité fiable.
+- **Audience auto-déclarée par défaut, vérification stricte désormais disponible en option par catégorie** (`audienceValidationMode`, voir US-37/US-38 ci-dessous) — toujours pas de mécanisme d'identité fiable si l'organisateur laisse le mode par défaut.
 
 ## US-37 — Vérification d'affiliation avant paiement
 
-Pour `HOME_SUPPORTERS` et `AWAY_SUPPORTERS`, ajouter vérification d'affiliation.
+**Statut :** ✅ Livré (`purchaseTickets`, `src/lib/tickets.ts`)
+
+Pour `HOME_SUPPORTERS` et `AWAY_SUPPORTERS`, ajoute vérification d'affiliation quand `TicketSaleRule.audienceValidationMode = STRICT` (voir US-38).
 
 ### Séquence cible
 
@@ -729,55 +837,99 @@ Pour `HOME_SUPPORTERS` et `AWAY_SUPPORTERS`, ajouter vérification d'affiliation
 User → SSO profile → affiliated teams → Ticketing → allowed ?
 ```
 
+Implémentée avec `fetchMemberAffiliatedTeamIds()` (déjà utilisée pour le
+signal de modération non bloquant en mode DECLARATIVE, voir
+`flagAudienceMismatchIfNeeded`) — mais en mode STRICT le résultat bloque
+l'achat au lieu de simplement flaguer le billet après coup.
+
 ### Critères
 
-- seuls les affiliés à une équipe peuvent acheter billets supporters.
-- vérification côté API.
+- seuls les affiliés à une équipe peuvent acheter billets supporters. ✅ (en mode STRICT uniquement — `ForbiddenError` avant toute réservation/paiement si non affilié)
+- vérification côté API. ✅ (`purchaseTickets`, jamais côté frontend seul)
+- **fail-closed** : si l'appel sso échoue ou ne répond pas (`fetchMemberAffiliatedTeamIds()` renvoie `null`), l'achat est refusé plutôt qu'autorisé par défaut — à l'inverse du mode DECLARATIVE, où une panne sso ne doit justement jamais bloquer une vente (simple signal de modération, voir `flagAudienceMismatchIfNeeded`).
 
 ## US-38 — Politique configurable
 
-Ajouter :
+**Statut :** ✅ Livré
+
+Ajouté :
 
 ```text
 audienceValidationMode
 ```
 
-avec par exemple :
+avec :
 
 ```text
-STRICT (affiliation vérifiée)
-DECLARATIVE (auto-déclaration)
+STRICT (affiliation vérifiée, bloquant)
+DECLARATIVE (auto-déclaration, défaut — comportement historique inchangé)
 ```
 
-par match ou compétition.
+Par catégorie de billet (`TicketSaleRule.audience_validation_mode`, donc de
+facto par match+catégorie — pas de granularité par compétition dans cette
+V1, non demandée par le reste du critère). Migration additive
+(`billetterie/sql/migration_add_audience_validation_mode.sql`), défaut
+`DECLARATIVE` : aucune règle existante ne change de comportement tant
+qu'elle n'est pas explicitement repassée en `STRICT`. Pas d'interface
+d'administration pour éditer `TicketSaleRule` dans cette app (aucune
+n'existe non plus pour `allowedAudience` lui-même — même limite
+préexistante, hors périmètre de cette US).
+
+Tests : `billetterie/src/lib/tickets.audienceValidation.test.ts` (6 cas —
+DECLARATIVE avec/sans confirmation, STRICT autorisé/refusé/fail-closed,
+catégorie PUBLIC sans appel sso).
 
 ---
 
 # EPIC E12 — Audit ArbiNote
 
 **Priorité : P2**  
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
 ## TS-39 — Alimenter `reviewed_by`
 
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
-Lors d'une résolution d'alerte :
+Lors d'une résolution d'alerte (`POST /api/admin/alerts/[id]/resolve` et
+`/dismiss`) :
 
 ```text
 reviewed_by = session.user.id
 reviewed_at = now
 ```
 
+`session.user.id` provient de la session SSO (`getSsoSessionFromRequest`,
+rôle `SUPERADMIN`) — plus le `// TODO: Récupérer l'ID de l'admin depuis la
+session` laissé après la migration ADMIN_USER/ADMIN_PASS → SSO.
+
 ## US-40 — Historique de modération
 
-Afficher :
+**Statut :** ✅ Livré (`/admin/alerts/[id]`, section « Historique de modération »)
 
-- admin ;
-- date ;
-- état précédent ;
-- nouvel état ;
-- motif.
+Affiche :
+
+- admin ; ✅ (`admin_username`, désormais l'email de la session SSO — voir
+  ci-dessous, la correction était nécessaire pour que ce champ soit rempli)
+- date ; ✅
+- état précédent ; ✅
+- nouvel état ; ✅
+- motif. ✅ (repris du `notes` envoyé à la résolution/l'ignorance)
+
+Reconstruit depuis `audit_logs` (`entity_type='alert'`, filtré par
+`entity_id`) via `GET /api/admin/alerts/[id]/history` — `vote_alerts.
+reviewed_by`/`reviewed_at` (TS-39) ne portent que la dernière décision, pas
+l'historique complet des transitions.
+
+### Correctif connexe : attribution `admin_username`
+
+`logAdminAction()` lisait un cookie/header `Basic` legacy
+(`ADMIN_USER`/`ADMIN_PASS`) resté après la migration du back-office vers une
+vraie session SSO (voir `adminAuth.ts`) — ce cookie n'étant plus jamais posé
+en pratique, `admin_username` restait `null` pour **toute** action
+journalisée (pas seulement les alertes), ce qui aurait rendu la colonne
+« admin » de l'historique vide. Corrigé : la session SSO (email) prime,
+fallback sur le cookie/header legacy s'il existe encore. Tests :
+`arbinote/src/lib/auditLog.test.ts` (4 cas).
 
 ---
 
@@ -1152,12 +1304,13 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 - Parcours achat complet : `billetterie` → `payment-api` → webhook signé → billets `PAID`.
 - Webhook applicatif en place (HMAC-SHA256, réconciliation via lecture API).
+- File d'événement/retry persistante côté `payment-api` (TS-12/TS-13 : outbox transactionnel, calendrier 1min→5min→15min→1h→6h puis DLQ).
+- Idempotence du webhook côté `billetterie` (TS-14 : eventId mémorisé).
 - Scanner v1 + caméra + mode offline livré.
 - QR signé, double scan détecté, journal d'entrée.
 
 ### Reste à faire
 
-- File d'événement/retry persistant au-delà des 2 tentatives en mémoire.
 - Autres apps (`ob`, `teamManager`, `sellerPortal`) n'ont pas d'URL dans `WEBHOOK_URLS` — polling pur.
 - Annulation de match non reliée à `payment-api` : remboursements, avoirs, notifications, rapprochement comptable absent.
 - Lecture caméra + mode offline jamais testés en conditions réelles (pas de caméra/réseau réels).
@@ -1234,7 +1387,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Création fédérations/ligues/saisons/journées/matchs
 ✅ Réouverture match FINISHED (motif, audit, notification)
 ⏳ Annulation de match en tant que processus complet
-⏳ Ne plus écrire directement tables Matchsheet
+✅ Ne plus écrire directement tables Matchsheet (TS-31 : réouverture passe par matchsheetClient → matchsheet)
 ⏳ Contrôles métier avant suppression match
 ⏳ Améliorer audit inter-domaines
 ```
@@ -1254,7 +1407,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Fulfillment boutique (gestion livraison/expédition)
 ⏳ Notifications via outbox
 ⏳ Réduire accès direct tables externes
-⏳ Activer tests CI
+✅ Activer tests CI
 ⏳ Projections discipline depuis événements Matchsheet
 ```
 
@@ -1266,7 +1419,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ actual_started_at / actual_finished_at
 ⏳ Event publishing
 ⏳ Réduire écritures dans domaines TeamManager
-⏳ Activer tests CI
+✅ Activer tests CI
 ⏳ SSE/WebSocket live
 ⏳ Synchronisation offline écritures
 ```
@@ -1288,11 +1441,12 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Scanner v1 + caméra + mode offline
 ✅ QR signé, double scan, journal d'entrée
 ✅ Webhook post-paiement signé
+✅ Idempotence webhook (TS-14, eventId mémorisé)
 ⏳ Valider caméra/offline en conditions réelles
-⏳ Contrôle supporter strict (affiliation vérifiée)
-⏳ Politique configurable (STRICT/DECLARATIVE)
+✅ Contrôle supporter strict (affiliation vérifiée, opt-in par catégorie)
+✅ Politique configurable (STRICT/DECLARATIVE)
 ⏳ Outbox notifications
-⏳ Tests CI
+✅ Tests CI
 ⏳ Events ticket.purchased / scanned
 ```
 
@@ -1302,10 +1456,10 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Utiliser statut réel match pour autoriser votes
 ✅ Bloquer CANCELLED
 ⏳ Vote authentifié (actuellement sans compte)
-⏳ reviewed_by alimenté
-⏳ Audit complet modération
+✅ reviewed_by alimenté
+✅ Historique de modération des alertes
 ⏳ Consommer match events
-⏳ Corriger lint react-hooks (4 erreurs)
+✅ Corriger lint react-hooks (4 erreurs)
 ```
 
 ## `sellerPortal`
@@ -1329,7 +1483,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Connectée à la base partagée `foot` (tables sp_* existantes, synchronize désactivé)
 ✅ Catalogue vendeur (US-05)
 ✅ sellerPortal/teamManager branchés dessus (TS-04) — endpoints internal/products pour sellerPortal, moderation/sellers/categories pour teamManager
-🔄 Variantes et stock (US-06) — pas de seuil d'alerte ni décrément automatique
+✅ Variantes et stock (US-06) — seuil d'alerte bas-stock + désactivation dédiée livrés ; décrément automatique toujours dépendant de seller-orders (E06)
+✅ Tests CI (TS-33) — absente de la matrice CI jusqu'ici, ajoutée
 ⏳ Swagger
 ⏳ Business logic orders/seller-orders/returns/payouts (actuellement scaffolding — E06/E15/E16)
 ⏳ Jamais démarré contre une vraie base MariaDB (pas de Docker/MariaDB dans ce bac à sable)
@@ -1341,9 +1496,9 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ```text
 ✅ Webhook applicatif signé
 ✅ Reconciliation webhook + retour payeur
-⏳ Transactional outbox
-⏳ Retry callback durable (au-delà des 2 retries mémoire)
-⏳ DLQ / monitoring
+✅ Transactional outbox (TS-12)
+✅ Retry callback durable (TS-13, 1min→5min→15min→1h→6h puis DLQ)
+✅ DLQ (statut FAILED en base) — monitoring/alerting externe hors périmètre (voir E19)
 ⏳ Configurer webhooks pour autres apps (ob, teamManager, sellerPortal)
 ⏳ Refund API
 ⏳ Payout provider abstraction
@@ -1394,7 +1549,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ TS-33 tests CI existants (activé)
 ✅ US-01 ArbiNote status réel
 ✅ TS-02 actualStartedAt
-⏳ TS-39 reviewed_by
+✅ TS-39 reviewed_by
 ```
 
 ## Sprint 2 — Marketplace fondations
@@ -1403,15 +1558,15 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ TS-03 marketplace-api (NestJS)
 ✅ US-05 catalogue vendeur
 ✅ TS-04 bascule sellerPortal/teamManager vers marketplace-api
-🔄 US-06 variantes/stock (seuil d'alerte + décrément auto restants)
+✅ US-06 variantes/stock (seuil d'alerte + désactivation dédiée ; décrément auto reste dépendant de E06)
 ```
 
 ## Sprint 4 — Paiement fiable
 
 ```text
-⏳ TS-12 payment outbox
-⏳ TS-13 retry durable
-⏳ TS-14 consumer idempotency
+✅ TS-12 payment outbox
+✅ TS-13 retry durable
+✅ TS-14 consumer idempotency (billetterie)
 ```
 
 ## Sprint 5 — Fulfillment boutique
@@ -1431,7 +1586,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ TS-28 aud
 ⏳ TS-29 fail mode
 ⏳ TS-30 ownership
-⏳ TS-31 cross-domain cleanup
+🔄 TS-31 cross-domain cleanup (premier cas traité : reopenMatchAdmin)
 ```
 
 ## Sprint 7+ — Architecture événementielle
@@ -1452,11 +1607,11 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 # Priorités immédiates recommandées
 
 1. ~~Corriger ArbiNote / statut réel du match (US-01, TS-02)~~ ✅ Livré (12/08/2026).
-2. **Activer les tests existants dans la CI (TS-33)** avant d'entreprendre les gros refactorings.
-3. **Introduire Transactional Outbox dans Payment API (TS-12)**.
+2. ~~Activer les tests existants dans la CI (TS-33)~~ ✅ Livré (12/08/2026).
+3. ~~Introduire Transactional Outbox dans Payment API (TS-12)~~ ✅ Livré (12/08/2026, avec TS-13 retry durable).
 4. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
 5. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
-6. **Découpler progressivement les accès directs à la base (TS-31)**.
+6. 🔄 **Découpler progressivement les accès directs à la base (TS-31)** — premier cas traité (12/08/2026, `reopenMatchAdmin`), reste à généraliser au fur et à mesure que d'autres cas apparaissent.
 7. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
 
 ### Point important

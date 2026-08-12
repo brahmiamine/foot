@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { Match } from "@/entities/Match";
 import { MatchTicketCategory } from "@/entities/MatchTicketCategory";
+import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
 import { Team } from "@/entities/Team";
 import { Ticket } from "@/entities/Ticket";
 import { TicketCategory } from "@/entities/TicketCategory";
@@ -20,7 +21,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Match, MatchTicketCategory, Team, Ticket, TicketCategory, TicketSaleRule, TicketScanLog],
+    entities: [Match, MatchTicketCategory, ProcessedWebhookEvent, Team, Ticket, TicketCategory, TicketSaleRule, TicketScanLog],
   });
 
   await dataSource.initialize();

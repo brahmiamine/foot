@@ -39,6 +39,7 @@ export class InventoryController {
       id,
       seller.sellerId,
       dto.available,
+      dto.lowStockThreshold,
     );
   }
 }

@@ -58,4 +58,14 @@ export class VariantsController {
     await this.variantsService.remove(id, productId, seller.sellerId);
     return { success: true };
   }
+
+  /** Active/désactive la variante, sans modifier ses autres champs (voir VariantsService.toggleActive). */
+  @Post(':id/toggle-active')
+  async toggleActive(
+    @CurrentSeller() seller: AuthenticatedSeller,
+    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ProductVariant> {
+    return this.variantsService.toggleActive(id, productId, seller.sellerId);
+  }
 }

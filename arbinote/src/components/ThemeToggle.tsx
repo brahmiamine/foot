@@ -1,26 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMounted } from "@/lib/useMounted";
+
+// Lu uniquement côté client via l'initialiseur paresseux de useState — le
+// rendu SSR/pré-montage utilise toujours le placeholder ci-dessous, jamais
+// cette valeur, donc pas de mismatch d'hydratation malgré la lecture directe.
+function readStoredTheme(): "light" | "dark" {
+  if (typeof window === "undefined") return "light";
+  return localStorage.getItem("arbinote-theme") === "dark" ? "dark" : "light";
+}
 
 export default function ThemeToggle() {
-  const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    setMounted(true);
-    if (typeof window === "undefined") return;
-
-    const stored = localStorage.getItem("arbinote-theme");
-    const initialTheme = (stored as "light" | "dark") || "light";
-    setTheme(initialTheme);
-
-    const html = document.documentElement;
-    if (initialTheme === "dark") {
-      html.classList.add("dark");
-    } else {
-      html.classList.remove("dark");
-    }
-  }, []);
+  const mounted = useMounted();
+  const [theme, setTheme] = useState<"light" | "dark">(readStoredTheme);
 
   useEffect(() => {
     if (!mounted || typeof document === "undefined" || typeof window === "undefined") return;

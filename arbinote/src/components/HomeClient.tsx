@@ -85,13 +85,24 @@ export default function HomeClient({
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
+  // Ré-aligne selectedJourneeId sur l'URL/la journée par défaut quand ces
+  // entrées changent vraiment (navigation, changement de props) — ajustement
+  // de state pendant le rendu plutôt que dans un effet (pattern recommandé
+  // par React pour dériver un state depuis des props, évite
+  // react-hooks/set-state-in-effect et le rendu superflu d'un effet après coup).
+  const [resolvedInputs, setResolvedInputs] = useState({ journeeIdFromUrl, defaultJourneeId, dropdownJournees });
+  if (
+    resolvedInputs.journeeIdFromUrl !== journeeIdFromUrl ||
+    resolvedInputs.defaultJourneeId !== defaultJourneeId ||
+    resolvedInputs.dropdownJournees !== dropdownJournees
+  ) {
+    setResolvedInputs({ journeeIdFromUrl, defaultJourneeId, dropdownJournees });
     const nextId = resolveJourneeId();
     if (nextId !== selectedJourneeId) {
       setSelectedJourneeId(nextId);
       setIsChangingJournee(false);
     }
-  }, [journeeIdFromUrl, defaultJourneeId, dropdownJournees, selectedJourneeId]);
+  }
 
   const selectedJournee = useMemo(() => {
     if (!selectedJourneeId) return null;

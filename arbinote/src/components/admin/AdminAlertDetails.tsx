@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import AlertAnomalyReasons from "./alertDetails/AlertAnomalyReasons";
+import AlertModerationHistory from "./alertDetails/AlertModerationHistory";
 import AlertStatsGrid from "./alertDetails/AlertStatsGrid";
 import AlertVoteDistributionChart from "./alertDetails/AlertVoteDistributionChart";
 import AlertVotesTable from "./alertDetails/AlertVotesTable";
 import { useAlertDetails } from "./alertDetails/useAlertDetails";
+import { useAlertHistory } from "./alertDetails/useAlertHistory";
 
 interface AdminAlertDetailsProps {
   alertId: string;
@@ -13,6 +15,7 @@ interface AdminAlertDetailsProps {
 
 export default function AdminAlertDetails({ alertId }: AdminAlertDetailsProps) {
   const { alert, loading, error, moderating, handleModerate } = useAlertDetails(alertId);
+  const { entries: historyEntries, loading: historyLoading } = useAlertHistory(alertId);
 
   if (loading) {
     return (
@@ -79,6 +82,9 @@ export default function AdminAlertDetails({ alertId }: AdminAlertDetailsProps) {
         moderating={moderating}
         onModerate={handleModerate}
       />
+
+      {/* Historique de modération de l'alerte (US-40) */}
+      <AlertModerationHistory entries={historyEntries} loading={historyLoading} />
     </div>
   );
 }

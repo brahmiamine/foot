@@ -44,6 +44,15 @@ export class InventoryItem {
   @Column({ type: 'int', default: 0 })
   available: number;
 
+  /**
+   * Null = pas d'alerte configurée. Quand renseigné, une notification
+   * LOW_STOCK est envoyée au vendeur la première fois que `available`
+   * passe à ce seuil ou en-dessous (voir InventoryService.setAvailable) —
+   * pas à chaque sauvegarde tant que le stock reste bas, pour éviter le spam.
+   */
+  @Column({ type: 'int', nullable: true })
+  lowStockThreshold: number | null;
+
   @Column({ type: 'int', default: 0 })
   reserved: number;
 

@@ -47,3 +47,12 @@ export interface AlertDetails {
   };
   totalVotes: number;
 }
+
+/** Une entrée d'historique de modération (US-40) — reconstruite depuis audit_logs. */
+export interface AlertHistoryEntry {
+  id: string;
+  action: string;
+  summary?: string | null;
+  admin_username?: string | null;
+  created_at: string;
+}

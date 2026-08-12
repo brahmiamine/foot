@@ -53,6 +53,43 @@ export class SheetService {
   }
 
   /**
+   * Rouvre une feuille CLOSED (TS-31, avancement.md) — appelée par
+   * `POST /api/internal/matches/[matchId]/reopen`, remplace l'écriture
+   * directe que `superadmin` faisait jusqu'ici dans `ms_sheets` (et
+   * `matches`) depuis `reopenMatchAdmin` : matchsheet reste seul
+   * propriétaire de cette transition, superadmin passe désormais par cet
+   * appel HTTP authentifié (clé de service) plutôt que par TypeORM direct
+   * sur une table qui ne lui appartient pas. Efface `closed_at` (feuille)
+   * et `actual_finished_at` (match, plus "terminé" une fois rouvert) —
+   * jamais `actual_started_at`, qui reste la trace du tout premier
+   * démarrage réel du match, quel que soit le nombre de réouvertures.
+   */
+  async reopen(matchId: string): Promise<Sheet> {
+    const repository = await this.getRepository();
+    const sheet = await repository.findOne({ where: { matchId } });
+    if (!sheet) {
+      throw new Error("Feuille de match introuvable");
+    }
+    if (sheet.status !== "CLOSED") {
+      throw new Error(
+        `Impossible de rouvrir une feuille au statut ${sheet.status} (seule une feuille CLOSED peut être rouverte)`
+      );
+    }
+
+    sheet.status = "IN_PROGRESS";
+    sheet.closedAt = null;
+    const saved = await repository.save(sheet);
+
+    const matchRepository = await this.getMatchRepository();
+    await matchRepository.update(
+      { id: matchId, status: Not("CANCELLED") },
+      { status: "IN_PROGRESS", actualFinishedAt: null }
+    );
+
+    return saved;
+  }
+
+  /**
    * Répercute le statut de la feuille sur `matches.status`
    * (UPCOMING/IN_PROGRESS/FINISHED/CANCELLED) — colonne partagée déjà lue
    * par `ob` (résultats, classement) et `billetterie` (fenêtre de vente),
@@ -75,10 +112,9 @@ export class SheetService {
     // encore côté opérateur — l'annulation n'est réversible depuis aucune app.
     const update: Partial<Match> = { status: matchStatus };
     if (matchStatus === "IN_PROGRESS") {
-      // Ne jamais écraser l'heure de début initiale : une feuille rouverte
-      // par superadmin redevient IN_PROGRESS sans repasser ici (écriture
-      // directe, voir adminMatches.ts), donc actual_started_at n'est fixé
-      // qu'une seule fois, au tout premier passage IN_PROGRESS.
+      // Ne jamais écraser l'heure de début initiale : actual_started_at
+      // n'est fixé qu'une seule fois, au tout premier passage IN_PROGRESS
+      // (une réouverture passe par reopen() ci-dessus, jamais par ici).
       const match = await matchRepository.findOne({ where: { id: matchId } });
       if (match && !match.actualStartedAt) {
         update.actualStartedAt = new Date();

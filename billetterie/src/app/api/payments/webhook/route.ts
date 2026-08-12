@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { UnauthorizedError } from "@/lib/errors";
 import { handleApiError } from "@/lib/api";
 import { reconcileTicketPayment } from "@/lib/tickets";
+import { claimWebhookEvent } from "@/lib/webhookIdempotency";
 
 /**
  * Reçoit le webhook applicatif signé émis par payment-api une fois un
@@ -14,6 +15,12 @@ import { reconcileTicketPayment } from "@/lib/tickets";
  * PAYMENT_WEBHOOK_SECRET configuré, la route répond 401 : billetterie
  * continue alors de se fier uniquement à sa reconciliation par polling
  * existante.
+ *
+ * TS-14 (avancement.md) : payment-api retente la livraison en cas d'échec
+ * réseau/timeout (voir webhook-dispatch.service.ts) — le même `eventId` peut
+ * donc arriver plusieurs fois. claimWebhookEvent() garantit qu'un seul de
+ * ces appels déclenche réellement reconcileTicketPayment ; les retries
+ * reçoivent le même statut sans ré-exécuter le traitement métier.
  */
 function isValidSignature(rawBody: string, header: string | null): boolean {
   const secret = process.env.PAYMENT_WEBHOOK_SECRET;
@@ -39,9 +46,20 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError("Signature de webhook manquante ou invalide.");
     }
 
-    const payload = JSON.parse(rawBody) as { paymentId?: string };
+    const payload = JSON.parse(rawBody) as { paymentId?: string; eventId?: string };
     if (!payload.paymentId) {
       return NextResponse.json({ error: "paymentId manquant." }, { status: 422 });
+    }
+    if (!payload.eventId) {
+      return NextResponse.json({ error: "eventId manquant." }, { status: 422 });
+    }
+
+    const isFirstDelivery = await claimWebhookEvent(payload.eventId, payload.paymentId);
+    if (!isFirstDelivery) {
+      // Retry d'un événement déjà traité (TS-14) : accusé de réception sans
+      // ré-exécuter reconcileTicketPayment (ni le nouvel appel réseau à
+      // payment-api qu'il implique).
+      return NextResponse.json({ status: "ALREADY_PROCESSED" });
     }
 
     const result = await reconcileTicketPayment(payload.paymentId);

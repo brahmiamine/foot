@@ -11,13 +11,19 @@ import { getSsoSessionFromRequest, redirectToLogin } from "@/lib/ssoSession";
  *
  * L'utilisateur vérifié est transmis aux Server Components via des en-têtes
  * (x-sso-*) pour éviter de revérifier le JWT à chaque page.
+ *
+ * `/api/internal/*` (TS-31, avancement.md) échappe à cette règle : ce sont
+ * des routes service-à-service (clé API, voir lib/serviceAuth.ts), jamais
+ * une session SSO — c'est justement par ce chemin que superadmin (qui n'a
+ * pas de session matchsheet) doit désormais passer au lieu d'écrire
+ * directement dans `ms_sheets`.
  */
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
 
 export async function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === "/") {
+  if (request.nextUrl.pathname === "/" || request.nextUrl.pathname.startsWith("/api/internal/")) {
     return NextResponse.next();
   }
 
