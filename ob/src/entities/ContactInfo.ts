@@ -11,6 +11,8 @@ export class ContactInfo {
 
   @Column({ type: "varchar", length: 255, nullable: true, name: "address_fr" })
   addressFr?: string | null;
+  @Column({ type: "varchar", length: 255, nullable: true, name: "address_ar" })
+  addressAr?: string | null;
 
   @Column({ type: "varchar", length: 30, nullable: true })
   phone?: string | null;
@@ -20,6 +22,8 @@ export class ContactInfo {
 
   @Column({ type: "varchar", length: 255, nullable: true, name: "opening_hours_fr" })
   openingHoursFr?: string | null;
+  @Column({ type: "varchar", length: 255, nullable: true, name: "opening_hours_ar" })
+  openingHoursAr?: string | null;
 
   @Column({ type: "varchar", length: 500, nullable: true, name: "map_embed_url" })
   mapEmbedUrl?: string | null;

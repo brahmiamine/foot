@@ -13,12 +13,18 @@ export class Stadium {
 
   @Column({ type: "varchar", length: 200, name: "name_fr" })
   nameFr!: string;
+  @Column({ type: "varchar", length: 200, nullable: true, name: "name_ar" })
+  nameAr?: string | null;
 
   @Column({ type: "varchar", length: 255, nullable: true, name: "address_fr" })
   addressFr?: string | null;
+  @Column({ type: "varchar", length: 255, nullable: true, name: "address_ar" })
+  addressAr?: string | null;
 
   @Column({ type: "varchar", length: 100, nullable: true, name: "city_fr" })
   cityFr?: string | null;
+  @Column({ type: "varchar", length: 100, nullable: true, name: "city_ar" })
+  cityAr?: string | null;
 
   @Column({ type: "boolean", default: false, name: "is_home" })
   isHome!: boolean;

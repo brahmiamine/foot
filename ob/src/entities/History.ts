@@ -14,4 +14,6 @@ export class History {
 
   @Column({ type: "longtext", nullable: true, name: "story_fr" })
   storyFr?: string | null;
+  @Column({ type: "longtext", nullable: true, name: "story_ar" })
+  storyAr?: string | null;
 }

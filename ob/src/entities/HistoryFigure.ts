@@ -16,12 +16,16 @@ export class HistoryFigure {
 
   @Column({ type: "varchar", length: 200, name: "name_fr" })
   nameFr!: string;
+  @Column({ type: "varchar", length: 200, nullable: true, name: "name_ar" })
+  nameAr?: string | null;
 
   @Column({ type: "varchar", length: 100, nullable: true, name: "period_fr" })
   periodFr?: string | null;
 
   @Column({ type: "text", nullable: true, name: "description_fr" })
   descriptionFr?: string | null;
+  @Column({ type: "text", nullable: true, name: "description_ar" })
+  descriptionAr?: string | null;
 
   @Column({ type: "varchar", length: 255, nullable: true, name: "photo_url" })
   photoUrl?: string | null;
