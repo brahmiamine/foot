@@ -6,6 +6,8 @@ import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { getSsoSession } from "@/lib/ssoSession";
 import { getClubBranding } from "@/lib/clubBranding";
 import "./globals.css";
+import { getLocale } from "@/i18n/server";
+import { I18nProvider } from "@/i18n/I18nProvider";
 
 /**
  * Titre/favicon/theme-color résolus dynamiquement par club connecté (voir
@@ -46,10 +48,12 @@ export default async function RootLayout({
 }>) {
   const session = await getSsoSession();
   const branding = session?.teamId ? await getClubBranding(session.teamId) : null;
+  const locale = await getLocale();
 
   return (
-    <html lang="en" className="css-loading" suppressHydrationWarning>
+    <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className="css-loading" suppressHydrationWarning>
       <body>
+        <I18nProvider locale={locale}>
         {/* Critical inline styles to prevent FOUC - Loads immediately */}
         <style
           dangerouslySetInnerHTML={{
@@ -218,6 +222,7 @@ export default async function RootLayout({
 
         <ServiceWorkerRegistration />
         <PwaInstallPrompt accentColor={branding?.primaryColor || "#c8102e"} />
+        </I18nProvider>
       </body>
     </html>
   );

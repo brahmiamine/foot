@@ -1,9 +1,12 @@
 "use client";
 
+import { useI18n } from "@/i18n/I18nProvider";
+
 import { useRef, useState } from "react";
 import { submitSponsorRequest } from "./actions";
 
 export function SponsorRequestForm({ teamId }: { teamId: string }) {
+  const { t } = useI18n();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -85,44 +88,44 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
         <div className="col-12">
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-0">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("close")} className="btn-close" />
           </div>
         </div>
       )}
 
       <div className="col-md-6">
         <label htmlFor="companyName" className="form-label">
-          Nom de l&apos;entreprise *
+          {t("companyName")} *
         </label>
         <input id="companyName" name="companyName" type="text" className="form-control" required maxLength={200} />
       </div>
       <div className="col-md-6">
         <label htmlFor="contactName" className="form-label">
-          Nom du contact *
+          {t("contactName")} *
         </label>
         <input id="contactName" name="contactName" type="text" className="form-control" required maxLength={150} />
       </div>
       <div className="col-md-6">
         <label htmlFor="email" className="form-label">
-          Email *
+          {t("email")} *
         </label>
         <input id="email" name="email" type="email" className="form-control" required maxLength={190} />
       </div>
       <div className="col-md-6">
         <label htmlFor="phone" className="form-label">
-          Téléphone
+          {t("phone")}
         </label>
         <input id="phone" name="phone" type="tel" className="form-control" maxLength={30} />
       </div>
       <div className="col-md-6">
         <label htmlFor="website" className="form-label">
-          Site web
+          {t("website")}
         </label>
         <input id="website" name="website" type="text" className="form-control" placeholder="https://..." maxLength={255} />
       </div>
       <div className="col-md-6">
         <label htmlFor="proposedLevel" className="form-label">
-          Niveau de partenariat souhaité
+          {t("partnershipLevel")}
         </label>
         <select id="proposedLevel" name="proposedLevel" className="form-select" defaultValue="">
           <option value="">Non défini</option>
@@ -135,17 +138,17 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
 
       <div className="col-12">
         <label htmlFor="logo" className="form-label">
-          Logo de l&apos;entreprise
+          {t("companyLogo")}
         </label>
         <input id="logo" name="logo" type="file" accept="image/*" className="form-control" onChange={handleLogoChange} />
         {logoPreview && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoPreview} alt="Aperçu du logo" className="mt-2 border rounded p-1" style={{ height: "80px", objectFit: "contain" }} />
+          <img src={logoPreview} alt={t("logoPreview")} className="mt-2 border rounded p-1" style={{ height: "80px", objectFit: "contain" }} />
         )}
       </div>
       <div className="col-md-6">
         <label htmlFor="logoSize" className="form-label">
-          Taille du logo fourni
+          {t("logoSize")}
         </label>
         <select id="logoSize" name="logoSize" className="form-select" defaultValue="">
           <option value="">Non précisé</option>
@@ -157,7 +160,7 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
 
       <div className="col-12">
         <label htmlFor="message" className="form-label">
-          Message / présentation de votre entreprise
+          {t("companyPresentation")}
         </label>
         <textarea id="message" name="message" className="form-control" rows={4} maxLength={2000} />
       </div>
@@ -167,10 +170,10 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
           {submitting ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-              Envoi en cours...
+              {t("sending")}
             </>
           ) : (
-            "Envoyer ma demande de partenariat"
+            t("sendSponsorRequest")
           )}
         </button>
       </div>

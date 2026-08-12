@@ -5,6 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { canClient, type ClientAccess } from "@/lib/access-client";
+import { useI18n } from "@/i18n/I18nProvider";
+import type { TranslationKey } from "@/i18n/dictionaries";
+
+const MENU_KEYS: Record<string, TranslationKey> = {
+  Dashboards:"dashboards", "Tableau de bord":"dashboard", Apps:"apps", Pages:"pages", Stades:"stadiums", Joueurs:"players", Liste:"list", Ajouter:"add", Staff:"staff", Membres:"members", Matchs:"matches", "Matchs amicaux":"friendlyMatches", Entraînements:"trainings", Déplacements:"trips", "Planches tactiques":"tactics", "Blessures & santé":"health", Discipline:"discipline", Cartons:"cards", Suspensions:"suspensions", Amendes:"fines", Notes:"notes", "Journal d'audit":"audit", Exports:"exports", Réglages:"settings", Actualités:"news", Créer:"create", Médias:"media", "Éléments média":"mediaItems", Galeries:"galleries", Convocations:"callups", Galerie:"gallery", Boutique:"shop", Produits:"products", Catégories:"categories", Billetterie:"ticketing", "Par match":"perMatch", "Catégories de billets":"ticketCategories", Sponsors:"sponsors", Communication:"communication", "Le club":"club", Présentation:"presentation", Histoire:"history", Palmarès:"honors", "Grandes figures":"figures", Formation:"academy", "Contenu éditorial":"editorial", "Candidatures académie":"academyApplications", Recrutement:"recruitment", "Postes recherchés":"needs", Candidatures:"applications", Communiqués:"announcements", "Contact & réseaux":"contactSocial", "Réseaux sociaux":"socialNetworks", Coordonnées:"contactDetails", "Messages reçus":"receivedMessages", Statistiques:"statistics", "Stats joueurs":"playerStats", Administration:"administration", Utilisateurs:"users", "Rôles & permissions":"roles"
+};
 
 /**
  * Admin Sidebar Navigation Component
@@ -41,6 +47,8 @@ export function AdminSidebar({
   teamLogoUrl?: string | null;
   access: ClientAccess;
 }) {
+  const { t } = useI18n();
+  const label = (value: string) => MENU_KEYS[value] ? t(MENU_KEYS[value]) : value;
   const { isOpen, isCollapsed, closeSidebar, openSidebar, toggleCollapse } = useAdminSidebar();
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -265,7 +273,7 @@ export function AdminSidebar({
           ${isCollapsed ? "vertical-menu-collapsed" : ""}
           ${isOpen ? "vertical-menu-open" : ""}
         `}
-        aria-label="Navigation admin"
+        aria-label={t("adminNav")}
       >
         <div className="navbar-brand-box">
           <Link href="/admin" className="logo logo-dark" onClick={closeSidebar}>
@@ -284,7 +292,7 @@ export function AdminSidebar({
             <ul className="metismenu list-unstyled" id="side-menu">
               {menuGroups.map((group) => (
                 <li key={group.title}>
-                  {!isCollapsed && <div className="menu-title">{group.title}</div>}
+                  {!isCollapsed && <div className="menu-title">{label(group.title)}</div>}
                   <ul className="list-unstyled mb-0">
                     {group.items.map((item) => {
                       const active = isActive(item.href);
@@ -297,7 +305,7 @@ export function AdminSidebar({
                           <Link
                             href={item.href}
                             className={active ? "active" : undefined}
-                            title={isCollapsed ? item.title : undefined}
+                            title={isCollapsed ? label(item.title) : undefined}
                             onClick={(e) => {
                               if (hasChildren) {
                                 if (!isOpen && isCollapsed) {
@@ -314,7 +322,7 @@ export function AdminSidebar({
                             }}
                           >
                             <i className={item.icon} aria-hidden="true" />
-                            {!isCollapsed && <span>{item.title}</span>}
+                            {!isCollapsed && <span>{label(item.title)}</span>}
                             {hasChildren && !isCollapsed && (
                               <i className={`menu-arrow fas fa-chevron-${expanded ? "up" : "down"}`} aria-hidden="true" />
                             )}
@@ -333,7 +341,7 @@ export function AdminSidebar({
                                         if (window.innerWidth < 992) closeSidebar();
                                       }}
                                     >
-                                      {child.title}
+                                      {label(child.title)}
                                     </Link>
                                   </li>
                                 );
@@ -356,7 +364,7 @@ export function AdminSidebar({
             type="button"
             onClick={toggleCollapse}
             className="btn btn-sm btn-soft-primary d-none d-lg-inline-flex"
-            title={isCollapsed ? "Ouvrir le menu" : "Réduire le menu"}
+            title={isCollapsed ? t("openMenu") : t("collapseMenu")}
           >
             <i className={`fas ${isCollapsed ? "fa-angle-right" : "fa-angle-left"}`} aria-hidden="true" />
           </button>
@@ -364,7 +372,7 @@ export function AdminSidebar({
             type="button"
             onClick={closeSidebar}
             className="btn btn-sm btn-outline-light d-lg-none"
-            aria-label="Fermer le menu"
+            aria-label={t("close")}
           >
             <i className="fas fa-times" aria-hidden="true" />
           </button>

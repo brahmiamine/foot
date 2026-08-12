@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { notFound } from "next/navigation";
 import { TeamService } from "@/services/TeamService";
 import { ContactService } from "@/services/ContactService";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** Page publique — contact du club : /contact/[teamId]. */
 export default async function ContactPage({ params }: { params: Promise<{ teamId: string }> }) {
+  const { locale, t } = await getTranslator();
   const { teamId } = await params;
   const teamService = new TeamService();
   const team = await teamService.findById(teamId);
@@ -30,14 +32,14 @@ export default async function ContactPage({ params }: { params: Promise<{ teamId
             fallbackIcon="fas fa-shield-alt fa-2x"
           />
         )}
-        <h1 className="h3 mb-2">Contactez {team.nom}</h1>
+        <h1 className="h3 mb-2">{t("contactTitle", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
       </div>
 
       <div className="row g-4">
         <div className="col-md-4">
           <div className="card shadow-sm h-100">
             <div className="card-body">
-              <h2 className="h6 text-uppercase text-muted mb-3">Coordonnées</h2>
+              <h2 className="h6 text-uppercase text-muted mb-3">{t("contactDetails")}</h2>
               {info?.addressFr && (
                 <p className="mb-2">
                   <i className="fas fa-map-marker-alt me-2" aria-hidden="true" />
@@ -67,7 +69,7 @@ export default async function ContactPage({ params }: { params: Promise<{ teamId
                 <>
                   <hr />
                   <div className="small">
-                    <strong>Administratif</strong>
+                    <strong>{t("administrative")}</strong>
                     <div>{info.adminPhone}</div>
                     <div>{info.adminEmail}</div>
                   </div>
@@ -75,7 +77,7 @@ export default async function ContactPage({ params }: { params: Promise<{ teamId
               )}
               {(info?.sportPhone || info?.sportEmail) && (
                 <div className="small mt-2">
-                  <strong>Sportif</strong>
+                  <strong>{t("sport")}</strong>
                   <div>{info.sportPhone}</div>
                   <div>{info.sportEmail}</div>
                 </div>

@@ -1,9 +1,12 @@
 "use client";
 
+import { useI18n } from "@/i18n/I18nProvider";
+
 import { useRef, useState } from "react";
 import { submitPlayerApplication } from "./actions";
 
 export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; categoryOptions: string[] }) {
+  const { t } = useI18n();
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,39 +83,39 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
         <div className="col-12">
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-0">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("close")} className="btn-close" />
           </div>
         </div>
       )}
 
       <div className="col-12">
-        <h6 className="text-muted text-uppercase small mb-0">L&apos;enfant</h6>
+        <h6 className="text-muted text-uppercase small mb-0">{t("child")}</h6>
       </div>
       <div className="col-md-6">
         <label htmlFor="childFirstName" className="form-label">
-          Prénom *
+          {t("firstName")} *
         </label>
         <input id="childFirstName" name="childFirstName" type="text" className="form-control" required maxLength={100} />
       </div>
       <div className="col-md-6">
         <label htmlFor="childLastName" className="form-label">
-          Nom *
+          {t("lastName")} *
         </label>
         <input id="childLastName" name="childLastName" type="text" className="form-control" required maxLength={100} />
       </div>
       <div className="col-md-6">
         <label htmlFor="birthDate" className="form-label">
-          Date de naissance *
+          {t("birthDate")} *
         </label>
         <input id="birthDate" name="birthDate" type="date" className="form-control" required />
       </div>
       <div className="col-md-3">
         <label htmlFor="category" className="form-label">
-          Catégorie *
+          {t("category")} *
         </label>
         <select id="category" name="category" className="form-select" required defaultValue="">
           <option value="" disabled>
-            Choisir...
+            {t("choose")}
           </option>
           {categoryOptions.map((code) => (
             <option key={code} value={code}>
@@ -123,36 +126,36 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
       </div>
       <div className="col-md-3">
         <label htmlFor="position" className="form-label">
-          Poste
+          {t("position")}
         </label>
         <input id="position" name="position" type="text" className="form-control" maxLength={50} />
       </div>
 
       <div className="col-12 mt-4">
-        <h6 className="text-muted text-uppercase small mb-0">Le parent</h6>
+        <h6 className="text-muted text-uppercase small mb-0">{t("parent")}</h6>
       </div>
       <div className="col-md-6">
         <label htmlFor="parentName" className="form-label">
-          Nom du parent *
+          {t("parentName")} *
         </label>
         <input id="parentName" name="parentName" type="text" className="form-control" required maxLength={150} />
       </div>
       <div className="col-md-6">
         <label htmlFor="parentPhone" className="form-label">
-          Téléphone *
+          {t("phone")} *
         </label>
         <input id="parentPhone" name="parentPhone" type="tel" className="form-control" required maxLength={30} />
       </div>
       <div className="col-12">
         <label htmlFor="parentEmail" className="form-label">
-          Email *
+          {t("email")} *
         </label>
         <input id="parentEmail" name="parentEmail" type="email" className="form-control" required maxLength={190} />
       </div>
 
       <div className="col-12">
         <label htmlFor="document" className="form-label">
-          Photo ou document (facultatif)
+          {t("document")}
         </label>
         <input id="document" name="document" type="file" accept="image/*,application/pdf" className="form-control" onChange={handleFileChange} />
         {documentFile && <div className="form-text">{documentFile.name}</div>}
@@ -160,7 +163,7 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
 
       <div className="col-12">
         <label htmlFor="message" className="form-label">
-          Message
+          {t("message")}
         </label>
         <textarea id="message" name="message" className="form-control" rows={3} maxLength={2000} />
       </div>
@@ -170,10 +173,10 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
           {submitting ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-              Envoi en cours...
+              {t("sending")}
             </>
           ) : (
-            "Envoyer la candidature"
+            t("sendApplication")
           )}
         </button>
       </div>

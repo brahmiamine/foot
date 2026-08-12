@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -21,6 +22,7 @@ interface PwaInstallPromptProps {
 }
 
 export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstallPromptProps) {
+  const { t } = useI18n();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -55,7 +57,7 @@ export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstall
   return (
     <div
       role="dialog"
-      aria-label="Installer TeamManager"
+      aria-label={t("installLabel")}
       style={{
         position: "fixed",
         bottom: 16,
@@ -76,12 +78,12 @@ export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstall
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
       }}
     >
-      <span style={{ flex: 1, fontSize: 14 }}>Installer TeamManager sur cet appareil pour un accès rapide.</span>
+      <span style={{ flex: 1, fontSize: 14 }}>{t("installMessage")}</span>
       <button
         onClick={dismiss}
         style={{ background: "transparent", border: "none", color: "#8a8580", cursor: "pointer", fontSize: 13 }}
       >
-        Plus tard
+        {t("later")}
       </button>
       <button
         onClick={install}
@@ -96,7 +98,7 @@ export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstall
           fontWeight: 600,
         }}
       >
-        Installer
+        {t("install")}
       </button>
     </div>
   );
