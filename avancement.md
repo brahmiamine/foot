@@ -119,7 +119,6 @@ non audités de bout en bout.
 - Notifications convocation/composition d'équipe/sponsor non branchées : le destinataire n'est pas un `User` résolvable dans le modèle actuel.
 
 ### `matchsheet`
-- Pas de tests automatisés.
 - Pas de synchronisation offline des écritures ni file locale de retry pour les événements live saisis en stade.
 - Réouverture d'une feuille après clôture non modélisée ni auditée (pas de raison de réouverture tracée).
 
