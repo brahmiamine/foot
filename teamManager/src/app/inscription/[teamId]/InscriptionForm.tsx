@@ -1,9 +1,12 @@
 "use client";
 
+import { useI18n } from "@/i18n/I18nProvider";
+
 import { useRef, useState } from "react";
 import { submitPlayerApplication } from "./actions";
 
 export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; categoryOptions: string[] }) {
+  const { t } = useI18n();
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,11 +19,11 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
 
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
     if (!allowedTypes.includes(file.type)) {
-      setError("Type de fichier non autorisé (JPEG, PNG, WebP ou PDF uniquement).");
+      setError(t("common.validation.fileType"));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError("Le fichier est trop volumineux (5MB maximum).");
+      setError(t("common.validation.fileTooLarge"));
       return;
     }
 
@@ -52,14 +55,14 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
 
       const result = await submitPlayerApplication(teamId, formData);
       if (result.success) {
-        setSuccess(result.message ?? null);
+        setSuccess(t(result.messageKey));
         formRef.current?.reset();
         setDocumentFile(null);
       } else {
-        setError(result.error || "Erreur lors de l'envoi de la candidature");
+        setError(t(result.messageKey));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'envoi de la candidature");
+    } catch {
+      setError(t("academy.application.feedback.error"));
     } finally {
       setSubmitting(false);
     }
@@ -80,39 +83,39 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
         <div className="col-12">
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-0">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
           </div>
         </div>
       )}
 
       <div className="col-12">
-        <h6 className="text-muted text-uppercase small mb-0">L&apos;enfant</h6>
+        <h6 className="text-muted text-uppercase small mb-0">{t("academy.application.sections.child")}</h6>
       </div>
       <div className="col-md-6">
         <label htmlFor="childFirstName" className="form-label">
-          Prénom *
+          {t("common.fields.firstName")} *
         </label>
         <input id="childFirstName" name="childFirstName" type="text" className="form-control" required maxLength={100} />
       </div>
       <div className="col-md-6">
         <label htmlFor="childLastName" className="form-label">
-          Nom *
+          {t("common.fields.lastName")} *
         </label>
         <input id="childLastName" name="childLastName" type="text" className="form-control" required maxLength={100} />
       </div>
       <div className="col-md-6">
         <label htmlFor="birthDate" className="form-label">
-          Date de naissance *
+          {t("common.fields.birthDate")} *
         </label>
         <input id="birthDate" name="birthDate" type="date" className="form-control" required />
       </div>
       <div className="col-md-3">
         <label htmlFor="category" className="form-label">
-          Catégorie *
+          {t("common.fields.category")} *
         </label>
         <select id="category" name="category" className="form-select" required defaultValue="">
           <option value="" disabled>
-            Choisir...
+            {t("common.actions.choose")}
           </option>
           {categoryOptions.map((code) => (
             <option key={code} value={code}>
@@ -123,36 +126,36 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
       </div>
       <div className="col-md-3">
         <label htmlFor="position" className="form-label">
-          Poste
+          {t("common.fields.position")}
         </label>
         <input id="position" name="position" type="text" className="form-control" maxLength={50} />
       </div>
 
       <div className="col-12 mt-4">
-        <h6 className="text-muted text-uppercase small mb-0">Le parent</h6>
+        <h6 className="text-muted text-uppercase small mb-0">{t("academy.application.sections.parent")}</h6>
       </div>
       <div className="col-md-6">
         <label htmlFor="parentName" className="form-label">
-          Nom du parent *
+          {t("academy.application.fields.parentName")} *
         </label>
         <input id="parentName" name="parentName" type="text" className="form-control" required maxLength={150} />
       </div>
       <div className="col-md-6">
         <label htmlFor="parentPhone" className="form-label">
-          Téléphone *
+          {t("common.fields.phone")} *
         </label>
         <input id="parentPhone" name="parentPhone" type="tel" className="form-control" required maxLength={30} />
       </div>
       <div className="col-12">
         <label htmlFor="parentEmail" className="form-label">
-          Email *
+          {t("contact.form.fields.email")} *
         </label>
         <input id="parentEmail" name="parentEmail" type="email" className="form-control" required maxLength={190} />
       </div>
 
       <div className="col-12">
         <label htmlFor="document" className="form-label">
-          Photo ou document (facultatif)
+          {t("academy.application.fields.document")}
         </label>
         <input id="document" name="document" type="file" accept="image/*,application/pdf" className="form-control" onChange={handleFileChange} />
         {documentFile && <div className="form-text">{documentFile.name}</div>}
@@ -160,7 +163,7 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
 
       <div className="col-12">
         <label htmlFor="message" className="form-label">
-          Message
+          {t("common.fields.message")}
         </label>
         <textarea id="message" name="message" className="form-control" rows={3} maxLength={2000} />
       </div>
@@ -170,10 +173,10 @@ export function InscriptionForm({ teamId, categoryOptions }: { teamId: string; c
           {submitting ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-              Envoi en cours...
+              {t("common.status.sending")}
             </>
           ) : (
-            "Envoyer la candidature"
+            t("academy.application.actions.send")
           )}
         </button>
       </div>

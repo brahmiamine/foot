@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { notFound } from "next/navigation";
 import { TeamService } from "@/services/TeamService";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
  * Accessible sans authentification : /devenir-sponsor/[teamId].
  */
 export default async function SponsorRequestPage({ params }: { params: Promise<{ teamId: string }> }) {
+  const { locale, t } = await getTranslator();
   const { teamId } = await params;
   const teamService = new TeamService();
   const team = await teamService.findById(teamId);
@@ -30,10 +32,9 @@ export default async function SponsorRequestPage({ params }: { params: Promise<{
             fallbackIcon="fas fa-shield-alt fa-2x"
           />
         )}
-        <h1 className="h3 mb-2">Devenir sponsor de {team.nom}</h1>
+        <h1 className="h3 mb-2">{t("sponsor.request.page.title", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
         <p className="text-muted">
-          Vous souhaitez soutenir le club et gagner en visibilité ? Remplissez ce formulaire, notre équipe étudiera
-          votre demande de partenariat.
+          {t("sponsor.request.page.help")}
         </p>
       </div>
 

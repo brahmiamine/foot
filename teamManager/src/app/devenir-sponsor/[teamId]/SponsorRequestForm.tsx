@@ -1,9 +1,12 @@
 "use client";
 
+import { useI18n } from "@/i18n/I18nProvider";
+
 import { useRef, useState } from "react";
 import { submitSponsorRequest } from "./actions";
 
 export function SponsorRequestForm({ teamId }: { teamId: string }) {
+  const { t } = useI18n();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -17,11 +20,11 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
 
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
     if (!allowedTypes.includes(file.type)) {
-      setError("Type de fichier non autorisé. Seules les images sont acceptées.");
+      setError(t("common.validation.fileType"));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError("Le fichier est trop volumineux (5MB maximum).");
+      setError(t("common.validation.fileTooLarge"));
       return;
     }
 
@@ -56,15 +59,15 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
 
       const result = await submitSponsorRequest(teamId, formData);
       if (result.success) {
-        setSuccess(result.message ?? null);
+        setSuccess(t(result.messageKey));
         formRef.current?.reset();
         setLogoFile(null);
         setLogoPreview(null);
       } else {
-        setError(result.error || "Erreur lors de l'envoi de la demande");
+        setError(t(result.messageKey));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'envoi de la demande");
+    } catch {
+      setError(t("sponsor.request.feedback.error"));
     } finally {
       setSubmitting(false);
     }
@@ -85,44 +88,44 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
         <div className="col-12">
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-0">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
           </div>
         </div>
       )}
 
       <div className="col-md-6">
         <label htmlFor="companyName" className="form-label">
-          Nom de l&apos;entreprise *
+          {t("sponsor.request.fields.companyName")} *
         </label>
         <input id="companyName" name="companyName" type="text" className="form-control" required maxLength={200} />
       </div>
       <div className="col-md-6">
         <label htmlFor="contactName" className="form-label">
-          Nom du contact *
+          {t("sponsor.request.fields.contactName")} *
         </label>
         <input id="contactName" name="contactName" type="text" className="form-control" required maxLength={150} />
       </div>
       <div className="col-md-6">
         <label htmlFor="email" className="form-label">
-          Email *
+          {t("contact.form.fields.email")} *
         </label>
         <input id="email" name="email" type="email" className="form-control" required maxLength={190} />
       </div>
       <div className="col-md-6">
         <label htmlFor="phone" className="form-label">
-          Téléphone
+          {t("common.fields.phone")}
         </label>
         <input id="phone" name="phone" type="tel" className="form-control" maxLength={30} />
       </div>
       <div className="col-md-6">
         <label htmlFor="website" className="form-label">
-          Site web
+          {t("sponsor.request.fields.website")}
         </label>
         <input id="website" name="website" type="text" className="form-control" placeholder="https://..." maxLength={255} />
       </div>
       <div className="col-md-6">
         <label htmlFor="proposedLevel" className="form-label">
-          Niveau de partenariat souhaité
+          {t("sponsor.request.fields.partnershipLevel")}
         </label>
         <select id="proposedLevel" name="proposedLevel" className="form-select" defaultValue="">
           <option value="">Non défini</option>
@@ -135,17 +138,17 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
 
       <div className="col-12">
         <label htmlFor="logo" className="form-label">
-          Logo de l&apos;entreprise
+          {t("sponsor.request.fields.companyLogo")}
         </label>
         <input id="logo" name="logo" type="file" accept="image/*" className="form-control" onChange={handleLogoChange} />
         {logoPreview && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoPreview} alt="Aperçu du logo" className="mt-2 border rounded p-1" style={{ height: "80px", objectFit: "contain" }} />
+          <img src={logoPreview} alt={t("sponsor.request.logo.preview")} className="mt-2 border rounded p-1" style={{ height: "80px", objectFit: "contain" }} />
         )}
       </div>
       <div className="col-md-6">
         <label htmlFor="logoSize" className="form-label">
-          Taille du logo fourni
+          {t("sponsor.request.fields.logoSize")}
         </label>
         <select id="logoSize" name="logoSize" className="form-select" defaultValue="">
           <option value="">Non précisé</option>
@@ -157,7 +160,7 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
 
       <div className="col-12">
         <label htmlFor="message" className="form-label">
-          Message / présentation de votre entreprise
+          {t("sponsor.request.fields.presentation")}
         </label>
         <textarea id="message" name="message" className="form-control" rows={4} maxLength={2000} />
       </div>
@@ -167,10 +170,10 @@ export function SponsorRequestForm({ teamId }: { teamId: string }) {
           {submitting ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-              Envoi en cours...
+              {t("common.status.sending")}
             </>
           ) : (
-            "Envoyer ma demande de partenariat"
+            t("sponsor.request.actions.send")
           )}
         </button>
       </div>

@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:i18n": "node --test test/i18n-parity.test.mjs"
   },
   "dependencies": {
     "jose": "^5.9.6",

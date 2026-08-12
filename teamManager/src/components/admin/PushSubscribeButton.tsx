@@ -6,6 +6,7 @@ import {
   registerPushSubscriptionAction,
   removePushSubscriptionAction,
 } from "@/app/admin/pushActions";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const DEVICE_ID_KEY = "teammanager_push_device_id";
 
@@ -32,6 +33,7 @@ function getOrCreateDeviceId(): string {
  * utilisée ailleurs dans teamManager, contrairement à ob.
  */
 export function PushSubscribeButton() {
+  const { t } = useI18n();
   const [subscribed, setSubscribed] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,7 +57,7 @@ export function PushSubscribeButton() {
     setStatus(null);
     const vapidKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY;
     if (!vapidKey) {
-      setStatus("Push non configuré côté serveur (clé VAPID manquante).");
+      setStatus(t("notifications.push.notConfigured"));
       return;
     }
 
@@ -63,7 +65,7 @@ export function PushSubscribeButton() {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setStatus("Autorisation refusée — activez les notifications dans les réglages du navigateur.");
+        setStatus(t("notifications.push.permissionDenied"));
         return;
       }
 
@@ -82,10 +84,10 @@ export function PushSubscribeButton() {
       });
 
       setSubscribed(true);
-      setStatus("Notifications activées sur cet appareil.");
+      setStatus(t("notifications.push.enabled"));
     } catch (error) {
       console.error(error);
-      setStatus("Impossible d'activer les notifications sur cet appareil.");
+      setStatus(t("notifications.push.enableError"));
     } finally {
       setLoading(false);
     }
@@ -105,7 +107,7 @@ export function PushSubscribeButton() {
     try {
       await removePushSubscriptionAction(client.deviceId);
       setSubscribed(false);
-      setStatus("Notifications désactivées sur cet appareil.");
+      setStatus(t("notifications.push.disabled"));
     } finally {
       setLoading(false);
     }
@@ -115,7 +117,7 @@ export function PushSubscribeButton() {
     <div className="d-flex flex-column align-items-end">
       <button type="button" onClick={subscribed ? unsubscribe : subscribe} disabled={loading} className="btn btn-outline-secondary btn-sm">
         <i className={`fas ${subscribed ? "fa-bell-slash" : "fa-bell"} me-2`} aria-hidden="true" />
-        {subscribed ? "Désactiver les notifications" : "Activer les notifications"}
+        {t(subscribed ? "notifications.push.actions.disable" : "notifications.push.actions.enable")}
       </button>
       {status && <span className="text-muted small mt-1">{status}</span>}
     </div>

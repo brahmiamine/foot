@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { notFound } from "next/navigation";
 import { TeamService } from "@/services/TeamService";
 import { AcademyService } from "@/services/AcademyService";
@@ -13,6 +14,7 @@ const DEFAULT_CATEGORIES = ["U6", "U7", "U8", "U9", "U10", "U11", "U12", "U13", 
  * /inscription/[teamId].
  */
 export default async function InscriptionPage({ params }: { params: Promise<{ teamId: string }> }) {
+  const { locale, t } = await getTranslator();
   const { teamId } = await params;
   const teamService = new TeamService();
   const team = await teamService.findById(teamId);
@@ -36,9 +38,9 @@ export default async function InscriptionPage({ params }: { params: Promise<{ te
             fallbackIcon="fas fa-shield-alt fa-2x"
           />
         )}
-        <h1 className="h3 mb-2">Inscrire mon enfant — {team.nom}</h1>
+        <h1 className="h3 mb-2">{t("academy.application.page.title", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
         <p className="text-muted">
-          Rejoignez la formation du club. Remplissez ce formulaire, notre équipe vous recontactera pour organiser un essai.
+          {t("academy.application.page.help")}
         </p>
       </div>
 

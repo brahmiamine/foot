@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -32,6 +34,7 @@ export function ControlsChecklist({
   homeEntries: PlayerEntry[];
   awayEntries: PlayerEntry[];
 }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [, startTransition] = useTransition();
   const refresh = () => startTransition(() => router.refresh());
@@ -43,18 +46,18 @@ export function ControlsChecklist({
     <div className="container-fluid px-0">
       <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <div>
-          <h1 className="h4 mb-1">Contrôles</h1>
+          <h1 className="h4 mb-1">{t("controls.title")}</h1>
           <p className="text-muted mb-0">
-            {homeTeamName} <span className="text-muted">vs</span> {awayTeamName} — Vérification des numéros de maillot et de l&apos;identité
+            {homeTeamName} <span className="text-muted">{t("match.versus")}</span> {awayTeamName} — {t("controls.help")}
           </p>
         </div>
         <div className="d-flex align-items-center gap-3">
           <span className="badge bg-info-subtle text-info">
-            {doneCount}/{total} contrôlés
+            {t("controls.progress", { done: doneCount, total })}
           </span>
           <Link href={`/${matchId}/pre-match`} className="btn btn-outline-secondary">
             <i className="bx bx-left-arrow-alt me-2" aria-hidden="true" />
-            Retour aux signatures
+            {t("controls.actions.backToSignatures")}
           </Link>
         </div>
       </div>
@@ -84,6 +87,7 @@ function TeamChecklist({
   entries: PlayerEntry[];
   onChanged: () => void;
 }) {
+  const { t } = useLanguage();
   const starters = entries.filter((e) => e.role === "STARTER");
   const substitutes = entries.filter((e) => e.role === "SUBSTITUTE");
 
@@ -94,10 +98,10 @@ function TeamChecklist({
       </div>
       <div className="card-body">
         {entries.length === 0 ? (
-          <p className="text-muted mb-0">Composition non renseignée.</p>
+          <p className="text-muted mb-0">{t("lineup.missing.short")}</p>
         ) : (
           <>
-            <h6 className="text-uppercase small text-muted fw-semibold">Titulaires</h6>
+            <h6 className="text-uppercase small text-muted fw-semibold">{t("lineup.players.starters")}</h6>
             <ul className="list-group list-group-flush mb-3">
               {starters.map((entry) => (
                 <PlayerRow key={entry.matchLineupId} matchId={matchId} sheetId={sheetId} entry={entry} onChanged={onChanged} />
@@ -105,7 +109,7 @@ function TeamChecklist({
             </ul>
             {substitutes.length > 0 && (
               <>
-                <h6 className="text-uppercase small text-muted fw-semibold">Remplaçants</h6>
+                <h6 className="text-uppercase small text-muted fw-semibold">{t("lineup.players.substitutes")}</h6>
                 <ul className="list-group list-group-flush">
                   {substitutes.map((entry) => (
                     <PlayerRow key={entry.matchLineupId} matchId={matchId} sheetId={sheetId} entry={entry} onChanged={onChanged} />
@@ -131,6 +135,7 @@ function PlayerRow({
   entry: PlayerEntry;
   onChanged: () => void;
 }) {
+  const { t } = useLanguage();
   const [checked, setChecked] = useState(entry.checked);
   const [note, setNote] = useState(entry.note);
   const [saving, setSaving] = useState(false);
@@ -182,7 +187,7 @@ function PlayerRow({
         type="text"
         className="form-control form-control-sm"
         style={{ maxWidth: "180px" }}
-        placeholder="Note (optionnel)"
+        placeholder={t("controls.fields.noteOptional")}
         value={note}
         onChange={(e) => setNote(e.target.value)}
         onBlur={handleNoteBlur}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -100,29 +102,18 @@ interface LiveMatchSheetProps {
   substitutions: SubstitutionData[];
 }
 
-const PERIOD_LABELS: Record<MatchPeriod, string> = {
-  H1: "1ère mi-temps",
-  H2: "2e mi-temps",
-  ET1: "Prolongation 1",
-  ET2: "Prolongation 2",
-};
+const PERIOD_KEYS = { H1: "events.periods.firstHalf", H2: "events.periods.secondHalf", ET1: "events.periods.extraTime1", ET2: "events.periods.extraTime2" } as const;
 
 const PERIOD_SHORT: Record<MatchPeriod, string> = { H1: "H1", H2: "H2", ET1: "ET1", ET2: "ET2" };
 
-const CARD_TYPE_LABELS: Record<CardType, string> = { YELLOW: "Jaune", RED: "Rouge", DOUBLE_YELLOW: "Double jaune" };
+const CARD_TYPE_KEYS = { YELLOW: "events.card.types.yellow", RED: "events.card.types.red", DOUBLE_YELLOW: "events.card.types.doubleYellow" } as const;
 const CARD_TYPE_BADGES: Record<CardType, string> = {
   YELLOW: "bg-warning-subtle text-warning",
   RED: "bg-danger-subtle text-danger",
   DOUBLE_YELLOW: "bg-danger-subtle text-danger",
 };
 
-const SHEET_STATUS_LABELS: Record<SheetStatus, string> = {
-  DRAFT: "Brouillon",
-  PRE_MATCH_SIGNED: "Avant-match signé",
-  IN_PROGRESS: "Match en cours",
-  POST_MATCH_SIGNED: "Après-match signé",
-  CLOSED: "Feuille clôturée",
-};
+const SHEET_STATUS_KEYS = { DRAFT: "sheet.status.draft", PRE_MATCH_SIGNED: "sheet.status.preSigned", IN_PROGRESS: "sheet.status.inProgress", POST_MATCH_SIGNED: "sheet.status.postSigned", CLOSED: "sheet.status.closed" } as const;
 
 type Tab = "cards" | "goals" | "injuries" | "substitutions";
 
@@ -140,6 +131,7 @@ export function LiveMatchSheet({
   injuries,
   substitutions,
 }: LiveMatchSheetProps) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -164,7 +156,7 @@ export function LiveMatchSheet({
     try {
       const result = await startMatch(sheetId, matchId);
       if (result.success) {
-        setSuccess(result.message ?? "Match démarré");
+        setSuccess(result.message ?? t("events.live.started"));
         refresh();
       } else {
         setError(result.error);
@@ -181,12 +173,12 @@ export function LiveMatchSheet({
           <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
               <h2 className="h4 mb-1">
-                {homeTeam.name} <span className="text-muted">vs</span> {awayTeam.name}
+                {homeTeam.name} <span className="text-muted">{t("match.versus")}</span> {awayTeam.name}
               </h2>
-              <p className="text-muted mb-0">Feuille de match en direct — enregistrez les événements au fil du jeu.</p>
+              <p className="text-muted mb-0">{t("events.live.title")}</p>
             </div>
             <div className="d-flex flex-column align-items-end gap-2">
-              <span className="badge bg-primary-subtle text-primary">{SHEET_STATUS_LABELS[sheetStatus]}</span>
+              <span className="badge bg-primary-subtle text-primary">{t(SHEET_STATUS_KEYS[sheetStatus])}</span>
               {(sheetStatus === "DRAFT" || sheetStatus === "PRE_MATCH_SIGNED") && (
                 <button type="button" className="btn btn-success btn-sm" onClick={handleStartMatch} disabled={startingMatch}>
                   {startingMatch ? (
@@ -194,7 +186,7 @@ export function LiveMatchSheet({
                   ) : (
                     <>
                       <i className="bx bx-play me-1" aria-hidden="true" />
-                      Démarrer le match
+                      {t("events.live.actions.start")}
                     </>
                   )}
                 </button>
@@ -203,10 +195,10 @@ export function LiveMatchSheet({
           </div>
 
           <div className="d-flex flex-wrap gap-2 mt-3 small text-muted">
-            <span className="fw-semibold">Temps :</span>
-            {(Object.keys(PERIOD_LABELS) as MatchPeriod[]).map((p) => (
+            <span className="fw-semibold">{t("events.fields.period")}</span>
+            {(Object.keys(PERIOD_KEYS) as MatchPeriod[]).map((p) => (
               <span key={p} className="badge bg-light text-dark border">
-                {PERIOD_SHORT[p]} = {PERIOD_LABELS[p]}
+                {PERIOD_SHORT[p]} = {t(PERIOD_KEYS[p])}
               </span>
             ))}
           </div>
@@ -216,35 +208,35 @@ export function LiveMatchSheet({
       {error && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}
       {success && (
         <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{success}</span>
-          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setSuccess(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}
 
       <ul className="nav nav-tabs mb-4">
         <li className="nav-item">
           <button type="button" className={`nav-link ${tab === "cards" ? "active" : ""}`} onClick={() => setTab("cards")}>
-            Cartons <span className="badge bg-secondary-subtle text-secondary ms-1">{cards.length}</span>
+            {t("events.card.plural")} <span className="badge bg-secondary-subtle text-secondary ms-1">{cards.length}</span>
           </button>
         </li>
         <li className="nav-item">
           <button type="button" className={`nav-link ${tab === "goals" ? "active" : ""}`} onClick={() => setTab("goals")}>
-            Buts <span className="badge bg-secondary-subtle text-secondary ms-1">{goals.length}</span>
+            {t("events.goal.plural")} <span className="badge bg-secondary-subtle text-secondary ms-1">{goals.length}</span>
           </button>
         </li>
         <li className="nav-item">
           <button type="button" className={`nav-link ${tab === "injuries" ? "active" : ""}`} onClick={() => setTab("injuries")}>
-            Blessures <span className="badge bg-secondary-subtle text-secondary ms-1">{injuries.length}</span>
+            {t("events.injury.plural")} <span className="badge bg-secondary-subtle text-secondary ms-1">{injuries.length}</span>
           </button>
         </li>
         <li className="nav-item">
           <button type="button" className={`nav-link ${tab === "substitutions" ? "active" : ""}`} onClick={() => setTab("substitutions")}>
-            Remplacements <span className="badge bg-secondary-subtle text-secondary ms-1">{substitutions.length}</span>
+            {t("events.substitution.plural")} <span className="badge bg-secondary-subtle text-secondary ms-1">{substitutions.length}</span>
           </button>
         </li>
       </ul>
@@ -307,7 +299,7 @@ export function LiveMatchSheet({
 }
 
 /* ---------------------------------------------------------------------- */
-/* Cartons                                                                 */
+/* {t("events.card.plural")}                                                                 */
 /* ---------------------------------------------------------------------- */
 
 function CardsSection({
@@ -333,6 +325,7 @@ function CardsSection({
   setSuccess: (v: string | null) => void;
   refresh: () => void;
 }) {
+  const { t } = useLanguage();
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [playerId, setPlayerId] = useState("");
   const [type, setType] = useState<CardType>("YELLOW");
@@ -351,7 +344,7 @@ function CardsSection({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!playerId) {
-      setError("Merci de sélectionner un joueur");
+      setError(t("events.validation.selectPlayer"));
       return;
     }
     setAdding(true);
@@ -360,7 +353,7 @@ function CardsSection({
     try {
       const result = await addCard(sheetId, matchId, playerId, type, minute ? Number(minute) : null, period, cardReasonId || null, comment || null);
       if (result.success) {
-        setSuccess(result.message ?? "Carton enregistré");
+        setSuccess(result.message ?? t("events.card.messages.saved"));
         setPlayerId("");
         setMinute("");
         setCardReasonId("");
@@ -375,7 +368,7 @@ function CardsSection({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce carton ?")) return;
+    if (!confirm(t("events.card.confirmDelete"))) return;
     setDeletingId(id);
     try {
       const result = await deleteCard(id, matchId);
@@ -389,12 +382,12 @@ function CardsSection({
   return (
     <div className="card">
       <div className="card-header bg-transparent">
-        <h5 className="card-title mb-0">Ajouter un carton</h5>
+        <h5 className="card-title mb-0">{t("events.card.actions.add")}</h5>
       </div>
       <div className="card-body">
         <form className="row g-3 mb-4" onSubmit={handleSubmit}>
           <div className="col-md-3">
-            <label className="form-label">Équipe</label>
+            <label className="form-label">{t("events.fields.team")}</label>
             <select
               className="form-select"
               value={teamId}
@@ -411,9 +404,9 @@ function CardsSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Joueur</label>
+            <label className="form-label">{t("events.fields.player")}</label>
             <select className="form-select" value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
-              <option value="">— Sélectionner —</option>
+              <option value="">{t("common.select.placeholder")}</option>
               {players.map((p) => (
                 <option key={p.playerId} value={p.playerId}>
                   {p.shirtNumber != null ? `#${p.shirtNumber} ` : ""}
@@ -423,7 +416,7 @@ function CardsSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label d-block">Type de carton</label>
+            <label className="form-label d-block">{t("events.card.fields.type")}</label>
             <div className="btn-group w-100" role="group">
               <input
                 type="radio"
@@ -475,23 +468,23 @@ function CardsSection({
             </div>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Temps</label>
+            <label className="form-label">{t("events.fields.period")}</label>
             <select className="form-select" value={period} onChange={(e) => setPeriod(e.target.value as MatchPeriod)}>
-              {(Object.keys(PERIOD_LABELS) as MatchPeriod[]).map((p) => (
+              {(Object.keys(PERIOD_KEYS) as MatchPeriod[]).map((p) => (
                 <option key={p} value={p}>
-                  {PERIOD_LABELS[p]}
+                  {t(PERIOD_KEYS[p])}
                 </option>
               ))}
             </select>
           </div>
           <div className="col-md-2">
-            <label className="form-label">Minute</label>
+            <label className="form-label">{t("events.fields.minute")}</label>
             <input type="number" min={0} max={130} className="form-control" value={minute} onChange={(e) => setMinute(e.target.value)} />
           </div>
           <div className="col-md-5">
-            <label className="form-label">Motif</label>
+            <label className="form-label">{t("events.card.fields.reason")}</label>
             <select className="form-select" value={cardReasonId} onChange={(e) => setCardReasonId(e.target.value)}>
-              <option value="">— Aucun / non précisé —</option>
+              <option value="">{t("events.labels.noneSpecified")}</option>
               {filteredReasons.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.labelFr}
@@ -500,12 +493,12 @@ function CardsSection({
             </select>
           </div>
           <div className="col-md-5">
-            <label className="form-label">Commentaire (optionnel)</label>
+            <label className="form-label">{t("events.fields.commentOptional")}</label>
             <input type="text" className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>
           <div className="col-12">
             <button type="submit" className="btn btn-primary" disabled={adding}>
-              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Ajouter le carton"}
+              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("events.card.actions.submit")}
             </button>
           </div>
         </form>
@@ -514,13 +507,13 @@ function CardsSection({
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>Équipe</th>
-                <th>Joueur</th>
-                <th>Carton</th>
-                <th>Temps</th>
-                <th>Motif</th>
-                <th>Commentaire</th>
-                <th className="text-end">Action</th>
+                <th>{t("events.fields.team")}</th>
+                <th>{t("events.fields.player")}</th>
+                <th>{t("events.card.plural")}</th>
+                <th>{t("events.fields.period")}</th>
+                <th>{t("events.card.fields.reason")}</th>
+                <th>{t("common.labels.comment")}</th>
+                <th className="text-end">{t("common.labels.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -538,7 +531,7 @@ function CardsSection({
                       <td>{player ? teamName(player.teamId) : "—"}</td>
                       <td>{c.playerName}</td>
                       <td>
-                        <span className={`badge ${CARD_TYPE_BADGES[c.type]}`}>{CARD_TYPE_LABELS[c.type]}</span>
+                        <span className={`badge ${CARD_TYPE_BADGES[c.type]}`}>{t(CARD_TYPE_KEYS[c.type])}</span>
                       </td>
                       <td>
                         {c.minute != null ? `${c.minute}'` : "—"} {c.period ? PERIOD_SHORT[c.period] : ""}
@@ -552,7 +545,7 @@ function CardsSection({
                           onClick={() => handleDelete(c.id)}
                           disabled={deletingId === c.id}
                         >
-                          {deletingId === c.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Supprimer"}
+                          {deletingId === c.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("common.actions.delete")}
                         </button>
                       </td>
                     </tr>
@@ -568,7 +561,7 @@ function CardsSection({
 }
 
 /* ---------------------------------------------------------------------- */
-/* Buts                                                                    */
+/* {t("events.goal.plural")}                                                                    */
 /* ---------------------------------------------------------------------- */
 
 function GoalsSection({
@@ -592,6 +585,7 @@ function GoalsSection({
   setSuccess: (v: string | null) => void;
   refresh: () => void;
 }) {
+  const { t } = useLanguage();
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [playerId, setPlayerId] = useState("");
   const [period, setPeriod] = useState<MatchPeriod>("H1");
@@ -606,11 +600,11 @@ function GoalsSection({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamId) {
-      setError("Merci de sélectionner une équipe");
+      setError(t("events.validation.selectTeam"));
       return;
     }
     if (!minute) {
-      setError("Merci de renseigner la minute");
+      setError(t("events.validation.minuteRequired"));
       return;
     }
     setAdding(true);
@@ -619,7 +613,7 @@ function GoalsSection({
     try {
       const result = await addGoal(sheetId, matchId, teamId, playerId || null, Number(minute), period, isOwnGoal, isPenalty);
       if (result.success) {
-        setSuccess(result.message ?? "But enregistré");
+        setSuccess(result.message ?? t("events.goal.messages.saved"));
         setPlayerId("");
         setMinute("");
         setIsOwnGoal(false);
@@ -634,7 +628,7 @@ function GoalsSection({
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer ce but ?")) return;
+    if (!confirm(t("events.goal.confirmDelete"))) return;
     setDeletingId(id);
     try {
       const result = await deleteGoal(id, matchId);
@@ -648,12 +642,12 @@ function GoalsSection({
   return (
     <div className="card">
       <div className="card-header bg-transparent">
-        <h5 className="card-title mb-0">Ajouter un but</h5>
+        <h5 className="card-title mb-0">{t("events.goal.actions.add")}</h5>
       </div>
       <div className="card-body">
         <form className="row g-3 mb-4" onSubmit={handleSubmit}>
           <div className="col-md-3">
-            <label className="form-label">Équipe</label>
+            <label className="form-label">{t("events.fields.team")}</label>
             <select
               className="form-select"
               value={teamId}
@@ -670,9 +664,9 @@ function GoalsSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Joueur (optionnel)</label>
+            <label className="form-label">{t("events.fields.playerOptional")}</label>
             <select className="form-select" value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
-              <option value="">— Non identifié —</option>
+              <option value="">{t("events.player.unidentified")}</option>
               {players.map((p) => (
                 <option key={p.playerId} value={p.playerId}>
                   {p.shirtNumber != null ? `#${p.shirtNumber} ` : ""}
@@ -682,17 +676,17 @@ function GoalsSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Temps</label>
+            <label className="form-label">{t("events.fields.period")}</label>
             <select className="form-select" value={period} onChange={(e) => setPeriod(e.target.value as MatchPeriod)}>
-              {(Object.keys(PERIOD_LABELS) as MatchPeriod[]).map((p) => (
+              {(Object.keys(PERIOD_KEYS) as MatchPeriod[]).map((p) => (
                 <option key={p} value={p}>
-                  {PERIOD_LABELS[p]}
+                  {t(PERIOD_KEYS[p])}
                 </option>
               ))}
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Minute</label>
+            <label className="form-label">{t("events.fields.minute")}</label>
             <input type="number" min={0} max={130} className="form-control" value={minute} onChange={(e) => setMinute(e.target.value)} />
           </div>
           <div className="col-md-6">
@@ -725,7 +719,7 @@ function GoalsSection({
           </div>
           <div className="col-12">
             <button type="submit" className="btn btn-primary" disabled={adding}>
-              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Ajouter le but"}
+              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("events.goal.actions.submit")}
             </button>
           </div>
         </form>
@@ -734,11 +728,11 @@ function GoalsSection({
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>Équipe</th>
-                <th>Buteur</th>
-                <th>Temps</th>
-                <th>Détails</th>
-                <th className="text-end">Action</th>
+                <th>{t("events.fields.team")}</th>
+                <th>{t("events.goal.fields.scorer")}</th>
+                <th>{t("events.fields.period")}</th>
+                <th>{t("events.goal.fields.details")}</th>
+                <th className="text-end">{t("common.labels.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -752,13 +746,13 @@ function GoalsSection({
                 goals.map((g) => (
                   <tr key={g.id}>
                     <td>{teamName(g.teamId)}</td>
-                    <td>{g.playerName ?? "Non identifié"}</td>
+                    <td>{g.playerName ?? t("events.player.unidentified")}</td>
                     <td>
                       {g.minute}&apos; {PERIOD_SHORT[g.period]}
                     </td>
                     <td>
-                      {g.isOwnGoal && <span className="badge bg-danger-subtle text-danger me-1">CSC</span>}
-                      {g.isPenalty && <span className="badge bg-info-subtle text-info">Penalty</span>}
+                      {g.isOwnGoal && <span className="badge bg-danger-subtle text-danger me-1">{t("events.goal.fields.ownGoal")}</span>}
+                      {g.isPenalty && <span className="badge bg-info-subtle text-info">{t("events.goal.fields.penalty")}</span>}
                       {!g.isOwnGoal && !g.isPenalty && "—"}
                     </td>
                     <td className="text-end">
@@ -768,7 +762,7 @@ function GoalsSection({
                         onClick={() => handleDelete(g.id)}
                         disabled={deletingId === g.id}
                       >
-                        {deletingId === g.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Supprimer"}
+                        {deletingId === g.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("common.actions.delete")}
                       </button>
                     </td>
                   </tr>
@@ -783,7 +777,7 @@ function GoalsSection({
 }
 
 /* ---------------------------------------------------------------------- */
-/* Blessures                                                               */
+/* {t("events.injury.plural")}                                                               */
 /* ---------------------------------------------------------------------- */
 
 function InjuriesSection({
@@ -807,6 +801,7 @@ function InjuriesSection({
   setSuccess: (v: string | null) => void;
   refresh: () => void;
 }) {
+  const { t } = useLanguage();
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [playerId, setPlayerId] = useState("");
   const [period, setPeriod] = useState<MatchPeriod | "">("");
@@ -821,11 +816,11 @@ function InjuriesSection({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamId) {
-      setError("Merci de sélectionner une équipe");
+      setError(t("events.validation.selectTeam"));
       return;
     }
     if (!playerId) {
-      setError("Merci de sélectionner un joueur");
+      setError(t("events.validation.selectPlayer"));
       return;
     }
     setAdding(true);
@@ -843,7 +838,7 @@ function InjuriesSection({
         requiresSubstitution,
       );
       if (result.success) {
-        setSuccess(result.message ?? "Blessure enregistrée");
+        setSuccess(result.message ?? t("events.injury.messages.saved"));
         setPlayerId("");
         setMinute("");
         setPeriod("");
@@ -859,7 +854,7 @@ function InjuriesSection({
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette blessure ?")) return;
+    if (!confirm(t("events.injury.confirmDelete"))) return;
     setDeletingId(id);
     try {
       const result = await deleteInjury(id, matchId);
@@ -873,12 +868,12 @@ function InjuriesSection({
   return (
     <div className="card">
       <div className="card-header bg-transparent">
-        <h5 className="card-title mb-0">Ajouter une blessure</h5>
+        <h5 className="card-title mb-0">{t("events.injury.actions.add")}</h5>
       </div>
       <div className="card-body">
         <form className="row g-3 mb-4" onSubmit={handleSubmit}>
           <div className="col-md-3">
-            <label className="form-label">Équipe</label>
+            <label className="form-label">{t("events.fields.team")}</label>
             <select
               className="form-select"
               value={teamId}
@@ -895,9 +890,9 @@ function InjuriesSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Joueur</label>
+            <label className="form-label">{t("events.fields.player")}</label>
             <select className="form-select" value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
-              <option value="">— Sélectionner —</option>
+              <option value="">{t("common.select.placeholder")}</option>
               {players.map((p) => (
                 <option key={p.playerId} value={p.playerId}>
                   {p.shirtNumber != null ? `#${p.shirtNumber} ` : ""}
@@ -907,22 +902,22 @@ function InjuriesSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Temps (optionnel)</label>
+            <label className="form-label">{t("events.fields.periodOptional")}</label>
             <select className="form-select" value={period} onChange={(e) => setPeriod(e.target.value as MatchPeriod | "")}>
-              <option value="">— Non précisé —</option>
-              {(Object.keys(PERIOD_LABELS) as MatchPeriod[]).map((p) => (
+              <option value="">{t("common.labels.unspecified")}</option>
+              {(Object.keys(PERIOD_KEYS) as MatchPeriod[]).map((p) => (
                 <option key={p} value={p}>
-                  {PERIOD_LABELS[p]}
+                  {t(PERIOD_KEYS[p])}
                 </option>
               ))}
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Minute (optionnel)</label>
+            <label className="form-label">{t("events.fields.minuteOptional")}</label>
             <input type="number" min={0} max={130} className="form-control" value={minute} onChange={(e) => setMinute(e.target.value)} />
           </div>
           <div className="col-12">
-            <label className="form-label">Description</label>
+            <label className="form-label">{t("common.labels.description")}</label>
             <textarea className="form-control" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           <div className="col-12">
@@ -941,7 +936,7 @@ function InjuriesSection({
           </div>
           <div className="col-12">
             <button type="submit" className="btn btn-primary" disabled={adding}>
-              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Ajouter la blessure"}
+              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("events.injury.actions.submit")}
             </button>
           </div>
         </form>
@@ -950,12 +945,12 @@ function InjuriesSection({
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>Équipe</th>
-                <th>Joueur</th>
-                <th>Temps</th>
-                <th>Description</th>
-                <th>Remplacement</th>
-                <th className="text-end">Action</th>
+                <th>{t("events.fields.team")}</th>
+                <th>{t("events.fields.player")}</th>
+                <th>{t("events.fields.period")}</th>
+                <th>{t("common.labels.description")}</th>
+                <th>{t("events.injury.fields.replacement")}</th>
+                <th className="text-end">{t("common.labels.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -969,16 +964,16 @@ function InjuriesSection({
                 injuries.map((i) => (
                   <tr key={i.id}>
                     <td>{teamName(i.teamId)}</td>
-                    <td>{i.playerName ?? "Non identifié"}</td>
+                    <td>{i.playerName ?? t("events.player.unidentified")}</td>
                     <td>
                       {i.minute != null ? `${i.minute}'` : "—"} {i.period ? PERIOD_SHORT[i.period] : ""}
                     </td>
                     <td>{i.description ?? "—"}</td>
                     <td>
                       {i.requiresSubstitution ? (
-                        <span className="badge bg-warning-subtle text-warning">Oui</span>
+                        <span className="badge bg-warning-subtle text-warning">{t("common.answers.yes")}</span>
                       ) : (
-                        <span className="badge bg-light text-dark border">Non</span>
+                        <span className="badge bg-light text-dark border">{t("common.answers.no")}</span>
                       )}
                     </td>
                     <td className="text-end">
@@ -988,7 +983,7 @@ function InjuriesSection({
                         onClick={() => handleDelete(i.id)}
                         disabled={deletingId === i.id}
                       >
-                        {deletingId === i.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Supprimer"}
+                        {deletingId === i.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("common.actions.delete")}
                       </button>
                     </td>
                   </tr>
@@ -1003,7 +998,7 @@ function InjuriesSection({
 }
 
 /* ---------------------------------------------------------------------- */
-/* Remplacements                                                           */
+/* {t("events.substitution.plural")}                                                           */
 /* ---------------------------------------------------------------------- */
 
 function SubstitutionsSection({
@@ -1027,6 +1022,7 @@ function SubstitutionsSection({
   setSuccess: (v: string | null) => void;
   refresh: () => void;
 }) {
+  const { t } = useLanguage();
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [playerOutId, setPlayerOutId] = useState("");
   const [playerInId, setPlayerInId] = useState("");
@@ -1044,15 +1040,15 @@ function SubstitutionsSection({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamId) {
-      setError("Merci de sélectionner une équipe");
+      setError(t("events.validation.selectTeam"));
       return;
     }
     if (!playerOutId || !playerInId) {
-      setError("Merci de sélectionner les deux joueurs");
+      setError(t("events.validation.selectBothPlayers"));
       return;
     }
     if (!minute) {
-      setError("Merci de renseigner la minute");
+      setError(t("events.validation.minuteRequired"));
       return;
     }
     setAdding(true);
@@ -1061,7 +1057,7 @@ function SubstitutionsSection({
     try {
       const result = await addSubstitution(sheetId, matchId, teamId, playerOutId, playerInId, Number(minute), period);
       if (result.success) {
-        setSuccess(result.message ?? "Remplacement enregistré");
+        setSuccess(result.message ?? t("events.substitution.messages.saved"));
         setPlayerOutId("");
         setPlayerInId("");
         setMinute("");
@@ -1075,7 +1071,7 @@ function SubstitutionsSection({
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer ce remplacement ?")) return;
+    if (!confirm(t("events.substitution.confirmDelete"))) return;
     setDeletingId(id);
     try {
       const result = await deleteSubstitution(id, matchId);
@@ -1089,12 +1085,12 @@ function SubstitutionsSection({
   return (
     <div className="card">
       <div className="card-header bg-transparent">
-        <h5 className="card-title mb-0">Ajouter un remplacement</h5>
+        <h5 className="card-title mb-0">{t("events.substitution.actions.add")}</h5>
       </div>
       <div className="card-body">
         <form className="row g-3 mb-4" onSubmit={handleSubmit}>
           <div className="col-md-3">
-            <label className="form-label">Équipe</label>
+            <label className="form-label">{t("events.fields.team")}</label>
             <select
               className="form-select"
               value={teamId}
@@ -1112,9 +1108,9 @@ function SubstitutionsSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Joueur sortant</label>
+            <label className="form-label">{t("events.substitution.fields.playerOut")}</label>
             <select className="form-select" value={playerOutId} onChange={(e) => setPlayerOutId(e.target.value)}>
-              <option value="">— Sélectionner —</option>
+              <option value="">{t("common.select.placeholder")}</option>
               {outCandidates.map((p) => (
                 <option key={p.playerId} value={p.playerId}>
                   {p.shirtNumber != null ? `#${p.shirtNumber} ` : ""}
@@ -1124,9 +1120,9 @@ function SubstitutionsSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Joueur entrant</label>
+            <label className="form-label">{t("events.substitution.fields.playerIn")}</label>
             <select className="form-select" value={playerInId} onChange={(e) => setPlayerInId(e.target.value)}>
-              <option value="">— Sélectionner —</option>
+              <option value="">{t("common.select.placeholder")}</option>
               {inCandidates.map((p) => (
                 <option key={p.playerId} value={p.playerId}>
                   {p.shirtNumber != null ? `#${p.shirtNumber} ` : ""}
@@ -1136,22 +1132,22 @@ function SubstitutionsSection({
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Temps</label>
+            <label className="form-label">{t("events.fields.period")}</label>
             <select className="form-select" value={period} onChange={(e) => setPeriod(e.target.value as MatchPeriod)}>
-              {(Object.keys(PERIOD_LABELS) as MatchPeriod[]).map((p) => (
+              {(Object.keys(PERIOD_KEYS) as MatchPeriod[]).map((p) => (
                 <option key={p} value={p}>
-                  {PERIOD_LABELS[p]}
+                  {t(PERIOD_KEYS[p])}
                 </option>
               ))}
             </select>
           </div>
           <div className="col-md-3">
-            <label className="form-label">Minute</label>
+            <label className="form-label">{t("events.fields.minute")}</label>
             <input type="number" min={0} max={130} className="form-control" value={minute} onChange={(e) => setMinute(e.target.value)} />
           </div>
           <div className="col-12">
             <button type="submit" className="btn btn-primary" disabled={adding}>
-              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Ajouter le remplacement"}
+              {adding ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("events.substitution.actions.submit")}
             </button>
           </div>
         </form>
@@ -1160,10 +1156,10 @@ function SubstitutionsSection({
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>Équipe</th>
-                <th>Changement</th>
-                <th>Temps</th>
-                <th className="text-end">Action</th>
+                <th>{t("events.fields.team")}</th>
+                <th>{t("events.substitution.change")}</th>
+                <th>{t("events.fields.period")}</th>
+                <th className="text-end">{t("common.labels.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1178,7 +1174,7 @@ function SubstitutionsSection({
                   <tr key={s.id}>
                     <td>{teamName(s.teamId)}</td>
                     <td>
-                      <span className="text-danger">{s.playerOutName}</span> sort, <span className="text-success">{s.playerInName}</span> entre
+                      <span className="text-danger">{s.playerOutName}</span> {t("events.substitution.exits")}, <span className="text-success">{s.playerInName}</span> {t("events.substitution.enters")}
                     </td>
                     <td>
                       {s.minute}&apos; {PERIOD_SHORT[s.period]}
@@ -1190,7 +1186,7 @@ function SubstitutionsSection({
                         onClick={() => handleDelete(s.id)}
                         disabled={deletingId === s.id}
                       >
-                        {deletingId === s.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : "Supprimer"}
+                        {deletingId === s.id ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : t("common.actions.delete")}
                       </button>
                     </td>
                   </tr>
