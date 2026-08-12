@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatPriceTnd } from "@/lib/format";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export function PurchaseForm({
   matchTicketCategoryId,
@@ -18,6 +19,7 @@ export function PurchaseForm({
   maxTicketsPerUser: number;
   saleOpen: boolean;
 }) {
+  const { locale, t } = useI18n();
   const [quantity, setQuantity] = useState(1);
   const [audienceConfirmed, setAudienceConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,20 +44,20 @@ export function PurchaseForm({
         throw new Error(body?.error ?? `Erreur ${res.status}`);
       }
       if (!body?.payUrl) {
-        throw new Error("Réponse inattendue du serveur (lien de paiement manquant).");
+        throw new Error(t("purchase.unexpected"));
       }
       window.location.href = body.payUrl;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Achat impossible.");
+      setError(err instanceof Error ? err.message : t("purchase.failed"));
       setLoading(false);
     }
   }
 
   if (!saleOpen) {
-    return <p style={{ fontSize: "0.82rem", color: "var(--tk-text-muted)", marginTop: 10 }}>Vente non ouverte pour cette catégorie.</p>;
+    return <p style={{ fontSize: "0.82rem", color: "var(--tk-text-muted)", marginTop: 10 }}>{t("purchase.saleClosed")}</p>;
   }
   if (remaining <= 0) {
-    return <p style={{ fontSize: "0.82rem", color: "var(--tk-danger)", marginTop: 10 }}>Complet.</p>;
+    return <p style={{ fontSize: "0.82rem", color: "var(--tk-danger)", marginTop: 10 }}>{t("purchase.soldOut")}</p>;
   }
 
   return (
@@ -69,11 +71,7 @@ export function PurchaseForm({
             onChange={(e) => setAudienceConfirmed(e.target.checked)}
             style={{ marginTop: 2 }}
           />
-          <span>
-            Je confirme être{" "}
-            {allowedAudience === "HOME_SUPPORTERS" ? "supporter du club recevant" : "supporter du club visiteur"} pour
-            cette catégorie.
-          </span>
+          <span>{t(allowedAudience === "HOME_SUPPORTERS" ? "purchase.homeConfirmation" : "purchase.awayConfirmation")}</span>
         </label>
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -99,7 +97,7 @@ export function PurchaseForm({
             opacity: loading || (requiresConfirmation && !audienceConfirmed) ? 0.6 : 1,
           }}
         >
-          {loading ? "…" : `Acheter — ${formatPriceTnd(price)}`}
+          {loading ? "…" : t("purchase.buy", { price: formatPriceTnd(price, locale) })}
         </button>
       </div>
     </form>

@@ -15,9 +15,12 @@ export interface OpenMatchSummary {
   date: Date | null;
   homeTeamName: string;
   awayTeamName: string;
+  homeTeamNameAr: string | null;
+  awayTeamNameAr: string | null;
   homeTeamLogo: string | null;
   awayTeamLogo: string | null;
   stadium: string | null;
+  stadiumAr: string | null;
 }
 
 // Liste publique des matchs pour lesquels au moins une catégorie de billet
@@ -42,9 +45,12 @@ export async function listOpenMatches(): Promise<OpenMatchSummary[]> {
     date: m.date ?? null,
     homeTeamName: m.homeTeam?.nom ?? "Équipe à domicile",
     awayTeamName: m.awayTeam?.nom ?? "Équipe visiteuse",
+    homeTeamNameAr: m.homeTeam?.nomAr ?? null,
+    awayTeamNameAr: m.awayTeam?.nomAr ?? null,
     homeTeamLogo: m.homeTeam?.logoUrl ?? null,
     awayTeamLogo: m.awayTeam?.logoUrl ?? null,
     stadium: m.homeTeam?.stadium ?? null,
+    stadiumAr: m.homeTeam?.stadiumAr ?? null,
   }));
 }
 
@@ -68,9 +74,12 @@ export interface MatchDetail {
   awayTeamId: string;
   homeTeamName: string;
   awayTeamName: string;
+  homeTeamNameAr: string | null;
+  awayTeamNameAr: string | null;
   homeTeamLogo: string | null;
   awayTeamLogo: string | null;
   stadium: string | null;
+  stadiumAr: string | null;
   offers: CategoryOffer[];
 }
 
@@ -120,9 +129,12 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail | nul
     awayTeamId: match.equipeAway,
     homeTeamName: match.homeTeam?.nom ?? "Équipe à domicile",
     awayTeamName: match.awayTeam?.nom ?? "Équipe visiteuse",
+    homeTeamNameAr: match.homeTeam?.nomAr ?? null,
+    awayTeamNameAr: match.awayTeam?.nomAr ?? null,
     homeTeamLogo: match.homeTeam?.logoUrl ?? null,
     awayTeamLogo: match.awayTeam?.logoUrl ?? null,
     stadium: match.homeTeam?.stadium ?? null,
+    stadiumAr: match.homeTeam?.stadiumAr ?? null,
     offers,
   };
 }
@@ -448,6 +460,8 @@ export interface MyTicket {
   matchDate: Date | null;
   homeTeamName: string;
   awayTeamName: string;
+  homeTeamNameAr: string | null;
+  awayTeamNameAr: string | null;
   categoryName: string;
 }
 
@@ -500,6 +514,8 @@ export async function listMyTickets(purchaserId: string): Promise<MyTicket[]> {
       matchDate: match?.date ?? null,
       homeTeamName: match?.homeTeam?.nom ?? "Équipe à domicile",
       awayTeamName: match?.awayTeam?.nom ?? "Équipe visiteuse",
+      homeTeamNameAr: match?.homeTeam?.nomAr ?? null,
+      awayTeamNameAr: match?.awayTeam?.nomAr ?? null,
       categoryName: category?.name ?? "Catégorie",
     };
   });
@@ -515,6 +531,8 @@ export interface AudienceMismatchTicketSummary {
   matchDate: Date | null;
   homeTeamName: string;
   awayTeamName: string;
+  homeTeamNameAr: string | null;
+  awayTeamNameAr: string | null;
   categoryName: string;
   purchaserId: string;
 }
@@ -564,6 +582,8 @@ export async function listAudienceMismatchTickets(matchId?: string): Promise<Aud
       matchDate: match?.date ?? null,
       homeTeamName: match?.homeTeam?.nom ?? "Équipe à domicile",
       awayTeamName: match?.awayTeam?.nom ?? "Équipe visiteuse",
+      homeTeamNameAr: match?.homeTeam?.nomAr ?? null,
+      awayTeamNameAr: match?.awayTeam?.nomAr ?? null,
       categoryName: category?.name ?? "Catégorie",
       purchaserId: t.purchaserId,
     };

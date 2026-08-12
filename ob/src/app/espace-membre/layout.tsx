@@ -4,6 +4,7 @@ import { MemberTabs } from "@/components/MemberTabs";
 import { getSsoSession, buildMemberLoginUrlForPath } from "@/lib/ssoSession";
 import { fetchUnreadCount } from "@/lib/notificationApi";
 import shared from "@/components/shared.module.css";
+import { getTranslator } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
  * marketplace supporter existeront (voir leurs pages respectives).
  */
 export default async function EspaceMembreLayout({ children }: { children: React.ReactNode }) {
+  const { t } = await getTranslator();
   const session = await getSsoSession();
   if (!session) {
     redirect(await buildMemberLoginUrlForPath("/espace-membre"));
@@ -33,10 +35,10 @@ export default async function EspaceMembreLayout({ children }: { children: React
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 8 }}>
-            Espace membre
+            {t("member.title")}
           </h1>
           <p style={{ color: "var(--ob-text-faint)", marginBottom: 28 }}>
-            Bienvenue, <strong>{session.name}</strong>.
+            {t("member.welcome", { name: session.name })}
           </p>
           <MemberTabs unreadCount={unreadCount} />
           <div style={{ marginTop: 24 }}>{children}</div>

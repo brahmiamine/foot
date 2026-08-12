@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { reconcileTicketPayment } from "@/lib/tickets";
+import { getTranslator } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +19,14 @@ export default async function PaymentReturnPage({
 }: {
   searchParams: Promise<{ paymentId?: string }>;
 }) {
+  const { t } = await getTranslator();
   const { paymentId } = await searchParams;
 
   if (!paymentId) {
     return (
       <Main>
-        <Status color="var(--tk-danger)" title="Lien de retour invalide" />
+        <Status color="var(--tk-danger)" title={t("payment.invalid")} />
+        <TicketLink label={t("payment.viewTickets")} />
       </Main>
     );
   }
@@ -39,8 +42,8 @@ export default async function PaymentReturnPage({
   if (result === "PAID") {
     return (
       <Main>
-        <Status color="var(--tk-success)" title="Paiement confirmé" />
-        <p style={{ color: "var(--tk-text-muted)" }}>Vos billets sont disponibles dans « Mes billets ».</p>
+        <Status color="var(--tk-success)" title={t("payment.confirmed")} />
+        <p style={{ color: "var(--tk-text-muted)" }}>{t("payment.available")}</p><TicketLink label={t("payment.viewTickets")} />
       </Main>
     );
   }
@@ -48,20 +51,16 @@ export default async function PaymentReturnPage({
   if (result === "CANCELLED") {
     return (
       <Main>
-        <Status color="var(--tk-danger)" title="Paiement échoué ou annulé" />
-        <p style={{ color: "var(--tk-text-muted)" }}>
-          Votre réservation a été libérée. Vous pouvez retenter l&apos;achat depuis la page du match.
-        </p>
+        <Status color="var(--tk-danger)" title={t("payment.failed")} />
+        <p style={{ color: "var(--tk-text-muted)" }}>{t("payment.released")}</p><TicketLink label={t("payment.viewTickets")} />
       </Main>
     );
   }
 
   return (
     <Main>
-      <Status color="var(--tk-text-muted)" title="Paiement en cours de vérification" />
-      <p style={{ color: "var(--tk-text-muted)" }}>
-        Le statut définitif peut prendre quelques instants. Consultez « Mes billets » dans peu de temps.
-      </p>
+      <Status color="var(--tk-text-muted)" title={t("payment.checking")} />
+      <p style={{ color: "var(--tk-text-muted)" }}>{t("payment.wait")}</p><TicketLink label={t("payment.viewTickets")} />
     </Main>
   );
 }
@@ -70,14 +69,11 @@ function Main({ children }: { children: React.ReactNode }) {
   return (
     <main style={{ maxWidth: 480, margin: "0 auto", padding: "3rem 1.25rem", textAlign: "center" }}>
       {children}
-      <p style={{ marginTop: 24 }}>
-        <Link href="/mes-billets" style={{ color: "var(--tk-primary)", fontWeight: 600 }}>
-          Voir mes billets
-        </Link>
-      </p>
     </main>
   );
 }
+
+function TicketLink({ label }: { label: string }) { return <p style={{ marginTop: 24 }}><Link href="/mes-billets" style={{ color: "var(--tk-primary)", fontWeight: 600 }}>{label}</Link></p>; }
 
 function Status({ color, title }: { color: string; title: string }) {
   return (

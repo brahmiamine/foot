@@ -20,6 +20,8 @@ export class Team {
 
   @Column({ type: "varchar", length: 255, name: "nom" })
   nom!: string;
+  @Column({ type: "varchar", length: 255, nullable: true, name: "nom_ar" })
+  nomAr?: string | null;
 
   @Column({
     type: "enum",
