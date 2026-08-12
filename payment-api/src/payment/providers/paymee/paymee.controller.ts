@@ -8,6 +8,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
+import { CurrentService } from '../../../auth/decorators/current-service.decorator';
+import type { AuthenticatedService } from '../../../auth/interfaces/authenticated-service.interface';
 import { PaymentService } from '../../payment.service';
 import { InitPaymeePaymentDto } from './dto/init-paymee-payment.dto';
 import { InitPaymeePaymentResultDto } from './dto/init-paymee-payment-result.dto';
@@ -29,9 +31,13 @@ export class PaymeeController {
   @UseGuards(ServiceAuthGuard)
   async init(
     @Body() dto: InitPaymeePaymentDto,
+    @CurrentService() service: AuthenticatedService,
   ): Promise<InitPaymeePaymentResultDto> {
     try {
-      return await this.paymentService.initiatePaymeePayment(dto);
+      return await this.paymentService.initiatePaymeePayment(
+        dto,
+        service.application,
+      );
     } catch (error) {
       if (error instanceof PaymeeError) {
         throw toHttpException(error);

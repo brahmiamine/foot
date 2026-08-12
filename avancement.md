@@ -20,7 +20,7 @@ qui reste à faire, pour rester utilisable comme backlog.
 | 1 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
 | 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
 | 3 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
-| 4 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
+| 4 | Boucles fermées post-annulation (remboursements, avoirs, notification métier) | Paiement/Billetterie — webhook post-paiement fermé (payment-api → billetterie), remboursements toujours absents |
 | 5 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
 
 ---
@@ -48,12 +48,17 @@ non audités de bout en bout.
   casser le live sans garde automatisée.
 
 ### Billetterie / paiement / contrôle d'accès
-- Le parcours achat est partiel : `billetterie` crée une réservation
-  `PENDING`, appelle `payment-api`, puis réconcilie par lecture de l'état de
-  paiement au retour navigateur ou sur `/mes-billets`. Le circuit
-  `payment-api → application appelante` n'existe pas : pas de webhook
-  applicatif signé, pas de file d'événement, pas de garantie que l'app métier
-  marque rapidement l'achat si l'utilisateur ne revient jamais.
+- Le parcours achat : `billetterie` crée une réservation `PENDING`, appelle
+  `payment-api`, puis réconcilie soit via le webhook applicatif signé
+  `payment-api → billetterie` (`POST /api/payments/webhook`, HMAC-SHA256,
+  déclenché dès que le paiement passe PAID côté `payment-api`), soit au
+  retour navigateur ou sur `/mes-billets` en secours. Dans les deux cas le
+  corps du webhook n'est jamais source de vérité : billetterie relit
+  `GET /payments/:id` avant de marquer les billets PAID. Reste manquant :
+  file d'événement/retry persistant au-delà des 2 tentatives en mémoire de
+  `payment-api`, et les autres apps appelantes de `payment-api` (`ob`,
+  `teamManager`, `sellerPortal`…) n'ont pas d'URL configurée dans
+  `WEBHOOK_URLS` — elles restent en polling pur tant que ça n'est pas fait.
 - Le contrôle d'accès au stade n'existe pas : pas d'app scanner, pas de QR code
   signé/rotation, pas d'état `USED` horodaté, pas de journal d'entrée, pas de
   mode offline scanner, pas de détection de double scan.
@@ -143,10 +148,10 @@ non audités de bout en bout.
 ### `billetterie`
 - Scanner de contrôle d'accès au stade : jamais commencé, aucun dossier/route dans le dépôt.
 - Audience réservée à l'achat toujours auto-déclarée par conception (tracée et recoupée avec les affiliations `sso` comme signal de modération non bloquant, mais pas un mécanisme d'identité fiable — aucun n'existe dans ce dépôt pour la remplacer).
-- Pas de webhook applicatif venant de `payment-api` : la confirmation dépend du retour utilisateur ou d'une reconciliation à la prochaine visite.
+- Webhook applicatif signé venant de `payment-api` en place (`POST /api/payments/webhook`) ; la reconciliation par retour utilisateur / `/mes-billets` reste le filet de sécurité si le webhook échoue ou n'est pas configuré.
 
 ### `payment-api`
-- Pas de callback/webhook applicatif vers les apps métier (seuls les providers rappellent `payment-api`) — la confirmation reste à la charge de chaque app appelante (polling/reconciliation).
+- Webhook applicatif signé (`WEBHOOK_URLS` + `PAYMENT_WEBHOOK_SECRET`, HMAC-SHA256, 2 retries en mémoire) vers l'app appelante quand un paiement passe PAID — configuré pour `billetterie` uniquement pour l'instant ; une app absente de `WEBHOOK_URLS` reste sur sa reconciliation par polling existante.
 - Pas de remboursements ni de payouts.
 - Pas d'état comptable exploitable pour les apps métier (facture/reçu, rapprochement, export compta, avoir/remboursement partiel).
 - Notifications limitées à `PAYMENT_SUCCEEDED`, uniquement si `userId` fourni par l'appelant.

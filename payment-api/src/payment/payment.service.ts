@@ -27,6 +27,7 @@ export interface PaymentPaidEvent {
   provider: PaymentProviderName;
   providerRef: string;
   userId: string | null;
+  callerApplication: string | null;
   amount: string;
   currency: string;
 }
@@ -54,10 +55,12 @@ export class PaymentService {
 
   async initiateKonnectPayment(
     dto: InitPaymentDto,
+    callerApplication: string,
   ): Promise<InitPaymentResultDto> {
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
       userId: dto.userId ?? null,
+      callerApplication,
       provider: PaymentProviderName.KONNECT,
       amount: dto.amount.toFixed(3),
       currency: dto.currency ?? 'TND',
@@ -147,6 +150,7 @@ export class PaymentService {
           provider: payment.provider,
           providerRef,
           userId: payment.userId,
+          callerApplication: payment.callerApplication,
           amount: payment.amount,
           currency: payment.currency,
         };
@@ -166,12 +170,14 @@ export class PaymentService {
 
   async initiatePaymeePayment(
     dto: InitPaymeePaymentDto,
+    callerApplication: string,
   ): Promise<InitPaymeePaymentResultDto> {
     const mode = dto.mode ?? PaymeeIntegrationMode.REDIRECT;
 
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
       userId: dto.userId ?? null,
+      callerApplication,
       provider: PaymentProviderName.PAYMEE,
       amount: formatPaymeeAmount(dto.amount),
       currency: 'TND',
@@ -271,6 +277,7 @@ export class PaymentService {
           provider: payment.provider,
           providerRef: payload.token,
           userId: payment.userId,
+          callerApplication: payment.callerApplication,
           amount: payment.amount,
           currency: payment.currency,
         };
@@ -290,10 +297,12 @@ export class PaymentService {
 
   async initiateFlouciPayment(
     dto: InitPaymentDto,
+    callerApplication: string,
   ): Promise<InitPaymentResultDto> {
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
       userId: dto.userId ?? null,
+      callerApplication,
       provider: PaymentProviderName.FLOUCI,
       amount: dto.amount.toFixed(3),
       currency: dto.currency ?? 'TND',
@@ -383,6 +392,7 @@ export class PaymentService {
           provider: payment.provider,
           providerRef: paymentId,
           userId: payment.userId,
+          callerApplication: payment.callerApplication,
           amount: payment.amount,
           currency: payment.currency,
         };
