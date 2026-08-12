@@ -11,6 +11,8 @@ export class MediaGallery {
 
   @Column({ type: "varchar", length: 200, name: "title_fr" })
   titleFr!: string;
+  @Column({ type: "varchar", length: 200, nullable: true, name: "title_ar" })
+  titleAr?: string | null;
 
   @Column({ type: "boolean", default: true, name: "is_public" })
   isPublic!: boolean;

@@ -1,3 +1,4 @@
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicContactService } from "@/services/PublicContactService";
 import { PublicTeamSocialsService } from "@/services/PublicTeamSocialsService";
@@ -5,14 +6,14 @@ import { getContactFormUrl } from "@/lib/publicForms";
 import { PageChrome } from "@/components/PageChrome";
 import shared from "@/components/shared.module.css";
 import styles from "./contact.module.css";
+import { localized } from "@/i18n/localized";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Contact — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.contact");
 
 export default async function ContactPage() {
+  const { locale, t } = await getTranslator();
   const team = await getObTeam();
   const [info, socials] = team
     ? await Promise.all([new PublicContactService().getInfo(team.id), new PublicTeamSocialsService().get(team.id)])
@@ -24,15 +25,15 @@ export default async function ContactPage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-            Contact
+            {t("contact.title")}
           </h1>
 
           <div className={styles.grid}>
             <div className={`${shared.card} ${styles.card}`}>
-              {info?.addressFr && (
+              {localized(locale, info?.addressFr, info?.addressAr) && (
                 <div className={styles.row}>
                   <i className="fas fa-map-marker-alt" aria-hidden="true" />
-                  <span>{info.addressFr}</span>
+                  <span>{localized(locale, info?.addressFr, info?.addressAr)}</span>
                 </div>
               )}
               {info?.phone && (
@@ -47,38 +48,38 @@ export default async function ContactPage() {
                   <span>{info.email}</span>
                 </div>
               )}
-              {info?.openingHoursFr && (
+              {localized(locale, info?.openingHoursFr, info?.openingHoursAr) && (
                 <div className={styles.row}>
                   <i className="fas fa-clock" aria-hidden="true" />
-                  <span>{info.openingHoursFr}</span>
+                  <span>{localized(locale, info?.openingHoursFr, info?.openingHoursAr)}</span>
                 </div>
               )}
-              {!info && <p className={shared.empty}>Les coordonnées du club seront bientôt disponibles.</p>}
+              {!info && <p className={shared.empty}>{t("contact.empty")}</p>}
 
               {(info?.adminPhone || info?.adminEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Administratif</div>
+                  <div className={styles.departmentLabel}>{t("contact.admin")}</div>
                   <div>{info.adminPhone}</div>
                   <div>{info.adminEmail}</div>
                 </div>
               )}
               {(info?.sportPhone || info?.sportEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Sportif</div>
+                  <div className={styles.departmentLabel}>{t("contact.sport")}</div>
                   <div>{info.sportPhone}</div>
                   <div>{info.sportEmail}</div>
                 </div>
               )}
               {(info?.academyPhone || info?.academyEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Académie</div>
+                  <div className={styles.departmentLabel}>{t("contact.academy")}</div>
                   <div>{info.academyPhone}</div>
                   <div>{info.academyEmail}</div>
                 </div>
               )}
               {(info?.partnershipPhone || info?.partnershipEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Partenariats</div>
+                  <div className={styles.departmentLabel}>{t("contact.partnerships")}</div>
                   <div>{info.partnershipPhone}</div>
                   <div>{info.partnershipEmail}</div>
                 </div>
@@ -114,19 +115,19 @@ export default async function ContactPage() {
                 </div>
               )}
 
-              {info?.mapEmbedUrl && <iframe src={info.mapEmbedUrl} loading="lazy" title="Carte" className={styles.map} />}
+              {info?.mapEmbedUrl && <iframe src={info.mapEmbedUrl} loading="lazy" title={t("contact.map")} className={styles.map} />}
             </div>
 
             <div className={`${shared.card} ${styles.formCard}`}>
-              <p>Une question, une demande de partenariat ou d&apos;inscription ? Écrivez-nous directement.</p>
+              <p>{t("contact.prompt")}</p>
               {contactFormUrl ? (
                 <a href={contactFormUrl} className={shared.btnPrimary}>
-                  Envoyer un message
+                  {t("contact.sendMessage")}
                 </a>
               ) : (
                 info?.email && (
                   <a href={`mailto:${info.email}`} className={shared.btnPrimary}>
-                    Envoyer un email
+                    {t("contact.sendEmail")}
                   </a>
                 )
               )}

@@ -1,3 +1,4 @@
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import Link from "next/link";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicClubService } from "@/services/PublicClubService";
@@ -5,78 +6,74 @@ import { PublicStadiumService } from "@/services/PublicStadiumService";
 import { PageChrome } from "@/components/PageChrome";
 import shared from "@/components/shared.module.css";
 import styles from "./club.module.css";
+import { localized } from "@/i18n/localized";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Le club — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.club");
 
-const FACILITY_TYPE_LABELS: Record<string, string> = {
-  STADIUM: "Stade",
-  TRAINING_GROUND: "Terrain d'entraînement",
-  LOCKER_ROOM: "Vestiaires",
-  GYM: "Salle de musculation",
-  SPORTS_CENTER: "Centre sportif",
-  OTHER: "Installation",
-};
+const FACILITY_TYPE_LABELS = {
+  STADIUM: "facility.stadium", TRAINING_GROUND: "facility.training", LOCKER_ROOM: "facility.locker",
+  GYM: "facility.gym", SPORTS_CENTER: "facility.center", OTHER: "facility.other",
+} as const;
 
 export default async function ClubPage() {
+  const { locale, t } = await getTranslator();
   const team = await getObTeam();
   const [info, facilities] = team
     ? await Promise.all([new PublicClubService().getClubInfo(team.id), new PublicStadiumService().getAllFacilities(team.id)])
     : [null, []];
 
-  const hasInfo = info && (info.presentationFr || info.valuesFr || info.sportProjectFr || info.organizationFr);
+  const hasInfo = info && (info.presentationFr || info.presentationAr || info.valuesFr || info.valuesAr || info.sportProjectFr || info.sportProjectAr || info.organizationFr || info.organizationAr);
 
   return (
     <PageChrome>
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 8 }}>
-            Le club
+            {t("club.title")}
           </h1>
           <p className={shared.sectionSubtitle} style={{ marginBottom: 28, display: "block" }}>
-            <Link href="/club/histoire">Voir l&apos;histoire et le palmarès du club →</Link>
+            <Link href="/club/histoire">{t("club.historyLink")}</Link>
           </p>
 
-          {!hasInfo && <p className={shared.empty}>La présentation du club sera bientôt disponible.</p>}
+          {!hasInfo && <p className={shared.empty}>{t("club.empty")}</p>}
 
-          {info?.presentationFr && (
+          {localized(locale, info?.presentationFr, info?.presentationAr) && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Qui sommes-nous ?</div>
-              <div className={styles.text}>{info.presentationFr}</div>
+              <div className={styles.sectionHeading}>{t("club.about")}</div>
+              <div className={styles.text}>{localized(locale, info?.presentationFr, info?.presentationAr)}</div>
             </div>
           )}
-          {info?.valuesFr && (
+          {localized(locale, info?.valuesFr, info?.valuesAr) && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Valeurs</div>
-              <div className={styles.text}>{info.valuesFr}</div>
+              <div className={styles.sectionHeading}>{t("club.values")}</div>
+              <div className={styles.text}>{localized(locale, info?.valuesFr, info?.valuesAr)}</div>
             </div>
           )}
-          {info?.sportProjectFr && (
+          {localized(locale, info?.sportProjectFr, info?.sportProjectAr) && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Projet sportif</div>
-              <div className={styles.text}>{info.sportProjectFr}</div>
+              <div className={styles.sectionHeading}>{t("club.project")}</div>
+              <div className={styles.text}>{localized(locale, info?.sportProjectFr, info?.sportProjectAr)}</div>
             </div>
           )}
-          {info?.organizationFr && (
+          {localized(locale, info?.organizationFr, info?.organizationAr) && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Organisation</div>
-              <div className={styles.text}>{info.organizationFr}</div>
+              <div className={styles.sectionHeading}>{t("club.organization")}</div>
+              <div className={styles.text}>{localized(locale, info?.organizationFr, info?.organizationAr)}</div>
             </div>
           )}
 
           {facilities.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.sectionHeading}>Installations</div>
+              <div className={styles.sectionHeading}>{t("club.facilities")}</div>
               <div className={styles.facilitiesGrid}>
                 {facilities.map((facility) => (
                   <div key={facility.id} className={`${shared.card} ${styles.facilityCard}`}>
-                    <div className={styles.facilityType}>{FACILITY_TYPE_LABELS[facility.facilityType] ?? facility.facilityType}</div>
-                    <div className={styles.facilityName}>{facility.nameFr}</div>
-                    {facility.cityFr && <div className={styles.facilityMeta}>{facility.cityFr}</div>}
-                    {facility.capacity && <div className={styles.facilityMeta}>Capacité : {facility.capacity.toLocaleString()}</div>}
+                    <div className={styles.facilityType}>{facility.facilityType in FACILITY_TYPE_LABELS ? t(FACILITY_TYPE_LABELS[facility.facilityType as keyof typeof FACILITY_TYPE_LABELS]) : facility.facilityType}</div>
+                    <div className={styles.facilityName}>{localized(locale, facility.nameFr, facility.nameAr)}</div>
+                    {localized(locale, facility.cityFr, facility.cityAr) && <div className={styles.facilityMeta}>{localized(locale, facility.cityFr, facility.cityAr)}</div>}
+                    {facility.capacity && <div className={styles.facilityMeta}>{t("club.capacity", { capacity: facility.capacity.toLocaleString() })}</div>}
                   </div>
                 ))}
               </div>

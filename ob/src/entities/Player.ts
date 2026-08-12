@@ -11,9 +11,13 @@ export class Player {
 
   @Column({ type: "varchar", length: 191, name: "firstNameFr" })
   firstNameFr!: string;
+  @Column({ type: "varchar", length: 191, nullable: true, name: "firstNameAr" })
+  firstNameAr?: string | null;
 
   @Column({ type: "varchar", length: 191, name: "lastNameFr" })
   lastNameFr!: string;
+  @Column({ type: "varchar", length: 191, nullable: true, name: "lastNameAr" })
+  lastNameAr?: string | null;
 
   @Column({ type: "int" })
   number!: number;

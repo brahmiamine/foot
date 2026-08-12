@@ -1,18 +1,15 @@
-import Link from "next/link";
 import shared from "@/components/shared.module.css";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 
-export const metadata = {
-  title: "Mes commandes — Espace membre — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.orders");
 
-export default function CommandesPage() {
+export default async function CommandesPage() {
+  const { t } = await getTranslator();
   return (
     <div className={shared.card} style={{ padding: 24 }}>
-      <h2 style={{ marginTop: 0 }}>Mes commandes</h2>
+      <h2 style={{ marginTop: 0 }}>{t("member.orders")}</h2>
       <p style={{ color: "var(--ob-text-muted)" }}>
-        Le paiement en ligne de la boutique n&apos;est pas encore disponible : cet espace affichera l&apos;historique
-        de vos commandes (statut, suivi, facture) une fois le tunnel d&apos;achat ouvert. Pour l&apos;instant, la{" "}
-        <Link href="/boutique">boutique</Link> reste consultable, sans commande en ligne.
+        {t("member.noOrders")}
       </p>
     </div>
   );
