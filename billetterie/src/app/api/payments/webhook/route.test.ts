@@ -7,6 +7,11 @@ vi.mock("@/lib/tickets", () => ({
   reconcileTicketPayment: (...args: unknown[]) => reconcileTicketPayment(...args),
 }));
 
+const claimWebhookEvent = vi.fn();
+vi.mock("@/lib/webhookIdempotency", () => ({
+  claimWebhookEvent: (...args: unknown[]) => claimWebhookEvent(...args),
+}));
+
 const envBackup = { ...process.env };
 afterEach(() => {
   process.env = { ...envBackup };
@@ -72,25 +77,52 @@ describe("POST /api/payments/webhook", () => {
   });
 
   it("accepts a validly signed body and reconciles the payment", async () => {
+    claimWebhookEvent.mockResolvedValue(true);
     reconcileTicketPayment.mockResolvedValue("PAID");
     const { POST } = await import("./route");
-    const body = JSON.stringify({ paymentId: "payment-1", orderId: "ORDER-1" });
+    const body = JSON.stringify({ paymentId: "payment-1", eventId: "event-1", orderId: "ORDER-1" });
 
     const response = await POST(buildRequest(body, sign("top-secret", body)));
     const json = await response.json();
 
     expect(response.status).toBe(200);
     expect(json).toEqual({ status: "PAID" });
+    expect(claimWebhookEvent).toHaveBeenCalledWith("event-1", "payment-1");
     expect(reconcileTicketPayment).toHaveBeenCalledWith("payment-1");
   });
 
   it("returns 422 when paymentId is missing from an otherwise validly signed body", async () => {
     const { POST } = await import("./route");
-    const body = JSON.stringify({ orderId: "ORDER-1" });
+    const body = JSON.stringify({ eventId: "event-1", orderId: "ORDER-1" });
 
     const response = await POST(buildRequest(body, sign("top-secret", body)));
 
     expect(response.status).toBe(422);
+    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when eventId is missing from an otherwise validly signed body", async () => {
+    const { POST } = await import("./route");
+    const body = JSON.stringify({ paymentId: "payment-1", orderId: "ORDER-1" });
+
+    const response = await POST(buildRequest(body, sign("top-secret", body)));
+
+    expect(response.status).toBe(422);
+    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(claimWebhookEvent).not.toHaveBeenCalled();
+  });
+
+  it("TS-14: acknowledges a retried event without re-running reconciliation", async () => {
+    claimWebhookEvent.mockResolvedValue(false);
+    const { POST } = await import("./route");
+    const body = JSON.stringify({ paymentId: "payment-1", eventId: "event-1", orderId: "ORDER-1" });
+
+    const response = await POST(buildRequest(body, sign("top-secret", body)));
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json).toEqual({ status: "ALREADY_PROCESSED" });
+    expect(claimWebhookEvent).toHaveBeenCalledWith("event-1", "payment-1");
     expect(reconcileTicketPayment).not.toHaveBeenCalled();
   });
 });

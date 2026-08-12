@@ -399,11 +399,29 @@ avec DLQ ou statut `FAILED`.
 
 ## TS-14 — Idempotence côté consommateur
 
-Billetterie / TeamManager doivent mémoriser `eventId` afin de garantir :
+**Statut :** ✅ Livré pour `billetterie` (seul consommateur webhook branché aujourd'hui)
+
+Doit mémoriser `eventId` afin de garantir :
 
 ```text
 same event × N retries = 1 traitement métier
 ```
+
+Table `tk_processed_webhook_events` (`event_id` en clé primaire) : le
+premier appel avec un `eventId` donné insère la ligne et déclenche
+`reconcileTicketPayment` ; tout appel suivant échoue sur la contrainte
+d'unicité et reçoit `{ status: "ALREADY_PROCESSED" }` sans ré-exécuter le
+traitement métier ni le nouvel appel réseau à `payment-api` qu'il implique
+— y compris en cas de course entre deux retries reçus quasi
+simultanément (la contrainte d'unicité fait office de verrou).
+`reconcileTicketPayment` restait déjà idempotent sur l'état des billets
+(ne mute que les billets encore `PENDING`), mais rien n'empêchait de le
+ré-exécuter — et le réseau vers payment-api — à chaque retry avant ce
+correctif.
+
+`teamManager` n'est pas concerné aujourd'hui : `WEBHOOK_URLS` ne le
+référence pas encore (voir Epic E04), donc aucun webhook n'y arrive pour
+l'instant — ce point sera à traiter quand ce circuit sera branché.
 
 ---
 
@@ -1330,6 +1348,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Scanner v1 + caméra + mode offline
 ✅ QR signé, double scan, journal d'entrée
 ✅ Webhook post-paiement signé
+✅ Idempotence webhook (TS-14, eventId mémorisé)
 ⏳ Valider caméra/offline en conditions réelles
 ⏳ Contrôle supporter strict (affiliation vérifiée)
 ⏳ Politique configurable (STRICT/DECLARATIVE)
@@ -1454,7 +1473,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ```text
 ⏳ TS-12 payment outbox
 ⏳ TS-13 retry durable
-⏳ TS-14 consumer idempotency
+✅ TS-14 consumer idempotency (billetterie)
 ```
 
 ## Sprint 5 — Fulfillment boutique
