@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -27,6 +28,7 @@ const TYPE_ICON: Record<string, string> = {
 };
 
 export default function NotificationsPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<NotificationRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export default function NotificationsPage() {
         setItems(res.items);
         setError(null);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur de chargement."));
+      .catch((err) => setError(t("error.load")));
   }
 
   useEffect(load, []);
@@ -55,17 +57,15 @@ export default function NotificationsPage() {
   return (
     <div style={{ maxWidth: 680 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-        <h1 style={{ fontSize: "1.3rem", margin: 0 }}>Notifications</h1>
+        <h1 style={{ fontSize: "1.3rem", margin: 0 }}>{t("seller.nav.notifications")}</h1>
         {items && items.some((n) => !n.isRead) && (
-          <Button variant="ghost" onClick={markAllRead}>
-            Tout marquer comme lu
-          </Button>
+          <Button variant="ghost" onClick={markAllRead}>{t("seller.notifications.markAllRead")}</Button>
         )}
       </div>
 
       {error && <ErrorState message={error} onRetry={load} />}
       {!error && !items && <LoadingState />}
-      {items && items.length === 0 && <EmptyState title="Aucune notification" />}
+      {items && items.length === 0 && <EmptyState title={t("seller.notifications.empty")} />}
 
       {items && items.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

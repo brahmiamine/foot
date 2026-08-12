@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -18,6 +19,7 @@ export function DashboardShell({
   clubBranding: ClubBranding;
   children: ReactNode;
 }) {
+  useI18n();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Couleurs du club connecté injectées comme variables CSS scopées à ce

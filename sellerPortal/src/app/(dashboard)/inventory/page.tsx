@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Field";
@@ -17,6 +18,7 @@ interface InventoryRow {
 }
 
 export default function InventoryPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<InventoryRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -31,7 +33,7 @@ export default function InventoryPage() {
     api
       .get<{ items: InventoryRow[] }>(`/api/inventory?${params.toString()}`)
       .then((res) => setItems(res.items))
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur de chargement."));
+      .catch((err) => setError(t("error.load")));
   }, [query]);
 
   useEffect(() => {
@@ -54,30 +56,27 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>Stock</h1>
-      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
-        Le stock réservé et vendu est calculé automatiquement à partir des commandes — seul le stock disponible est
-        modifiable ici.
-      </p>
+      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>{t("seller.inventory.title")}</h1>
+      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>{t("seller.inventory.description")}</p>
 
       <Card style={{ marginBottom: "1rem" }}>
-        <Input placeholder="Rechercher un produit ou un SKU…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ maxWidth: 320 }} />
+        <Input placeholder={t("seller.inventory.search")} value={query} onChange={(e) => setQuery(e.target.value)} style={{ maxWidth: 320 }} />
       </Card>
 
       {error && <ErrorState message={error} onRetry={load} />}
       {!error && !items && <LoadingState />}
-      {items && items.length === 0 && <EmptyState title="Aucune ligne de stock" description="Ajoutez des produits pour gérer votre stock." />}
+      {items && items.length === 0 && <EmptyState title={t("seller.inventory.empty")} description={t("seller.inventory.emptyDescription")} />}
 
       {items && items.length > 0 && (
         <Card padded={false}>
           <Table>
             <Thead>
-              <Th>Produit</Th>
-              <Th>Variante</Th>
-              <Th>Disponible</Th>
-              <Th>Réservé</Th>
-              <Th>Vendu</Th>
-              <Th>Total</Th>
+              <Th>{t("seller.products.table.product")}</Th>
+              <Th>{t("seller.inventory.variant")}</Th>
+              <Th>{t("seller.inventory.available")}</Th>
+              <Th>{t("seller.inventory.reserved")}</Th>
+              <Th>{t("seller.inventory.sold")}</Th>
+              <Th>{t("common.total")}</Th>
               <Th></Th>
             </Thead>
             <tbody>
@@ -119,7 +118,7 @@ export default function InventoryPage() {
                           disabled={savingId === item.id}
                           style={{ background: "none", border: "none", color: "var(--sp-primary)", fontWeight: 600, fontSize: "0.78rem", cursor: "pointer" }}
                         >
-                          {savingId === item.id ? "…" : "Enregistrer"}
+                          {savingId === item.id ? "…" : t("common.save")}
                         </button>
                       )}
                     </Td>

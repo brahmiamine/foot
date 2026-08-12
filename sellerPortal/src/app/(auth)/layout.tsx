@@ -1,4 +1,7 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+import { getTranslator } from "@/i18n/server";
+
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { t } = await getTranslator();
   return (
     <div
       style={{
@@ -29,9 +32,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           >
             SP
           </div>
-          <h1 style={{ color: "#fff", fontSize: "1.15rem", margin: 0, fontWeight: 700 }}>Seller Portal</h1>
+          <h1 style={{ color: "#fff", fontSize: "1.15rem", margin: 0, fontWeight: 700 }}>{t("app.metadata.title")}</h1>
           <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.82rem", margin: "4px 0 0" }}>
-            Marketplace — espace vendeurs
+            {t("app.brand.subtitle")}
           </p>
         </div>
         <div

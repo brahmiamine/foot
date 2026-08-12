@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
@@ -18,9 +19,11 @@ export function Topbar({
   userName: string;
   onToggleMenu?: () => void;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const statusMeta = sellerStatusMeta[sellerStatus] ?? { label: sellerStatus, tone: "neutral" as const };
+  const statusMeta = sellerStatusMeta[sellerStatus];
+  const statusMetaLabel = statusMeta ? t(statusMeta.key) : sellerStatus;
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -51,7 +54,7 @@ export function Topbar({
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button
           onClick={onToggleMenu}
-          aria-label="Ouvrir le menu"
+          aria-label={t("seller.topbar.menu")}
           className="sp-menu-toggle"
           style={{ background: "none", border: "1px solid var(--sp-border)", borderRadius: 6, padding: "0.35rem 0.55rem", cursor: "pointer", display: "none" }}
         >
@@ -59,13 +62,13 @@ export function Topbar({
         </button>
         <div>
           <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>{sellerName}</div>
-          <div style={{ fontSize: "0.75rem", color: "var(--sp-text-muted)" }}>Connecté en tant que {userName}</div>
+          <div style={{ fontSize: "0.75rem", color: "var(--sp-text-muted)" }}>{t("seller.topbar.signedInAs", { name: userName })}</div>
         </div>
-        <Badge label={statusMeta.label} tone={statusMeta.tone} />
+        <Badge label={statusMetaLabel} tone={statusMeta?.tone} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <Link href="/notifications" aria-label="Notifications" style={{ fontSize: "1.1rem" }}>
+        <Link href="/notifications" aria-label={t("seller.nav.notifications")} style={{ fontSize: "1.1rem" }}>
           🔔
         </Link>
         <button
@@ -81,7 +84,7 @@ export function Topbar({
             cursor: "pointer",
           }}
         >
-          {loggingOut ? "…" : "Déconnexion"}
+          {loggingOut ? "…" : t("auth.logout")}
         </button>
       </div>
     </header>

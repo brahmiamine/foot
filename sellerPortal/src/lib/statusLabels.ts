@@ -1,46 +1,46 @@
 type Tone = "neutral" | "success" | "warning" | "danger" | "info";
 
-export const sellerStatusMeta: Record<string, { label: string; tone: Tone }> = {
-  PENDING: { label: "En attente de validation", tone: "warning" },
-  ACTIVE: { label: "Actif", tone: "success" },
-  SUSPENDED: { label: "Suspendu", tone: "danger" },
-  REJECTED: { label: "Refusé", tone: "danger" },
-  CLOSED: { label: "Fermé", tone: "neutral" },
+export const sellerStatusMeta: Record<string, { key: import("@/i18n").TranslationKey; tone: Tone }> = {
+  PENDING: { key: "status.seller.PENDING", tone: "warning" },
+  ACTIVE: { key: "status.seller.ACTIVE", tone: "success" },
+  SUSPENDED: { key: "status.seller.SUSPENDED", tone: "danger" },
+  REJECTED: { key: "status.seller.REJECTED", tone: "danger" },
+  CLOSED: { key: "status.seller.CLOSED", tone: "neutral" },
 };
 
-export const productStatusMeta: Record<string, { label: string; tone: Tone }> = {
-  DRAFT: { label: "Brouillon", tone: "neutral" },
-  SUBMITTED: { label: "Soumis", tone: "info" },
-  UNDER_REVIEW: { label: "En cours de modération", tone: "info" },
-  APPROVED: { label: "Approuvé", tone: "success" },
-  PUBLISHED: { label: "Publié", tone: "success" },
-  REJECTED: { label: "Refusé", tone: "danger" },
+export const productStatusMeta: Record<string, { key: import("@/i18n").TranslationKey; tone: Tone }> = {
+  DRAFT: { key: "status.product.DRAFT", tone: "neutral" },
+  SUBMITTED: { key: "status.product.SUBMITTED", tone: "info" },
+  UNDER_REVIEW: { key: "status.product.UNDER_REVIEW", tone: "info" },
+  APPROVED: { key: "status.product.APPROVED", tone: "success" },
+  PUBLISHED: { key: "status.product.PUBLISHED", tone: "success" },
+  REJECTED: { key: "status.product.REJECTED", tone: "danger" },
 };
 
-export const sellerOrderStatusMeta: Record<string, { label: string; tone: Tone }> = {
-  PENDING: { label: "En attente", tone: "warning" },
-  CONFIRMED: { label: "Confirmée", tone: "info" },
-  PROCESSING: { label: "En préparation", tone: "info" },
-  READY_TO_SHIP: { label: "À expédier", tone: "warning" },
-  SHIPPED: { label: "Expédiée", tone: "success" },
-  DELIVERED: { label: "Livrée", tone: "success" },
-  CANCELLED: { label: "Annulée", tone: "danger" },
-  RETURN_REQUESTED: { label: "Retour demandé", tone: "warning" },
-  RETURNED: { label: "Retournée", tone: "neutral" },
-  REFUNDED: { label: "Remboursée", tone: "neutral" },
+export const sellerOrderStatusMeta: Record<string, { key: import("@/i18n").TranslationKey; tone: Tone }> = {
+  PENDING: { key: "status.order.PENDING", tone: "warning" },
+  CONFIRMED: { key: "status.order.CONFIRMED", tone: "info" },
+  PROCESSING: { key: "status.order.PROCESSING", tone: "info" },
+  READY_TO_SHIP: { key: "status.order.READY_TO_SHIP", tone: "warning" },
+  SHIPPED: { key: "status.order.SHIPPED", tone: "success" },
+  DELIVERED: { key: "status.order.DELIVERED", tone: "success" },
+  CANCELLED: { key: "status.order.CANCELLED", tone: "danger" },
+  RETURN_REQUESTED: { key: "status.order.RETURN_REQUESTED", tone: "warning" },
+  RETURNED: { key: "status.order.RETURNED", tone: "neutral" },
+  REFUNDED: { key: "status.order.REFUNDED", tone: "neutral" },
 };
 
-export const returnStatusMeta: Record<string, { label: string; tone: Tone }> = {
-  REQUESTED: { label: "Demandé", tone: "warning" },
-  APPROVED: { label: "Approuvé", tone: "info" },
-  REJECTED: { label: "Refusé", tone: "danger" },
-  COMPLETED: { label: "Terminé", tone: "success" },
+export const returnStatusMeta: Record<string, { key: import("@/i18n").TranslationKey; tone: Tone }> = {
+  REQUESTED: { key: "status.return.REQUESTED", tone: "warning" },
+  APPROVED: { key: "status.return.APPROVED", tone: "info" },
+  REJECTED: { key: "status.return.REJECTED", tone: "danger" },
+  COMPLETED: { key: "status.return.COMPLETED", tone: "success" },
 };
 
-export const payoutStatusMeta: Record<string, { label: string; tone: Tone }> = {
-  PENDING: { label: "En attente", tone: "warning" },
-  PROCESSING: { label: "En traitement", tone: "info" },
-  PAID: { label: "Payé", tone: "success" },
-  FAILED: { label: "Échoué", tone: "danger" },
-  CANCELLED: { label: "Annulé", tone: "neutral" },
+export const payoutStatusMeta: Record<string, { key: import("@/i18n").TranslationKey; tone: Tone }> = {
+  PENDING: { key: "status.payout.PENDING", tone: "warning" },
+  PROCESSING: { key: "status.payout.PROCESSING", tone: "info" },
+  PAID: { key: "status.payout.PAID", tone: "success" },
+  FAILED: { key: "status.payout.FAILED", tone: "danger" },
+  CANCELLED: { key: "status.payout.CANCELLED", tone: "neutral" },
 };

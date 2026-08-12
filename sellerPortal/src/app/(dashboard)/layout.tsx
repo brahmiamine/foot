@@ -5,6 +5,7 @@ import { getDataSource } from "@/lib/database";
 import { Seller } from "@/entities/Seller";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { getClubBranding } from "@/lib/clubBranding";
+import { getTranslator } from "@/i18n/server";
 
 // Titre/favicon résolus dynamiquement par club connecté (voir
 // lib/clubBranding.ts) — jamais hardcodés à un club en particulier. Sans
@@ -19,8 +20,9 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!seller) return {};
 
   const branding = await getClubBranding(seller.clubId);
+  const { t } = await getTranslator();
   return {
-    title: `${branding.name} — Seller Portal`,
+    title: t("app.dashboard.title", { club: branding.name }),
     icons: branding.faviconUrl ? { icon: branding.faviconUrl } : undefined,
   };
 }

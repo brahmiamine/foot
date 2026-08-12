@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
@@ -8,6 +9,7 @@ import { FormField, Input } from "@/components/ui/Field";
 import { api, ApiError } from "@/lib/apiClient";
 
 export default function ShippingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useI18n();
   const { id } = usePromise(params);
   const router = useRouter();
   const [carrier, setCarrier] = useState("");
@@ -31,10 +33,8 @@ export default function ShippingPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div style={{ maxWidth: 480 }}>
-      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>Expédier la commande</h1>
-      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
-        Renseignez le transporteur et le numéro de suivi. La commande passera au statut « Expédiée ».
-      </p>
+      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>{t("seller.order.ship")}</h1>
+      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>{t("seller.order.shippingDescription")}</p>
 
       <Card>
         <form onSubmit={handleSubmit}>
@@ -44,20 +44,18 @@ export default function ShippingPage({ params }: { params: Promise<{ id: string 
             </div>
           )}
 
-          <FormField label="Transporteur" required>
-            <Input required value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="Ex: Aramex, Rapide Poste…" />
+          <FormField label={t("field.carrier")} required>
+            <Input required value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder={t("field.carrierHint")} />
           </FormField>
-          <FormField label="Numéro de suivi" required>
+          <FormField label={t("field.trackingNumber")} required>
             <Input required value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} />
           </FormField>
 
           <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
             <Button type="submit" disabled={loading}>
-              {loading ? "Enregistrement…" : "Marquer comme expédiée"}
+              {loading ? t("common.saving") : t("seller.order.markShipped")}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => router.back()}>
-              Annuler
-            </Button>
+            <Button type="button" variant="secondary" onClick={() => router.back()}>{t("common.cancel")}</Button>
           </div>
         </form>
       </Card>
