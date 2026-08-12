@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
+import { useI18n } from "@/i18n/I18nProvider";
 
 /**
  * Lecture caméra du QR code d'un billet (avancement.md, rang 2). Complète
@@ -16,6 +17,7 @@ import jsQR from "jsqr";
 const RESCAN_COOLDOWN_MS = 2500;
 
 export function CameraScanner({ onDetected }: { onDetected: (token: string) => void }) {
+  const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -29,7 +31,7 @@ export function CameraScanner({ onDetected }: { onDetected: (token: string) => v
 
     async function start() {
       if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-        setError("Caméra non disponible sur cet appareil/navigateur.");
+        setError(t("scanner.camera.unavailable"));
         return;
       }
       try {
@@ -49,7 +51,7 @@ export function CameraScanner({ onDetected }: { onDetected: (token: string) => v
         setActive(true);
         tick();
       } catch {
-        if (!cancelled) setError("Accès à la caméra refusé ou indisponible.");
+        if (!cancelled) setError(t("scanner.camera.denied"));
       }
     }
 
@@ -108,13 +110,13 @@ export function CameraScanner({ onDetected }: { onDetected: (token: string) => v
         <canvas ref={canvasRef} style={{ display: "none" }} />
         {!active && !error && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "0.85rem" }}>
-            Démarrage de la caméra…
+            {t("scanner.camera.starting")}
           </div>
         )}
       </div>
       {error && (
         <p style={{ color: "var(--tk-danger)", fontSize: "0.8rem", marginTop: "0.5rem" }}>
-          {error} Utilisez la douchette ou la saisie manuelle ci-dessous.
+          {error} {t("scanner.camera.fallback")}
         </p>
       )}
     </div>

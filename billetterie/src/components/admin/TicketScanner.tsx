@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CameraScanner } from "./CameraScanner";
+import { useI18n } from "@/i18n/I18nProvider";
+import type { TranslationKey } from "@/i18n/dictionaries";
 import {
   clearManifest,
   enqueuePendingScan,
@@ -37,12 +39,12 @@ interface ScanResponse {
   usedAt?: string | null;
 }
 
-const OUTCOME_LABELS: Record<RecentScanRow["result"], string> = {
-  SUCCESS: "Accès autorisé",
-  ALREADY_USED: "Déjà scanné",
-  NOT_PAID: "Billet non payé ou annulé",
-  MATCH_CANCELLED: "Match annulé",
-  INVALID: "Jeton invalide",
+const OUTCOME_KEYS: Record<RecentScanRow["result"], TranslationKey> = {
+  SUCCESS: "scanner.result.success",
+  ALREADY_USED: "scanner.result.alreadyUsed",
+  NOT_PAID: "scanner.result.notPaid",
+  MATCH_CANCELLED: "scanner.result.matchCancelled",
+  INVALID: "scanner.result.invalid",
 };
 
 const OUTCOME_COLORS: Record<RecentScanRow["result"], string> = {
@@ -60,6 +62,8 @@ export function TicketScanner({
   initialScans: RecentScanRow[];
   openMatches: OpenMatchOption[];
 }) {
+  const { locale, t } = useI18n();
+  const dateLocale = locale === "ar" ? "ar-TN" : "fr-FR";
   const [token, setToken] = useState("");
   const [scanning, setScanning] = useState(false);
   const [lastResult, setLastResult] = useState<ScanResponse | null>(null);
@@ -103,11 +107,11 @@ export function TicketScanner({
         credentials: "include",
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok || !body) throw new Error((body && "error" in body ? body.error : null) ?? "Échec du téléchargement.");
+      if (!res.ok || !body) throw new Error((body && "error" in body ? body.error : null) ?? t("scanner.manifest.downloadFailed"));
       saveManifest(body as OfflineScanManifest);
       setManifest(body as OfflineScanManifest);
     } catch (e) {
-      setManifestError(e instanceof Error ? e.message : "Échec du téléchargement.");
+      setManifestError(e instanceof Error ? e.message : t("scanner.manifest.downloadFailed"));
     } finally {
       setDownloadingManifest(false);
     }
@@ -143,8 +147,8 @@ export function TicketScanner({
     setPending(getPendingScans());
     setSyncMessage(
       failed === 0
-        ? `${synced} scan(s) synchronisé(s).`
-        : `${synced} scan(s) synchronisé(s), ${failed} échec(s) — reste en file, réessayez.`,
+        ? t("scanner.sync.success", { count: synced })
+        : t("scanner.sync.failed", { synced, failed }),
     );
     setSyncing(false);
   }
@@ -155,8 +159,8 @@ export function TicketScanner({
       {
         id: `${Date.now()}`,
         result: body.outcome,
-        scannedBy: "vous",
-        scannedAtLabel: "à l'instant",
+        scannedBy: t("scanner.history.you"),
+        scannedAtLabel: t("scanner.history.now"),
         reference: body.reference ?? null,
       },
       ...current,
@@ -172,14 +176,14 @@ export function TicketScanner({
     });
     const body = (await res.json().catch(() => null)) as ScanResponse | { error: string } | null;
     if (!res.ok || !body || "error" in body) {
-      throw new Error((body && "error" in body ? body.error : null) ?? "Échec du scan.");
+      throw new Error((body && "error" in body ? body.error : null) ?? t("scanner.result.scanFailed"));
     }
     processOnlineResult(body);
   }
 
   function scanOffline(value: string) {
     if (!manifest) {
-      setError("Téléchargez d'abord la liste hors-ligne pour ce match.");
+      setError(t("scanner.offline.manifestRequired"));
       return;
     }
     const evaluation = evaluateOfflineScan(value, manifest, getLocallyUsedTicketIds());
@@ -194,8 +198,8 @@ export function TicketScanner({
       {
         id: `${Date.now()}`,
         result: evaluation.outcome,
-        scannedBy: "vous (hors-ligne, à synchroniser)",
-        scannedAtLabel: "à l'instant",
+        scannedBy: t("scanner.history.youOffline"),
+        scannedAtLabel: t("scanner.history.now"),
         reference: evaluation.reference ?? null,
       },
       ...current,
@@ -215,7 +219,7 @@ export function TicketScanner({
         await scanOnline(trimmed);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Échec du scan.");
+      setError(e instanceof Error ? e.message : t("scanner.result.scanFailed"));
     } finally {
       setToken("");
       setScanning(false);
@@ -245,13 +249,13 @@ export function TicketScanner({
               display: "inline-block",
             }}
           />
-          {isOnline ? "Connecté" : "Hors connexion"}
+          {isOnline ? t("scanner.network.online") : t("scanner.network.offline")}
         </span>
         <button
           type="button"
           onClick={() => setCameraOn((v) => !v)}
           style={{
-            marginLeft: "auto",
+            marginInlineStart: "auto",
             fontSize: "0.78rem",
             padding: "0.35rem 0.7rem",
             borderRadius: "var(--tk-radius-md)",
@@ -261,7 +265,7 @@ export function TicketScanner({
             cursor: "pointer",
           }}
         >
-          {cameraOn ? "Fermer la caméra" : "Utiliser la caméra"}
+          {cameraOn ? t("scanner.camera.close") : t("scanner.camera.use")}
         </button>
         <button
           type="button"
@@ -276,7 +280,7 @@ export function TicketScanner({
             cursor: "pointer",
           }}
         >
-          {offlineMode ? "Mode hors-ligne activé" : "Mode hors-ligne"}
+          {offlineMode ? t("scanner.offline.enabled") : t("scanner.offline.enable")}
         </button>
       </div>
 
@@ -291,18 +295,15 @@ export function TicketScanner({
           }}
         >
           <p style={{ marginTop: 0, color: "var(--tk-text-muted)" }}>
-            Téléchargez la liste des billets du match pendant que vous êtes encore connecté. Les scans faits
-            hors-ligne sont mis en file et devront être synchronisés dès que la connexion revient — un jeton
-            forgé accepté hors-ligne peut être rejeté à la synchronisation.
+            {t("scanner.offline.explanation")}
           </p>
           {manifest ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
               <span>
-                Liste chargée : <strong>{manifest.matchLabel}</strong> ({manifest.tickets.length} billet(s),{" "}
-                {new Date(manifest.generatedAt).toLocaleString("fr-FR")})
+                {t("scanner.manifest.loaded", { match: manifest.matchLabel, count: manifest.tickets.length, date: new Date(manifest.generatedAt).toLocaleString(dateLocale) })}
               </span>
               <button type="button" onClick={forgetManifest} style={{ fontSize: "0.75rem", cursor: "pointer" }}>
-                Oublier cette liste
+                {t("scanner.manifest.forget")}
               </button>
             </div>
           ) : (
@@ -312,7 +313,7 @@ export function TicketScanner({
                 onChange={(e) => setSelectedMatchId(e.target.value)}
                 style={{ padding: "0.4rem 0.5rem", borderRadius: "var(--tk-radius-md)", border: "1px solid var(--tk-border)" }}
               >
-                {openMatches.length === 0 && <option value="">Aucun match ouvert</option>}
+                {openMatches.length === 0 && <option value="">{t("scanner.manifest.noMatch")}</option>}
                 {openMatches.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.label}
@@ -325,7 +326,7 @@ export function TicketScanner({
                 disabled={!selectedMatchId || downloadingManifest}
                 style={{ fontSize: "0.78rem", padding: "0.4rem 0.75rem", cursor: "pointer" }}
               >
-                {downloadingManifest ? "Téléchargement..." : "Télécharger la liste hors-ligne"}
+                {downloadingManifest ? t("scanner.manifest.downloading") : t("scanner.manifest.download")}
               </button>
             </div>
           )}
@@ -333,14 +334,14 @@ export function TicketScanner({
 
           {pending.length > 0 && (
             <div style={{ marginTop: "0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-              <span>{pending.length} scan(s) en attente de synchronisation</span>
+              <span>{t("scanner.sync.pending", { count: pending.length })}</span>
               <button
                 type="button"
                 onClick={syncPending}
                 disabled={syncing || !isOnline}
                 style={{ fontSize: "0.78rem", padding: "0.4rem 0.75rem", cursor: isOnline ? "pointer" : "not-allowed" }}
               >
-                {syncing ? "Synchronisation..." : "Synchroniser"}
+                {syncing ? t("scanner.sync.syncing") : t("scanner.sync.action")}
               </button>
             </div>
           )}
@@ -362,7 +363,7 @@ export function TicketScanner({
           autoFocus
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder="Scanner ou coller le contenu du QR code..."
+          placeholder={t("scanner.result.placeholder")}
           style={{
             flex: 1,
             padding: "0.65rem 0.85rem",
@@ -387,7 +388,7 @@ export function TicketScanner({
             cursor: scanning ? "default" : "pointer",
           }}
         >
-          {scanning ? "..." : "Valider"}
+          {scanning ? "..." : t("scanner.result.submit")}
         </button>
       </form>
 
@@ -405,7 +406,7 @@ export function TicketScanner({
           }}
         >
           <strong style={{ color: OUTCOME_COLORS[lastResult.outcome], fontSize: "1.05rem" }}>
-            {OUTCOME_LABELS[lastResult.outcome]}
+            {t(OUTCOME_KEYS[lastResult.outcome])}
           </strong>
           {lastResult.matchLabel && (
             <div style={{ fontSize: "0.9rem", marginTop: 6 }}>{lastResult.matchLabel}</div>
@@ -415,20 +416,20 @@ export function TicketScanner({
           )}
           {lastResult.reference && (
             <div style={{ fontSize: "0.8rem", color: "var(--tk-text-muted)", marginTop: 4 }}>
-              Réf. <code>{lastResult.reference}</code>
+              {t("scanner.result.reference")} <code dir="ltr">{lastResult.reference}</code>
             </div>
           )}
           {lastResult.outcome === "ALREADY_USED" && lastResult.usedAt && (
             <div style={{ fontSize: "0.8rem", color: "var(--tk-text-muted)", marginTop: 4 }}>
-              Déjà scanné le {new Date(lastResult.usedAt).toLocaleString("fr-FR")}
+              {t("scanner.result.usedAt", { date: new Date(lastResult.usedAt).toLocaleString(dateLocale) })}
             </div>
           )}
         </div>
       )}
 
-      <h2 style={{ fontSize: "0.95rem", marginBottom: "0.75rem" }}>Derniers scans</h2>
+      <h2 style={{ fontSize: "0.95rem", marginBottom: "0.75rem" }}>{t("scanner.history.title")}</h2>
       {recentScans.length === 0 ? (
-        <p style={{ color: "var(--tk-text-muted)", fontSize: "0.85rem" }}>Aucun scan pour l&rsquo;instant.</p>
+        <p style={{ color: "var(--tk-text-muted)", fontSize: "0.85rem" }}>{t("scanner.history.empty")}</p>
       ) : (
         <div style={{ display: "grid", gap: "0.4rem" }}>
           {recentScans.map((scan) => (
@@ -444,9 +445,9 @@ export function TicketScanner({
                 border: "1px solid var(--tk-border)",
               }}
             >
-              <span style={{ color: OUTCOME_COLORS[scan.result] }}>{OUTCOME_LABELS[scan.result]}</span>
+              <span style={{ color: OUTCOME_COLORS[scan.result] }}>{t(OUTCOME_KEYS[scan.result])}</span>
               <span style={{ color: "var(--tk-text-muted)" }}>
-                {scan.reference ? <code>{scan.reference}</code> : "—"} · {scan.scannedAtLabel}
+                {scan.reference ? <code dir="ltr">{scan.reference}</code> : "—"} · {scan.scannedAtLabel}
               </span>
             </div>
           ))}
