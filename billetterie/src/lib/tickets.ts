@@ -203,11 +203,11 @@ export interface PurgeStaleReservationsResult {
  * Libère toutes les réservations PENDING abandonnées depuis plus de
  * PENDING_RESERVATION_TTL_MS, toutes catégories/matchs confondus — pas
  * seulement celle en cours d'achat (voir le rattrapage opportuniste dans
- * purchaseTickets, limité à la catégorie visée). Destinée à être appelée
- * périodiquement par un ordonnanceur externe (pas de scheduler in-process
- * dans ce dépôt, voir avancement.md § C) via POST
- * /api/cron/purge-pending-reservations. Idempotente : ré-exécuter sur des
- * billets déjà CANCELLED ne les affecte pas (le WHERE ne cible que PENDING).
+ * purchaseTickets, limité à la catégorie visée). Appelée périodiquement par
+ * le scheduler in-process (instrumentation.ts) et, en option, par un
+ * ordonnanceur externe via POST /api/cron/purge-pending-reservations.
+ * Idempotente : ré-exécuter sur des billets déjà CANCELLED ne les affecte
+ * pas (le WHERE ne cible que PENDING).
  */
 export async function purgeStalePendingTickets(): Promise<PurgeStaleReservationsResult> {
   const ds = await getDataSource();

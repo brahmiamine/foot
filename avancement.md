@@ -75,10 +75,6 @@ non audités de bout en bout.
   `payment-api → application appelante` n'existe pas : pas de webhook
   applicatif signé, pas de file d'événement, pas de garantie que l'app métier
   marque rapidement l'achat si l'utilisateur ne revient jamais.
-- La libération des réservations expirées dépend d'un endpoint cron externe
-  (`/api/cron/purge-pending-reservations`) ; aucun scheduler n'est fourni par
-  le dépôt, donc la capacité peut rester bloquée si l'exploitation oublie ce
-  cron.
 - Le contrôle d'accès au stade n'existe pas : pas d'app scanner, pas de QR code
   signé/rotation, pas d'état `USED` horodaté, pas de journal d'entrée, pas de
   mode offline scanner, pas de détection de double scan.
@@ -177,7 +173,6 @@ non audités de bout en bout.
 - Audience réservée à l'achat toujours auto-déclarée par conception (tracée et recoupée avec les affiliations `sso` comme signal de modération non bloquant, mais pas un mécanisme d'identité fiable — aucun n'existe dans ce dépôt pour la remplacer).
 - Aucun écran d'administration ne consomme le signal `audienceMismatch` aujourd'hui.
 - Pas de webhook applicatif venant de `payment-api` : la confirmation dépend du retour utilisateur ou d'une reconciliation à la prochaine visite.
-- Purge des réservations expirées dépendante d'un cron externe à configurer ; pas de scheduler livré dans le dépôt.
 
 ### `payment-api`
 - Pas de callback/webhook applicatif vers les apps métier (seuls les providers rappellent `payment-api`) — la confirmation reste à la charge de chaque app appelante (polling/reconciliation).
