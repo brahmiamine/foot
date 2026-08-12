@@ -252,6 +252,7 @@ export function LiveMatchSheet({
       {tab === "cards" && (
         <CardsSection
           matchId={matchId}
+          sheetId={sheetId}
           teams={teams}
           lineupByTeam={lineupByTeam}
           teamName={teamName}
@@ -311,6 +312,7 @@ export function LiveMatchSheet({
 
 function CardsSection({
   matchId,
+  sheetId,
   teams,
   lineupByTeam,
   teamName,
@@ -321,6 +323,7 @@ function CardsSection({
   refresh,
 }: {
   matchId: string;
+  sheetId: number;
   teams: TeamRef[];
   lineupByTeam: Record<string, LineupPlayer[]>;
   teamName: (teamId: string) => string;
@@ -355,7 +358,7 @@ function CardsSection({
     setError(null);
     setSuccess(null);
     try {
-      const result = await addCard(matchId, playerId, type, minute ? Number(minute) : null, period, cardReasonId || null, comment || null);
+      const result = await addCard(sheetId, matchId, playerId, type, minute ? Number(minute) : null, period, cardReasonId || null, comment || null);
       if (result.success) {
         setSuccess(result.message ?? "Carton enregistré");
         setPlayerId("");

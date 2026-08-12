@@ -3,14 +3,16 @@ import type { DataSource } from "typeorm";
 import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
 import { Player } from "@/entities/Player";
+import { Sheet } from "@/entities/Sheet";
 import { Team } from "@/entities/Team";
 
-/** Graphe minimal requis pour un carton : deux équipes, une journée, un match, un joueur côté domicile. */
+/** Graphe minimal requis pour un carton : deux équipes, une journée, un match, une feuille IN_PROGRESS, un joueur côté domicile. */
 export async function seedBaseGraph(dataSource: DataSource) {
   const teamRepo = dataSource.getRepository(Team);
   const matchdayRepo = dataSource.getRepository(Matchday);
   const matchRepo = dataSource.getRepository(Match);
   const playerRepo = dataSource.getRepository(Player);
+  const sheetRepo = dataSource.getRepository(Sheet);
 
   const teamDefaults = {
     teamType: "club" as const,
@@ -49,5 +51,7 @@ export async function seedBaseGraph(dataSource: DataSource) {
     }),
   );
 
-  return { homeTeam, awayTeam, matchday, match, player };
+  const sheet = await sheetRepo.save(sheetRepo.create({ matchId: match.id, status: "IN_PROGRESS" }));
+
+  return { homeTeam, awayTeam, matchday, match, player, sheet };
 }

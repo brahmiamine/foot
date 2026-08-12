@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import { getDataSource } from "@/lib/db";
 import { Card, CardType, MatchPeriod } from "@/entities/Card";
 import { QueryFailedError, Repository } from "typeorm";
+import { assertSheetEditable } from "./sheetGuard";
 
 interface CreateCardInput {
+  sheetId: number;
   matchId: string;
   playerId: string;
   type: CardType;
@@ -55,8 +57,9 @@ export class CardEventService {
     });
   }
 
-  /** @throws DuplicateCardError si un carton du même type existe déjà pour ce joueur sur ce match. */
+  /** @throws DuplicateCardError si un carton du même type existe déjà pour ce joueur sur ce match. @throws SheetClosedError si la feuille est clôturée. */
   async create(data: CreateCardInput): Promise<Card> {
+    await assertSheetEditable(data.sheetId);
     const repository = await this.getRepository();
 
     const existing = await repository.findOne({

@@ -133,7 +133,7 @@ non audités de bout en bout.
 
 ### `matchsheet`
 - Pas de synchronisation offline des écritures ni file locale de retry pour les événements live saisis en stade.
-- Les services de saisie live (`CardEventService`, buts, remplacements, blessures) ne vérifient pas eux-mêmes le statut de la feuille/du match avant d'écrire — seul `post-match/actions.ts` bloque explicitement sur `CLOSED`. Une feuille rouverte par `superadmin` redevient donc éditable via ces services (comportement voulu), mais rien n'empêche non plus, par construction actuelle, une écriture après clôture par un autre chemin non audité — à durcir si ce cas se confirme en usage réel.
+- Les 4 services de saisie live (`CardEventService`, `GoalService`, `InjuryService`, `SubstitutionService`) refusent désormais toute écriture quand la feuille est `CLOSED` (`SheetClosedError`, voir `services/sheetGuard.ts`) — jusqu'ici seul `post-match/actions.ts` vérifiait ce statut, laissant les 4 services de saisie live sans aucun garde-fou. Une feuille rouverte par `superadmin` (`IN_PROGRESS`) redevient éditable via ces mêmes services, sans changement de code.
 
 ### `superadmin`
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).

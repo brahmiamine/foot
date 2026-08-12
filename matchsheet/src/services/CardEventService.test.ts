@@ -20,10 +20,11 @@ afterEach(async () => {
 describe("CardEventService (SQLite réel)", () => {
   it("create() enregistre un carton avec createdBy='matchsheet'", async () => {
     const { CardEventService } = await import("./CardEventService");
-    const { match, player } = await seedBaseGraph(dataSource);
+    const { match, player, sheet } = await seedBaseGraph(dataSource);
     const service = new CardEventService();
 
     const card = await service.create({
+      sheetId: sheet.id,
       matchId: match.id,
       playerId: player.id,
       type: "YELLOW",
@@ -43,10 +44,11 @@ describe("CardEventService (SQLite réel)", () => {
 
   it("create() refuse un deuxième carton du même type pour le même joueur/match (DuplicateCardError)", async () => {
     const { CardEventService, DuplicateCardError } = await import("./CardEventService");
-    const { match, player } = await seedBaseGraph(dataSource);
+    const { match, player, sheet } = await seedBaseGraph(dataSource);
     const service = new CardEventService();
 
     await service.create({
+      sheetId: sheet.id,
       matchId: match.id,
       playerId: player.id,
       type: "RED",
@@ -58,6 +60,7 @@ describe("CardEventService (SQLite réel)", () => {
 
     await expect(
       service.create({
+        sheetId: sheet.id,
         matchId: match.id,
         playerId: player.id,
         type: "RED",
@@ -71,10 +74,11 @@ describe("CardEventService (SQLite réel)", () => {
 
   it("create() autorise deux types différents pour le même joueur/match (YELLOW puis DOUBLE_YELLOW)", async () => {
     const { CardEventService } = await import("./CardEventService");
-    const { match, player } = await seedBaseGraph(dataSource);
+    const { match, player, sheet } = await seedBaseGraph(dataSource);
     const service = new CardEventService();
 
     await service.create({
+      sheetId: sheet.id,
       matchId: match.id,
       playerId: player.id,
       type: "YELLOW",
@@ -84,6 +88,7 @@ describe("CardEventService (SQLite réel)", () => {
       commentFr: null,
     });
     const second = await service.create({
+      sheetId: sheet.id,
       matchId: match.id,
       playerId: player.id,
       type: "DOUBLE_YELLOW",
@@ -100,7 +105,7 @@ describe("CardEventService (SQLite réel)", () => {
 
   it("findByMatch() trie par minute croissante", async () => {
     const { CardEventService } = await import("./CardEventService");
-    const { match, player, awayTeam } = await seedBaseGraph(dataSource);
+    const { match, player, awayTeam, sheet } = await seedBaseGraph(dataSource);
     const playerRepo = dataSource.getRepository((await import("@/entities/Player")).Player);
     const otherPlayer = await playerRepo.save(
       playerRepo.create({
@@ -115,8 +120,8 @@ describe("CardEventService (SQLite réel)", () => {
     );
     const service = new CardEventService();
 
-    await service.create({ matchId: match.id, playerId: player.id, type: "YELLOW", minute: 70, period: "H2", cardReasonId: null, commentFr: null });
-    await service.create({ matchId: match.id, playerId: otherPlayer.id, type: "YELLOW", minute: 15, period: "H1", cardReasonId: null, commentFr: null });
+    await service.create({ sheetId: sheet.id, matchId: match.id, playerId: player.id, type: "YELLOW", minute: 70, period: "H2", cardReasonId: null, commentFr: null });
+    await service.create({ sheetId: sheet.id, matchId: match.id, playerId: otherPlayer.id, type: "YELLOW", minute: 15, period: "H1", cardReasonId: null, commentFr: null });
 
     const cards = await service.findByMatch(match.id);
     expect(cards.map((c) => c.minute)).toEqual([15, 70]);
@@ -124,13 +129,26 @@ describe("CardEventService (SQLite réel)", () => {
 
   it("delete() supprime le carton ; ré-appeler sur un id déjà supprimé ne lève pas", async () => {
     const { CardEventService } = await import("./CardEventService");
-    const { match, player } = await seedBaseGraph(dataSource);
+    const { match, player, sheet } = await seedBaseGraph(dataSource);
     const service = new CardEventService();
 
-    const card = await service.create({ matchId: match.id, playerId: player.id, type: "YELLOW", minute: 10, period: "H1", cardReasonId: null, commentFr: null });
+    const card = await service.create({ sheetId: sheet.id, matchId: match.id, playerId: player.id, type: "YELLOW", minute: 10, period: "H1", cardReasonId: null, commentFr: null });
     await service.delete(card.id);
     expect(await service.findByMatch(match.id)).toEqual([]);
 
     await expect(service.delete(card.id)).resolves.not.toThrow();
+  });
+
+  it("create() refuse toute écriture quand la feuille est CLOSED (SheetClosedError)", async () => {
+    const { CardEventService } = await import("./CardEventService");
+    const { SheetClosedError } = await import("./sheetGuard");
+    const { Sheet } = await import("@/entities/Sheet");
+    const { match, player, sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED" });
+    const service = new CardEventService();
+
+    await expect(
+      service.create({ sheetId: sheet.id, matchId: match.id, playerId: player.id, type: "YELLOW", minute: 10, period: "H1", cardReasonId: null, commentFr: null }),
+    ).rejects.toThrow(SheetClosedError);
   });
 });

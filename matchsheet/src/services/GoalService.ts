@@ -2,6 +2,7 @@ import { getDataSource } from "@/lib/db";
 import { Goal } from "@/entities/Goal";
 import { MatchPeriod } from "@/entities/Card";
 import { Repository } from "typeorm";
+import { assertSheetEditable } from "./sheetGuard";
 
 interface CreateGoalInput {
   sheetId: number;
@@ -26,6 +27,7 @@ export class GoalService {
   }
 
   async create(data: CreateGoalInput): Promise<Goal> {
+    await assertSheetEditable(data.sheetId);
     const repository = await this.getRepository();
     const goal = repository.create({
       sheetId: data.sheetId,

@@ -3,9 +3,13 @@ import { DataSource } from "typeorm";
 import { Card } from "@/entities/Card";
 import { CardReason } from "@/entities/CardReason";
 import { Federation } from "@/entities/Federation";
+import { Goal } from "@/entities/Goal";
+import { Injury } from "@/entities/Injury";
 import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
 import { Player } from "@/entities/Player";
+import { Sheet } from "@/entities/Sheet";
+import { Substitution } from "@/entities/Substitution";
 import { Team } from "@/entities/Team";
 
 /**
@@ -20,7 +24,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Card, CardReason, Federation, Match, Matchday, Player, Team],
+    entities: [Card, CardReason, Federation, Goal, Injury, Match, Matchday, Player, Sheet, Substitution, Team],
   });
 
   await dataSource.initialize();
