@@ -134,6 +134,7 @@ export function AdminSidebar({
             children: [
               { title: "Produits", href: "/admin/shop/products" },
               { title: "Catégories", href: "/admin/shop/categories" },
+              { title: "Commandes", href: "/admin/shop/orders" },
             ],
           },
           {

@@ -17,7 +17,7 @@ qui reste à faire, pour rester utilisable comme backlog.
 
 | Rang | Action | Portée |
 |---|---|---|
-| 1 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
+| 1 | `teamManager` : facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — boutique client avec paiement réel livrée, reste des gros lots à traiter, voir détail par app |
 | 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — v1 en place (QR signé, marquage USED, double scan, journal d'entrée) ; mode offline et lecture caméra restent à faire |
 | 3 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
 | 4 | Boucles fermées post-annulation (remboursements, avoirs, notification métier) | Paiement/Billetterie — webhook post-paiement fermé (payment-api → billetterie), remboursements toujours absents |
@@ -95,11 +95,14 @@ non audités de bout en bout.
   conditions réelles ici, faute de credentials).
 
 ### Marketplace / boutique / seller portal
-- `teamManager` administre une boutique catalogue legacy et `sellerPortal`
-  administre des vendeurs/produits/commandes `sp_*`, mais il n'existe pas de
-  frontend d'achat marketplace unifié ni de service marketplace commun. Le
-  circuit client « voir un produit → payer → commande → stock → vendeur →
-  payout » n'est pas fermé.
+- `teamManager` a désormais un tunnel d'achat client complet pour sa
+  boutique catalogue (`/boutique/[teamId]` : panier, paiement réel via
+  `payment-api`, décrément de stock atomique, webhook + retour payeur,
+  suivi de commande) — voir la section `teamManager` ci-dessous pour le
+  détail. `sellerPortal` reste séparé (vendeurs/produits/commandes `sp_*`,
+  toujours pas d'intégration `payment-api`) : il n'existe toujours pas de
+  frontend d'achat marketplace unifié entre les deux, ni de circuit
+  vendeur → payout fermé côté `sellerPortal`.
 - `sellerPortal` utilise une session propre (`SP_JWT_SECRET`) au lieu du SSO
   commun. C'est assumé pour des vendeurs externes, mais les circuits de
   révocation, MFA, audit sécurité et notifications plateforme ne sont pas
@@ -132,7 +135,24 @@ non audités de bout en bout.
 ## Reste à faire, par projet
 
 ### `teamManager`
-- Pas de checkout/paiement réel pour la boutique client (seule la gestion admin du catalogue existe, `admin/shop/`) — aucun tunnel d'achat, aucun appel à `payment-api`.
+- Boutique client avec paiement réel en place : `/boutique` (annuaire des
+  clubs ayant des articles en vente) → `/boutique/[teamId]` (catalogue,
+  panier côté client en `localStorage`, un panier ne peut jamais mélanger
+  deux clubs) → paiement via `payment-api` (même client que billetterie,
+  `PAYMENT_PROVIDER` configurable). Réservation/décrément de stock atomique
+  par produit (verrou pessimiste, même stratégie que
+  `MatchTicketCategory.soldCount` côté billetterie), commande `PENDING` →
+  `PAID`/`CANCELLED` via webhook signé + retour payeur + rattrapage
+  opportuniste (`ShopOrderService.ts`), scheduler in-process pour libérer
+  les commandes abandonnées (`instrumentation.ts`, même TTL 30 min que
+  billetterie). `/boutique/commandes` (client) et `/admin/shop/orders`
+  (staff, lecture seule) pour le suivi. Comptes `MEMBER` désormais reconnus
+  par cette app (jusqu'ici staff uniquement) — `/boutique` fait sa propre
+  vérification de rôle, le garde `/admin`/`/api/admin` reste staff-only.
+  Hors périmètre v1 : gestion de livraison/expédition côté staff (juste une
+  liste en lecture), remboursement d'une commande déjà payée, variantes de
+  produit (taille/couleur). Non vérifié dans un navigateur réel faute de
+  MariaDB dans ce bac à sable — validé via `vitest`/`tsc`/build production.
 - Pas de facturation sponsors (aucun module comptable) — seule la génération du résumé PDF de convention existe.
 - Aucun module finance/trésorerie.
 - Aucun module RGPD (consentement, export, suppression de données personnelles).

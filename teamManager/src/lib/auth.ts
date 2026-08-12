@@ -10,10 +10,14 @@ import type { SessionUser } from "@/types/auth";
  *
  * Règle métier conservée : SUPERADMIN (sans club) n'a jamais accès à
  * teamManager — un compte sans teamId ne produit pas de session ici.
+ * MEMBER (ajouté pour /boutique, voir ssoSession.ts) n'a pas non plus sa
+ * place ici : ce sont des clients, jamais du staff back-office — /boutique
+ * fait sa propre vérification de rôle (getSsoSession() directement), sans
+ * passer par auth()/requireTeamId().
  */
 export async function auth(): Promise<{ user: SessionUser } | null> {
   const session = await getSsoSession();
-  if (!session || session.role === "SUPERADMIN" || !session.teamId) {
+  if (!session || session.role === "SUPERADMIN" || session.role === "MEMBER" || !session.teamId) {
     return null;
   }
 

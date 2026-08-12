@@ -20,7 +20,12 @@ export interface SsoUser {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN";
+  // MEMBER ajouté pour la boutique client (/boutique, voir avancement.md) :
+  // jusqu'ici cette app ne reconnaissait que les comptes staff. Le
+  // middleware (/admin/*, /api/admin/*) reste inchangé et continue
+  // d'exiger un teamId de staff — /boutique fait sa propre vérification de
+  // rôle, comme /espace-membre côté ob/billetterie.
+  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER";
   teamId: string | null;
 }
 
@@ -70,6 +75,20 @@ export async function buildLoginUrlForPath(path: string): Promise<string> {
   const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
   const currentUrl = `${proto}://${host}${path}`;
   return buildLoginUrl(currentUrl);
+}
+
+/** Variante MEMBER de buildLoginUrl (redirige vers /membre/login, pas /login) — voir /boutique. */
+export function buildMemberLoginUrl(currentUrl: string): string {
+  return buildSsoRedirectUrl(currentUrl, "/membre/login");
+}
+
+/** Variante MEMBER de buildLoginUrlForPath, voir buildMemberLoginUrl. */
+export async function buildMemberLoginUrlForPath(path: string): Promise<string> {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const currentUrl = `${proto}://${host}${path}`;
+  return buildMemberLoginUrl(currentUrl);
 }
 
 export function clearSsoCookie(response: NextResponse) {

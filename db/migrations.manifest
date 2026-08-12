@@ -74,6 +74,8 @@ teamManager/sql/migration_add_club_pages_academy_applications.sql
 # Dépend de Card (table de base, voir db/foot.sql) et de teamManager/matchsheet
 # alignés sur la même contrainte (voir db/OWNERSHIP.md, "Card a deux écrivains").
 teamManager/sql/migration_add_card_unique_constraint.sql
+# Dépend de teams (base) et cms_products (migration_add_shop_sponsors_notifications.sql).
+teamManager/sql/migration_add_shop_orders.sql
 
 # --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
 matchsheet/sql/migration_matchsheet_init.sql
