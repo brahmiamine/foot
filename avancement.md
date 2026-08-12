@@ -152,7 +152,6 @@ non audités de bout en bout.
 - Monitoring/alerting externe absent (agrégation des `/health`, alerte) — suppose un outil externe (Datadog, Uptime Kuma…) à provisionner, rien à câbler côté dépôt tant que ce choix n'est pas fait.
 
 ### `sellerPortal`
-- Pas de tests automatisés.
 - Authentification vendeur séparée du SSO : pas de MFA, pas de révocation centrale, pas de viewer sécurité partagé.
 - Paiement direct, transporteur/logistique, payout automatique, enchères, abonnement publicité vendeur : tous hors périmètre actuel.
 - Dépendance temporaire aux tables `sp_*` dans la base partagée `foot`, en attendant une éventuelle Marketplace API dédiée.

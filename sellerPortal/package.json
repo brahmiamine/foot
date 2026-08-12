@@ -9,7 +9,9 @@
     "start": "next start -p 3006",
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
-    "backfill:club-id": "tsx scripts/backfill-club-id.ts"
+    "backfill:club-id": "tsx scripts/backfill-club-id.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -26,14 +28,17 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/nodemailer": "^7.0.12",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "better-sqlite3": "^11.10.0",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "tsx": "^4.19.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }
