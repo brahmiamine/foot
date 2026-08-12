@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionResult } from "@/lib/i18n/actionFeedback";
 import { SheetService } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
@@ -18,68 +19,68 @@ export async function saveSignature(
   actorRole: ActorRole,
   signerName: string | null,
   signatureData: string
-) {
+): Promise<ActionResult> {
   try {
     if (!signatureData) {
-      return { success: false, error: "Veuillez signer avant de valider." };
+      return { success: false, error: "actions.signatures.errors.required" };
     }
 
     const sheetService = new SheetService();
     const sheet = await sheetService.findById(sheetId);
     if (!sheet) {
-      return { success: false, error: "Feuille de match introuvable." };
+      return { success: false, error: "actions.sheet.errors.notFound" };
     }
 
     const signatureService = new SignatureService();
     await signatureService.save(sheetId, phase, actorRole, { signerName, signatureData });
 
     revalidatePath(`/${sheet.matchId}/pre-match`);
-    return { success: true, message: "Signature enregistrée." };
-  } catch (error) {
+    return { success: true, message: "actions.signatures.messages.saved" };
+  } catch {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erreur lors de l'enregistrement de la signature.",
+      error: "actions.signatures.errors.save",
     };
   }
 }
 
 /** Ajoute une réserve avant-match. */
-export async function addReservation(sheetId: number, phase: SignaturePhase, authorRole: ActorRole, content: string) {
+export async function addReservation(sheetId: number, phase: SignaturePhase, authorRole: ActorRole, content: string): Promise<ActionResult> {
   try {
     if (!content || !content.trim()) {
-      return { success: false, error: "Le contenu de la réserve ne peut pas être vide." };
+      return { success: false, error: "actions.reservations.errors.required" };
     }
 
     const sheetService = new SheetService();
     const sheet = await sheetService.findById(sheetId);
     if (!sheet) {
-      return { success: false, error: "Feuille de match introuvable." };
+      return { success: false, error: "actions.sheet.errors.notFound" };
     }
 
     const reservationService = new ReservationService();
     await reservationService.create({ sheetId, phase, authorRole, content: content.trim() });
 
     revalidatePath(`/${sheet.matchId}/pre-match`);
-    return { success: true, message: "Réserve ajoutée." };
-  } catch (error) {
+    return { success: true, message: "actions.reservations.messages.added" };
+  } catch {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erreur lors de l'ajout de la réserve.",
+      error: "actions.reservations.errors.add",
     };
   }
 }
 
-export async function deleteReservation(id: number, matchId: string) {
+export async function deleteReservation(id: number, matchId: string): Promise<ActionResult> {
   try {
     const reservationService = new ReservationService();
     await reservationService.delete(id);
 
     revalidatePath(`/${matchId}/pre-match`);
-    return { success: true, message: "Réserve supprimée." };
-  } catch (error) {
+    return { success: true, message: "actions.reservations.messages.deleted" };
+  } catch {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erreur lors de la suppression de la réserve.",
+      error: "actions.reservations.errors.delete",
     };
   }
 }
@@ -89,7 +90,7 @@ export async function deleteReservation(id: number, matchId: string) {
  * PRE_MATCH_SIGNED que si les 3 signatures sont réunies et que la feuille
  * est encore en DRAFT (idempotent si déjà confirmée).
  */
-export async function confirmPreMatch(sheetId: number, matchId: string) {
+export async function confirmPreMatch(sheetId: number, matchId: string): Promise<ActionResult> {
   try {
     const sheetService = new SheetService();
     const signatureService = new SignatureService();
@@ -99,7 +100,7 @@ export async function confirmPreMatch(sheetId: number, matchId: string) {
     if (!officialsConfirmed) {
       return {
         success: false,
-        error: "Les postes obligatoires (arbitre central, assistants 1/2, délégué) doivent être validés dans « Infos arbitre » avant de continuer.",
+        error: "actions.preMatch.errors.officialsRequired",
       };
     }
 
@@ -107,7 +108,8 @@ export async function confirmPreMatch(sheetId: number, matchId: string) {
     if (!complete) {
       return {
         success: false,
-        error: "Les 3 signatures (domicile, extérieur, arbitre) sont requises avant de continuer.",
+        error: "actions.preMatch.errors.signaturesRequired",
+        errorParams: { count: 3 },
       };
     }
 
@@ -118,11 +120,11 @@ export async function confirmPreMatch(sheetId: number, matchId: string) {
 
     revalidatePath(`/${matchId}/pre-match`);
     revalidatePath(`/${matchId}`);
-    return { success: true, message: "Avant-match confirmé." };
-  } catch (error) {
+    return { success: true, message: "actions.preMatch.messages.confirmed" };
+  } catch {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erreur lors de la confirmation.",
+      error: "actions.preMatch.errors.confirm",
     };
   }
 }
