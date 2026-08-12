@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from "typeorm";
 import { Player } from "./Player";
 import { Match } from "./Match";
 import { CardReason } from "./CardReason";
@@ -9,8 +9,15 @@ export type MatchPeriod = "H1" | "H2" | "ET1" | "ET2";
 /**
  * Card Entity — mappée sur la table `Card`, partagée avec cardManager.
  * Un carton (jaune/rouge/double jaune) donné à un joueur lors d'un match.
+ *
+ * Deux écrivains (teamManager et matchsheet, voir db/OWNERSHIP.md) : la
+ * contrainte UNIQUE ci-dessous (voir sql/migration_add_card_unique_constraint.sql)
+ * est le filet de sécurité base contre une double insertion concurrente du
+ * même carton, voir CardService.create (teamManager) et
+ * CardEventService.create (matchsheet).
  */
 @Entity("Card")
+@Index("uq_card_player_match_type", ["playerId", "matchId", "type"], { unique: true })
 export class Card {
   @PrimaryColumn({ type: "varchar", length: 191 })
   id!: string;

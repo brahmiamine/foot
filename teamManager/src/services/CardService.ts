@@ -5,8 +5,13 @@ import { Player } from "@/entities/Player";
 import { Suspension } from "@/entities/Suspension";
 import { Fine } from "@/entities/Fine";
 import { Settings } from "@/entities/Settings";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import { SuspensionService } from "./SuspensionService";
+
+/** MySQL/MariaDB : code d'erreur natif d'une violation de contrainte UNIQUE. */
+function isDuplicateEntryError(error: unknown): boolean {
+  return error instanceof QueryFailedError && (error.driverError as { code?: string } | undefined)?.code === "ER_DUP_ENTRY";
+}
 
 export interface CreateCardInput {
   playerId: string;
@@ -24,6 +29,20 @@ export class DoubleYellowRequiredError extends Error {
   constructor() {
     super("Ce joueur a déjà un carton jaune dans ce match. Enregistrez un DOUBLE_YELLOW (2e jaune = expulsion).");
     this.name = "DoubleYellowRequiredError";
+  }
+}
+
+/**
+ * Un carton de ce type existe déjà pour ce joueur/match ET a déjà été
+ * traité (amende générée) — voir CardService.create : jamais renvoyée pour
+ * un carton saisi en live par matchsheet et pas encore traité, qui est
+ * silencieusement adopté (amende + suspension ajoutées sur la ligne
+ * existante) plutôt que dupliqué.
+ */
+export class CardAlreadyProcessedError extends Error {
+  constructor() {
+    super("Ce carton a déjà été enregistré et traité (amende déjà générée) pour ce joueur sur ce match.");
+    this.name = "CardAlreadyProcessedError";
   }
 }
 
@@ -56,7 +75,23 @@ export class CardService {
   /**
    * Crée un carton pour un joueur du club de l'utilisateur connecté, avec
    * l'amende associée et la vérification de suspension.
+   *
+   * `Card` a deux écrivains (voir db/OWNERSHIP.md, « Card a deux
+   * écrivains ») : matchsheet y insère un carton pendant le live, sans
+   * amende ni suspension (voir CardEventService.create côté matchsheet) —
+   * à charge pour teamManager de le "retrouver" ensuite. Si un carton
+   * identique (même joueur/match/type) existe déjà et n'a pas encore
+   * d'amende, on l'adopte (on complète cette ligne au lieu d'en créer une
+   * deuxième) : ça évite un carton en double avec double amende/suspension
+   * si le club ressaisit depuis ce module ce qui a déjà été saisi en live.
+   * S'il existe déjà ET a déjà une amende, on refuse (CardAlreadyProcessedError)
+   * plutôt que de facturer deux fois. Une contrainte UNIQUE(playerId,
+   * matchId, type) en base (voir migrations) est le filet de sécurité final
+   * contre une vraie course entre deux insertions concurrentes (aucune des
+   * deux apps ne partage de verrou applicatif, seule la base le peut).
+   *
    * @throws DoubleYellowRequiredError si le joueur a déjà un jaune dans ce match.
+   * @throws CardAlreadyProcessedError si un carton identique existe déjà et a déjà une amende.
    */
   async create(data: CreateCardInput, teamId: string, createdBy: string): Promise<Card> {
     const dataSource = await getDataSource();
@@ -71,7 +106,8 @@ export class CardService {
     }
 
     // Un joueur ne peut recevoir qu'un seul carton jaune par match — un
-    // deuxième doit être saisi comme DOUBLE_YELLOW (expulsion).
+    // deuxième doit être saisi comme DOUBLE_YELLOW (expulsion). S'applique
+    // que le premier jaune vienne de teamManager ou de matchsheet.
     if (data.type === "YELLOW") {
       const existingYellow = await repository.findOne({
         where: { playerId: data.playerId, matchId: data.matchId, type: "YELLOW" },
@@ -84,19 +120,44 @@ export class CardService {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + (settings?.fineDueDays ?? 15));
 
-    const card = repository.create({
-      id: randomUUID(),
-      playerId: data.playerId,
-      matchId: data.matchId,
-      type: data.type,
-      minute: data.minute ?? null,
-      cardReasonId: data.cardReasonId ?? null,
-      commentFr: data.commentFr ?? null,
-      commentAr: data.commentAr ?? null,
-      createdBy,
-      isNeutralized: false,
+    // Carton déjà saisi (typiquement en live par matchsheet) mais pas
+    // encore traité : on l'adopte plutôt que d'en créer un deuxième.
+    const existing = await repository.findOne({
+      where: { playerId: data.playerId, matchId: data.matchId, type: data.type },
     });
-    await repository.save(card);
+    let card: Card;
+    if (existing) {
+      const alreadyFined = await fineRepo.count({ where: { cardId: existing.id } });
+      if (alreadyFined > 0) throw new CardAlreadyProcessedError();
+
+      existing.minute = data.minute ?? existing.minute;
+      existing.cardReasonId = data.cardReasonId ?? existing.cardReasonId;
+      existing.commentFr = data.commentFr ?? existing.commentFr;
+      existing.commentAr = data.commentAr ?? existing.commentAr;
+      card = await repository.save(existing);
+    } else {
+      card = repository.create({
+        id: randomUUID(),
+        playerId: data.playerId,
+        matchId: data.matchId,
+        type: data.type,
+        minute: data.minute ?? null,
+        cardReasonId: data.cardReasonId ?? null,
+        commentFr: data.commentFr ?? null,
+        commentAr: data.commentAr ?? null,
+        createdBy,
+        isNeutralized: false,
+      });
+      try {
+        await repository.save(card);
+      } catch (error) {
+        // Filet de sécurité si un carton identique a été inséré (par
+        // matchsheet ou un autre onglet) entre le SELECT ci-dessus et cet
+        // INSERT — voir contrainte UNIQUE(playerId, matchId, type).
+        if (isDuplicateEntryError(error)) throw new CardAlreadyProcessedError();
+        throw error;
+      }
+    }
 
     const fine = fineRepo.create({
       id: randomUUID(),

@@ -117,13 +117,11 @@ non audités de bout en bout.
 - Pas de workflow de validation juridique/comptable des conventions sponsor : le PDF généré est un résumé administratif, pas un contrat validé ni facturé.
 - Aucun espace supporter/communauté.
 - Notifications convocation/composition d'équipe/sponsor non branchées : le destinataire n'est pas un `User` résolvable dans le modèle actuel.
-- `Card` a deux écrivains (`teamManager` en discipline, `matchsheet` en live) sans verrou de concurrence ni propriétaire unique désigné.
 
 ### `matchsheet`
 - Pas de tests automatisés.
 - Pas de synchronisation offline des écritures ni file locale de retry pour les événements live saisis en stade.
 - Réouverture d'une feuille après clôture non modélisée ni auditée (pas de raison de réouverture tracée).
-- Concurrence sur `Card` avec `teamManager` (voir ci-dessus) à encadrer.
 
 ### `superadmin`
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).
