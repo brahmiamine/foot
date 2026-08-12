@@ -1,4 +1,4 @@
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import Link from "next/link";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicClubService } from "@/services/PublicClubService";
@@ -6,12 +6,11 @@ import { PublicStadiumService } from "@/services/PublicStadiumService";
 import { PageChrome } from "@/components/PageChrome";
 import shared from "@/components/shared.module.css";
 import styles from "./club.module.css";
+import { localized } from "@/i18n/localized";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Le club — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.club");
 
 const FACILITY_TYPE_LABELS = {
   STADIUM: "facility.stadium", TRAINING_GROUND: "facility.training", LOCKER_ROOM: "facility.locker",
@@ -19,13 +18,13 @@ const FACILITY_TYPE_LABELS = {
 } as const;
 
 export default async function ClubPage() {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   const team = await getObTeam();
   const [info, facilities] = team
     ? await Promise.all([new PublicClubService().getClubInfo(team.id), new PublicStadiumService().getAllFacilities(team.id)])
     : [null, []];
 
-  const hasInfo = info && (info.presentationFr || info.valuesFr || info.sportProjectFr || info.organizationFr);
+  const hasInfo = info && (info.presentationFr || info.presentationAr || info.valuesFr || info.valuesAr || info.sportProjectFr || info.sportProjectAr || info.organizationFr || info.organizationAr);
 
   return (
     <PageChrome>
@@ -40,28 +39,28 @@ export default async function ClubPage() {
 
           {!hasInfo && <p className={shared.empty}>{t("club.empty")}</p>}
 
-          {info?.presentationFr && (
+          {localized(locale, info?.presentationFr, info?.presentationAr) && (
             <div className={styles.section}>
               <div className={styles.sectionHeading}>{t("club.about")}</div>
-              <div className={styles.text}>{info.presentationFr}</div>
+              <div className={styles.text}>{localized(locale, info?.presentationFr, info?.presentationAr)}</div>
             </div>
           )}
-          {info?.valuesFr && (
+          {localized(locale, info?.valuesFr, info?.valuesAr) && (
             <div className={styles.section}>
               <div className={styles.sectionHeading}>{t("club.values")}</div>
-              <div className={styles.text}>{info.valuesFr}</div>
+              <div className={styles.text}>{localized(locale, info?.valuesFr, info?.valuesAr)}</div>
             </div>
           )}
-          {info?.sportProjectFr && (
+          {localized(locale, info?.sportProjectFr, info?.sportProjectAr) && (
             <div className={styles.section}>
               <div className={styles.sectionHeading}>{t("club.project")}</div>
-              <div className={styles.text}>{info.sportProjectFr}</div>
+              <div className={styles.text}>{localized(locale, info?.sportProjectFr, info?.sportProjectAr)}</div>
             </div>
           )}
-          {info?.organizationFr && (
+          {localized(locale, info?.organizationFr, info?.organizationAr) && (
             <div className={styles.section}>
               <div className={styles.sectionHeading}>{t("club.organization")}</div>
-              <div className={styles.text}>{info.organizationFr}</div>
+              <div className={styles.text}>{localized(locale, info?.organizationFr, info?.organizationAr)}</div>
             </div>
           )}
 
@@ -72,8 +71,8 @@ export default async function ClubPage() {
                 {facilities.map((facility) => (
                   <div key={facility.id} className={`${shared.card} ${styles.facilityCard}`}>
                     <div className={styles.facilityType}>{facility.facilityType in FACILITY_TYPE_LABELS ? t(FACILITY_TYPE_LABELS[facility.facilityType as keyof typeof FACILITY_TYPE_LABELS]) : facility.facilityType}</div>
-                    <div className={styles.facilityName}>{facility.nameFr}</div>
-                    {facility.cityFr && <div className={styles.facilityMeta}>{facility.cityFr}</div>}
+                    <div className={styles.facilityName}>{localized(locale, facility.nameFr, facility.nameAr)}</div>
+                    {localized(locale, facility.cityFr, facility.cityAr) && <div className={styles.facilityMeta}>{localized(locale, facility.cityFr, facility.cityAr)}</div>}
                     {facility.capacity && <div className={styles.facilityMeta}>{t("club.capacity", { capacity: facility.capacity.toLocaleString() })}</div>}
                   </div>
                 ))}

@@ -5,6 +5,7 @@ import { PublicTeamSocialsService } from "@/services/PublicTeamSocialsService";
 import { ClubBadge } from "./ClubBadge";
 import styles from "./Footer.module.css";
 import { getTranslator } from "@/i18n/server";
+import { localized } from "@/i18n/localized";
 
 export async function Footer({
   teamId,
@@ -15,10 +16,14 @@ export async function Footer({
   teamName: string;
   stadium: Stadium | null;
 }) {
-  const address = [stadium?.nameFr, stadium?.addressFr, stadium?.cityFr].filter(Boolean).join(", ");
   const sponsorUrl = getSponsorRequestUrl(teamId);
   const socials = await new PublicTeamSocialsService().get(teamId);
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
+  const address = [
+    localized(locale, stadium?.nameFr, stadium?.nameAr),
+    localized(locale, stadium?.addressFr, stadium?.addressAr),
+    localized(locale, stadium?.cityFr, stadium?.cityAr),
+  ].filter(Boolean).join(", ");
 
   return (
     <div id="contact" className={styles.footer}>

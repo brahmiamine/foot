@@ -1,4 +1,4 @@
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicGalleryService } from "@/services/PublicGalleryService";
 import { resolveAssetUrl } from "@/lib/assets";
@@ -6,15 +6,14 @@ import { PageChrome } from "@/components/PageChrome";
 import { PlaceholderImage } from "@/components/PlaceholderImage";
 import shared from "@/components/shared.module.css";
 import styles from "./galerie.module.css";
+import { localized } from "@/i18n/localized";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Galerie — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.gallery");
 
 export default async function GaleriePage() {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   const team = await getObTeam();
   const galleries = team ? await new PublicGalleryService().getAllGalleries(team.id) : [];
 
@@ -31,7 +30,7 @@ export default async function GaleriePage() {
           ) : (
             galleries.map((gallery) => (
               <div key={gallery.id} className={styles.gallery}>
-                <div className={styles.title}>{gallery.title}</div>
+                <div className={styles.title}>{localized(locale, gallery.titleFr, gallery.titleAr)}</div>
                 {gallery.photos.length === 0 ? (
                   <p className={shared.empty}>{t("gallery.emptyGallery")}</p>
                 ) : (
@@ -40,7 +39,7 @@ export default async function GaleriePage() {
                       <PlaceholderImage
                         key={photo.id}
                         src={resolveAssetUrl(photo.url)}
-                        alt={photo.alt ?? gallery.title}
+                        alt={localized(locale, photo.altFr, photo.altAr) ?? localized(locale, gallery.titleFr, gallery.titleAr)}
                         label={t("common.photoSoon")}
                         className={styles.item}
                       />

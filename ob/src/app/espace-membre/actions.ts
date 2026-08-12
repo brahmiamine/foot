@@ -12,6 +12,7 @@ import {
 } from "@/lib/notificationApi";
 import { updateMemberProfile, type MemberProfile } from "@/lib/ssoProfileClient";
 import { notify } from "@/lib/notificationClient";
+import { getTranslator } from "@/i18n/server";
 
 async function requireMember() {
   const session = await getSsoSession();
@@ -43,6 +44,7 @@ export async function registerPushSubscriptionAction(input: {
   p256dh: string;
   auth: string;
 }): Promise<void> {
+  const { t } = await getTranslator();
   const session = await requireMember();
   await registerPushSubscription({ ...input, platform: "WEB" });
   revalidatePath("/espace-membre/preferences");
@@ -50,13 +52,14 @@ export async function registerPushSubscriptionAction(input: {
     type: "PUSH_SUBSCRIPTION_ADDED",
     userId: session.id,
     category: "SECURITY",
-    title: "Nouvel appareil lié",
-    body: "Un nouvel appareil a été ajouté à vos notifications push.",
+    title: t("notification.deviceAddedTitle"),
+    body: t("notification.deviceAddedBody"),
     data: { deviceId: input.deviceId },
   });
 }
 
 export async function removePushSubscriptionAction(deviceId: string): Promise<void> {
+  const { t } = await getTranslator();
   const session = await requireMember();
   await removePushSubscription(deviceId);
   revalidatePath("/espace-membre/preferences");
@@ -64,8 +67,8 @@ export async function removePushSubscriptionAction(deviceId: string): Promise<vo
     type: "PUSH_SUBSCRIPTION_REMOVED",
     userId: session.id,
     category: "SECURITY",
-    title: "Appareil retiré",
-    body: "Un appareil a été retiré de vos notifications push.",
+    title: t("notification.deviceRemovedTitle"),
+    body: t("notification.deviceRemovedBody"),
     data: { deviceId },
   });
 }
@@ -75,6 +78,7 @@ export async function updateMemberProfileAction(input: {
   lastName: string;
   phoneNumber: string;
 }): Promise<MemberProfile> {
+  const { t } = await getTranslator();
   const session = await requireMember();
   const profile = await updateMemberProfile(input);
   revalidatePath("/espace-membre");
@@ -82,8 +86,8 @@ export async function updateMemberProfileAction(input: {
     type: "MEMBER_PROFILE_UPDATED",
     userId: session.id,
     category: "SECURITY",
-    title: "Profil mis à jour",
-    body: "Vos informations personnelles ont été modifiées.",
+    title: t("notification.profileUpdatedTitle"),
+    body: t("notification.profileUpdatedBody"),
     data: { firstName: input.firstName, lastName: input.lastName },
   });
   return profile;

@@ -5,9 +5,10 @@ import { PlaceholderImage } from "./PlaceholderImage";
 import shared from "./shared.module.css";
 import { getTranslator } from "@/i18n/server";
 import styles from "./GallerySection.module.css";
+import { localized } from "@/i18n/localized";
 
 export async function GallerySection({ photos }: { photos: GalleryPhoto[] }) {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   return (
     <div id="galerie" className={`${styles.section} ${shared.sectionPad}`}>
       <div className={shared.container}>
@@ -26,7 +27,7 @@ export async function GallerySection({ photos }: { photos: GalleryPhoto[] }) {
               <PlaceholderImage
                 key={photo.id}
                 src={resolveAssetUrl(photo.url)}
-                alt={photo.alt ?? t("home.clubPhoto")}
+                alt={localized(locale, photo.altFr, photo.altAr) ?? t("home.clubPhoto")}
                 label={t("common.photoSoon")}
                 className={`${styles.item} ${index === 0 ? styles.big : ""}`}
               />

@@ -12,13 +12,6 @@ const EVENT_ICONS: Record<LiveEventType, string> = {
   INJURY: "🩹",
 };
 
-const PERIOD_LABELS: Record<string, string> = {
-  H1: "",
-  H2: "",
-  ET1: " (prol.)",
-  ET2: " (prol.)",
-};
-
 interface LivePayload {
   status: "UPCOMING" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
   score: { home: number; away: number };
@@ -97,7 +90,7 @@ export function LiveMatchSection({
               <div key={event.id} className={styles.event}>
                 <span className={styles.minute}>
                   {event.minute != null ? `${event.minute}'` : "—"}
-                  {event.period ? PERIOD_LABELS[event.period] : ""}
+                  {event.period === "ET1" || event.period === "ET2" ? t("live.extraTime") : ""}
                 </span>
                 <span className={styles.icon}>{EVENT_ICONS[event.type]}</span>
                 <span>{event.label}</span>

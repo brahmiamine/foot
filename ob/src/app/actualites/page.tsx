@@ -1,4 +1,4 @@
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicNewsService } from "@/services/PublicNewsService";
 import { PageChrome } from "@/components/PageChrome";
@@ -8,9 +8,7 @@ import newsStyles from "@/components/NewsSection.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Actualités — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.news");
 
 export default async function ActualitesPage() {
   const { t } = await getTranslator();

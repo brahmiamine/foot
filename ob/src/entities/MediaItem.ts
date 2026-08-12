@@ -21,4 +21,6 @@ export class MediaItem {
 
   @Column({ type: "varchar", length: 255, nullable: true, name: "alt_text_fr" })
   altTextFr?: string | null;
+  @Column({ type: "varchar", length: 255, nullable: true, name: "alt_text_ar" })
+  altTextAr?: string | null;
 }

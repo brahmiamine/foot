@@ -4,6 +4,7 @@ import { formatMatchDateTime } from "@/lib/format";
 import { Reveal } from "./Reveal";
 import styles from "./NextMatchBar.module.css";
 import { getTranslator } from "@/i18n/server";
+import { localized } from "@/i18n/localized";
 
 export async function NextMatchBar({
   match,
@@ -14,11 +15,11 @@ export async function NextMatchBar({
   obTeamId: string;
   homeStadium: Stadium | null;
 }) {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   const isHome = match?.equipeHome === obTeamId;
   const location = match
     ? isHome
-      ? [homeStadium?.nameFr, homeStadium?.cityFr].filter(Boolean).join(", ") || t("common.home")
+      ? [localized(locale, homeStadium?.nameFr, homeStadium?.nameAr), localized(locale, homeStadium?.cityFr, homeStadium?.cityAr)].filter(Boolean).join(", ") || t("common.home")
       : [match.awayTeam?.stadium, match.awayTeam?.city].filter(Boolean).join(", ") || t("common.away")
     : null;
 
@@ -30,17 +31,17 @@ export async function NextMatchBar({
         {match ? (
           <>
             <div className={styles.teams}>
-              <div className={styles.teamName}>{match.homeTeam?.nom}</div>
+              <div className={styles.teamName}>{match.homeTeam && localized(locale, match.homeTeam.nom, match.homeTeam.nomAr)}</div>
               <div className={styles.vs}>{t("common.vs")}</div>
-              <div className={styles.teamName}>{match.awayTeam?.nom}</div>
+              <div className={styles.teamName}>{match.awayTeam && localized(locale, match.awayTeam.nom, match.awayTeam.nomAr)}</div>
             </div>
             <div className={styles.meta}>
               <div className={styles.when}>
-                {match.date && <div className={styles.datetime}>{formatMatchDateTime(match.date)}</div>}
+                {match.date && <div className={styles.datetime}>{formatMatchDateTime(match.date, locale)}</div>}
                 {location && <div className={styles.location}>{location}</div>}
               </div>
               <a href="#billetterie" className={styles.cta}>
-                Billets
+                {t("common.tickets")}
               </a>
             </div>
           </>

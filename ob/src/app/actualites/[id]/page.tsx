@@ -12,7 +12,7 @@ import styles from "./article.module.css";
 export const dynamic = "force-dynamic";
 
 export default async function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   const { id } = await params;
   const numericId = Number(id);
   if (!Number.isInteger(numericId)) {
@@ -38,7 +38,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
           {t("news.all")}
         </Link>
         <h1 className={styles.title}>{article.title}</h1>
-        {date && <div className={styles.date}>{formatShortDate(date)}</div>}
+        {date && <div className={styles.date}>{formatShortDate(date, locale)}</div>}
         <PlaceholderImage
           src={resolveAssetUrl(article.coverImage)}
           alt={article.title}

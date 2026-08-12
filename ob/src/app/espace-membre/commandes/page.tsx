@@ -1,9 +1,7 @@
 import shared from "@/components/shared.module.css";
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 
-export const metadata = {
-  title: "Mes commandes — Espace membre — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.orders");
 
 export default async function CommandesPage() {
   const { t } = await getTranslator();

@@ -1,4 +1,4 @@
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicShopService } from "@/services/PublicShopService";
 import { resolveAssetUrl } from "@/lib/assets";
@@ -7,15 +7,14 @@ import { PageChrome } from "@/components/PageChrome";
 import { PlaceholderImage } from "@/components/PlaceholderImage";
 import shared from "@/components/shared.module.css";
 import styles from "./boutique.module.css";
+import { localized } from "@/i18n/localized";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Boutique — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.shop");
 
 export default async function BoutiquePage() {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   const team = await getObTeam();
   const products = team ? await new PublicShopService().getAllActive(team.id) : [];
 
@@ -38,13 +37,13 @@ export default async function BoutiquePage() {
                 <div key={product.id} className={`${shared.card} ${styles.card}`}>
                   <PlaceholderImage
                     src={resolveAssetUrl(product.imageUrl)}
-                    alt={product.nameFr}
+                    alt={localized(locale, product.nameFr, product.nameAr)}
                     label={t("common.photoSoon")}
                     className={styles.image}
                   />
                   <div className={styles.body}>
-                    <div className={styles.name}>{product.nameFr}</div>
-                    <div className={styles.price}>{formatPriceTnd(product.price)}</div>
+                    <div className={styles.name}>{localized(locale, product.nameFr, product.nameAr)}</div>
+                    <div className={styles.price}>{formatPriceTnd(product.price, locale)}</div>
                   </div>
                 </div>
               ))}

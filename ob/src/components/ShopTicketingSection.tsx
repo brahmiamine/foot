@@ -4,9 +4,10 @@ import { formatPriceTnd } from "@/lib/format";
 import shared from "./shared.module.css";
 import styles from "./ShopTicketingSection.module.css";
 import { getTranslator } from "@/i18n/server";
+import { localized } from "@/i18n/localized";
 
 export async function ShopTicketingSection({ products }: { products: Product[] }) {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   return (
     <div id="billetterie" className={shared.sectionPad}>
       <div className={shared.container}>
@@ -29,7 +30,7 @@ export async function ShopTicketingSection({ products }: { products: Product[] }
                 <div className={styles.products}>
                   {products.map((product) => (
                     <div key={product.id}>
-                      {product.nameFr} — {formatPriceTnd(product.price)}
+                      {localized(locale, product.nameFr, product.nameAr)} — {formatPriceTnd(product.price, locale)}
                     </div>
                   ))}
                 </div>

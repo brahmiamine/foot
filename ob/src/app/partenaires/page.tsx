@@ -1,4 +1,4 @@
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicSponsorService } from "@/services/PublicSponsorService";
 import { resolveAssetUrl } from "@/lib/assets";
@@ -9,9 +9,7 @@ import styles from "./partenaires.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Partenaires — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.partners");
 
 const LEVEL_GROUPS: Array<{ level: "OR" | "ARGENT"; key: "partners.main" | "partners.official" }> = [
   { level: "OR", key: "partners.main" },

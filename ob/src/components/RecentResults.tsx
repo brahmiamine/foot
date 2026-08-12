@@ -4,6 +4,7 @@ import { formatShortDate } from "@/lib/format";
 import { matchOutcomeForTeam } from "@/lib/match";
 import shared from "./shared.module.css";
 import { getTranslator } from "@/i18n/server";
+import { localized } from "@/i18n/localized";
 import styles from "./RecentResults.module.css";
 
 const OUTCOME_CLASSES: Record<ReturnType<typeof matchOutcomeForTeam>, string> = {
@@ -13,7 +14,7 @@ const OUTCOME_CLASSES: Record<ReturnType<typeof matchOutcomeForTeam>, string> = 
 };
 
 export async function RecentResults({ results, obTeamId }: { results: Match[]; obTeamId: string }) {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   return (
     <div className={shared.sectionPad}>
       <div className={shared.container}>
@@ -30,12 +31,12 @@ export async function RecentResults({ results, obTeamId }: { results: Match[]; o
               const outcome = matchOutcomeForTeam(match, obTeamId);
               return (
                 <div key={match.id} className={`${shared.card} ${styles.card}`}>
-                  {match.date && <div className={styles.date}>{formatShortDate(match.date)}</div>}
-                  <div className={styles.team}>{match.homeTeam?.nom}</div>
+                  {match.date && <div className={styles.date}>{formatShortDate(match.date, locale)}</div>}
+                  <div className={styles.team}>{match.homeTeam && localized(locale, match.homeTeam.nom, match.homeTeam.nomAr)}</div>
                   <div className={styles.score}>
                     {match.scoreHome} - {match.scoreAway}
                   </div>
-                  <div className={styles.team}>{match.awayTeam?.nom}</div>
+                  <div className={styles.team}>{match.awayTeam && localized(locale, match.awayTeam.nom, match.awayTeam.nomAr)}</div>
                   <div className={`${styles.badge} ${OUTCOME_CLASSES[outcome]}`}>{t(`match.${outcome.toLowerCase()}` as "match.win" | "match.loss" | "match.draw")}</div>
                 </div>
               );

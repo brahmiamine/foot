@@ -1,9 +1,9 @@
-import type { Metadata, Viewport } from "next";
+import type { Viewport } from "next";
 import { Barlow_Condensed, Source_Sans_3 } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { I18nProvider } from "@/i18n/I18nProvider";
-import { getLocale } from "@/i18n/server";
+import { getLocale, getLocalizedMetadata } from "@/i18n/server";
 import "./globals.css";
 
 const barlowCondensed = Barlow_Condensed({
@@ -20,16 +20,13 @@ const sourceSans = Source_Sans_3({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Olympique de Béja",
-  description:
-    "Site officiel de l'Olympique de Béja — Les Cigognes de Béja, club omnisports tunisien fondé en 1929. Calendrier, résultats, actualités, effectif et classement.",
-  manifest: "/manifest.webmanifest",
-  icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/apple-touch-icon.png",
-  },
-};
+export async function generateMetadata() {
+  return {
+    ...(await getLocalizedMetadata()),
+    manifest: "/manifest.webmanifest",
+    icons: { icon: "/icons/icon-192x192.png", apple: "/icons/apple-touch-icon.png" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#c8102e",

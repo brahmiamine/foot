@@ -7,7 +7,7 @@ import styles from "./NewsSection.module.css";
 import { getTranslator } from "@/i18n/server";
 
 export async function NewsCard({ item }: { item: News }) {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   const date = item.publishedAt ?? item.createdAt;
 
   return (
@@ -20,7 +20,7 @@ export async function NewsCard({ item }: { item: News }) {
       />
       <div className={styles.body}>
         <h3 className={styles.title}>{item.title}</h3>
-        {date && <div className={styles.date}>{formatShortDate(date)}</div>}
+        {date && <div className={styles.date}>{formatShortDate(date, locale)}</div>}
       </div>
     </Link>
   );

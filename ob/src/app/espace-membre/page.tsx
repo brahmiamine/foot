@@ -1,4 +1,4 @@
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { headers } from "next/headers";
 import { getSsoSession, buildLogoutUrl } from "@/lib/ssoSession";
 import { fetchMemberProfile, type MemberProfile } from "@/lib/ssoProfileClient";
@@ -7,9 +7,7 @@ import shared from "@/components/shared.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Mon profil — Espace membre — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.profile");
 
 export default async function ProfilPage() {
   const { t } = await getTranslator();
@@ -40,13 +38,13 @@ export default async function ProfilPage() {
 
       <h3 style={{ fontSize: 15, marginBottom: 0 }}>{t("member.details")}</h3>
       <p style={{ fontSize: 13, color: "var(--ob-text-faint)", margin: "4px 0 0" }}>
-        Optionnel — utile pour payer par Paymee dans la billetterie.
+        {t("member.profileHint")}
       </p>
       <MemberProfileForm initialProfile={profile} />
 
       <form method="POST" action={logoutUrl} style={{ marginTop: 20 }}>
         <button type="submit" className={shared.btnPrimary} style={{ border: "none", cursor: "pointer" }}>
-          Se déconnecter
+          {t("member.logout")}
         </button>
       </form>
     </div>

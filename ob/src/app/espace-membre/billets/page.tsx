@@ -1,9 +1,7 @@
 import shared from "@/components/shared.module.css";
-import { getTranslator } from "@/i18n/server";
+import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 
-export const metadata = {
-  title: "Mes billets — Espace membre — Olympique de Béja",
-};
+export const generateMetadata = () => getLocalizedMetadata("metadata.tickets");
 
 // La billetterie est une app générique séparée (voir README racine
 // § « Billetterie »), pas réimplémentée ici — ce site reste en lecture
