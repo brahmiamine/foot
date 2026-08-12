@@ -17,7 +17,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P0 | E03 – Modération Marketplace | ✅ | permettre au club de valider/rejeter les produits vendeurs |
 | P0 | E04 – Fiabilité événements paiement | 🔄 | garantir les événements post-paiement via outbox transactionnel |
 | P1 | E05 – Boutique OB | ✅ | fermer le parcours catalogue → achat → commande |
-| P1 | E06 – Fulfillment boutique | ⏳ | gérer préparation, expédition, livraison et retours |
+| P1 | E06 – Fulfillment boutique | 🔄 | gérer préparation, expédition, livraison et retours |
 | P1 | E07 – Notifications fiables | ⏳ | éviter la perte d'événements métiers via outbox |
 | P1 | E08 – Sécurisation SSO | ⏳ | réduire les risques liés à HS256/fail-open |
 | P1 | E09 – Ownership des domaines | ⏳ | réduire les écritures DB cross-projects |
@@ -490,39 +490,74 @@ l'instant — ce point sera à traiter quand ce circuit sera branché.
 # EPIC E06 — Fulfillment boutique
 
 **Priorité : P1**  
-**Statut :** ⏳ À faire
+**Statut :** 🔄 Partiellement implémenté
+
+### État actuel
+
+- Workflow de fulfillment vendeur (TS-20 à US-24) livré côté
+  `marketplace-api` (`src/seller-orders`) : préparation, prêt à expédier,
+  expédition, livraison — voir détail ci-dessous.
+- Toujours pas de tunnel d'achat marketplace multi-vendeurs côté frontend
+  (`sellerPortal`/`teamManager`/`ob`) : `OrdersService`/`SellerOrdersService`
+  n'ont aucune route de création, seulement des transitions sur des
+  `SellerOrder` déjà existantes (voir Epic E05/E06, `MarketOrder`). Pas de
+  vue vendeur/club pour déclencher ces transitions depuis une UI — API
+  uniquement pour l'instant.
+- Notification membre (US-24) hors périmètre : `MarketOrder` ne porte
+  qu'un email/nom déclaratif, pas de compte SSO, et `marketplace-api` n'a
+  pas d'outbox notification à ce jour (voir Epic E07/TS-25).
 
 ## TS-20 — Étendre les statuts commande
 
-Cible :
+**Statut :** ✅ Livré (`marketplace-api/src/seller-orders/enums/seller-order-status.enum.ts`)
+
+`SellerOrderStatus` (déjà scaffoldé par TS-03) porte la séquence cible sous
+des noms légèrement différents mais équivalents :
 
 ```text
-PENDING_PAYMENT → PAID → PREPARING → READY_TO_SHIP → SHIPPED → DELIVERED
-                                                             ↘ CANCELLED
-                                                             ↘ RETURN_REQUESTED → RETURNED → REFUNDED
+PENDING (= PENDING_PAYMENT) → CONFIRMED (= PAID) → PROCESSING (= PREPARING) → READY_TO_SHIP → SHIPPED → DELIVERED
+                                                                                                       ↘ CANCELLED
+                                                                                                       ↘ RETURN_REQUESTED → RETURNED → REFUNDED
 ```
+
+`SELLER_ALLOWED_ORDER_TRANSITIONS` (nouveau) formalise les transitions
+autorisées côté vendeur, sur le même modèle que
+`SELLER_ALLOWED_PRODUCT_TRANSITIONS` (US-05) : CONFIRMED→PROCESSING,
+PROCESSING→READY_TO_SHIP, READY_TO_SHIP→SHIPPED, SHIPPED→DELIVERED.
+CANCELLED/RETURN_REQUESTED/RETURNED/REFUNDED restent hors périmètre de ce
+ticket (annulation : cascade match non traitée ; retours : Epic E16 ;
+remboursement : Epic E15).
 
 ## US-21 — Préparer une commande
 
+**Statut :** ✅ Livré — `POST /seller-orders/:id/prepare` (JWT vendeur, scopé au vendeur authentifié).
+
 ```text
-PAID → PREPARING
+CONFIRMED → PROCESSING
 ```
 
 ## US-22 — Marquer prête à expédier
 
+**Statut :** ✅ Livré — `POST /seller-orders/:id/ready-to-ship`.
+
 ```text
-PREPARING → READY_TO_SHIP
+PROCESSING → READY_TO_SHIP
 ```
 
 ## US-23 — Expédier
 
-Informations obligatoires :
+**Statut :** ✅ Livré — `POST /seller-orders/:id/ship`.
+
+Informations obligatoires (`ShipSellerOrderDto`, validées par
+`class-validator`) :
 
 ```text
 carrier
 trackingNumber
-shippedAt
 ```
+
+`shippedAt` alimenté automatiquement par le service à la transition (pas
+un champ saisi par le vendeur).
 
 Transition :
 
@@ -532,11 +567,20 @@ READY_TO_SHIP → SHIPPED
 
 ## US-24 — Livraison
 
+**Statut :** 🔄 Transition livrée, notification membre hors périmètre (voir « État actuel » ci-dessus).
+
+`POST /seller-orders/:id/deliver` :
+
 ```text
 SHIPPED → DELIVERED
 ```
 
-Notification membre.
+`deliveredAt` alimenté automatiquement à la transition.
+
+Tests : `marketplace-api/src/seller-orders/seller-orders.service.spec.ts`
+(8 cas — transitions autorisées/refusées pour chaque étape, y compris
+préparation depuis un statut non `CONFIRMED`, expédition hors
+`READY_TO_SHIP`, livraison avant expédition).
 
 ---
 
@@ -1485,8 +1529,9 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ sellerPortal/teamManager branchés dessus (TS-04) — endpoints internal/products pour sellerPortal, moderation/sellers/categories pour teamManager
 ✅ Variantes et stock (US-06) — seuil d'alerte bas-stock + désactivation dédiée livrés ; décrément automatique toujours dépendant de seller-orders (E06)
 ✅ Tests CI (TS-33) — absente de la matrice CI jusqu'ici, ajoutée
+✅ Fulfillment seller-orders (TS-20 à US-24) — préparation/prêt à expédier/expédition/livraison
 ⏳ Swagger
-⏳ Business logic orders/seller-orders/returns/payouts (actuellement scaffolding — E06/E15/E16)
+⏳ Business logic orders/returns/payouts (actuellement scaffolding — E15/E16) ; création de commande toujours hors périmètre (pas de tunnel d'achat marketplace côté frontend)
 ⏳ Jamais démarré contre une vraie base MariaDB (pas de Docker/MariaDB dans ce bac à sable)
 ⏳ Unification identité vendeur avec sellerPortal (double auth, voir Epic E17)
 ```
@@ -1572,11 +1617,11 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ## Sprint 5 — Fulfillment boutique
 
 ```text
-⏳ TS-20 order statuses
-⏳ US-21 preparing
-⏳ US-22 ready
-⏳ US-23 shipped
-⏳ US-24 delivered
+✅ TS-20 order statuses
+✅ US-21 preparing
+✅ US-22 ready
+✅ US-23 shipped
+🔄 US-24 delivered (transition livrée, notification membre hors périmètre)
 ```
 
 ## Sprint 6 — Sécurité / découplage
@@ -1609,7 +1654,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 1. ~~Corriger ArbiNote / statut réel du match (US-01, TS-02)~~ ✅ Livré (12/08/2026).
 2. ~~Activer les tests existants dans la CI (TS-33)~~ ✅ Livré (12/08/2026).
 3. ~~Introduire Transactional Outbox dans Payment API (TS-12)~~ ✅ Livré (12/08/2026, avec TS-13 retry durable).
-4. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
+4. ~~Compléter le fulfillment des commandes (TS-20 à US-24)~~ ✅ Livré côté `marketplace-api` (12/08/2026) — reste : tunnel d'achat marketplace multi-vendeurs côté frontend et notification membre à la livraison (voir Epic E06/E07).
 5. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
 6. 🔄 **Découpler progressivement les accès directs à la base (TS-31)** — premier cas traité (12/08/2026, `reopenMatchAdmin`), reste à généraliser au fur et à mesure que d'autres cas apparaissent.
 7. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
