@@ -89,6 +89,7 @@ billetterie/sql/migration_add_payment_id.sql
 billetterie/sql/migration_add_audience_declaration.sql
 billetterie/sql/migration_add_ticket_scan_log.sql
 billetterie/sql/migration_add_processed_webhook_events.sql
+billetterie/sql/migration_add_audience_validation_mode.sql
 
 # --- sellerPortal (sp_*, dépend de teams) ---
 sellerPortal/sql/schema.sql

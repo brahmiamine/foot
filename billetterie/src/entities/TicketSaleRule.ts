@@ -28,6 +28,21 @@ export class TicketSaleRule {
   })
   allowedAudience!: "PUBLIC" | "HOME_SUPPORTERS" | "AWAY_SUPPORTERS";
 
+  /**
+   * US-38 : sans effet quand `allowedAudience` vaut `PUBLIC`. DECLARATIVE
+   * (défaut, comportement historique) = auto-déclaration à l'achat, signal
+   * de modération non bloquant après coup (voir Ticket.audienceMismatch).
+   * STRICT = vérification bloquante des affiliations sso de l'acheteur
+   * avant d'autoriser l'achat (voir purchaseTickets dans lib/tickets.ts).
+   */
+  @Column({
+    type: "enum",
+    enum: ["STRICT", "DECLARATIVE"],
+    name: "audience_validation_mode",
+    default: "DECLARATIVE",
+  })
+  audienceValidationMode!: "STRICT" | "DECLARATIVE";
+
   @Column({ type: "int", name: "max_tickets_per_user", default: 4 })
   maxTicketsPerUser!: number;
 

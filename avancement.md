@@ -753,11 +753,13 @@ Tester au minimum :
   - `payment-api → billetterie` signé
   - Reconciliation par retour utilisateur / `/mes-billets` comme filet de sécurité
 
-- **Audience auto-déclarée** — pas de mécanisme d'identité fiable.
+- **Audience auto-déclarée par défaut, vérification stricte désormais disponible en option par catégorie** (`audienceValidationMode`, voir US-37/US-38 ci-dessous) — toujours pas de mécanisme d'identité fiable si l'organisateur laisse le mode par défaut.
 
 ## US-37 — Vérification d'affiliation avant paiement
 
-Pour `HOME_SUPPORTERS` et `AWAY_SUPPORTERS`, ajouter vérification d'affiliation.
+**Statut :** ✅ Livré (`purchaseTickets`, `src/lib/tickets.ts`)
+
+Pour `HOME_SUPPORTERS` et `AWAY_SUPPORTERS`, ajoute vérification d'affiliation quand `TicketSaleRule.audienceValidationMode = STRICT` (voir US-38).
 
 ### Séquence cible
 
@@ -765,27 +767,47 @@ Pour `HOME_SUPPORTERS` et `AWAY_SUPPORTERS`, ajouter vérification d'affiliation
 User → SSO profile → affiliated teams → Ticketing → allowed ?
 ```
 
+Implémentée avec `fetchMemberAffiliatedTeamIds()` (déjà utilisée pour le
+signal de modération non bloquant en mode DECLARATIVE, voir
+`flagAudienceMismatchIfNeeded`) — mais en mode STRICT le résultat bloque
+l'achat au lieu de simplement flaguer le billet après coup.
+
 ### Critères
 
-- seuls les affiliés à une équipe peuvent acheter billets supporters.
-- vérification côté API.
+- seuls les affiliés à une équipe peuvent acheter billets supporters. ✅ (en mode STRICT uniquement — `ForbiddenError` avant toute réservation/paiement si non affilié)
+- vérification côté API. ✅ (`purchaseTickets`, jamais côté frontend seul)
+- **fail-closed** : si l'appel sso échoue ou ne répond pas (`fetchMemberAffiliatedTeamIds()` renvoie `null`), l'achat est refusé plutôt qu'autorisé par défaut — à l'inverse du mode DECLARATIVE, où une panne sso ne doit justement jamais bloquer une vente (simple signal de modération, voir `flagAudienceMismatchIfNeeded`).
 
 ## US-38 — Politique configurable
 
-Ajouter :
+**Statut :** ✅ Livré
+
+Ajouté :
 
 ```text
 audienceValidationMode
 ```
 
-avec par exemple :
+avec :
 
 ```text
-STRICT (affiliation vérifiée)
-DECLARATIVE (auto-déclaration)
+STRICT (affiliation vérifiée, bloquant)
+DECLARATIVE (auto-déclaration, défaut — comportement historique inchangé)
 ```
 
-par match ou compétition.
+Par catégorie de billet (`TicketSaleRule.audience_validation_mode`, donc de
+facto par match+catégorie — pas de granularité par compétition dans cette
+V1, non demandée par le reste du critère). Migration additive
+(`billetterie/sql/migration_add_audience_validation_mode.sql`), défaut
+`DECLARATIVE` : aucune règle existante ne change de comportement tant
+qu'elle n'est pas explicitement repassée en `STRICT`. Pas d'interface
+d'administration pour éditer `TicketSaleRule` dans cette app (aucune
+n'existe non plus pour `allowedAudience` lui-même — même limite
+préexistante, hors périmètre de cette US).
+
+Tests : `billetterie/src/lib/tickets.audienceValidation.test.ts` (6 cas —
+DECLARATIVE avec/sans confirmation, STRICT autorisé/refusé/fail-closed,
+catégorie PUBLIC sans appel sso).
 
 ---
 
@@ -1350,8 +1372,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Webhook post-paiement signé
 ✅ Idempotence webhook (TS-14, eventId mémorisé)
 ⏳ Valider caméra/offline en conditions réelles
-⏳ Contrôle supporter strict (affiliation vérifiée)
-⏳ Politique configurable (STRICT/DECLARATIVE)
+✅ Contrôle supporter strict (affiliation vérifiée, opt-in par catégorie)
+✅ Politique configurable (STRICT/DECLARATIVE)
 ⏳ Outbox notifications
 ✅ Tests CI
 ⏳ Events ticket.purchased / scanned
