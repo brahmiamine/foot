@@ -2,6 +2,7 @@ import { getDataSource } from "@/lib/db";
 import { Substitution } from "@/entities/Substitution";
 import { MatchPeriod } from "@/entities/Card";
 import { Repository } from "typeorm";
+import { assertSheetEditable } from "./sheetGuard";
 
 interface CreateSubstitutionInput {
   sheetId: number;
@@ -25,6 +26,7 @@ export class SubstitutionService {
   }
 
   async create(data: CreateSubstitutionInput): Promise<Substitution> {
+    await assertSheetEditable(data.sheetId);
     const repository = await this.getRepository();
     const substitution = repository.create(data);
     return repository.save(substitution);

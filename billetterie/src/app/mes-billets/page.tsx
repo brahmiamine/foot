@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import QRCode from "qrcode";
 import { getSsoSession, buildMemberLoginUrlForPath } from "@/lib/ssoSession";
 import { listMyTickets } from "@/lib/tickets";
+import { signTicketToken } from "@/lib/ticketQr";
 import { formatMatchDateTime, formatPriceTnd } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +22,16 @@ export default async function MesBilletsPage() {
   }
 
   const tickets = await listMyTickets(session.id);
+  // QR de contrôle d'accès (voir src/lib/ticketQr.ts) : uniquement pour les
+  // billets encore utilisables (PAID) — inutile de re-générer un code pour
+  // un billet déjà USED/CANCELLED, ou pas encore payé.
+  const qrCodeByTicketId = new Map(
+    await Promise.all(
+      tickets
+        .filter((t) => t.status === "PAID")
+        .map(async (t) => [t.id, await QRCode.toDataURL(await signTicketToken(t.id))] as const),
+    ),
+  );
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1.25rem" }}>
@@ -65,6 +77,21 @@ export default async function MesBilletsPage() {
                 </span>
                 <span>{formatPriceTnd(ticket.price)}</span>
               </div>
+              {qrCodeByTicketId.has(ticket.id) && (
+                <div style={{ marginTop: 12, textAlign: "center" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL générée côté serveur, pas une image distante */}
+                  <img
+                    src={qrCodeByTicketId.get(ticket.id)}
+                    alt="QR code de contrôle d'accès"
+                    width={160}
+                    height={160}
+                    style={{ borderRadius: "var(--tk-radius-md)" }}
+                  />
+                  <div style={{ fontSize: "0.72rem", color: "var(--tk-text-muted)", marginTop: 4 }}>
+                    À présenter à l&rsquo;entrée du stade
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { getDataSource } from "@/lib/db";
 import { Injury } from "@/entities/Injury";
 import { MatchPeriod } from "@/entities/Card";
 import { Repository } from "typeorm";
+import { assertSheetEditable } from "./sheetGuard";
 
 interface CreateInjuryInput {
   sheetId: number;
@@ -26,6 +27,7 @@ export class InjuryService {
   }
 
   async create(data: CreateInjuryInput): Promise<Injury> {
+    await assertSheetEditable(data.sheetId);
     const repository = await this.getRepository();
     const injury = repository.create({
       sheetId: data.sheetId,

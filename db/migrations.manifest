@@ -84,6 +84,7 @@ matchsheet/sql/migration_matchsheet_officials_controls.sql
 billetterie/sql/schema.sql
 billetterie/sql/migration_add_payment_id.sql
 billetterie/sql/migration_add_audience_declaration.sql
+billetterie/sql/migration_add_ticket_scan_log.sql
 
 # --- sellerPortal (sp_*, dépend de teams) ---
 sellerPortal/sql/schema.sql
