@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import type { PushSubscriptionRecord } from "@/lib/notificationApi";
 import { registerPushSubscriptionAction, removePushSubscriptionAction } from "@/app/espace-membre/actions";
 import shared from "./shared.module.css";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const DEVICE_ID_KEY = "ob_push_device_id";
 
@@ -29,6 +30,7 @@ interface ClientCapabilities {
 }
 
 export function PushSubscribeButton({ initialSubscriptions }: { initialSubscriptions: PushSubscriptionRecord[] }) {
+  const { t } = useI18n();
   const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
   const [status, setStatus] = useState<string | null>(null);
   // `window`/`navigator` n'existent pas côté serveur : ce rendu initial (SSR
@@ -53,14 +55,14 @@ export function PushSubscribeButton({ initialSubscriptions }: { initialSubscript
     setStatus(null);
     const vapidKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY;
     if (!vapidKey) {
-      setStatus("Push non configuré côté serveur (clé VAPID manquante).");
+      setStatus(t("push.notConfigured"));
       return;
     }
 
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setStatus("Autorisation refusée — activez les notifications dans les réglages du navigateur.");
+        setStatus(t("push.denied"));
         return;
       }
 
@@ -84,11 +86,11 @@ export function PushSubscribeButton({ initialSubscriptions }: { initialSubscript
           ...prev.filter((s) => s.deviceId !== id),
           { deviceId: id, platform: "WEB", createdAt: new Date().toISOString() },
         ]);
-        setStatus("Notifications activées sur cet appareil.");
+        setStatus(t("push.enabled"));
       });
     } catch (error) {
       console.error(error);
-      setStatus("Impossible d'activer les notifications sur cet appareil.");
+      setStatus(t("push.enableError"));
     }
   };
 
@@ -105,14 +107,14 @@ export function PushSubscribeButton({ initialSubscriptions }: { initialSubscript
     startTransition(async () => {
       await removePushSubscriptionAction(id);
       setSubscriptions((prev) => prev.filter((s) => s.deviceId !== id));
-      setStatus("Notifications désactivées sur cet appareil.");
+      setStatus(t("push.disabled"));
     });
   };
 
   if (!client.supported) {
     return (
       <p style={{ color: "var(--ob-text-faint)", fontSize: 14 }}>
-        Ce navigateur ne prend pas en charge les notifications push.
+        {t("push.unsupported")}
       </p>
     );
   }
@@ -121,18 +123,17 @@ export function PushSubscribeButton({ initialSubscriptions }: { initialSubscript
     <div>
       {isThisDeviceSubscribed ? (
         <button className={shared.btnOutline} onClick={unsubscribe} disabled={isPending}>
-          Désactiver sur cet appareil
+          {t("push.disable")}
         </button>
       ) : (
         <button className={shared.btnPrimary} onClick={subscribe} disabled={isPending}>
-          Activer les notifications sur cet appareil
+          {t("push.enable")}
         </button>
       )}
       {status && <p style={{ marginTop: 10, fontSize: 13, color: "var(--ob-text-muted)" }}>{status}</p>}
       {subscriptions.length > 0 && (
         <p style={{ marginTop: 10, fontSize: 13, color: "var(--ob-text-faint)" }}>
-          {subscriptions.length} appareil{subscriptions.length > 1 ? "s" : ""} abonné{subscriptions.length > 1 ? "s" : ""} au
-          total.
+          {t("push.devices", { count: subscriptions.length })}
         </p>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicShopService } from "@/services/PublicShopService";
 import { resolveAssetUrl } from "@/lib/assets";
@@ -14,6 +15,7 @@ export const metadata = {
 };
 
 export default async function BoutiquePage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const products = team ? await new PublicShopService().getAllActive(team.id) : [];
 
@@ -22,14 +24,14 @@ export default async function BoutiquePage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 8 }}>
-            Boutique officielle
+            {t("shop.title")}
           </h1>
           <p className={shared.sectionSubtitle} style={{ marginBottom: 28, display: "block" }}>
-            Catalogue du club — commande directement auprès du club, pas de paiement en ligne pour le moment.
+            {t("shop.subtitle")}
           </p>
 
           {products.length === 0 ? (
-            <p className={shared.empty}>Boutique en cours de préparation, revenez bientôt.</p>
+            <p className={shared.empty}>{t("home.shopSoon")}</p>
           ) : (
             <div className={styles.grid}>
               {products.map((product) => (
@@ -37,7 +39,7 @@ export default async function BoutiquePage() {
                   <PlaceholderImage
                     src={resolveAssetUrl(product.imageUrl)}
                     alt={product.nameFr}
-                    label="Photo à venir"
+                    label={t("common.photoSoon")}
                     className={styles.image}
                   />
                   <div className={styles.body}>

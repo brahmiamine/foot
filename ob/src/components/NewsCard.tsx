@@ -4,8 +4,10 @@ import { formatShortDate } from "@/lib/format";
 import { resolveAssetUrl } from "@/lib/assets";
 import { PlaceholderImage } from "./PlaceholderImage";
 import styles from "./NewsSection.module.css";
+import { getTranslator } from "@/i18n/server";
 
-export function NewsCard({ item }: { item: News }) {
+export async function NewsCard({ item }: { item: News }) {
+  const { t } = await getTranslator();
   const date = item.publishedAt ?? item.createdAt;
 
   return (
@@ -13,7 +15,7 @@ export function NewsCard({ item }: { item: News }) {
       <PlaceholderImage
         src={resolveAssetUrl(item.coverImage)}
         alt={item.title}
-        label="Photo à venir"
+        label={t("common.photoSoon")}
         className={styles.image}
       />
       <div className={styles.body}>

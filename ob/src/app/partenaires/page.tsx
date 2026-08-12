@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicSponsorService } from "@/services/PublicSponsorService";
 import { resolveAssetUrl } from "@/lib/assets";
@@ -12,12 +13,13 @@ export const metadata = {
   title: "Partenaires — Olympique de Béja",
 };
 
-const LEVEL_GROUPS: Array<{ level: "OR" | "ARGENT"; title: string }> = [
-  { level: "OR", title: "Partenaires principaux" },
-  { level: "ARGENT", title: "Partenaires officiels" },
+const LEVEL_GROUPS: Array<{ level: "OR" | "ARGENT"; key: "partners.main" | "partners.official" }> = [
+  { level: "OR", key: "partners.main" },
+  { level: "ARGENT", key: "partners.official" },
 ];
 
 export default async function PartenairesPage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const sponsors = team ? await new PublicSponsorService().getActive(team.id) : [];
   const sponsorUrl = team ? getSponsorRequestUrl(team.id) : null;
@@ -29,19 +31,19 @@ export default async function PartenairesPage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 28, textAlign: "center" }}>
-            Nos partenaires
+            {t("partners.title")}
           </h1>
 
           {sponsors.length === 0 ? (
-            <p className={shared.empty}>Le club recherche activement des partenaires.</p>
+            <p className={shared.empty}>{t("partners.empty")}</p>
           ) : (
             <>
-              {LEVEL_GROUPS.map(({ level, title }) => {
+              {LEVEL_GROUPS.map(({ level, key }) => {
                 const group = sponsors.filter((s) => s.level === level);
                 if (group.length === 0) return null;
                 return (
                   <div key={level} className={styles.levelGroup}>
-                    <div className={styles.levelTitle}>{title}</div>
+                    <div className={styles.levelTitle}>{t(key)}</div>
                     <div className={styles.grid}>
                       {group.map((sponsor) => (
                         <SponsorLogo key={sponsor.id} name={sponsor.companyName} logoUrl={sponsor.logoUrl} website={sponsor.website} />
@@ -53,7 +55,7 @@ export default async function PartenairesPage() {
 
               {others.length > 0 && (
                 <div className={styles.levelGroup}>
-                  <div className={styles.levelTitle}>Partenaires</div>
+                  <div className={styles.levelTitle}>{t("partners.title")}</div>
                   <div className={styles.grid}>
                     {others.map((sponsor) => (
                       <SponsorLogo key={sponsor.id} name={sponsor.companyName} logoUrl={sponsor.logoUrl} website={sponsor.website} />
@@ -67,7 +69,7 @@ export default async function PartenairesPage() {
           {sponsorUrl && (
             <div className={styles.cta}>
               <a href={sponsorUrl} className={shared.btnPrimary}>
-                Devenir sponsor
+                {t("footer.becomeSponsor")}
               </a>
             </div>
           )}

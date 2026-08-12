@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicGalleryService } from "@/services/PublicGalleryService";
 import { resolveAssetUrl } from "@/lib/assets";
@@ -13,6 +14,7 @@ export const metadata = {
 };
 
 export default async function GaleriePage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const galleries = team ? await new PublicGalleryService().getAllGalleries(team.id) : [];
 
@@ -21,17 +23,17 @@ export default async function GaleriePage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-            Galerie
+            {t("gallery.title")}
           </h1>
 
           {galleries.length === 0 ? (
-            <p className={shared.empty}>Galerie photo à venir.</p>
+            <p className={shared.empty}>{t("home.gallerySoon")}</p>
           ) : (
             galleries.map((gallery) => (
               <div key={gallery.id} className={styles.gallery}>
                 <div className={styles.title}>{gallery.title}</div>
                 {gallery.photos.length === 0 ? (
-                  <p className={shared.empty}>Aucune photo dans cette galerie pour le moment.</p>
+                  <p className={shared.empty}>{t("gallery.emptyGallery")}</p>
                 ) : (
                   <div className={styles.grid}>
                     {gallery.photos.map((photo) => (
@@ -39,7 +41,7 @@ export default async function GaleriePage() {
                         key={photo.id}
                         src={resolveAssetUrl(photo.url)}
                         alt={photo.alt ?? gallery.title}
-                        label="Photo à venir"
+                        label={t("common.photoSoon")}
                         className={styles.item}
                       />
                     ))}

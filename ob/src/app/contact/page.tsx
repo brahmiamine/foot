@@ -1,3 +1,4 @@
+import { getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
 import { PublicContactService } from "@/services/PublicContactService";
 import { PublicTeamSocialsService } from "@/services/PublicTeamSocialsService";
@@ -13,6 +14,7 @@ export const metadata = {
 };
 
 export default async function ContactPage() {
+  const { t } = await getTranslator();
   const team = await getObTeam();
   const [info, socials] = team
     ? await Promise.all([new PublicContactService().getInfo(team.id), new PublicTeamSocialsService().get(team.id)])
@@ -24,7 +26,7 @@ export default async function ContactPage() {
       <div className={shared.sectionPad}>
         <div className={shared.container}>
           <h1 className={shared.sectionTitle} style={{ marginBottom: 28 }}>
-            Contact
+            {t("contact.title")}
           </h1>
 
           <div className={styles.grid}>
@@ -53,32 +55,32 @@ export default async function ContactPage() {
                   <span>{info.openingHoursFr}</span>
                 </div>
               )}
-              {!info && <p className={shared.empty}>Les coordonnées du club seront bientôt disponibles.</p>}
+              {!info && <p className={shared.empty}>{t("contact.empty")}</p>}
 
               {(info?.adminPhone || info?.adminEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Administratif</div>
+                  <div className={styles.departmentLabel}>{t("contact.admin")}</div>
                   <div>{info.adminPhone}</div>
                   <div>{info.adminEmail}</div>
                 </div>
               )}
               {(info?.sportPhone || info?.sportEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Sportif</div>
+                  <div className={styles.departmentLabel}>{t("contact.sport")}</div>
                   <div>{info.sportPhone}</div>
                   <div>{info.sportEmail}</div>
                 </div>
               )}
               {(info?.academyPhone || info?.academyEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Académie</div>
+                  <div className={styles.departmentLabel}>{t("contact.academy")}</div>
                   <div>{info.academyPhone}</div>
                   <div>{info.academyEmail}</div>
                 </div>
               )}
               {(info?.partnershipPhone || info?.partnershipEmail) && (
                 <div className={styles.department}>
-                  <div className={styles.departmentLabel}>Partenariats</div>
+                  <div className={styles.departmentLabel}>{t("contact.partnerships")}</div>
                   <div>{info.partnershipPhone}</div>
                   <div>{info.partnershipEmail}</div>
                 </div>
@@ -114,11 +116,11 @@ export default async function ContactPage() {
                 </div>
               )}
 
-              {info?.mapEmbedUrl && <iframe src={info.mapEmbedUrl} loading="lazy" title="Carte" className={styles.map} />}
+              {info?.mapEmbedUrl && <iframe src={info.mapEmbedUrl} loading="lazy" title={t("contact.map")} className={styles.map} />}
             </div>
 
             <div className={`${shared.card} ${styles.formCard}`}>
-              <p>Une question, une demande de partenariat ou d&apos;inscription ? Écrivez-nous directement.</p>
+              <p>{t("contact.prompt")}</p>
               {contactFormUrl ? (
                 <a href={contactFormUrl} className={shared.btnPrimary}>
                   Envoyer un message

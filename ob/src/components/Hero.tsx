@@ -1,30 +1,29 @@
 import Image from "next/image";
 import shared from "./shared.module.css";
 import styles from "./Hero.module.css";
+import { getTranslator } from "@/i18n/server";
 
-export function Hero() {
+export async function Hero() {
+  const { t } = await getTranslator();
   return (
     <div className={styles.hero}>
       <Image src="/images/stade-hero.jpg" alt="" fill priority sizes="100vw" className={styles.bgPhoto} />
       <div className={styles.overlay} />
       <div className={styles.stripes} />
       <div className={styles.inner}>
-        <div className={styles.eyebrow}>Fondé en 1929 · Béja, Tunisie</div>
+        <div className={styles.eyebrow}>{t("home.heroEyebrow")}</div>
         <h1 className={styles.title}>
-          Les Cigognes
-          <br />
-          de Béja
+          {t("home.heroTitle")}
         </h1>
         <p className={styles.lead}>
-          Club omnisports tunisien fondé en 1929, l&apos;Olympique de Béja porte les couleurs rouge et blanc du
-          Nord-Ouest tunisien en Ligue Professionnelle 1.
+          {t("home.heroSubtitle")}
         </p>
         <div className={styles.actions}>
           <a href="#billetterie" className={shared.btnPrimary} style={{ padding: "16px 32px", fontSize: 16 }}>
-            Acheter un billet
+            {t("home.buyTicket")}
           </a>
           <a href="#effectif" className={shared.btnOutline} style={{ padding: "14px 32px", fontSize: 16 }}>
-            Voir l&apos;effectif
+            {t("home.viewSquad")}
           </a>
         </div>
       </div>
