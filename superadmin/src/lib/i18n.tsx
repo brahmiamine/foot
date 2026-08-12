@@ -1,107 +1,66 @@
 'use client'
 
-import { createContext, useContext, ReactNode, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import frMessages from '@/locales/fr.json'
 import arMessages from '@/locales/ar.json'
-import enMessages from '@/locales/en.json'
+import { DEFAULT_LOCALE, LOCALE_COOKIE, SUPPORTED_LOCALES, getDirection, interpolate, isLocale, type Locale, type TranslationParams } from './i18nShared'
 
-export type Locale = 'fr' | 'ar' | 'en'
+export { DEFAULT_LOCALE, LOCALE_COOKIE, SUPPORTED_LOCALES, getDirection, interpolate, isLocale }
+export type { Locale, TranslationParams }
 
-const SUPPORTED_LOCALES: Locale[] = ['fr', 'ar', 'en']
+const translations: Record<Locale, Record<string, string>> = { fr: frMessages, ar: arMessages }
 
-function isLocale(value: string): value is Locale {
-  return SUPPORTED_LOCALES.includes(value as Locale)
+export function translateMessage(key: string, locale: Locale, params?: TranslationParams) {
+  return interpolate(translations[locale][key] ?? translations.fr[key] ?? key, params)
 }
 
-function interpolate(template: string, params?: Record<string, string | number>) {
-  if (!params) {
-    return template
-  }
-  return Object.entries(params).reduce(
-    (acc, [key, value]) => acc.replaceAll(`{{${key}}}`, String(value)),
-    template
-  )
+export function formatDate(value: Date | string | number, locale: Locale, options?: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-MA' : 'fr-FR', options).format(new Date(value))
+}
+
+export function formatNumber(value: number, locale: Locale, options?: Intl.NumberFormatOptions) {
+  return new Intl.NumberFormat(locale === 'ar' ? 'ar-MA' : 'fr-FR', options).format(value)
 }
 
 interface TranslationContextValue {
   locale: Locale
   dir: 'ltr' | 'rtl'
-  t: (key: string, params?: Record<string, string | number>) => string
-  switchLocale: (newLocale: Locale) => void
+  t: (key: string, params?: TranslationParams) => string
+  formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string
+  formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string
+  switchLocale: (locale: Locale) => void
 }
 
-const defaultLocale: Locale = 'fr'
+const TranslationContext = createContext<TranslationContextValue | null>(null)
 
-const translations: Record<Locale, Record<string, string>> = {
-  fr: frMessages,
-  ar: arMessages,
-  en: enMessages,
-}
-
-const TranslationContext = createContext<TranslationContextValue>({
-  locale: defaultLocale,
-  dir: 'ltr',
-  t: (key, params) => interpolate(translations[defaultLocale][key] ?? key, params),
-  switchLocale: () => {},
-})
-
-interface TranslationProviderProps {
-  children: ReactNode
-  initialLocale?: Locale
-}
-
-export function TranslationProvider({
-  children,
-  initialLocale = defaultLocale,
-}: TranslationProviderProps) {
-  const sanitizedInitialLocale = isLocale(initialLocale) ? initialLocale : defaultLocale
-  const [locale, setLocale] = useState<Locale>(sanitizedInitialLocale)
-  const dir = locale === 'ar' ? 'rtl' : 'ltr'
-
-  const switchLocale = (newLocale: Locale) => {
-    const nextLocale = isLocale(newLocale) ? newLocale : defaultLocale
-    setLocale(nextLocale)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('arbinote-locale', nextLocale)
-      document.cookie = `arbinote-locale=${nextLocale}; path=/; max-age=31536000`
-    }
-  }
-
-  const t = (key: string, params?: Record<string, string | number>) =>
-    interpolate(
-      translations[locale]?.[key] ?? translations[defaultLocale]?.[key] ?? key,
-      params
-    )
+export function TranslationProvider({ children, initialLocale = DEFAULT_LOCALE }: { children: ReactNode; initialLocale?: Locale }) {
+  const [locale, setLocale] = useState<Locale>(isLocale(initialLocale) ? initialLocale : DEFAULT_LOCALE)
+  const dir = getDirection(locale)
+  const t = useCallback((key: string, params?: TranslationParams) => translateMessage(key, locale, params), [locale])
+  const switchLocale = useCallback((next: Locale) => {
+    const safeLocale = isLocale(next) ? next : DEFAULT_LOCALE
+    setLocale(safeLocale)
+    document.cookie = `${LOCALE_COOKIE}=${safeLocale}; Path=/; Max-Age=31536000; SameSite=Lax`
+  }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-    const stored = localStorage.getItem('arbinote-locale')
-    if (stored && isLocale(stored)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLocale((current) => (stored !== current ? stored : current))
-    } else {
-      localStorage.setItem('arbinote-locale', sanitizedInitialLocale)
-    }
-  }, [sanitizedInitialLocale])
+    document.documentElement.lang = locale
+    document.documentElement.dir = dir
+    document.title = t('meta.title')
+    document.querySelector('meta[name="description"]')?.setAttribute('content', t('meta.description'))
+  }, [dir, locale, t])
 
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.lang = locale
-      document.documentElement.dir = dir
-    }
-  }, [locale, dir])
+  const value = useMemo(() => ({
+    locale, dir, t, switchLocale,
+    formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => formatDate(value, locale, options),
+    formatNumber: (value: number, options?: Intl.NumberFormatOptions) => formatNumber(value, locale, options),
+  }), [dir, locale, switchLocale, t])
 
-  return (
-    <TranslationContext.Provider value={{ locale, dir, t, switchLocale }}>
-      {children}
-    </TranslationContext.Provider>
-  )
+  return <TranslationContext.Provider value={value}>{children}</TranslationContext.Provider>
 }
 
 export function useTranslations() {
-  return useContext(TranslationContext)
+  const context = useContext(TranslationContext)
+  if (!context) throw new Error('useTranslations must be used inside TranslationProvider')
+  return context
 }
-
-

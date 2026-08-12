@@ -55,7 +55,7 @@ export default function FederationSwitcher({ variant = 'light' }: Props) {
         en: activeLeague.nom_en ?? activeLeague.nom,
         ar: activeLeague.nom_ar ?? activeLeague.nom,
       })
-    : t('federationSwitcher.noSelection')
+    : t('admin.federationSwitcher.noSelection')
 
   const buttonClasses = isDark
     ? 'flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30'
@@ -87,7 +87,7 @@ export default function FederationSwitcher({ variant = 'light' }: Props) {
         <span className="flex-1 text-left min-w-0 hidden sm:block">
           <span className="block truncate max-w-[120px] sm:max-w-none">{activeLeagueLabel}</span>
         </span>
-        <span className="sm:hidden text-xs">Ligue</span>
+        <span className="sm:hidden text-xs">{t('admin.federationSwitcher.leagues')}</span>
         <svg
           className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 transition-transform ${open ? 'translate-y-0.5 rotate-180' : ''}`}
           viewBox="0 0 20 20"
@@ -106,17 +106,17 @@ export default function FederationSwitcher({ variant = 'light' }: Props) {
         <div className={dropdownClasses}>
           <div className="p-4 space-y-4 text-sm">
             <div>
-              <p className={sectionTitleClass}>{t('federationSwitcher.title')}</p>
+              <p className={sectionTitleClass}>{t('admin.federationSwitcher.title')}</p>
               <p className={`mt-1 font-semibold break-words ${activeLeagueLabelClass}`}>{activeLeagueLabel}</p>
               {isSwitching && (
                 <p className="text-xs text-blue-400 animate-pulse mt-1">
-                  {t('federationSwitcher.switching')}
+                  {t('admin.federationSwitcher.switching')}
                 </p>
               )}
             </div>
 
             <div className="space-y-3">
-              <p className={sectionTitleClass}>{t('federationSwitcher.leagues')}</p>
+              <p className={sectionTitleClass}>{t('admin.federationSwitcher.leagues')}</p>
               <div className="space-y-4">
                 {federations.map((federation) => {
                   const federationLabel = getLocalizedName(locale, {
@@ -129,7 +129,7 @@ export default function FederationSwitcher({ variant = 'light' }: Props) {
                     <div key={federation.id} className="space-y-2">
                       <p className={`${federationLabelClass} break-words`}>{federationLabel}</p>
                       {federation.leagues.length === 0 ? (
-                        <p className={emptyLeaguesClass}>{t('federationSwitcher.noLeagues')}</p>
+                        <p className={emptyLeaguesClass}>{t('admin.federationSwitcher.noLeagues')}</p>
                       ) : (
                         <div className="flex flex-col gap-1.5">
                           {federation.leagues.map((league) => {
@@ -155,7 +155,7 @@ export default function FederationSwitcher({ variant = 'light' }: Props) {
                                 <span className="flex-1 min-w-0 break-words">{label}</span>
                                 {isActive && (
                                   <span className={`text-xs font-medium whitespace-nowrap flex-shrink-0 ${tagClass}`}>
-                                    {t('federationSwitcher.selected')}
+                                    {t('admin.federationSwitcher.selected')}
                                   </span>
                                 )}
                               </button>

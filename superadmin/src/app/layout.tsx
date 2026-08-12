@@ -1,23 +1,22 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import "@/assets/scss/skote-theme.scss";
+import type { Metadata } from 'next'
+import { TranslationProvider } from '@/lib/i18n'
+import { getServerLocale, translate } from '@/lib/i18nServer'
+import './globals.css'
+import '@/assets/scss/skote-theme.scss'
 
-export const metadata: Metadata = {
-  title: "SuperAdmin",
-  description: "Outil interne de gestion du référentiel (fédérations, ligues, équipes, arbitres, matchs) et des comptes clubs.",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  return { title: translate('meta.title', locale), description: translate('meta.description', locale), robots: { index: false, follow: false } }
+}
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getServerLocale()
+  const dir = locale === 'ar' ? 'rtl' : 'ltr'
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang={locale} dir={dir} suppressHydrationWarning>
       <body data-sidebar="dark" data-sidebar-size="lg" data-layout="vertical" data-layout-mode="light">
-        {children}
+        <TranslationProvider initialLocale={locale}>{children}</TranslationProvider>
       </body>
     </html>
-  );
+  )
 }

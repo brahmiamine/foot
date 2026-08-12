@@ -1,46 +1,20 @@
 import { cookies } from 'next/headers'
 import frMessages from '@/locales/fr.json'
 import arMessages from '@/locales/ar.json'
-import enMessages from '@/locales/en.json'
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, interpolate, type Locale, type TranslationParams } from './i18nShared'
 
-export type Locale = 'fr' | 'ar' | 'en'
-
-const defaultLocale: Locale = 'fr'
-
-const translations: Record<Locale, Record<string, string>> = {
-  fr: frMessages,
-  ar: arMessages,
-  en: enMessages,
-}
-
-const SUPPORTED_LOCALES = new Set<Locale>(['fr', 'ar', 'en'])
-
-function interpolate(template: string, params?: Record<string, string | number>) {
-  if (!params) {
-    return template
-  }
-  return Object.entries(params).reduce(
-    (acc, [key, value]) => acc.replaceAll(`{{${key}}}`, String(value)),
-    template
-  )
-}
+const translations: Record<Locale, Record<string, string>> = { fr: frMessages, ar: arMessages }
 
 export async function getServerLocale(): Promise<Locale> {
-  const cookieStore = await cookies()
-  const cookieLocale = cookieStore.get('arbinote-locale')?.value
-  if (cookieLocale && SUPPORTED_LOCALES.has(cookieLocale as Locale)) {
-    return cookieLocale as Locale
-  }
-  return defaultLocale
+  const value = (await cookies()).get(LOCALE_COOKIE)?.value
+  return isLocale(value) ? value : DEFAULT_LOCALE
 }
 
-export function getServerTranslations(locale: Locale) {
-  return translations[locale]
+export function getServerTranslations(locale: unknown) {
+  return translations[isLocale(locale) ? locale : DEFAULT_LOCALE]
 }
 
-export function translate(key: string, locale: Locale, params?: Record<string, string | number>): string {
-  const template = translations[locale]?.[key] ?? translations[defaultLocale][key] ?? key
-  return interpolate(template, params)
+export function translate(key: string, locale: unknown, params?: TranslationParams): string {
+  const safeLocale = isLocale(locale) ? locale : DEFAULT_LOCALE
+  return interpolate(translations[safeLocale][key] ?? translations.fr[key] ?? key, params)
 }
-
-

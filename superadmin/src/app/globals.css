@@ -69,3 +69,30 @@ body {
   border-radius: 0.75rem;
 }
 
+.admin-locale-switcher {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+/* Logical overrides for the legacy Skote theme. */
+html[dir="rtl"] body {
+  font-family: Tahoma, Arial, sans-serif;
+  text-align: right;
+}
+
+html[dir="rtl"] .vertical-menu { left: auto; right: 0; }
+html[dir="rtl"] #page-topbar { left: 0; right: 250px; }
+html[dir="rtl"] .main-content { margin-left: 0; margin-right: 250px; }
+html[dir="rtl"] .text-end { text-align: left !important; }
+html[dir="rtl"] .text-start { text-align: right !important; }
+html[dir="rtl"] .ms-auto { margin-left: 0 !important; margin-right: auto !important; }
+html[dir="rtl"] .me-auto { margin-right: 0 !important; margin-left: auto !important; }
+html[dir="rtl"] .dropdown-menu-end { left: 0; right: auto; }
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="url"],
+html[dir="rtl"] input[type="number"] { direction: ltr; text-align: right; }
+
+@media (max-width: 991.98px) {
+  html[dir="rtl"] #page-topbar { right: 0; }
+  html[dir="rtl"] .main-content { margin-right: 0; }
+}
