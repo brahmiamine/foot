@@ -1,53 +1,69 @@
 # marketplace-api
 
-API NestJS dédiée à la marketplace multi-vendeurs de la plateforme `foot` : comptes vendeurs, catalogue produits, modération club, et scaffolding pour variantes/stock/commandes/retours/payouts.
+## Rôle du projet
 
-Contrairement à `payment-api`/`notification-api` (bases dédiées), marketplace-api se connecte à la base **partagée `foot`** et lit/écrit les tables `sp_*` déjà créées et migrées par `sellerPortal` — c'est le schéma cible explicite du backlog (`sellerPortal → HTTP → marketplace-api → sp_products`, voir `avancement.md`, Epic E02 — TS-03/TS-04). `synchronize` TypeORM est désactivé partout : marketplace-api n'est jamais responsable du schéma de ces tables, seulement de leur contenu.
+API NestJS du domaine marketplace pour vendeurs, catalogue, modération et exécution des commandes.
 
-## Architecture
+## Fonctionnalités publiques
 
+`GET /health`; `POST /auth/register|login`; lecture publique des catégories (`GET /categories`).
+
+**Pages inventoriées :** Aucune page (service HTTP uniquement).
+
+## Fonctionnalités administratives
+
+API sans pages. Routes de service pour catégories, modération produits, lecture commande et gestion/statut des vendeurs; routes vendeur pour profil, produits, variantes, inventaire, commandes, retours, payouts et notifications.
+
+## API
+
+Contrôleurs: health; auth; categories; sellers; products et internal-products; variants; inventory; seller-orders et orders; returns; payouts; notifications; moderation. Les verbes et gardes sont ceux des décorateurs NestJS; Swagger est exposé par l'application en développement.
+
+> Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
+
+## Authentification et autorisations
+
+`SellerJwtGuard` protège les ressources vendeur et impose l'identité portée par le JWT. `ServiceAuthGuard` protège `/internal/products`, modération, commandes, mutations catégories et administration vendeurs via une clé appartenant à `SERVICE_API_KEYS`. Ne jamais exposer ces clés au navigateur.
+
+## Données possédées
+
+Base dédiée configurée par `DB_*`: vendeurs/utilisateurs, catégories, produits/images/variantes, inventaire, commandes vendeur/lignes, commandes marché, retours, payouts et notifications.
+
+**Migrations réellement présentes :** Aucun dossier `migrations/`, `mysql/` ou `sql/`.
+
+## Intégrations
+
+Consommée par sellerPortal/teamManager via `MARKETPLACE_API_URL` et clé de service. TypeORM crée/accède au schéma configuré.
+
+## Variables d’environnement
+
+Copier le fichier réellement versionné :
+
+```bash
+cp .env.example .env.local
 ```
-src/
-├── config/                  # env validation, DB, clés de service
-├── common/filters/          # exception filter global
-├── auth/                    # JWT vendeur (self-service) + clé API service-à-service (club/backend)
-├── sellers/                 # compte vendeur (inscription, profil, décision club sur le compte)
-├── categories/              # catégories produit définies par le club
-├── products/                # catalogue self-service vendeur (US-05) + endpoints internes pour sellerPortal (TS-04)
-├── moderation/               # transitions club SUBMITTED->UNDER_REVIEW->APPROVED/REJECTED->PUBLISHED (US-07 à US-11)
-├── notifications/           # notification vendeur (canal interne, en attendant notification-api)
-├── variants/                # variantes produit (taille/couleur) — self-service vendeur (US-06)
-├── inventory/                # stock disponible — self-service vendeur (US-06)
-├── orders/                  # commande globale multi-vendeurs — scaffolding (E05/E06)
-├── seller-orders/           # sous-commande par vendeur — scaffolding (E06)
-├── returns/                  # demande de retour — scaffolding (E16)
-└── payouts/                  # reversement vendeur — scaffolding (E15)
+
+Variables déclarées dans `.env.example` : `NODE_ENV`, `PORT`, `SELLER_JWT_SECRET`, `SERVICE_API_KEYS`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
+
+## Démarrage
+
+Prérequis : Node.js, pnpm, et les dépendances MariaDB/Redis éventuelles configurées.
+
+```bash
+pnpm install
+pnpm dev
+pnpm build
+pnpm start
+pnpm lint
 ```
 
-Les modules marqués **scaffolding** exposent l'entité et une lecture minimale ; leur workflow métier complet est un backlog item séparé (voir en-tête de chaque `*.service.ts`), pas dans le périmètre de cette initialisation.
+**Port :** 3011 par défaut dans `src/main.ts` et `.env.example`, pour `start`, `start:dev` et `start:prod`.
 
-## Trois types d'appelants, trois mécanismes d'authentification
+Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `superadmin` et `teamManager`, avec MariaDB partagée. Les autres projets se lancent séparément. `payment-api` et `notification-api` possèdent leur base; `marketplace-api` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (sellerPortal inclus).
 
-- **Vendeur** (self-service : catalogue, variantes, stock, commandes, retours, payouts, notifications) : JWT émis par `POST /auth/login`, header `Authorization: Bearer <token>` (voir `SellerJwtGuard`). Compte indépendant du SSO commun — un vendeur est un tiers externe, pas un `User` SSO. Table `sp_seller_users`, partagée avec l'ancien mécanisme de session de `sellerPortal` (même hash bcrypt, secrets JWT différents et non interchangeables).
-- **Application backend interne agissant pour le club** (modération, gestion des catégories, décision sur un compte vendeur) : clé API statique, header `x-api-key` (voir `ServiceAuthGuard`), enregistrée dans `SERVICE_API_KEYS`. Utilisé par `teamManager`.
-- **`sellerPortal` agissant pour un vendeur déjà authentifié chez lui** : même `ServiceAuthGuard` (`x-api-key`), mais sur les routes `internal/products/*` qui acceptent un `sellerId` explicite au lieu d'un JWT vendeur — sellerPortal a déjà vérifié l'identité du vendeur via sa propre session, marketplace-api fait confiance à l'application appelante (même principe que `payment-api` acceptant un `userId` explicite d'un appelant de confiance).
+## Tests
 
-## Configuration
+`pnpm test`, `pnpm test:e2e`, `pnpm test:cov`. Les scripts `lint` des API NestJS utilisent `--fix` et peuvent donc modifier les fichiers.
 
-Copier `.env.example` vers `.env`. Le démarrage échoue explicitement si une variable requise manque (`src/config/env.validation.ts`).
+## Limites connues
 
-| Variable | Description |
-|---|---|
-| `SELLER_JWT_SECRET` | Secret HS256 des JWT vendeur — propre à ce service, jamais partagé (ni avec le SSO commun, ni avec `SP_JWT_SECRET` de sellerPortal). |
-| `SERVICE_API_KEYS` | JSON `{ "application": "clé" }` des applications internes autorisées (`teamManager`, `sellerPortal`, `superadmin`). |
-| `DB_HOST`/`DB_PORT`/`DB_USERNAME`/`DB_PASSWORD`/`DB_DATABASE` | Base MariaDB **partagée `foot`** — mêmes identifiants que `teamManager`/`sellerPortal`. |
-
-## Lien avec sellerPortal / teamManager (TS-04)
-
-- `teamManager` appelle cette API en HTTP pour la modération (`src/lib/marketplaceApiClient.ts`, `MarketplaceModerationService`) au lieu d'accéder directement à `sp_products`/`sp_sellers` en cross-DB.
-- `sellerPortal` appelle cette API en HTTP pour les écritures produit (création/modification/suppression/soumission), via `internal/products/*` (`ServiceAuthGuard` + `sellerId` explicite) — les lectures produit restent en TypeORM direct côté sellerPortal (mêmes tables, pas un problème de cohérence, juste pas encore migré).
-- L'authentification vendeur (`sp_seller_users`) reste double le temps que l'unification d'identité (Epic E17) ne soit pas traitée : `sellerPortal` garde sa propre session (`SP_JWT_SECRET`) pour l'UI vendeur, marketplace-api sa propre auth JWT (`SELLER_JWT_SECRET`) pour ses endpoints self-service — les deux vérifient contre le même hash bcrypt en base, mais un token de l'un n'est pas valide pour l'autre.
-
-## Santé
-
-`GET /health` — vérifie la connexion DB, retourne `503` si indisponible.
+Aucune migration SQL n'est présente; le déploiement doit fournir le schéma autrement et ne doit pas compter sur une description. Pas de paiement/expédition externe. Deux modèles existent encore avec sellerPortal local.

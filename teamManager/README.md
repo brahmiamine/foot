@@ -1,65 +1,69 @@
-# teamManager — back-office de gestion d'un club
+# teamManager
 
-Application Next.js (App Router) qui centralise la gestion d'un club de football : effectif, staff, discipline, actualités/médias, boutique, sponsors, académie/recrutement, exports et réglages. Un seul déploiement partagé pour tous les clubs : chaque utilisateur se connecte avec son propre compte `User`, rattaché à son club (`teamId`) via le SSO commun au dépôt `foot`. Issue de la fusion de l'ancien "cardManager" (module discipline) avec la gestion de club.
+## Rôle du projet
 
-Le cahier des charges complet vit dans [`doc/cahier-des-charges.md`](./doc/cahier-des-charges.md) et le suivi fonctionnel dans [`doc/plan.md`](./doc/plan.md) ; [`rules.md`](./rules.md)/[`.cursorrules`](./.cursorrules) documentent les conventions techniques du projet (TypeScript strict, TypeORM, RBAC, sécurité, design system Bootstrap 5, i18n FR/AR/EN) plutôt que les fonctionnalités. [`olympique-de-béja.md`](./olympique-de-béja.md) est un contenu éditorial (histoire, palmarès, stade) servant de données d'amorçage pour un club en particulier, pas une spécification.
+Back-office multi-clubs couvrant sport, contenus, commerce et organisation.
 
-## Fonctionnalités implémentées (`src/app/admin`)
+## Fonctionnalités publiques
 
-- **Effectif & staff** : joueurs (`players`), membres d'encadrement (`team-members`, `staff`), statistiques joueurs (`player-stats`), tactiques/formations (`tactics`), convocations (`convocations`), entraînements et présence (`trainings`), déplacements (`trips`), blessures (`injuries`).
-- **Discipline** (ex-cardManager) : cartons (`cards`), motifs de cartons paramétrables (`settings` → `card-reasons`), suspensions (`suspensions`), amendes (`fines`), notes internes (`notes`).
-- **Matchs** : matchs officiels et amicaux (`matches`, `friendly-matches`).
-- **Actualités & médias (CMS)** : actualités (`news`), galeries et fichiers médias (`media`), histoire/figures/palmarès du club (`club`), informations stade (`stadiums`).
-- **Boutique & sponsors** (gestion côté admin) : catégories et produits (`shop`), sponsors (`sponsors`) — demande de partenariat → acceptation (crée un dossier `Sponsor` : niveau, taille/emplacement du logo, durée, montant) → **génération d'un résumé de convention en PDF** (`GET /api/exports/sponsor-contract/[id]`, `jsPDF`/`jspdf-autotable` comme les autres exports) : document administratif généré à partir des champs déjà saisis, pas un contrat juridiquement relu — à faire valider par le club avant signature. Pas de facturation (aucun module comptable dans cette app).
-- **Billetterie** (gestion côté admin, `billetterie`) : catégories de billets du club, et par match à domicile — prix/capacité/règles de vente (audience, quota par acheteur, fenêtre de vente). Écrit dans les tables partagées `tk_*` (voir `../billetterie/README.md`) ; l'app `billetterie` (générique, séparée) est celle qui vend réellement les billets aux supporters.
-- **Académie & recrutement** : candidatures académie (`academy`), besoins de recrutement (`recruitment`).
-- **Administration** : utilisateurs et rôles/permissions (`users`, `roles`), réglages club (`club-settings`), communiqués (`announcements`), notifications internes (`notifications`), journal d'audit (`audit`), tableau de bord (`stats`), exports Excel/PDF (`exports`, via `exceljs`/`jspdf`).
-- **Formulaires publics** (hors `/admin`, un par club via `[teamId]`) : contact (`/contact/[teamId]`), devenir sponsor (`/devenir-sponsor/[teamId]`), inscription académie (`/inscription/[teamId]`), recrutement (`/recrutement/[teamId]`) — ces formulaires sont aussi consommés par le site vitrine `ob` en lecture seule.
+Formulaires contact/sponsor/inscription/recrutement par équipe; boutique, commandes et retour paiement.
 
-La racine (`/`) redirige directement vers `/admin` (ou vers la connexion SSO) : il n'existe pas encore de site public par club servi par `teamManager` lui-même (chaque club aura son propre site public plus tard, sur le modèle de `ob`).
+**Pages inventoriées :** `/admin/academy/applications`, `/admin/academy/info`, `/admin/academy`, `/admin/announcements`, `/admin/audit`, `/admin/billetterie/categories`, `/admin/billetterie/matches/[matchId]`, `/admin/billetterie/matches`, `/admin/cards/create`, `/admin/cards`, `/admin/club/figures`, `/admin/club/history`, `/admin/club/honors`, `/admin/club`, `/admin/club-settings/contact`, `/admin/club-settings/messages`, `/admin/club-settings`, `/admin/convocations`, `/admin/exports`, `/admin/fines/create`, `/admin/fines`, `/admin/friendly-matches/[id]/lineup`, `/admin/friendly-matches`, `/admin/injuries`, `/admin/marketplace/products`, `/admin/matches/[id]/lineup`, `/admin/matches`, `/admin/media/galleries`, `/admin/media/items`, `/admin/news/[id]/edit`, `/admin/news/create`, `/admin/news`, `/admin/notes/create`, `/admin/notes`, `/admin/notifications`, `/admin`, `/admin/player-stats`, `/admin/players/[id]/edit`, `/admin/players/create`, `/admin/players`, `/admin/recruitment/applications`, `/admin/recruitment`, `/admin/roles`, `/admin/settings/card-reasons`, `/admin/settings`, `/admin/shop/categories`, `/admin/shop/orders`, `/admin/shop/products`, `/admin/sponsors`, `/admin/stadiums`, `/admin/staff/[id]/edit`, `/admin/staff/create`, `/admin/staff`, `/admin/stats`, `/admin/suspensions`, `/admin/tactics/[id]`, `/admin/tactics/new`, `/admin/tactics`, `/admin/team-members`, `/admin/trainings`, `/admin/trips`, `/admin/users`, `/boutique/[teamId]`, `/boutique/commandes`, `/boutique`, `/boutique/retour`, `/contact/[teamId]`, `/devenir-sponsor/[teamId]`, `/inscription/[teamId]`, `/`, `/recrutement/[teamId]`
 
-## Rôles
+## Fonctionnalités administratives
 
-Hiérarchie définie dans la spec et reflétée par `roles`/`users` : `ADMIN`, `SOUS-ADMIN`, `COACH`, `ADJOINT`, `STAFF`, `JOUEUR`, `SUPPORTER`, avec des acteurs additionnels prévus (directeur sportif, analyste performance, préparateur physique, médecin, kiné, préparateur mental, community manager, responsable sécurité, responsable billetterie, secrétaire général, trésorier, responsable juridique, responsable infrastructures).
+Académie (infos/candidatures), annonces, billetterie (catégories et matchs), club (histoire, chiffres, palmarès, contact/messages), convocations, exports CSV/PDF, discipline (cartons, suspensions, amendes, notes), matchs et compositions dont amicaux, blessures, marketplace, médias/galeries/actualités, recrutement, boutique, tactiques, entraînements/invitations et déplacements/participants/véhicules; aussi joueurs/stats, staff, sponsors, stades, rôles, utilisateurs, notifications, audit et réglages.
 
-## Fonctionnalités décrites au cahier des charges mais pas encore implémentées
+## API
 
-- **Boutique multi-vendeurs** avec commissions et paiement en ligne (côté produit/client, pas seulement gestion admin).
-- **Espace supporter/communauté** : fil d'actualité, vote homme du match, sondages, pronostics, points de fidélité, badges, mur des supporters, contenus exclusifs, live texte, QR code de présence stade, résumé de match généré par IA.
-- **Notifications centralisées** (ciblage par club/rôle/joueur/supporter). Le module `notifications` interne (`entities/Notification.ts`, page « Communication » `/admin/notifications`) reste indépendant de `notification-api` ; ce n'est pas ce module qui émet vers `notification-api`. ~~Le câblage vers ce dernier n'est pas encore fait~~ : côté émission, `lib/notificationClient.ts` (`POST /internal/notifications`) est déjà branché ; côté réception, l'abonnement Web Push (voir § PWA ci-dessous) l'est aussi désormais. Reste ouvert : convocation/composition d'équipe/sponsor, où le destinataire n'est pas encore un `User` résolvable (voir avancement.md § 3.G).
+`/api/admin/media-items`, `/api/exports/cards`, `/api/exports/fines`, `/api/exports/players`, `/api/exports/sponsor-contract/[id]`, `/api/exports/suspensions`, `/api/health`, `/api/logout`, `/api/payments/webhook`, `/api/stadiums/[id]`, `/api/stadiums`, `/api/teams`, `/api/upload/application-document`, `/api/upload/media/chunked/complete`, `/api/upload/media/chunked/init`, `/api/upload/media/chunked`, `/api/upload/media`, `/api/upload/news`, `/api/upload/players`, `/api/upload/product`, `/api/upload`, `/api/upload/sponsor-logo`, `/api/upload/stadium`, `/api/upload/staff`
 
-## PWA
+> Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
-`manifest.json` + `public/sw.js` (app shell : cache des assets statiques,
-page `offline.html` de secours pour la navigation), icônes dans
-`public/icons/`, bannière d'installation (`PwaInstallPrompt.tsx`,
-évènement `beforeinstallprompt`) — voir [`../roadmap.md`](../roadmap.md) § 3.
-Pas de synchronisation offline des écritures (formulaires/CRUD) : hors
-périmètre de ce chantier. **Notifications Web Push** : abonnement possible
-depuis l'en-tête de l'admin (`PushSubscribeButton`, Server Actions dans
-`app/admin/pushActions.ts`, relais du JWT `sso` vers
-`notification-api`/`api/push-subscriptions`) — `public/sw.js` gère
-`push`/`notificationclick`, même mécanique que `ob` (voir avancement.md,
-"Web Push généralisé").
+## Authentification et autorisations
 
-Voir [`../roadmap.md`](../roadmap.md) pour le détail et les priorités de ce backlog.
+Session SSO staff; contexte `teamId` calculé côté serveur et permissions/rôles contrôlés par `access`/`permissions`. Les pages/actions doivent conserver ce filtrage et ne jamais faire confiance à un teamId client. Webhook paiement signé.
 
-## Base de données
+## Données possédées
 
-MySQL/MariaDB (`mariadb`, `mysql2`, TypeORM), base `foot` partagée avec `arbinote`, `matchsheet`, `superadmin`, `sso` et `ob`. Migrations dans [`sql/`](./sql) : matchs et équipes externes, pages club/candidatures académie, blessures, compositions d'équipe (`match_lineups`, prérequis de `matchsheet`), périmètre des notifications, statistiques joueurs, rôles/planning/formations, boutique + sponsors + notifications, tableaux tactiques, catégories jeunes/genre, détails et présence des entraînements, déplacements, unification CMS, unification des joueurs — plus un jeu de données complet (`olympique_beja_db_complete.sql`) et des exemples de seed (joueurs, boutique, sponsors).
+Base `foot`: possède les données club listées par les entités (effectif, discipline, CMS, académie/recrutement, boutique, billetterie de configuration, tactiques, entraînements, voyages, RBAC/audit); référence les référentiels plateforme.
 
-## Authentification
+**Migrations réellement présentes :** Scripts réels pour CMS, joueurs, blessures, compositions, stats, rôles/planification/formations, boutique/sponsors/notifications, tactiques, entraînements, déplacements, académie et billetterie; exemples/seeds séparés et non migrations.
 
-Session SSO partagée (cookie JWT `foot_sso_session`, secret `SSO_JWT_SECRET`, issuer `foot-sso`, vérifié via `jose`) — voir [`../sso/README.md`](../sso/README.md). `teamManager` ne fait que vérifier le cookie, il ne l'émet jamais.
+## Intégrations
+
+SSO/profil; notification-api; payment-api pour boutique; marketplace-api pour publication; SMTP; stockage local des uploads.
+
+## Variables d’environnement
+
+Copier le fichier réellement versionné :
+
+```bash
+cp .env.example .env.local
+```
+
+Variables déclarées dans `.env.example` : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_LOGGING`, `SSO_URL`, `NEXT_PUBLIC_SSO_URL`, `SSO_JWT_SECRET`, `SSO_COOKIE_NAME`, `SSO_COOKIE_DOMAIN`, `NOTIFICATION_API_URL`, `NOTIFICATION_API_KEY`, `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY`, `PAYMENT_API_URL`, `PAYMENT_API_KEY`, `PAYMENT_PROVIDER`, `PAYMENT_WEBHOOK_SECRET`, `MARKETPLACE_API_URL`, `MARKETPLACE_API_KEY`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
 
 ## Démarrage
 
+Prérequis : Node.js, pnpm, et les dépendances MariaDB/Redis éventuelles configurées.
+
 ```bash
-cp .env.example .env.local   # renseigner DB_*, SSO_JWT_SECRET, SSO_COOKIE_NAME, etc.
 pnpm install
-pnpm run dev   # http://localhost:3003 (voir aussi ../start.sh à la racine du repo)
+pnpm dev
+pnpm build
+pnpm start
+pnpm lint
 ```
 
-## Interface
+**Port :** 3003 via `PORT=3003` dans `../start.sh`; sinon défaut Next 3000.
 
-UI Bootstrap 5 (thème SCSS porté du template Skote), édition riche via Tiptap, exports Excel (`exceljs`) et PDF (`jspdf`/`jspdf-autotable`), emails via `nodemailer`, validation des données via `zod`.
+Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `superadmin` et `teamManager`, avec MariaDB partagée. Les autres projets se lancent séparément. `payment-api` et `notification-api` possèdent leur base; `marketplace-api` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (sellerPortal inclus).
+
+## Tests
+
+`pnpm test`, `pnpm test:i18n`. Les scripts `lint` des API NestJS utilisent `--fix` et peuvent donc modifier les fichiers.
+
+## Limites connues
+
+Très large monolithe et schéma SQL appliqué manuellement. Uploads locaux/chunkés sans stockage objet ni antivirus. Certaines intégrations sont optionnelles selon variables; marketplace local et API peuvent coexister. Les PWA n'assurent pas la synchro CRUD hors ligne.

@@ -1,47 +1,69 @@
-# superadmin — back-office interne
+# superadmin
 
-Application Next.js (App Router) réservée au rôle `SUPERADMIN` : c'est l'outil de référence qui alimente les fédérations, ligues, saisons, journées, équipes, matchs et arbitres utilisés par toutes les autres apps de l'écosystème `foot` (`arbinote`, `matchsheet`, `teamManager`, `ob`). Base MariaDB `foot` partagée, hébergée dans le conteneur Docker `mariadb_container` commun à tout le dépôt.
+## Rôle du projet
 
-## Fonctionnalités
+Back-office plateforme des référentiels football et des comptes de clubs.
 
-- **Tableau de bord** (`/admin`) : statistiques générales.
-- **Fédérations** (`/admin/federations`) : CRUD + activation/désactivation.
-- **Ligues** (`/admin/leagues`) : CRUD + activation/désactivation.
-- **Saisons** (`/admin/saisons`) : CRUD.
-- **Journées** (`/admin/journees`) : CRUD des journées de championnat.
-- **Équipes** (`/admin/teams`) : CRUD + import CSV en masse.
-- **Matchs** (`/admin/matches`) : CRUD, plus **annulation** (`matches.status -> CANCELLED`, `POST /api/admin/matches/[id]/cancel`, motif obligatoire) — restreinte aux matchs `UPCOMING`, irréversible depuis cette action (pas de réactivation), notifie les deux clubs via `notification-api` et journalise dans `/admin/audit`. Voir `avancement.md` § « Cycle de vie du match — CANCELLED » pour les décisions volontairement pas prises (réactivation, workflow multi-étapes).
-- **Arbitres** (`/admin/arbitres`) : CRUD + import CSV en masse.
-- **Motifs de cartons** (`/admin/card-reasons`) : référentiel disciplinaire utilisé par `teamManager` et `matchsheet`.
-- **Comptes club** (`/admin/club`, `/admin/club/[teamId]`) : gestion des utilisateurs rattachés à une équipe (accès à `teamManager`). Création par **invitation par email à usage unique** (`POST /api/admin/club/[teamId]/invitations`, table `staff_invitations`, lien valable 7 jours, page publique `/invite/[token]`) — `superadmin` ne choisit plus le mot de passe du compte, le destinataire le définit lui-même en acceptant. La réinitialisation du mot de passe d'un compte existant reste directe (dépannage d'un utilisateur bloqué), inchangée.
-- **Journal d'audit** (`/admin/audit`) : historique des actions effectuées dans le back-office.
+## Fonctionnalités publiques
 
-Chaque ressource expose une API REST classique sous `src/app/api/admin/*` (liste/création en `GET`/`POST`, lecture/modification/suppression par identifiant en `GET`/`PUT`/`DELETE`), plus un endpoint `stats` pour le tableau de bord et un `health` pour le healthcheck.
+Connexion via SSO et acceptation d'une invitation staff par jeton.
 
-## Authentification
+**Pages inventoriées :** `/admin/arbitres`, `/admin/audit`, `/admin/card-reasons`, `/admin/club/[teamId]`, `/admin/club`, `/admin/federations`, `/admin/journees`, `/admin/leagues`, `/admin/matches`, `/admin`, `/admin/saisons`, `/admin/teams`, `/invite/[token]`, `/login`, `/`
 
-Session SSO partagée avec les autres apps du dépôt : cookie JWT (`foot_sso_session` par défaut) émis par `sso`, vérifié ici avec `jose` (issuer `foot-sso`, secret `SSO_JWT_SECRET` identique partout). Rôles reconnus : `SUPERADMIN`, `ADMIN`, `OBSERVATEUR` — seul `SUPERADMIN` accède au back-office (`ensureAdminAuth`/`hasAdminSession`). Redirection automatique vers `SSO_URL` si non authentifié. L'ancien login local en dur (`ADMIN_USER`/`ADMIN_PASS`) est déprécié.
+## Fonctionnalités administratives
 
-## Base de données
+Dashboard/statistiques; fédérations, ligues, saisons, journées, équipes et branding, matchs (annulation/réouverture), arbitres/import CSV, motifs de carton, clubs/utilisateurs/invitations et audit.
 
-MySQL/MariaDB (`mysql2` + TypeORM), base `foot` partagée. Migrations dans `migrations/` (`add_is_active_to_federations.sql`, `add_is_active_to_leagues.sql`, `add_unique_vote_per_match_device.sql`) et scripts complémentaires dans `mysql/` (schéma arbitres, purge de l'ancien schéma, ajout du journal d'audit, IP des votes, champs équipe, catégories jeunes/genre, type de tournoi, alertes et modération de votes).
+## API
+
+`/api/admin/arbitres/[id]`, `/api/admin/arbitres/import`, `/api/admin/arbitres`, `/api/admin/audit`, `/api/admin/card-reasons/[id]`, `/api/admin/card-reasons`, `/api/admin/club/[teamId]/invitations`, `/api/admin/club/[teamId]`, `/api/admin/club`, `/api/admin/club/users/[id]`, `/api/admin/federations/[id]`, `/api/admin/federations/[id]/toggle`, `/api/admin/federations`, `/api/admin/journees/[id]`, `/api/admin/journees`, `/api/admin/leagues/[id]`, `/api/admin/leagues/[id]/toggle`, `/api/admin/leagues`, `/api/admin/logout`, `/api/admin/matches/[id]/cancel`, `/api/admin/matches/[id]/reopen`, `/api/admin/matches/[id]`, `/api/admin/matches`, `/api/admin/saisons/[id]`, `/api/admin/saisons`, `/api/admin/stats`, `/api/admin/teams/[id]/branding`, `/api/admin/teams/[id]`, `/api/admin/teams/import`, `/api/admin/teams`, `/api/health`, `/api/invite/[token]`
+
+> Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
+
+## Authentification et autorisations
+
+Toutes les routes `/api/admin/*` utilisent la session SSO `SUPERADMIN`; logout supprime le cookie local. Le jeton d'invitation est un bearer ponctuel et doit expirer.
+
+## Données possédées
+
+Base partagée `foot`: référentiels, équipes/branding, matchs, arbitres, motifs, comptes/invitations staff et journal d'audit.
+
+**Migrations réellement présentes :** Dump arbitres et migrations partagées (audit, votes, équipes, tournois); temps réels de match, invitations staff, branding et icônes, activation des fédérations/ligues, unicité des votes.
+
+## Intégrations
+
+SSO; SMTP pour invitations; notification-api; MariaDB partagée par les applications métier.
+
+## Variables d’environnement
+
+Copier le fichier réellement versionné :
+
+```bash
+cp .env.example .env.local
+```
+
+Variables déclarées dans `.env.example` : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_LOGGING`, `SSO_URL`, `NEXT_PUBLIC_SSO_URL`, `SSO_JWT_SECRET`, `SSO_COOKIE_NAME`, `SSO_COOKIE_DOMAIN`, `NOTIFICATION_API_URL`, `NOTIFICATION_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
 
 ## Démarrage
 
+Prérequis : Node.js, pnpm, et les dépendances MariaDB/Redis éventuelles configurées.
+
 ```bash
-cp .env.example .env.local   # renseigner DB_*, SSO_JWT_SECRET, SSO_COOKIE_NAME, etc.
 pnpm install
-pnpm run start:dev   # ./start.sh : démarre Docker + MariaDB/phpMyAdmin partagés puis `pnpm run dev`
-# ou, si la base est déjà démarrée (ex. via ../start.sh à la racine du repo) :
-pnpm run dev          # http://localhost:3002
+pnpm dev
+pnpm build
+pnpm start
+pnpm lint
 ```
+
+**Port :** 3002 via `PORT=3002` dans `../start.sh`; sinon défaut Next 3000.
+
+Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `superadmin` et `teamManager`, avec MariaDB partagée. Les autres projets se lancent séparément. `payment-api` et `notification-api` possèdent leur base; `marketplace-api` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (sellerPortal inclus).
 
 ## Tests
 
-```bash
-pnpm test        # Vitest
-```
+`pnpm test`, `pnpm test:i18n`. Les scripts `lint` des API NestJS utilisent `--fix` et peuvent donc modifier les fichiers.
 
-## Interface
+## Limites connues
 
-UI construite avec Bootstrap 5 / Reactstrap (thème SCSS custom porté du template Skote), `react-icons`, `react-toastify`, `sweetalert2`. Internationalisation FR/EN/AR.
+Import CSV et uploads exigent validation/sauvegarde opérationnelle. Le secret SSO symétrique est partagé. Les migrations sont des scripts SQL manuels, sans runner/versionnement central.
