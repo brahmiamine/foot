@@ -39,6 +39,10 @@ export function LiveMatchSection({
   const [data, setData] = useState<LivePayload>({ status: initialStatus, score: initialScore, events: initialEvents });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Repli polling (20s) — utilisé si l'EventSource n'est jamais disponible
+  // (navigateur trop ancien) ou tombe en erreur (proxy qui coupe le flux
+  // SSE, etc.). Voir avancement.md, TS-42/US-43 : SSE est une amélioration
+  // de latence, pas un remplacement garanti du polling.
   useEffect(() => {
     if (data.status !== "IN_PROGRESS") return;
 
@@ -57,6 +61,30 @@ export function LiveMatchSection({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+  }, [matchId, data.status]);
+
+  // SSE (TS-42/US-43) : quand disponible, remplace le besoin d'attendre
+  // jusqu'à 20s (POLL_INTERVAL_MS) pour voir un nouvel événement — le
+  // serveur pousse dès qu'il détecte un changement (poll interne ~3s, voir
+  // /api/live/[matchId]/stream). Le polling ci-dessus continue de tourner
+  // en parallèle sans coût réel (fetch conditionné par IN_PROGRESS
+  // uniquement) : il prend le relais silencieusement si l'EventSource ne
+  // reçoit plus rien.
+  useEffect(() => {
+    if (data.status !== "IN_PROGRESS" || typeof EventSource === "undefined") return;
+
+    const source = new EventSource(`/api/live/${matchId}/stream`);
+    source.addEventListener("update", (event) => {
+      try {
+        setData(JSON.parse((event as MessageEvent).data) as LivePayload);
+      } catch {
+        // Payload malformé : on ignore, le polling de repli garde l'affichage à jour.
+      }
+    });
+    source.addEventListener("closed", () => source.close());
+    source.onerror = () => source.close();
+
+    return () => source.close();
   }, [matchId, data.status]);
 
   const isLive = data.status === "IN_PROGRESS";

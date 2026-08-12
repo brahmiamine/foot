@@ -24,7 +24,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P1 | E10 – CI et tests | ✅ | exécuter les tests existants sur tous les projets (TS-33/34/35/36 ✅) |
 | P1 | E11 – Billetterie supporters | 🔄 | renforcer le contrôle de l'audience avec scanner/offline |
 | P2 | E12 – ArbiNote audit | ✅ | compléter traçabilité et modération |
-| P2 | E13 – Live temps réel | ⏳ | remplacer progressivement le polling par SSE/WebSocket |
+| P2 | E13 – Live temps réel | 🔄 | remplacer progressivement le polling par SSE/WebSocket |
 | P2 | E14 – SMS | ⏳ | finaliser le canal SMS (stub actuellement) |
 | P2 | E15 – Payout Marketplace | ⏳ | automatiser les paiements vendeurs |
 | P2 | E16 – Returns Marketplace | ⏳ | fermer le workflow des retours |
@@ -1133,16 +1133,22 @@ fallback sur le cookie/header legacy s'il existe encore. Tests :
 # EPIC E13 — Live temps réel
 
 **Priorité : P2**  
-**Statut :** ⏳ À faire
+**Statut :** 🔄 Partiellement implémenté
 
 ### État actuel
 
 - Données live (goals, cards, injuries, substitutions) alimentent `ob` en lecture.
+- SSE livré côté `ob` pour réduire la latence perçue (TS-42/US-43, voir
+  ci-dessous) — reste bâti sur la même lecture DB partagée que le polling
+  existant, pas sur un vrai bus d'événements `matchsheet → ob` (voir note
+  sous TS-41).
 - Pas de contrat d'API/versionnement entre `matchsheet` et frontends publics.
 - Un changement de schéma peut casser le live sans garde.
 - Pas de synchronisation offline des écritures côté stade.
 
 ## TS-41 — Créer événements live
+
+**Statut :** ⏳ Partiellement — types déjà présents côté lecture, pas d'émission event-driven
 
 ```text
 GOAL_CREATED
@@ -1153,7 +1159,23 @@ MATCH_STARTED
 MATCH_FINISHED
 ```
 
+Les 4 premiers types existent déjà comme `LiveEventType` côté `ob`
+(`ob/src/services/LiveMatchService.ts` : `GOAL` | `CARD` | `SUBSTITUTION` |
+`INJURY`), mais dérivés par lecture DB (`ms_goals`/`Card`/
+`ms_substitutions`/`ms_injuries`), pas émis par `matchsheet` au moment de
+l'écriture — il n'existe aucun canal (event bus, webhook, SSE
+serveur-à-serveur) entre `matchsheet` et `ob`, seulement la base MySQL
+partagée que les deux lisent/écrivent chacun de leur côté. `MATCH_STARTED`/
+`MATCH_FINISHED` ne sont pas non plus des événements émis : `ob` déduit
+l'état live de `matches.status`, lu à chaque poll. Une vraie émission
+d'événements nécessiterait un event bus (Epic E20, toujours ⏳) ou un
+webhook dédié `matchsheet → ob` (sur le modèle de `payment-api →
+billetterie`, voir Epic E04) — non traité ici : TS-42/US-43 apportent déjà
+un vrai gain de latence sans cette dépendance, voir note ci-dessous.
+
 ## TS-42 — Ajouter SSE
+
+**Statut :** ✅ Livré
 
 Première étape :
 
@@ -1161,13 +1183,50 @@ Première étape :
 GET /matches/:id/events/stream
 ```
 
+Implémenté côté `ob` (`GET /api/live/[matchId]/stream`, qui lit la même
+base partagée que `GET /api/live/[matchId]`, voir Epic E05/US-43
+ci-dessous) plutôt que côté `matchsheet` : c'est déjà `ob` qui possède le
+seul point de lecture live existant (`LiveMatchService`, filtré
+`isPublicVisible`), `matchsheet` n'a aucune route publique. Le flux
+interroge la base côté serveur toutes les 3s (au lieu des 20s du polling
+client existant) et ne pousse au navigateur que lorsque le contenu change
+réellement ; il envoie un événement `closed` et termine le flux quand le
+match passe `FINISHED`/`CANCELLED`, avec un heartbeat toutes les 15s pour
+garder la connexion ouverte à travers les proxys.
+
+### Limite assumée
+
+Ce n'est **pas** un event bus `matchsheet → ob` (TS-41 reste ouvert) : le
+serveur `ob` continue d'interroger la base toutes les 3s en interne, il ne
+reçoit aucune notification de `matchsheet` au moment de l'écriture — le
+gain est la latence perçue côté navigateur (jusqu'à 3s au lieu de jusqu'à
+20s), pas la suppression du polling sous-jacent. Passer à un vrai push
+event-driven nécessiterait l'Epic E20 (Event Bus) ou un webhook dédié.
+
+Tests : `ob/src/app/api/live/[matchId]/stream/route.test.ts` (4 cas — match
+inconnu/masqué → 404, événement `update` initial avec statut/score/
+événements, événement `closed` + fin du flux pour un match déjà terminé).
+
 ## US-43 — Mettre à jour OB instantanément
+
+**Statut :** ✅ Livré (repli polling conservé)
 
 ```text
 Matchsheet → event → SSE → OB
 ```
 
-Polling conservé comme fallback.
+Réalisé par `ob → SSE (lecture DB) → navigateur` plutôt que par un vrai
+événement émis par `matchsheet` (voir limite assumée sous TS-42).
+`LiveMatchSection.tsx` ouvre un `EventSource` vers `/api/live/[matchId]/
+stream` quand le match est `IN_PROGRESS` et remplace l'affichage à chaque
+événement `update` reçu.
+
+Polling conservé comme fallback. ✅ — le `setInterval` fetch existant
+(20s) continue de tourner en parallèle sans coût réel (conditionné par
+`IN_PROGRESS`, comme avant) : si l'`EventSource` échoue (`onerror`, proxy
+qui coupe le flux, navigateur sans support SSE), la connexion se ferme
+silencieusement et le polling existant garde l'affichage à jour, sans état
+d'erreur visible pour l'utilisateur.
 
 ---
 
@@ -1617,7 +1676,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Event publishing
 ⏳ Réduire écritures dans domaines TeamManager
 ✅ Activer tests CI
-⏳ SSE/WebSocket live
+⏳ SSE/WebSocket live event-driven depuis matchsheet (SSE livré côté ob par lecture DB, TS-42 — matchsheet n'émet toujours aucun événement)
 ⏳ Synchronisation offline écritures
 ```
 
@@ -1628,7 +1687,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Fiche produit
 ⏳ Checkout
 ⏳ Page commandes réelle (actuellement dépendante billetterie)
-⏳ Live SSE
+✅ Live SSE (TS-42/US-43) — repli polling conservé ; pas un event bus matchsheet → ob (TS-41 reste ouvert)
 ⏳ Intégration future Marketplace API
 ✅ Tests (TS-36) — pages publiques, live API (polling), restrictions membre, notification actions
 ```
