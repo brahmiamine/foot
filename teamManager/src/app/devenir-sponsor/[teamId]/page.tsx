@@ -32,9 +32,9 @@ export default async function SponsorRequestPage({ params }: { params: Promise<{
             fallbackIcon="fas fa-shield-alt fa-2x"
           />
         )}
-        <h1 className="h3 mb-2">{t("becomeSponsor", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
+        <h1 className="h3 mb-2">{t("sponsor.request.page.title", { team: locale === "ar" && team.nomAr ? team.nomAr : team.nom })}</h1>
         <p className="text-muted">
-          {t("sponsorHelp")}
+          {t("sponsor.request.page.help")}
         </p>
       </div>
 

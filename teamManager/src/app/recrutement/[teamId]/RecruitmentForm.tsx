@@ -22,13 +22,13 @@ export function RecruitmentForm({ teamId }: { teamId: string }) {
       const formData = new FormData(e.currentTarget);
       const result = await submitRecruitmentApplication(teamId, formData);
       if (result.success) {
-        setSuccess(result.message ?? null);
+        setSuccess(t(result.messageKey));
         formRef.current?.reset();
       } else {
-        setError(result.error || "Erreur lors de l'envoi de la candidature");
+        setError(t(result.messageKey));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'envoi de la candidature");
+    } catch {
+      setError(t("recruitment.application.feedback.error"));
     } finally {
       setSubmitting(false);
     }
@@ -49,62 +49,62 @@ export function RecruitmentForm({ teamId }: { teamId: string }) {
         <div className="col-12">
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-0">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label={t("close")} className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
           </div>
         </div>
       )}
 
       <div className="col-md-6">
         <label htmlFor="name" className="form-label">
-          {t("fullName")} *
+          {t("common.fields.fullName")} *
         </label>
         <input id="name" name="name" type="text" className="form-control" required maxLength={150} />
       </div>
       <div className="col-md-6">
         <label htmlFor="birthDate" className="form-label">
-          {t("birthDate")} *
+          {t("common.fields.birthDate")} *
         </label>
         <input id="birthDate" name="birthDate" type="date" className="form-control" required />
       </div>
       <div className="col-md-4">
         <label htmlFor="category" className="form-label">
-          {t("category")} *
+          {t("common.fields.category")} *
         </label>
         <input id="category" name="category" type="text" className="form-control" placeholder="U15, Seniors..." required maxLength={20} />
       </div>
       <div className="col-md-4">
         <label htmlFor="position" className="form-label">
-          {t("position")} *
+          {t("common.fields.position")} *
         </label>
         <input id="position" name="position" type="text" className="form-control" placeholder="Gardien, Défenseur..." required maxLength={50} />
       </div>
       <div className="col-md-4">
         <label htmlFor="currentClub" className="form-label">
-          {t("currentClub")}
+          {t("recruitment.form.fields.currentClub")}
         </label>
         <input id="currentClub" name="currentClub" type="text" className="form-control" maxLength={150} />
       </div>
       <div className="col-md-6">
         <label htmlFor="parentPhone" className="form-label">
-          {t("playerParentPhone")} *
+          {t("recruitment.form.fields.playerParentPhone")} *
         </label>
         <input id="parentPhone" name="parentPhone" type="tel" className="form-control" required maxLength={30} />
       </div>
       <div className="col-md-6">
         <label htmlFor="email" className="form-label">
-          {t("email")}
+          {t("contact.form.fields.email")}
         </label>
         <input id="email" name="email" type="email" className="form-control" maxLength={190} />
       </div>
       <div className="col-12">
         <label htmlFor="videoUrl" className="form-label">
-          {t("videoLink")}
+          {t("recruitment.form.fields.videoLink")}
         </label>
         <input id="videoUrl" name="videoUrl" type="text" className="form-control" placeholder="https://..." maxLength={255} />
       </div>
       <div className="col-12">
         <label htmlFor="message" className="form-label">
-          {t("message")}
+          {t("common.fields.message")}
         </label>
         <textarea id="message" name="message" className="form-control" rows={3} maxLength={2000} />
       </div>
@@ -114,10 +114,10 @@ export function RecruitmentForm({ teamId }: { teamId: string }) {
           {submitting ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-              {t("sending")}
+              {t("common.status.sending")}
             </>
           ) : (
-            t("sendRecruitment")
+            t("recruitment.application.actions.send")
           )}
         </button>
       </div>

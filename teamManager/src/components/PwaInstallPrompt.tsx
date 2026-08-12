@@ -57,7 +57,7 @@ export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstall
   return (
     <div
       role="dialog"
-      aria-label={t("installLabel")}
+      aria-label={t("pwa.install.label")}
       style={{
         position: "fixed",
         bottom: 16,
@@ -78,12 +78,12 @@ export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstall
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
       }}
     >
-      <span style={{ flex: 1, fontSize: 14 }}>{t("installMessage")}</span>
+      <span style={{ flex: 1, fontSize: 14 }}>{t("pwa.install.message")}</span>
       <button
         onClick={dismiss}
         style={{ background: "transparent", border: "none", color: "#8a8580", cursor: "pointer", fontSize: 13 }}
       >
-        {t("later")}
+        {t("pwa.install.later")}
       </button>
       <button
         onClick={install}
@@ -98,7 +98,7 @@ export default function PwaInstallPrompt({ accentColor = "#c8102e" }: PwaInstall
           fontWeight: 600,
         }}
       >
-        {t("install")}
+        {t("pwa.install.action")}
       </button>
     </div>
   );

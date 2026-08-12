@@ -15,7 +15,7 @@ export async function submitRecruitmentApplication(teamId: string, formData: For
     const teamService = new TeamService();
     const team = await teamService.findById(teamId);
     if (!team) {
-      return { success: false, error: "Club introuvable" };
+      return { success: false, messageKey: "common.errors.clubNotFound" as const };
     }
 
     const data = createRecruitmentApplicationSchema.parse({
@@ -33,8 +33,8 @@ export async function submitRecruitmentApplication(teamId: string, formData: For
     const service = new RecruitmentService();
     await service.createApplication(teamId, { ...data, email: data.email || null });
 
-    return { success: true, message: "Votre candidature a bien été envoyée. Le club vous recontactera prochainement." };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'envoi de la candidature" };
+    return { success: true, messageKey: "recruitment.application.feedback.success" as const };
+  } catch {
+    return { success: false, messageKey: "recruitment.application.feedback.error" as const };
   }
 }

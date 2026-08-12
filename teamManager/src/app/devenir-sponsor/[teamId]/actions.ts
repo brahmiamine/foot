@@ -15,7 +15,7 @@ export async function submitSponsorRequest(teamId: string, formData: FormData) {
     const teamService = new TeamService();
     const team = await teamService.findById(teamId);
     if (!team) {
-      return { success: false, error: "Club introuvable" };
+      return { success: false, messageKey: "common.errors.clubNotFound" as const };
     }
 
     const data = createSponsorRequestSchema.parse({
@@ -33,8 +33,8 @@ export async function submitSponsorRequest(teamId: string, formData: FormData) {
     const sponsorService = new SponsorService();
     await sponsorService.createRequest(data, teamId);
 
-    return { success: true, message: "Votre demande a bien été envoyée. Le club vous recontactera prochainement." };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'envoi de la demande" };
+    return { success: true, messageKey: "sponsor.request.feedback.success" as const };
+  } catch {
+    return { success: false, messageKey: "sponsor.request.feedback.error" as const };
   }
 }

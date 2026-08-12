@@ -9,7 +9,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import type { TranslationKey } from "@/i18n/dictionaries";
 
 const MENU_KEYS: Record<string, TranslationKey> = {
-  Dashboards:"dashboards", "Tableau de bord":"dashboard", Apps:"apps", Pages:"pages", Stades:"stadiums", Joueurs:"players", Liste:"list", Ajouter:"add", Staff:"staff", Membres:"members", Matchs:"matches", "Matchs amicaux":"friendlyMatches", Entraînements:"trainings", Déplacements:"trips", "Planches tactiques":"tactics", "Blessures & santé":"health", Discipline:"discipline", Cartons:"cards", Suspensions:"suspensions", Amendes:"fines", Notes:"notes", "Journal d'audit":"audit", Exports:"exports", Réglages:"settings", Actualités:"news", Créer:"create", Médias:"media", "Éléments média":"mediaItems", Galeries:"galleries", Convocations:"callups", Galerie:"gallery", Boutique:"shop", Produits:"products", Catégories:"categories", Billetterie:"ticketing", "Par match":"perMatch", "Catégories de billets":"ticketCategories", Sponsors:"sponsors", Communication:"communication", "Le club":"club", Présentation:"presentation", Histoire:"history", Palmarès:"honors", "Grandes figures":"figures", Formation:"academy", "Contenu éditorial":"editorial", "Candidatures académie":"academyApplications", Recrutement:"recruitment", "Postes recherchés":"needs", Candidatures:"applications", Communiqués:"announcements", "Contact & réseaux":"contactSocial", "Réseaux sociaux":"socialNetworks", Coordonnées:"contactDetails", "Messages reçus":"receivedMessages", Statistiques:"statistics", "Stats joueurs":"playerStats", Administration:"administration", Utilisateurs:"users", "Rôles & permissions":"roles"
+  Dashboards:"navigation.dashboards", "Tableau de bord":"navigation.dashboard", Apps:"navigation.apps", Pages:"navigation.pages", Stades:"navigation.stadiums", Joueurs:"navigation.players", Liste:"navigation.list", Ajouter:"navigation.add", Staff:"navigation.staff", Membres:"navigation.members", Matchs:"navigation.matches", "Matchs amicaux":"navigation.friendlyMatches", Entraînements:"navigation.trainings", Déplacements:"navigation.trips", "Planches tactiques":"navigation.tactics", "Blessures & santé":"navigation.health", Discipline:"navigation.discipline", Cartons:"navigation.cards", Suspensions:"navigation.suspensions", Amendes:"navigation.fines", Notes:"navigation.notes", "Journal d'audit":"navigation.audit", Exports:"navigation.exports", Réglages:"navigation.settings", Actualités:"navigation.news", Créer:"navigation.create", Médias:"navigation.media", "Éléments média":"navigation.mediaItems", Galeries:"navigation.galleries", Convocations:"navigation.callups", Galerie:"navigation.gallery", Boutique:"navigation.shop", Produits:"navigation.products", Catégories:"navigation.categories", Billetterie:"navigation.ticketing", "Par match":"navigation.perMatch", "Catégories de billets":"navigation.ticketCategories", Sponsors:"navigation.sponsors", Communication:"navigation.communication", "Le club":"navigation.club", Présentation:"navigation.presentation", Histoire:"navigation.history", Palmarès:"navigation.honors", "Grandes figures":"navigation.figures", Formation:"navigation.academy", "Contenu éditorial":"navigation.editorial", "Candidatures académie":"navigation.academyApplications", Recrutement:"navigation.recruitment", "Postes recherchés":"navigation.needs", Candidatures:"navigation.applications", Communiqués:"navigation.announcements", "Contact & réseaux":"navigation.contactSocial", "Réseaux sociaux":"navigation.socialNetworks", Coordonnées:"navigation.contactDetails", "Messages reçus":"navigation.receivedMessages", Statistiques:"navigation.statistics", "Stats joueurs":"navigation.playerStats", Administration:"admin.header.title", Utilisateurs:"navigation.users", "Rôles & permissions":"navigation.roles"
 };
 
 /**
@@ -273,7 +273,7 @@ export function AdminSidebar({
           ${isCollapsed ? "vertical-menu-collapsed" : ""}
           ${isOpen ? "vertical-menu-open" : ""}
         `}
-        aria-label={t("adminNav")}
+        aria-label={t("navigation.admin.label")}
       >
         <div className="navbar-brand-box">
           <Link href="/admin" className="logo logo-dark" onClick={closeSidebar}>
@@ -364,7 +364,7 @@ export function AdminSidebar({
             type="button"
             onClick={toggleCollapse}
             className="btn btn-sm btn-soft-primary d-none d-lg-inline-flex"
-            title={isCollapsed ? t("openMenu") : t("collapseMenu")}
+            title={isCollapsed ? t("navigation.menu.open") : t("navigation.menu.collapse")}
           >
             <i className={`fas ${isCollapsed ? "fa-angle-right" : "fa-angle-left"}`} aria-hidden="true" />
           </button>
@@ -372,7 +372,7 @@ export function AdminSidebar({
             type="button"
             onClick={closeSidebar}
             className="btn btn-sm btn-outline-light d-lg-none"
-            aria-label={t("close")}
+            aria-label={t("common.actions.close")}
           >
             <i className="fas fa-times" aria-hidden="true" />
           </button>

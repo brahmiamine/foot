@@ -14,7 +14,7 @@ export async function submitContactMessage(teamId: string, formData: FormData) {
     const teamService = new TeamService();
     const team = await teamService.findById(teamId);
     if (!team) {
-      return { success: false, error: "Club introuvable" };
+      return { success: false, messageKey: "common.errors.clubNotFound" as const };
     }
 
     const data = createContactMessageSchema.parse({
@@ -28,8 +28,8 @@ export async function submitContactMessage(teamId: string, formData: FormData) {
     const service = new ContactService();
     await service.createMessage(teamId, data);
 
-    return { success: true, message: "Votre message a bien été envoyé. Le club vous répondra prochainement." };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'envoi du message" };
+    return { success: true, messageKey: "contact.form.feedback.success" as const };
+  } catch {
+    return { success: false, messageKey: "contact.form.feedback.error" as const };
   }
 }
