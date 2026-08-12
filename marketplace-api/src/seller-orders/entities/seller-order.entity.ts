@@ -19,7 +19,7 @@ import type { SellerOrderItem } from './seller-order-item.entity';
  * Scaffolding (TS-03) : entité prête, workflow de fulfillment
  * (préparation/expédition/livraison) à implémenter avec E06.
  */
-@Entity('seller_orders')
+@Entity('sp_seller_orders')
 @Index(['sellerId', 'status'])
 export class SellerOrder {
   @PrimaryGeneratedColumn('uuid')

@@ -12,7 +12,7 @@ import { SellerOrder } from './seller-order.entity';
  * commande pour ne pas dépendre d'un produit qui pourrait être modifié ou
  * supprimé ensuite.
  */
-@Entity('seller_order_items')
+@Entity('sp_seller_order_items')
 export class SellerOrderItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;

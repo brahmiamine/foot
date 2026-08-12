@@ -13,7 +13,7 @@ import { PayoutStatus } from '../enums/payout-status.enum';
  * implémenter — cette table n'expose pour l'instant qu'un historique en
  * lecture, jamais de credentials de provider de paiement.
  */
-@Entity('payouts')
+@Entity('sp_payouts')
 export class Payout {
   @PrimaryGeneratedColumn('uuid')
   id: string;

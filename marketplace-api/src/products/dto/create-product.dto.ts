@@ -58,4 +58,14 @@ export class CreateProductDto {
   @Min(0)
   @Max(100)
   taxRate?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  weightKg?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  dimensions?: string;
 }

@@ -121,7 +121,7 @@ matches.actual_finished_at = now
 # EPIC E02 — Marketplace API
 
 **Priorité : P0**  
-**Statut :** 🔄 Partiellement implémenté
+**Statut :** ✅ Livré
 
 Nouveau projet backend créé :
 
@@ -129,26 +129,30 @@ Nouveau projet backend créé :
 marketplace-api
 ```
 
-**NestJS**, comme `payment-api` et `notification-api` — base de données dédiée
-(`marketplace_api`), jamais la base partagée `foot`.
+**NestJS**, comme `payment-api` et `notification-api` — mais connecté à la
+base **partagée `foot`** (pas une base dédiée) : marketplace-api lit/écrit
+les tables `sp_*` déjà créées et migrées par `sellerPortal`, exactement le
+schéma cible documenté par le backlog original
+(`sellerPortal → HTTP → marketplace-api → sp_products`). `synchronize`
+TypeORM désactivé partout : marketplace-api n'est jamais responsable du
+schéma de ces tables, seulement de leur contenu.
 
 ### État actuel
 
-- `sellerPortal` reste la source de vérité opérationnelle aujourd'hui
-  (vendeurs/produits/commandes `sp_*` dans la base partagée `foot`, pas
-  d'intégration `payment-api`) ; `teamManager` accède à ces mêmes tables en
-  cross-DB direct pour la modération (voir Epic E03).
+- `sellerPortal` et `teamManager` appellent désormais `marketplace-api` en
+  HTTP pour toute écriture sur les produits/la modération (voir TS-04) —
+  plus aucun accès cross-DB direct ni écriture TypeORM directe sur
+  `sp_products`/`sp_sellers` depuis ces deux apps.
 - `teamManager` a un tunnel d'achat client complet (`/boutique/[teamId]` :
   panier, paiement réel via `payment-api`, décrément de stock atomique) ✅
+  — domaine boutique du club, distinct de la marketplace multi-vendeurs.
 - Pas de frontend d'achat marketplace unifié entre `teamManager` et
   `sellerPortal`.
-- `sellerPortal` utilise une session propre (`SP_JWT_SECRET`) au lieu du SSO
-  commun.
-- `marketplace-api` réplique le même modèle de données et les mêmes règles
-  de transition dans sa propre base — prête à devenir la source de vérité
-  unique, mais **pas encore branchée** : `sellerPortal`/`teamManager`
-  continuent d'écrire directement dans `sp_*` tant que TS-04 (bascule) n'est
-  pas fait.
+- `sellerPortal` garde sa propre session (`SP_JWT_SECRET`) pour l'UI vendeur
+  ; `marketplace-api` a son propre JWT self-service (`SELLER_JWT_SECRET`),
+  les deux vérifient contre le même hash bcrypt en base mais un token de
+  l'un n'est pas valide pour l'autre — unification d'identité non traitée
+  (Epic E17).
 
 ## TS-03 — Initialiser Marketplace API
 
@@ -200,35 +204,48 @@ et `ProductCategory.commissionRate`, comme dans `sellerPortal`.
 
 ## TS-04 — Transférer la propriété des produits Marketplace
 
-**Statut :** ⏳ À faire — chantier de bascule séparé, pas dans le périmètre de TS-03.
+**Statut :** ✅ Livré
 
 Aujourd'hui :
 
 ```text
-sellerPortal → sp_products (base partagée foot)
-teamManager  → sp_products (cross-DB direct, voir Epic E03)
+sellerPortal → HTTP (internal/products, x-api-key + sellerId explicite) → marketplace-api → sp_products
+teamManager  → HTTP (moderation/*, sellers, categories, x-api-key)      → marketplace-api → sp_products/sp_sellers
 ```
 
-Cible :
-
-```text
-sellerPortal → HTTP → marketplace-api → products (base dédiée marketplace_api)
-teamManager  → HTTP → marketplace-api
-```
+Aucune migration de données n'a été nécessaire : `marketplace-api` lit/écrit
+directement les tables `sp_*` existantes dans la base partagée `foot` (choix
+tranché avec l'utilisateur — voir Epic E02), pas une base séparée à
+synchroniser.
 
 ### Critères
 
-SellerPortal ne doit plus :
+- SellerPortal n'importe plus l'entité TypeORM `Product` pour écrire :
+  create/update/delete/submit/withdraw/toggle-active passent par
+  `src/lib/marketplaceApiClient.ts` → `marketplace-api` (`internal/products/*`,
+  authentifié par clé de service, `sellerId` passé explicitement car
+  sellerPortal a déjà authentifié le vendeur via sa propre session). Lectures
+  (GET list/détail) restées en TypeORM direct : même table, pas un problème
+  de cohérence, hors périmètre littéral du critère.
+- Images (`ProductImage`) et stock initial (`InventoryItem`) restent gérés en
+  TypeORM direct côté sellerPortal — non couverts par le critère TS-04
+  (entités distinctes de `Product`), marketplace-api n'a pas d'endpoint de
+  création d'inventaire aujourd'hui.
+- Comportements existants préservés pendant la migration (vérifiés contre le
+  code sellerPortal avant réécriture, pas juste supposés) :
+  suppression **logique** uniquement (jamais physique, historique des
+  commandes préservé), toggle `isActive` **sans restriction de statut**
+  (distinct d'une modification de contenu), validation du prix avant
+  soumission.
+- `teamManager` n'accède plus directement à `sp_products`/`sp_sellers`
+  (l'ancien `MarketplaceModerationService.ts` cross-DB et les 4 entités
+  `Marketplace*` associées ont été supprimés, remplacés par
+  `src/lib/marketplaceApiClient.ts`).
 
-- importer directement l'entité TypeORM `Product` pour écrire ;
-- utiliser directement le repository ;
-- connaître la structure DB interne marketplace.
+### Limite connue
 
-`teamManager` ne doit plus accéder directement à `sp_products`/`sp_sellers`
-(voir `MarketplaceModerationService.ts`, actuellement cross-DB).
-
-Implique une migration des données existantes (`sp_*` → base
-`marketplace_api`), hors périmètre de TS-03.
+L'authentification vendeur reste double (`sellerPortal` via `SP_JWT_SECRET`,
+`marketplace-api` via `SELLER_JWT_SECRET`) — non traité ici, voir Epic E17.
 
 ## US-05 — Catalogue vendeur
 
@@ -243,10 +260,15 @@ POST   /products
 GET    /products
 GET    /products/:id
 PATCH  /products/:id
-DELETE /products/:id
-POST   /products/:id/submit    — DRAFT -> SUBMITTED
-POST   /products/:id/withdraw  — SUBMITTED/REJECTED -> DRAFT
+DELETE /products/:id                — suppression logique
+POST   /products/:id/submit         — DRAFT -> SUBMITTED
+POST   /products/:id/withdraw       — SUBMITTED/REJECTED -> DRAFT
+POST   /products/:id/toggle-active  — sans restriction de statut
 ```
+
+Miroir server-to-server `internal/products/*` (clé API + `sellerId`
+explicite) pour `sellerPortal` — mêmes opérations, même logique métier
+(`ProductsService`), voir TS-04.
 
 ## US-06 — Variantes et stock
 
@@ -284,27 +306,24 @@ DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED → PUBLISHED
 ### État actuel ✅
 
 - `/admin/marketplace/products` : liste des produits soumis par les vendeurs
-  du club, avec filtres vendeur/statut/catégorie/nom/date (voir
-  `MarketplaceModerationService.findAll`).
+  du club, avec filtres vendeur/statut/catégorie/nom/date — servie par
+  `marketplace-api` en HTTP (`src/lib/marketplaceApiClient.ts`, voir TS-04),
+  plus d'accès cross-DB direct depuis teamManager.
 - Transitions `SUBMITTED → UNDER_REVIEW → APPROVED → PUBLISHED` et
-  `UNDER_REVIEW → REJECTED` (motif obligatoire) implémentées côté
-  `teamManager`, réservées aux comptes ayant la permission
-  `marketplace.moderate`, scopées au club courant (`seller.clubId = teamId`).
+  `UNDER_REVIEW → REJECTED` (motif obligatoire) appliquées par
+  `marketplace-api` (`ModerationService`), appelées par `teamManager`
+  réservées aux comptes ayant la permission `marketplace.moderate`, scopées
+  au club courant côté API (`seller.clubId = clubId`).
   `reviewedBy`/`reviewedAt` alimentés sur la décision finale
-  (APPROVED/REJECTED) ; migration `sp_products` correspondante livrée
-  (`sellerPortal/sql/migration_add_moderation_fields.sql`).
-- Chaque transition journalisée dans `AuditLog` (entité `MarketplaceProduct`).
+  (APPROVED/REJECTED) avec l'identifiant `User` teamManager de l'agent.
+- Chaque transition journalisée dans `AuditLog` (entité `MarketplaceProduct`)
+  côté teamManager, à partir de la réponse de `marketplace-api`.
 - Notification du vendeur à l'approbation/au rejet : écrite directement dans
-  `sp_notifications` (sellerPortal ne consomme pas encore `notification-api`,
-  voir circuit "Notifications plateforme").
-- Republication d'un produit corrigé (REJECTED → DRAFT → SUBMITTED) : déjà
-  gérée entièrement côté `sellerPortal`, rien à ajouter côté `teamManager`.
-
-### Limite connue
-
-Accès direct cross-DB de `teamManager` vers les tables `sp_*` de
-`sellerPortal` (pas de `marketplace-api` HTTP dédiée — voir TS-04/TS-03).
-À migrer vers un appel HTTP le jour où cette API existe.
+  `sp_notifications` par `marketplace-api` (sellerPortal ne consomme pas
+  encore `notification-api`, voir circuit "Notifications plateforme").
+- Republication d'un produit corrigé (REJECTED → DRAFT → SUBMITTED) : gérée
+  côté `sellerPortal`, qui appelle désormais `marketplace-api` (TS-04) plutôt
+  que d'écrire directement dans `sp_products`.
 
 ---
 
@@ -1163,13 +1182,12 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ### État actuel
 
 - `teamManager` a tunnel d'achat client complet ✅ (`/boutique/[teamId]` : panier, paiement réel, décrément stock, webhook + retour payeur, suivi commande).
-- `sellerPortal` reste séparé (vendeurs/produits/commandes `sp_*`, pas d'intégration `payment-api`).
-- Modération club des produits vendeurs fermée ✅ (`teamManager` : `/admin/marketplace/products`, accès direct cross-DB à `sp_products`/`sp_sellers` en l'absence de marketplace-api — voir Epic E03).
-- `marketplace-api` créée ✅ (NestJS, base dédiée) : auth vendeur, catalogue, catégories, modération, notifications interne, scaffolding variantes/stock/commandes/retours/payouts — voir Epic E02/TS-03. **Pas encore branchée** : `sellerPortal`/`teamManager` continuent d'écrire directement dans `sp_*` (bascule = TS-04).
+- `sellerPortal` et `teamManager` appellent `marketplace-api` en HTTP pour toute écriture produit/modération ✅ (TS-04) — plus d'accès cross-DB ni d'écriture TypeORM directe sur `sp_products`/`sp_sellers` depuis ces deux apps.
+- Modération club des produits vendeurs fermée ✅ (`teamManager` : `/admin/marketplace/products`, via `marketplace-api` — voir Epic E03).
+- `marketplace-api` créée ✅ (NestJS, base **partagée `foot`**, tables `sp_*` existantes) : auth vendeur, catalogue, catégories, modération, notifications interne, scaffolding variantes/stock/commandes/retours/payouts — voir Epic E02/TS-03/TS-04.
 
 ### Reste à faire
 
-- Bascule `sellerPortal`/`teamManager` vers `marketplace-api` (TS-04) — chantier de migration de données séparé.
 - Pas de frontend d'achat marketplace unifié entre `teamManager` et `sellerPortal`.
 - Pas de circuit vendeur → payout fermé.
 - `sellerPortal` utilise session propre (`SP_JWT_SECRET`) au lieu du SSO commun — pas de MFA, pas de révocation centrale.
@@ -1293,7 +1311,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ```text
 ✅ Portail vendeur fonctionnel
 ✅ Workflow de modération fermé (côté teamManager, cf. `teamManager` ci-dessus)
-⏳ Migrer vers Marketplace API
+✅ Migré vers Marketplace API pour les écritures produit (TS-04) — create/update/delete/submit/withdraw/toggle-active
 ⏳ Tests isolation multi-vendeurs
 ⏳ Intégration payment-api
 ⏳ Intégration notification-api
@@ -1306,13 +1324,14 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 ```text
 ✅ Initialisation NestJS (TS-03) : auth vendeur JWT + clé API service, sellers, categories, products, moderation, notifications interne
+✅ Connectée à la base partagée `foot` (tables sp_* existantes, synchronize désactivé)
 ✅ Catalogue vendeur (US-05)
+✅ sellerPortal/teamManager branchés dessus (TS-04) — endpoints internal/products pour sellerPortal, moderation/sellers/categories pour teamManager
 🔄 Variantes et stock (US-06) — pas de seuil d'alerte ni décrément automatique
-⏳ Bascule sellerPortal/teamManager vers cette API (TS-04)
 ⏳ Swagger
-⏳ Migrations SQL versionnées (utilise `synchronize` TypeORM comme payment-api/notification-api)
 ⏳ Business logic orders/seller-orders/returns/payouts (actuellement scaffolding — E06/E15/E16)
 ⏳ Jamais démarré contre une vraie base MariaDB (pas de Docker/MariaDB dans ce bac à sable)
+⏳ Unification identité vendeur avec sellerPortal (double auth, voir Epic E17)
 ```
 
 ## `payment-api`
@@ -1381,8 +1400,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ```text
 ✅ TS-03 marketplace-api (NestJS)
 ✅ US-05 catalogue vendeur
+✅ TS-04 bascule sellerPortal/teamManager vers marketplace-api
 🔄 US-06 variantes/stock (seuil d'alerte + décrément auto restants)
-⏳ TS-04 migration product API (bascule sellerPortal/teamManager)
 ```
 
 ## Sprint 4 — Paiement fiable
@@ -1432,12 +1451,11 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 1. **Corriger ArbiNote / statut réel du match (US-01, TS-02)** : petit développement, impact métier élevé.
 2. **Activer les tests existants dans la CI (TS-33)** avant d'entreprendre les gros refactorings.
-3. **Basculer sellerPortal/teamManager vers Marketplace API (TS-04)**, maintenant que le service existe (TS-03) — c'est le plus gros écart restant du domaine marketplace.
-4. **Introduire Transactional Outbox dans Payment API (TS-12)**.
-5. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
-6. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
-7. **Découpler progressivement les accès directs à la base (TS-31)**.
-8. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
+3. **Introduire Transactional Outbox dans Payment API (TS-12)**.
+4. **Compléter le fulfillment des commandes (TS-20 à US-24)**.
+5. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
+6. **Découpler progressivement les accès directs à la base (TS-31)**.
+7. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
 
 ### Point important
 

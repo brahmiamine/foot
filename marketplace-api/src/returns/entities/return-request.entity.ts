@@ -16,7 +16,7 @@ import { SellerOrderItem } from '../../seller-orders/entities/seller-order-item.
  * prête, workflow REQUESTED -> APPROVED/REJECTED -> COMPLETED (US-50 à
  * US-52, Epic E16) à implémenter.
  */
-@Entity('return_requests')
+@Entity('sp_return_requests')
 export class ReturnRequest {
   @PrimaryGeneratedColumn('uuid')
   id: string;

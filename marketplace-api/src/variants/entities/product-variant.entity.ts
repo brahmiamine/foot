@@ -13,7 +13,7 @@ import { Product } from '../../products/entities/product.entity';
  * forme libre pour ne pas figer le schéma à un seul type d'attribut.
  * Exemple: { "Taille": "M" } ou { "Couleur": "Rouge", "Taille": "L" }.
  */
-@Entity('product_variants')
+@Entity('sp_product_variants')
 export class ProductVariant {
   @PrimaryGeneratedColumn('uuid')
   id: string;

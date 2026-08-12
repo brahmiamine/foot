@@ -3,11 +3,11 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 /**
  * Référentiel de catégories défini par l'administration du club. Le
  * vendeur choisit une catégorie existante, il n'en crée pas (voir
- * ProductsModule). `clubId` référence logiquement `teams.id` — pas de
- * contrainte FK réelle, marketplace-api n'ayant pas accès à la base
- * partagée `foot`.
+ * ProductsModule). Mappée sur `sp_product_categories`, la table existante
+ * de `sellerPortal` (base partagée `foot`). `clubId` référence logiquement
+ * `teams.id` — pas de contrainte FK réelle.
  */
-@Entity('product_categories')
+@Entity('sp_product_categories')
 @Index(['clubId', 'slug'], { unique: true })
 export class ProductCategory {
   @PrimaryGeneratedColumn('uuid')

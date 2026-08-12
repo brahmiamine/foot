@@ -3,10 +3,10 @@ import { getDataSource } from "@/lib/database";
 import { Product } from "@/entities/Product";
 import { ProductImage } from "@/entities/ProductImage";
 import { InventoryItem } from "@/entities/InventoryItem";
-import { ProductStatus } from "@/entities/enums";
 import { requireActiveSeller, assertOwnedBySeller, NotFoundError } from "@/lib/authz";
 import { handleApiError } from "@/lib/api";
 import { slugify } from "@/lib/slug";
+import { createMarketplaceProduct } from "@/lib/marketplaceApiClient";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,25 +19,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     assertOwnedBySeller(source.sellerId, session.sellerId);
 
-    const copy = await ds.transaction(async (manager) => {
-      const created = manager.create(Product, {
-        sellerId: session.sellerId,
-        name: `${source.name} (copie)`,
-        slug: `${slugify(source.name)}-copy-${Date.now().toString(36)}`,
-        description: source.description,
-        shortDescription: source.shortDescription,
-        categoryId: source.categoryId,
-        brand: source.brand,
-        sku: `${source.sku}-COPY-${Date.now().toString(36).toUpperCase()}`,
-        price: source.price,
-        compareAtPrice: source.compareAtPrice,
-        taxRate: source.taxRate,
-        weightKg: source.weightKg,
-        dimensions: source.dimensions,
-        status: ProductStatus.DRAFT,
-      });
-      await manager.save(created);
+    const created = await createMarketplaceProduct(session.sellerId, {
+      name: `${source.name} (copie)`,
+      slug: `${slugify(source.name)}-copy-${Date.now().toString(36)}`,
+      description: source.description,
+      shortDescription: source.shortDescription,
+      categoryId: source.categoryId,
+      brand: source.brand,
+      sku: `${source.sku}-COPY-${Date.now().toString(36).toUpperCase()}`,
+      price: Number(source.price),
+      compareAtPrice: source.compareAtPrice ? Number(source.compareAtPrice) : null,
+      taxRate: Number(source.taxRate),
+      weightKg: source.weightKg ? Number(source.weightKg) : null,
+      dimensions: source.dimensions,
+    });
 
+    await ds.transaction(async (manager) => {
       if (source.images?.length) {
         const images = source.images.map((img) =>
           manager.create(ProductImage, { productId: created.id, url: img.url, position: img.position }),
@@ -53,10 +50,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           available: 0,
         }),
       );
-
-      return created;
     });
 
+    const copy = await ds.getRepository(Product).findOne({ where: { id: created.id } });
     return NextResponse.json({ product: copy }, { status: 201 });
   } catch (error) {
     return handleApiError(error);

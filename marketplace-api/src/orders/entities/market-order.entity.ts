@@ -13,7 +13,7 @@ import {
  * d'achat marketplace (panier multi-vendeurs, checkout, paiement) n'existe
  * pas côté frontend — voir avancement.md, Epic E05/E06.
  */
-@Entity('market_orders')
+@Entity('sp_market_orders')
 export class MarketOrder {
   @PrimaryGeneratedColumn('uuid')
   id: string;

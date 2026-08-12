@@ -12,11 +12,12 @@ import type { SellerUser } from './seller-user.entity';
 
 /**
  * Le vendeur tiers. Porte le catalogue produits/commandes de son club.
- * `clubId` référence logiquement `teams.id` de la base partagée `foot` —
- * marketplace-api n'a pas accès à cette base (voir database.config.ts) :
- * pas de contrainte FK réelle, comme l'équivalent sellerPortal historique.
+ * Mappée sur `sp_sellers`, la table existante de `sellerPortal` (base
+ * partagée `foot`, voir database.config.ts) — même ligne physique, pas une
+ * copie. `clubId` référence logiquement `teams.id` : pas de contrainte FK
+ * réelle, comme dans sellerPortal.
  */
-@Entity('sellers')
+@Entity('sp_sellers')
 export class Seller {
   @PrimaryGeneratedColumn('uuid')
   id: string;

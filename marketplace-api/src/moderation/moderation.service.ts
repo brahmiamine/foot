@@ -53,6 +53,7 @@ export class ModerationService {
       .createQueryBuilder('product')
       .innerJoinAndSelect('product.seller', 'seller')
       .where('seller.clubId = :clubId', { clubId })
+      .andWhere('product.deletedAt IS NULL')
       .andWhere('product.status IN (:...statuses)', {
         statuses: CLUB_VISIBLE_STATUSES,
       });
@@ -88,6 +89,7 @@ export class ModerationService {
       .innerJoinAndSelect('product.seller', 'seller')
       .where('product.id = :id', { id })
       .andWhere('seller.clubId = :clubId', { clubId })
+      .andWhere('product.deletedAt IS NULL')
       .getOne();
     if (!product)
       throw new NotFoundException('Produit introuvable pour ce club');

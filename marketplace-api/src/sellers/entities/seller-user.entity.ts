@@ -16,7 +16,7 @@ import { Seller } from './seller.entity';
  * SellerJwtGuard). En V1 un seul compte OWNER par vendeur suffit, mais le
  * modèle supporte déjà plusieurs comptes (MANAGER, STAFF) par vendeur.
  */
-@Entity('seller_users')
+@Entity('sp_seller_users')
 export class SellerUser {
   @PrimaryGeneratedColumn('uuid')
   id: string;

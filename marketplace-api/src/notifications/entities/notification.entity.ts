@@ -10,7 +10,7 @@ import { NotificationType } from '../enums/notification-type.enum';
  * Notification vendeur — canal interne le temps que marketplace-api soit
  * elle-même branchée sur notification-api (voir avancement.md, Epic E07).
  */
-@Entity('notifications')
+@Entity('sp_notifications')
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;

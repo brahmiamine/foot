@@ -5,9 +5,7 @@ import { Product } from './entities/product.entity';
 import { ProductStatus } from './enums/product-status.enum';
 
 describe('ProductsService', () => {
-  let repository: jest.Mocked<
-    Pick<Repository<Product>, 'findOne' | 'save' | 'remove'>
-  >;
+  let repository: jest.Mocked<Pick<Repository<Product>, 'findOne' | 'save'>>;
   let service: ProductsService;
 
   function buildProduct(overrides: Partial<Product> = {}): Product {
@@ -16,6 +14,8 @@ describe('ProductsService', () => {
       sellerId: 'seller-1',
       status: ProductStatus.DRAFT,
       rejectionReason: null,
+      price: '19.990',
+      deletedAt: null,
       ...overrides,
     } as Product;
   }
@@ -24,7 +24,6 @@ describe('ProductsService', () => {
     repository = {
       findOne: jest.fn(),
       save: jest.fn((product) => Promise.resolve(product as Product)),
-      remove: jest.fn(),
     };
     service = new ProductsService(repository as unknown as Repository<Product>);
   });
@@ -87,6 +86,23 @@ describe('ProductsService', () => {
         ),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('rejects submitting a product without a price', async () => {
+      repository.findOne.mockResolvedValue(
+        buildProduct({
+          status: ProductStatus.DRAFT,
+          price: null as unknown as string,
+        }),
+      );
+
+      await expect(
+        service.sellerTransition(
+          'product-1',
+          'seller-1',
+          ProductStatus.SUBMITTED,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
   describe('update', () => {
@@ -114,24 +130,23 @@ describe('ProductsService', () => {
   });
 
   describe('remove', () => {
-    it('rejects deleting a non-DRAFT product', async () => {
-      repository.findOne.mockResolvedValue(
-        buildProduct({ status: ProductStatus.PUBLISHED }),
-      );
-
-      await expect(service.remove('product-1', 'seller-1')).rejects.toThrow(
-        ConflictException,
-      );
-      expect(repository.remove).not.toHaveBeenCalled();
-    });
-
-    it('deletes a DRAFT product', async () => {
-      const product = buildProduct({ status: ProductStatus.DRAFT });
+    it('soft-deletes a product regardless of status (history must stay intact)', async () => {
+      const product = buildProduct({ status: ProductStatus.PUBLISHED });
       repository.findOne.mockResolvedValue(product);
 
       await service.remove('product-1', 'seller-1');
 
-      expect(repository.remove).toHaveBeenCalledWith(product);
+      expect(product.deletedAt).toBeInstanceOf(Date);
+      expect(product.isActive).toBe(false);
+      expect(repository.save).toHaveBeenCalledWith(product);
+    });
+
+    it('throws NotFoundException for a product not owned by the seller', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('product-1', 'someone-else')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

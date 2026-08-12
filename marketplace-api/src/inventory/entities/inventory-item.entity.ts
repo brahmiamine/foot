@@ -18,7 +18,7 @@ import { ProductVariant } from '../../variants/entities/product-variant.entity';
  * commandes une fois seller-orders/orders sortis du stade scaffolding
  * (E06/US-06).
  */
-@Entity('inventory_items')
+@Entity('sp_inventory_items')
 @Index(['productId', 'variantId'], { unique: true })
 export class InventoryItem {
   @PrimaryGeneratedColumn('uuid')

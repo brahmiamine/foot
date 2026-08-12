@@ -13,7 +13,7 @@ import { ProductStatus } from '../enums/product-status.enum';
 import { Seller } from '../../sellers/entities/seller.entity';
 import type { ProductImage } from './product-image.entity';
 
-@Entity('products')
+@Entity('sp_products')
 @Index(['sellerId', 'status'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
@@ -57,6 +57,12 @@ export class Product {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
   taxRate: string;
 
+  @Column({ type: 'decimal', precision: 8, scale: 3, nullable: true })
+  weightKg: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  dimensions: string | null;
+
   @Column({
     type: 'enum',
     enum: ProductStatus,
@@ -75,6 +81,12 @@ export class Product {
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
+
+  // Suppression logique uniquement (voir ProductsService.remove) —
+  // l'historique (commandes passées) doit rester intact même si le vendeur
+  // retire un produit de son catalogue.
+  @Column({ type: 'datetime', nullable: true })
+  deletedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;

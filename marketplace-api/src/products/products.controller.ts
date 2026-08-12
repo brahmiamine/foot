@@ -70,6 +70,15 @@ export class ProductsController {
     return { success: true };
   }
 
+  /** Active/désactive la visibilité, sans restriction de statut (voir ProductsService.toggleActive). */
+  @Post(':id/toggle-active')
+  async toggleActive(
+    @CurrentSeller() seller: AuthenticatedSeller,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Product> {
+    return this.productsService.toggleActive(id, seller.sellerId);
+  }
+
   /** DRAFT -> SUBMITTED : envoie le produit à la modération du club. */
   @Post(':id/submit')
   async submit(

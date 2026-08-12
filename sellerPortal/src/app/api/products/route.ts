@@ -9,10 +9,13 @@ import { ProductStatus } from "@/entities/enums";
 import { requireActiveSeller } from "@/lib/authz";
 import { handleApiError } from "@/lib/api";
 import { slugify } from "@/lib/slug";
+import { createMarketplaceProduct } from "@/lib/marketplaceApiClient";
 
 // GET /api/products — toujours filtré sur le vendeur de la session, jamais
 // sur un sellerId fourni par le client (voir GET ?sellerId=... dans la
-// spec comme contre-exemple à ne pas reproduire).
+// spec comme contre-exemple à ne pas reproduire). Lecture directe TypeORM
+// conservée (voir avancement.md, TS-04) : même table `sp_products` que
+// marketplace-api, aucun problème de cohérence à migrer une lecture.
 export async function GET(req: NextRequest) {
   try {
     const { session } = await requireActiveSeller();
@@ -69,6 +72,10 @@ const createSchema = z.object({
   images: z.array(z.string().max(500)).max(10).optional(),
 });
 
+// La ligne Product elle-même est créée via marketplace-api (voir
+// src/lib/marketplaceApiClient.ts, TS-04) : sellerPortal n'écrit plus
+// directement dans `sp_products`. Images/stock initial restent en TypeORM
+// direct — hors périmètre TS-04 (voir avancement.md, limite documentée).
 export async function POST(req: NextRequest) {
   try {
     const { session } = await requireActiveSeller();
@@ -92,25 +99,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const product = await ds.transaction(async (manager) => {
-      const created = manager.create(Product, {
-        sellerId: session.sellerId,
-        name: body.name,
-        slug: `${slugify(body.name)}-${Date.now().toString(36)}`,
-        description: body.description ?? null,
-        shortDescription: body.shortDescription ?? null,
-        categoryId: body.categoryId ?? null,
-        brand: body.brand ?? null,
-        sku: body.sku,
-        price: body.price.toFixed(3),
-        compareAtPrice: body.compareAtPrice ? body.compareAtPrice.toFixed(3) : null,
-        taxRate: (body.taxRate ?? 0).toFixed(2),
-        weightKg: body.weightKg ? body.weightKg.toFixed(3) : null,
-        dimensions: body.dimensions ?? null,
-        status: ProductStatus.DRAFT,
-      });
-      await manager.save(created);
+    const created = await createMarketplaceProduct(session.sellerId, {
+      name: body.name,
+      slug: `${slugify(body.name)}-${Date.now().toString(36)}`,
+      description: body.description ?? null,
+      shortDescription: body.shortDescription ?? null,
+      categoryId: body.categoryId ?? null,
+      brand: body.brand ?? null,
+      sku: body.sku,
+      price: body.price,
+      compareAtPrice: body.compareAtPrice ?? null,
+      taxRate: body.taxRate ?? 0,
+      weightKg: body.weightKg ?? null,
+      dimensions: body.dimensions ?? null,
+    });
 
+    await ds.transaction(async (manager) => {
       if (body.images?.length) {
         const images = body.images.map((url, position) =>
           manager.create(ProductImage, { productId: created.id, url, position }),
@@ -125,10 +129,9 @@ export async function POST(req: NextRequest) {
         available: 0,
       });
       await manager.save(inventory);
-
-      return created;
     });
 
+    const product = await ds.getRepository(Product).findOne({ where: { id: created.id } });
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     return handleApiError(error);

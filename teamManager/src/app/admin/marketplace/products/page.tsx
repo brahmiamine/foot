@@ -1,20 +1,21 @@
 import { redirect } from "next/navigation";
 import { requireTeamId } from "@/lib/team-context";
 import { getUserAccess, can } from "@/lib/access";
-import { MarketplaceModerationService } from "@/services/MarketplaceModerationService";
-import { MarketplaceProductStatus } from "@/entities/marketplaceEnums";
+import { listCategoriesForClub, listModerationProducts, listSellersForClub } from "@/lib/marketplaceApiClient";
 import { ModerationTable } from "./ModerationTable";
 
 export const dynamic = "force-dynamic";
 
-const ALL_STATUSES = Object.values(MarketplaceProductStatus).filter((s) => s !== MarketplaceProductStatus.DRAFT);
+const ALL_STATUSES = ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "PUBLISHED", "REJECTED"];
 
 /**
  * Modération des produits marketplace soumis par les vendeurs (US-07 à
  * US-10). Réservé aux comptes du club ayant `marketplace.moderate` — voir
- * src/lib/permissions.ts. Republication d'un produit corrigé (US-11) se
- * fait entièrement côté sellerPortal (REJECTED -> DRAFT -> SUBMITTED),
- * rien à faire ici.
+ * src/lib/permissions.ts. Toute la donnée vient désormais de marketplace-api
+ * en HTTP (voir src/lib/marketplaceApiClient.ts, TS-04) — teamManager
+ * n'accède plus directement à `sp_products`/`sp_sellers`. Republication d'un
+ * produit corrigé (US-11) se fait entièrement côté sellerPortal (REJECTED ->
+ * DRAFT -> SUBMITTED), rien à faire ici.
  */
 export default async function MarketplaceProductsPage({
   searchParams,
@@ -28,19 +29,18 @@ export default async function MarketplaceProductsPage({
   }
 
   const params = await searchParams;
-  const service = new MarketplaceModerationService();
 
   const [products, sellers, categories] = await Promise.all([
-    service.findAll(teamId, {
+    listModerationProducts(teamId, {
       sellerId: params.sellerId || undefined,
-      status: (params.status as MarketplaceProductStatus) || undefined,
+      status: params.status || undefined,
       categoryId: params.categoryId || undefined,
       name: params.name || undefined,
       from: params.from || undefined,
       to: params.to || undefined,
     }),
-    service.findSellersForClub(teamId),
-    service.findCategoriesForClub(teamId),
+    listSellersForClub(teamId),
+    listCategoriesForClub(teamId),
   ]);
 
   const rows = products.map((product) => ({
@@ -51,8 +51,8 @@ export default async function MarketplaceProductsPage({
     status: product.status,
     rejectionReason: product.rejectionReason,
     reviewedBy: product.reviewedBy,
-    reviewedAt: product.reviewedAt ? product.reviewedAt.toISOString() : null,
-    createdAt: product.createdAt.toISOString(),
+    reviewedAt: product.reviewedAt,
+    createdAt: product.createdAt,
   }));
 
   const smallInputClass = "form-control form-control-sm";
