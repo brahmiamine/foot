@@ -28,7 +28,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P2 | E14 – SMS | ✅ | finaliser le canal SMS (Tunisiesms activable via SMS_PROVIDER) |
 | P2 | E15 – Payout Marketplace | 🔄 | automatiser les paiements vendeurs |
 | P2 | E16 – Returns Marketplace | 🔄 | fermer le workflow des retours |
-| P2 | E17 – Identity API | ⏳ | déplacer la gestion des comptes vers SSO |
+| P2 | E17 – Identity API | 🔄 | déplacer la gestion des comptes vers SSO |
 | P3 | E18 – API Gateway | ⏳ | fournir une entrée API globale |
 | P3 | E19 – Observabilité | 🔄 | correlation ID, logs, métriques et traces |
 | P3 | E20 – Event Bus | ⏳ | découpler les projets par événements |
@@ -1466,34 +1466,94 @@ hors `APPROVED`).
 # EPIC E17 — Centraliser Identity
 
 **Priorité : P2**  
-**Statut :** ⏳ À faire
+**Statut :** 🔄 Partiellement implémenté
+
+### État actuel
+
+- Le cycle de vie du compte staff (`User` : création, activation/
+  désactivation, changement de rôle, mot de passe, suppression) passe
+  désormais par une API Identity interne côté `sso` — `superadmin` n'écrit
+  plus jamais directement dans `User` pour ces opérations (voir TS-53/
+  TS-54 ci-dessous). `sso` reste l'unique propriétaire de cette table
+  (TS-30).
+- La création/l'acceptation d'invitation (table `StaffInvitation`, emails,
+  page `/invite/[token]`) reste hébergée dans `superadmin` — seule
+  l'écriture finale dans `User` (à l'acceptation) a été migrée, pas tout
+  le sous-domaine « invitation ». Voir note sous TS-53.
 
 ## TS-53 — Déplacer invitation staff vers SSO
 
-Aujourd'hui :
+**Statut :** 🔄 Écriture `User` migrée, sous-domaine invitation non déplacé
+
+Aujourd'hui, au moment de l'acceptation d'une invitation :
 
 ```text
-Superadmin → password hash → User
+Superadmin → POST sso/api/internal/users → sso → User
 ```
 
-Cible :
+(remplace l'ancienne écriture TypeORM directe dans `User`, effectuée
+depuis `staffInvitations.ts`, `acceptInvitation()`). `sso` reste seul à
+hacher le mot de passe (`identityService.createUser`, bcrypt coût 12) —
+`superadmin` relaie le mot de passe brut choisi par l'utilisateur sur un
+appel service-à-service (`x-api-key`, jamais connu en clair au repos côté
+`superadmin`), il ne le connaît ni ne le stocke jamais lui-même.
+`clubAccounts.ts` (`updateClubUser`/`deleteClubUser`, utilisés par
+`PUT`/`DELETE /api/admin/club/users/[id]`, l'écran d'administration des
+comptes club) délègue de la même façon.
 
-```text
-Superadmin → POST SSO/internal/invitations → SSO
-```
+### Note d'avancement
+
+Migration volontairement bornée à l'écriture `User` elle-même (le
+problème d'ownership concret identifié, cf. TS-30) — pas à tout le
+sous-domaine « invitation » : la table `StaffInvitation`, l'envoi
+d'email, et la page `/invite/[token]` restent dans `superadmin`. Les
+déplacer vers `sso` reviendrait à transférer une fonctionnalité UI/email
+entière entre apps (pas seulement corriger un accès base cross-domaine),
+un chantier de nature différente et plus large que ce qui a été traité
+ici. `createClubUser` (`clubAccounts.ts`) — chemin de création "à la
+main", déjà remplacé par le flux d'invitation et non branché à l'UI
+actuelle (voir son commentaire dans le code) — n'a pas été migré : code
+mort, hors périmètre.
 
 ## TS-54 — API Identity interne
 
-Exemples :
+**Statut :** 🔄 Livré pour le cycle de vie du compte, staff-invitations non traité
+
+Exemples du critère original :
 
 ```text
-POST /internal/staff-invitations
-POST /internal/users/:id/disable
-POST /internal/users/:id/enable
-GET  /internal/users/:id
+POST /internal/staff-invitations   ⏳ non traité (voir note ci-dessus)
+POST /internal/users/:id/disable   ✅
+POST /internal/users/:id/enable    ✅
+GET  /internal/users/:id           ✅
 ```
 
-Avec service authentication.
+Complété par ce qui manquait pour couvrir les usages réels de
+`superadmin` (`clubAccounts.ts` gère aussi le rôle et le mot de passe, pas
+seulement l'activation) :
+
+```text
+POST   /internal/users              — création (sso/src/app/api/internal/users)
+PATCH  /internal/users/:id          — isActive/role/password
+DELETE /internal/users/:id
+```
+
+`/disable` et `/enable` sont des raccourcis sur `PATCH { isActive }`, pas
+une logique dupliquée. Authentification service (`x-api-key`,
+`SSO_SERVICE_API_KEY`, même pattern que `MATCHSHEET_SERVICE_API_KEY` /
+`ServiceAuthGuard` de marketplace-api/notification-api) via
+`sso/src/lib/serviceAuth.ts` — mêmes contours que
+`matchsheet/src/lib/serviceAuth.ts` (TS-31), jamais une session SSO
+utilisateur. Une désactivation ou un changement de mot de passe
+incrémente `User.tokenVersion` (révoque les sessions déjà émises pour ce
+compte, même principe que `sso/src/lib/passwordReset.ts`) — amélioration
+par rapport au comportement précédent, qui ne le faisait pas.
+
+Tests : `sso/src/lib/identityService.test.ts` (12 cas), les 5 fichiers de
+route sous `sso/src/app/api/internal/users/` (17 cas), et côté
+`superadmin` : `identityClient.test.ts` (5 cas), `clubAccounts.test.ts` (5
+cas), `staffInvitations.test.ts` (6 cas) — 45 tests au total sur ce
+chantier.
 
 ---
 
@@ -1819,8 +1879,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Configurer fail-open / fail-closed (par app, packages/auth-shared)
 ✅ Ajouter audience JWT (aud = foot-platform)
 ✅ Tests complets (login, MFA, reset, tokenVersion, introspection, logout)
-⏳ Déplacer invitation staff dans SSO
-⏳ API Identity interne
+🔄 Déplacer invitation staff dans SSO — écriture User migrée (TS-53), sous-domaine invitation (table/email/UI) toujours dans superadmin
+✅ API Identity interne (TS-54) — création/lecture/isActive/role/password/suppression, service-à-service
 ```
 
 ## `superadmin`
@@ -1830,6 +1890,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Réouverture match FINISHED (motif, audit, notification)
 ⏳ Annulation de match en tant que processus complet
 ✅ Ne plus écrire directement tables Matchsheet (TS-31 : réouverture passe par matchsheetClient → matchsheet)
+✅ Ne plus écrire directement dans User (TS-53 : identityClient → sso pour création/activation/rôle/mot de passe/suppression des comptes club)
 ⏳ Contrôles métier avant suppression match
 ⏳ Améliorer audit inter-domaines
 ```

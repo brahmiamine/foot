@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { getDataSource } from './db'
 import { Team, User, type UserRole } from './entities'
 import { toPlain, toPlainArray } from './serialization'
+import { deleteIdentityUser, updateIdentityUser } from './identityClient'
 
 /**
  * Gestion des comptes de connexion des clubs (table `User`, partagée avec
@@ -132,37 +133,37 @@ export interface UpdateClubUserInput {
   password?: string
 }
 
+/**
+ * TS-53 (avancement.md, Epic E17) : délègue à `sso` (seul propriétaire de
+ * `User`, voir TS-30) plutôt que d'écrire directement dans la table —
+ * remplace l'ancienne implémentation TypeORM directe.
+ */
 export async function updateClubUser(id: string, input: UpdateClubUserInput): Promise<ClubUser> {
-  const dataSource = await getDataSource()
-  const repository = dataSource.getRepository(User)
-
-  const user = await repository.findOne({ where: { id } })
-  if (!user) {
-    throw new Error('Compte non trouvé')
+  try {
+    const user = await updateIdentityUser(id, input)
+    return toPlain({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as 'ADMIN' | 'OBSERVATEUR',
+      isActive: user.isActive,
+      createdAt: new Date(user.createdAt),
+    })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'not_found') {
+      throw new Error('Compte non trouvé')
+    }
+    throw error
   }
-
-  if (input.isActive !== undefined) user.isActive = input.isActive
-  if (input.role) user.role = input.role
-  if (input.password) user.password = await bcrypt.hash(input.password, 12)
-
-  const saved = await repository.save(user)
-
-  return toPlain({
-    id: saved.id,
-    name: saved.name,
-    email: saved.email,
-    role: saved.role,
-    isActive: saved.isActive,
-    createdAt: saved.createdAt,
-  })
 }
 
 export async function deleteClubUser(id: string): Promise<void> {
-  const dataSource = await getDataSource()
-  const repository = dataSource.getRepository(User)
-  const user = await repository.findOne({ where: { id } })
-  if (!user) {
-    throw new Error('Compte non trouvé')
+  try {
+    await deleteIdentityUser(id)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'not_found') {
+      throw new Error('Compte non trouvé')
+    }
+    throw error
   }
-  await repository.remove(user)
 }

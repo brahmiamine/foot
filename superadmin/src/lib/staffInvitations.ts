@@ -1,10 +1,10 @@
-import { randomUUID, randomBytes, createHash } from 'node:crypto'
-import bcrypt from 'bcryptjs'
+import { randomBytes, createHash } from 'node:crypto'
 import { IsNull } from 'typeorm'
 import { getDataSource } from './db'
 import { StaffInvitation, Team, User, type UserRole } from './entities'
 import { sendEmail } from './mailer'
 import { toPlain } from './serialization'
+import { createIdentityUser } from './identityClient'
 import type { ClubUser } from './clubAccounts'
 
 /**
@@ -107,10 +107,18 @@ export type AcceptInvitationResult =
   | { ok: true; user: ClubUser }
   | { ok: false; error: 'invalid_or_expired_token' | 'email_taken' }
 
+/**
+ * TS-53 (avancement.md, Epic E17) : la création du compte délègue à `sso`
+ * (seul propriétaire de `User`, voir TS-30) plutôt que d'écrire
+ * directement dans la table — `sso` hache lui-même le mot de passe (voir
+ * identityClient.ts / sso/src/lib/identityService.ts), il n'est jamais
+ * connu de `superadmin`. `sso.createUser` fait déjà l'unique vérification
+ * d'email en doublon nécessaire (`email_taken`), inutile de la répéter ici
+ * par une lecture directe de `User`.
+ */
 export async function acceptInvitation(rawToken: string, password: string): Promise<AcceptInvitationResult> {
   const dataSource = await getDataSource()
   const invitationRepo = dataSource.getRepository(StaffInvitation)
-  const userRepo = dataSource.getRepository(User)
 
   const invitation = await invitationRepo.findOne({ where: { tokenHash: hashToken(rawToken) } })
   const isExpired = !invitation || new Date(invitation.expiresAt).getTime() < Date.now()
@@ -118,22 +126,16 @@ export async function acceptInvitation(rawToken: string, password: string): Prom
     return { ok: false, error: 'invalid_or_expired_token' }
   }
 
-  const existingUser = await userRepo.findOne({ where: { email: invitation.email } })
-  if (existingUser) {
-    return { ok: false, error: 'email_taken' }
-  }
-
-  const hashed = await bcrypt.hash(password, 12)
-  const user = userRepo.create({
-    id: randomUUID(),
+  const result = await createIdentityUser({
     name: invitation.name,
     email: invitation.email,
-    password: hashed,
+    password,
     role: invitation.role,
-    isActive: true,
     teamId: invitation.teamId,
   })
-  const saved = await userRepo.save(user)
+  if (!result.ok) {
+    return { ok: false, error: 'email_taken' }
+  }
 
   invitation.acceptedAt = new Date()
   await invitationRepo.save(invitation)
@@ -141,12 +143,12 @@ export async function acceptInvitation(rawToken: string, password: string): Prom
   return {
     ok: true,
     user: toPlain({
-      id: saved.id,
-      name: saved.name,
-      email: saved.email,
-      role: saved.role,
-      isActive: saved.isActive,
-      createdAt: saved.createdAt,
+      id: result.user.id,
+      name: result.user.name,
+      email: result.user.email,
+      role: result.user.role as 'ADMIN' | 'OBSERVATEUR',
+      isActive: result.user.isActive,
+      createdAt: new Date(result.user.createdAt),
     }),
   }
 }
