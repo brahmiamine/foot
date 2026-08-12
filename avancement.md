@@ -142,7 +142,7 @@ non audités de bout en bout.
 - Reste 4 erreurs de lint `react-hooks/set-state-in-effect` (`HomeClient`, `LiveMatchBadge`, `ThemeToggle`, `VotedBadge`) : effets de synchronisation externe (localStorage, timer, détection de montage) où une réécriture "dérivation au rendu" n'est pas un changement sûr à faire sans revue au cas par cas.
 
 ### `ob`
-- N'émet aucun événement métier vers `notification-api` (reste un émetteur muet, en lecture seule) hors actions espace membre qui consomment les notifications existantes.
+- Émet désormais 3 événements métier vers `notification-api` (profil membre modifié, abonnement push ajouté/retiré) depuis `src/app/espace-membre/actions.ts`, seules mutations que `ob` effectue lui-même (le reste du site est en lecture seule sur la base `foot`, les formulaires publics — académie, recrutement, sponsors — sont hébergés côté `teamManager`).
 - Pages billets/commandes toujours dépendantes des apps génériques (`billetterie`), pas de tunnel intégré.
 
 ### `billetterie`

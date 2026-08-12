@@ -11,6 +11,7 @@ import {
   type NotificationLocale,
 } from "@/lib/notificationApi";
 import { updateMemberProfile, type MemberProfile } from "@/lib/ssoProfileClient";
+import { notify } from "@/lib/notificationClient";
 
 async function requireMember() {
   const session = await getSsoSession();
@@ -42,15 +43,31 @@ export async function registerPushSubscriptionAction(input: {
   p256dh: string;
   auth: string;
 }): Promise<void> {
-  await requireMember();
+  const session = await requireMember();
   await registerPushSubscription({ ...input, platform: "WEB" });
   revalidatePath("/espace-membre/preferences");
+  await notify({
+    type: "PUSH_SUBSCRIPTION_ADDED",
+    userId: session.id,
+    category: "SECURITY",
+    title: "Nouvel appareil lié",
+    body: "Un nouvel appareil a été ajouté à vos notifications push.",
+    data: { deviceId: input.deviceId },
+  });
 }
 
 export async function removePushSubscriptionAction(deviceId: string): Promise<void> {
-  await requireMember();
+  const session = await requireMember();
   await removePushSubscription(deviceId);
   revalidatePath("/espace-membre/preferences");
+  await notify({
+    type: "PUSH_SUBSCRIPTION_REMOVED",
+    userId: session.id,
+    category: "SECURITY",
+    title: "Appareil retiré",
+    body: "Un appareil a été retiré de vos notifications push.",
+    data: { deviceId },
+  });
 }
 
 export async function updateMemberProfileAction(input: {
@@ -58,8 +75,16 @@ export async function updateMemberProfileAction(input: {
   lastName: string;
   phoneNumber: string;
 }): Promise<MemberProfile> {
-  await requireMember();
+  const session = await requireMember();
   const profile = await updateMemberProfile(input);
   revalidatePath("/espace-membre");
+  await notify({
+    type: "MEMBER_PROFILE_UPDATED",
+    userId: session.id,
+    category: "SECURITY",
+    title: "Profil mis à jour",
+    body: "Vos informations personnelles ont été modifiées.",
+    data: { firstName: input.firstName, lastName: input.lastName },
+  });
   return profile;
 }
