@@ -1,0 +1,28 @@
+import "reflect-metadata";
+import { DataSource } from "typeorm";
+import { Federation } from "@/entities/Federation";
+import { Product } from "@/entities/Product";
+import { ProductCategory } from "@/entities/ProductCategory";
+import { ShopOrder } from "@/entities/ShopOrder";
+import { ShopOrderItem } from "@/entities/ShopOrderItem";
+import { Team } from "@/entities/Team";
+
+/**
+ * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
+ * TypeORM — utilisée par les tests d'intégration pour exécuter du vrai SQL
+ * sans dépendre d'un serveur MySQL. Même pattern que
+ * billetterie/src/test/testDataSource.ts. Scope volontairement limité aux
+ * entités touchées par la boutique (voir ShopOrderService.ts).
+ */
+export async function createTestDataSource(): Promise<DataSource> {
+  const dataSource = new DataSource({
+    type: "better-sqlite3",
+    database: ":memory:",
+    dropSchema: true,
+    synchronize: true,
+    entities: [Federation, Product, ProductCategory, ShopOrder, ShopOrderItem, Team],
+  });
+
+  await dataSource.initialize();
+  return dataSource;
+}
