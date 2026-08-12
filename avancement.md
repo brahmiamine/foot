@@ -19,13 +19,11 @@ qui reste à faire, pour rester utilisable comme backlog.
 |---|---|---|
 | 1 | Backup/restauration testée pour la base `foot` et les uploads | Infra — aucune stratégie au-delà du volume Docker local |
 | 2 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
-| 3 | Propagation de la révocation de session (`tokenVersion`) aux 6 apps clientes de `sso` | Sécurité — décision d'architecture (vérification DB/cache partagé vs TTL court) |
-| 4 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
-| 5 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
-| 6 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
-| 7 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
-| 8 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
-
+| 3 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
+| 4 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
+| 5 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
+| 6 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
+| 7 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
 
 ---
 
@@ -34,15 +32,6 @@ qui reste à faire, pour rester utilisable comme backlog.
 Ces points ne sont pas seulement des fonctionnalités isolées : ce sont des
 flux qui traversent plusieurs projets et qui restent incomplets, fragiles ou
 non audités de bout en bout.
-
-### Authentification / révocation SSO
-- `sso` émet le cookie JWT commun et sait invalider une session via
-  `tokenVersion`, mais les apps clientes vérifient seulement signature,
-  issuer et expiration. Le circuit « mot de passe changé / MFA modifiée /
-  déconnexion partout → accès coupé partout » n'est donc pas fermé tant que
-  `arbinote`, `superadmin`, `teamManager`, `ob`, `billetterie` et les appels
-  API publics de `notification-api` n'ont pas un mécanisme de révocation
-  partagé (DB/cache/introspection/TTL court).
 
 ### Référentiel sportif → feuille de match → résultats publics
 - `superadmin` crée les fédérations/ligues/saisons/journées/matchs et
@@ -120,9 +109,6 @@ non audités de bout en bout.
 ---
 
 ## Reste à faire, par projet
-
-### `sso`
-- Révocation de session (`tokenVersion`) vérifiée uniquement dans `sso` lui-même : un JWT « révoqué » reste valide jusqu'à 12h dans les 6 apps clientes (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob`, `billetterie`), qui ne vérifient que signature/expiration (`packages/auth-shared`, volontairement sans DB pour rester Edge-safe). Étendre la vérification demanderait un appel DB par requête authentifiée dans 6 apps déployées indépendamment, ou un mécanisme différent (cache partagé, révocation courte) — décision à prendre consciemment.
 
 ### `teamManager`
 - Pas de checkout/paiement réel pour la boutique client (seule la gestion admin du catalogue existe, `admin/shop/`) — aucun tunnel d'achat, aucun appel à `payment-api`.

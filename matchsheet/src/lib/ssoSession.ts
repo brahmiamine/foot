@@ -3,7 +3,7 @@ import {
   buildSsoRedirectUrl,
   clearSsoCookie,
   getSsoTokenFromRequest,
-  verifySsoToken,
+  verifySsoTokenWithRevocation,
 } from "../../../packages/auth-shared/src/session";
 
 /**
@@ -27,7 +27,7 @@ export interface SsoUser {
 }
 
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {
-  return (await verifySsoToken(token)) as SsoUser | null;
+  return (await verifySsoTokenWithRevocation(token)) as SsoUser | null;
 }
 
 export async function getSsoSessionFromRequest(request: NextRequest): Promise<SsoUser | null> {

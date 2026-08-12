@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   buildSsoRedirectUrl,
   getSsoTokenFromRequest,
-  verifySsoToken,
+  verifySsoTokenWithRevocation,
 } from "../../packages/auth-shared/src/session";
 
 /**
@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const token = getSsoTokenFromRequest(request);
-  const session = token ? await verifySsoToken(token) : null;
+  const session = token ? await verifySsoTokenWithRevocation(token) : null;
 
   if (session?.role === "SUPERADMIN") {
     return NextResponse.next();

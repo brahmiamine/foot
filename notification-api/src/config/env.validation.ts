@@ -37,6 +37,14 @@ class EnvironmentVariables {
   @IsOptional()
   SSO_COOKIE_NAME = 'foot_sso_session';
 
+  // URL de `sso`, pour vérifier la révocation (tokenVersion) auprès de
+  // GET /api/session/introspect en plus de la signature/expiration locale
+  // (voir SsoJwtService.verify) — voir avancement.md, "Propagation de la
+  // révocation de session". Optionnel : en son absence, la vérification
+  // reste signature/expiration seule, comme avant.
+  @IsOptional()
+  SSO_URL?: string;
+
   // --- Service-to-service (applications internes) ---
   // JSON: {"teamManager":"clé1","payment-api":"clé2", ...}
   @IsNotEmpty({ message: 'SERVICE_API_KEYS is required' })
