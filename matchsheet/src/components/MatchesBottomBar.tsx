@@ -30,13 +30,13 @@ export function MatchesBottomBar({ matches }: { matches: MatchOption[] }) {
   if (matches.length === 0) {
     return (
       <nav className="matchsheet-bottombar">
-        <span className="text-muted small align-self-center px-2">{t("noMatches")}</span>
+        <span className="text-muted small align-self-center px-2">{t("match.selection.empty")}</span>
       </nav>
     );
   }
 
   return (
-    <nav className="matchsheet-bottombar" aria-label={t("matches")}>
+    <nav className="matchsheet-bottombar" aria-label={t("match.list.label")}>
       {matches.map((match) => (
         <Link
           key={match.id}
@@ -45,12 +45,12 @@ export function MatchesBottomBar({ matches }: { matches: MatchOption[] }) {
         >
           <span className="match-chip-teams">
             <i className={`bx bxs-circle me-1 ${STATUS_DOT[match.status]}`} style={{ fontSize: "0.5rem" }} aria-hidden="true" />
-            {lang === "ar" && match.homeTeamAr ? match.homeTeamAr : match.homeTeam} {t("vs")} {lang === "ar" && match.awayTeamAr ? match.awayTeamAr : match.awayTeam}
+            {lang === "ar" && match.homeTeamAr ? match.homeTeamAr : match.homeTeam} {t("match.versus")} {lang === "ar" && match.awayTeamAr ? match.awayTeamAr : match.awayTeam}
           </span>
           <span className="match-chip-meta">
             {match.date
               ? new Date(match.date).toLocaleDateString(lang === "ar" ? "ar-TN" : "fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
-              : t("dateUndefined")}
+              : t("match.date.undefined")}
           </span>
         </Link>
       ))}

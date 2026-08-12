@@ -46,18 +46,18 @@ export function ControlsChecklist({
     <div className="container-fluid px-0">
       <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <div>
-          <h1 className="h4 mb-1">{t("controls")}</h1>
+          <h1 className="h4 mb-1">{t("controls.title")}</h1>
           <p className="text-muted mb-0">
-            {homeTeamName} <span className="text-muted">{t("vs")}</span> {awayTeamName} — {t("controlsHelp")}
+            {homeTeamName} <span className="text-muted">{t("match.versus")}</span> {awayTeamName} — {t("controls.help")}
           </p>
         </div>
         <div className="d-flex align-items-center gap-3">
           <span className="badge bg-info-subtle text-info">
-            {t("controlled", { done: doneCount, total })}
+            {t("controls.progress", { done: doneCount, total })}
           </span>
           <Link href={`/${matchId}/pre-match`} className="btn btn-outline-secondary">
             <i className="bx bx-left-arrow-alt me-2" aria-hidden="true" />
-            {t("backSignatures")}
+            {t("controls.actions.backToSignatures")}
           </Link>
         </div>
       </div>
@@ -98,10 +98,10 @@ function TeamChecklist({
       </div>
       <div className="card-body">
         {entries.length === 0 ? (
-          <p className="text-muted mb-0">{t("lineupMissingShort")}</p>
+          <p className="text-muted mb-0">{t("lineup.missing.short")}</p>
         ) : (
           <>
-            <h6 className="text-uppercase small text-muted fw-semibold">{t("starters")}</h6>
+            <h6 className="text-uppercase small text-muted fw-semibold">{t("lineup.players.starters")}</h6>
             <ul className="list-group list-group-flush mb-3">
               {starters.map((entry) => (
                 <PlayerRow key={entry.matchLineupId} matchId={matchId} sheetId={sheetId} entry={entry} onChanged={onChanged} />
@@ -109,7 +109,7 @@ function TeamChecklist({
             </ul>
             {substitutes.length > 0 && (
               <>
-                <h6 className="text-uppercase small text-muted fw-semibold">{t("substitutes")}</h6>
+                <h6 className="text-uppercase small text-muted fw-semibold">{t("lineup.players.substitutes")}</h6>
                 <ul className="list-group list-group-flush">
                   {substitutes.map((entry) => (
                     <PlayerRow key={entry.matchLineupId} matchId={matchId} sheetId={sheetId} entry={entry} onChanged={onChanged} />
@@ -187,7 +187,7 @@ function PlayerRow({
         type="text"
         className="form-control form-control-sm"
         style={{ maxWidth: "180px" }}
-        placeholder={t("optionalNote")}
+        placeholder={t("controls.fields.noteOptional")}
         value={note}
         onChange={(e) => setNote(e.target.value)}
         onBlur={handleNoteBlur}

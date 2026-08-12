@@ -1,5 +1,7 @@
 "use server";
 
+import { serverTranslate } from "@/lib/i18n/server";
+
 import { revalidatePath } from "next/cache";
 import { CardEventService } from "@/services/CardEventService";
 import { GoalService } from "@/services/GoalService";
@@ -22,7 +24,7 @@ export async function addCard(
   commentFr: string | null,
 ): Promise<ActionResult> {
   try {
-    if (!playerId) return { success: false, error: "Merci de sélectionner un joueur" };
+    if (!playerId) return { success: false, error: await serverTranslate("events.validation.selectPlayer") };
     const cardEventService = new CardEventService();
     await cardEventService.create({ sheetId, matchId, playerId, type, minute, period, cardReasonId, commentFr });
     revalidatePath(`/${matchId}/live`);
@@ -55,7 +57,7 @@ export async function addGoal(
   isPenalty: boolean,
 ): Promise<ActionResult> {
   try {
-    if (!teamId) return { success: false, error: "Merci de sélectionner une équipe" };
+    if (!teamId) return { success: false, error: await serverTranslate("events.validation.selectTeam") };
     const goalService = new GoalService();
     await goalService.create({ sheetId, matchId, teamId, playerId, minute, period, isOwnGoal, isPenalty });
     revalidatePath(`/${matchId}/live`);
@@ -88,7 +90,7 @@ export async function addInjury(
   requiresSubstitution: boolean,
 ): Promise<ActionResult> {
   try {
-    if (!teamId) return { success: false, error: "Merci de sélectionner une équipe" };
+    if (!teamId) return { success: false, error: await serverTranslate("events.validation.selectTeam") };
     const injuryService = new InjuryService();
     await injuryService.create({ sheetId, matchId, teamId, playerId, minute, period, description, requiresSubstitution });
     revalidatePath(`/${matchId}/live`);
@@ -120,8 +122,8 @@ export async function addSubstitution(
   period: MatchPeriod,
 ): Promise<ActionResult> {
   try {
-    if (!teamId) return { success: false, error: "Merci de sélectionner une équipe" };
-    if (!playerOutId || !playerInId) return { success: false, error: "Merci de sélectionner les deux joueurs" };
+    if (!teamId) return { success: false, error: await serverTranslate("events.validation.selectTeam") };
+    if (!playerOutId || !playerInId) return { success: false, error: await serverTranslate("events.validation.selectBothPlayers") };
     if (playerOutId === playerInId) return { success: false, error: "Le joueur sortant et le joueur entrant doivent être différents" };
     const substitutionService = new SubstitutionService();
     await substitutionService.create({ sheetId, matchId, teamId, playerOutId, playerInId, minute, period });

@@ -38,7 +38,7 @@ interface PreMatchSignaturesProps {
 
 const PHASE: SignaturePhase = "PRE_MATCH";
 
-const ROLE_KEYS = { TEAM_HOME: "homeTeam", TEAM_AWAY: "awayTeam", REFEREE: "referee" } as const;
+const ROLE_KEYS = { TEAM_HOME: "teams.home", TEAM_AWAY: "teams.away", REFEREE: "officials.roles.referee" } as const;
 
 const ROLE_BADGES: Record<ActorRole, string> = {
   TEAM_HOME: "bg-primary-subtle text-primary",
@@ -82,7 +82,7 @@ export function PreMatchSignatures({
       if (result.success) {
         router.push(`/${matchId}/live`);
       } else {
-        setPageError(result.error || t("confirmError"));
+        setPageError(result.error || t("common.errors.confirm"));
       }
     } finally {
       setConfirming(false);
@@ -95,9 +95,9 @@ export function PreMatchSignatures({
     <div className="container-fluid px-0">
       <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <div>
-          <h1 className="h4 mb-1">{t("preSignatures")}</h1>
+          <h1 className="h4 mb-1">{t("signatures.pre.title")}</h1>
           <p className="text-muted mb-0">
-            {homeTeamName} <span className="text-muted">{t("vs")}</span> {awayTeamName}
+            {homeTeamName} <span className="text-muted">{t("match.versus")}</span> {awayTeamName}
           </p>
         </div>
       </div>
@@ -105,53 +105,53 @@ export function PreMatchSignatures({
       {pageError && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{pageError}</span>
-          <button type="button" onClick={() => setPageError(null)} aria-label={t("close")} className="btn-close" />
+          <button type="button" onClick={() => setPageError(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}
       {pageSuccess && (
         <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{pageSuccess}</span>
-          <button type="button" onClick={() => setPageSuccess(null)} aria-label={t("close")} className="btn-close" />
+          <button type="button" onClick={() => setPageSuccess(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}
 
       <div className="row g-3 mb-4">
         <SignatureSlot
           role="TEAM_HOME"
-          label={t("teamLabel", { name: homeTeamName })}
+          label={t("match.team.label", { name: homeTeamName })}
           sheetId={sheetId}
           initial={findSignature("TEAM_HOME")}
           onSaved={handleSaved}
         />
         <SignatureSlot
           role="TEAM_AWAY"
-          label={t("teamLabel", { name: awayTeamName })}
+          label={t("match.team.label", { name: awayTeamName })}
           sheetId={sheetId}
           initial={findSignature("TEAM_AWAY")}
           onSaved={handleSaved}
         />
-        <SignatureSlot role="REFEREE" label={t("referee")} sheetId={sheetId} initial={findSignature("REFEREE")} onSaved={handleSaved} />
+        <SignatureSlot role="REFEREE" label={t("officials.roles.referee")} sheetId={sheetId} initial={findSignature("REFEREE")} onSaved={handleSaved} />
       </div>
 
       {isPhaseComplete ? (
         <div className="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
           <div className="d-flex align-items-center gap-2">
             <i className="bx bx-check-circle fs-4" aria-hidden="true" />
-            <span>{t("signaturesCompletePre")}</span>
+            <span>{t("signatures.pre.complete")}</span>
           </div>
           {alreadyConfirmed ? (
-            <span className="badge bg-success-subtle text-success">{t("preConfirmed")}</span>
+            <span className="badge bg-success-subtle text-success">{t("signatures.pre.confirmed")}</span>
           ) : (
             <button type="button" className="btn btn-success" onClick={handleConfirm} disabled={confirming}>
               {confirming ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                  {t("confirmation")}
+                  {t("signatures.confirmation.pending")}
                 </>
               ) : (
                 <>
                   <i className="bx bx-right-arrow-alt me-2" aria-hidden="true" />
-                  {t("confirmAndStart")}
+                  {t("signatures.actions.confirmAndStart")}
                 </>
               )}
             </button>
@@ -160,11 +160,11 @@ export function PreMatchSignatures({
       ) : (
         <div className="alert alert-warning mb-4">
           <i className="bx bx-error me-2" aria-hidden="true" />
-          {t("waitingSignatures")}
+          {t("signatures.pre.waiting")}
         </div>
       )}
 
-      <ReservationsSection sheetId={sheetId} matchId={matchId} title={t("reservationsPre")} reservations={reservations} onChanged={refresh} />
+      <ReservationsSection sheetId={sheetId} matchId={matchId} title={t("reservations.pre.title")} reservations={reservations} onChanged={refresh} />
     </div>
   );
 }
@@ -192,7 +192,7 @@ function SignatureSlot({
 
   const handleSubmit = async () => {
     if (!pendingSignature) {
-      setError(t("signFirst"));
+      setError(t("signatures.validation.required"));
       return;
     }
     setSaving(true);
@@ -202,9 +202,9 @@ function SignatureSlot({
       if (result.success) {
         setEditing(false);
         setPendingSignature(null);
-        onSaved(result.message ?? t("signatureSaved"));
+        onSaved(result.message ?? t("signatures.messages.saved"));
       } else {
-        setError(result.error || t("saveError"));
+        setError(result.error || t("common.errors.save"));
       }
     } finally {
       setSaving(false);
@@ -238,25 +238,25 @@ function SignatureSlot({
             <>
               <div className="text-center mb-3">
                 <i className="bx bx-check-circle text-success" style={{ fontSize: "2rem" }} aria-hidden="true" />
-                <p className="mb-1 fw-medium">{initial.signerName || t("signed")}</p>
-                <p className="text-muted small mb-0">{t("signedOn", { date: new Date(initial.signedAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-FR") })}</p>
+                <p className="mb-1 fw-medium">{initial.signerName || t("signatures.status.signed")}</p>
+                <p className="text-muted small mb-0">{t("signatures.status.signedOn", { date: new Date(initial.signedAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-FR") })}</p>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={initial.signatureData}
-                alt={t("signatureAlt", { label })}
+                alt={t("signatures.image.alt", { label })}
                 className="border rounded mb-3"
                 style={{ maxHeight: "120px", width: "100%", objectFit: "contain", background: "#fff" }}
               />
               <button type="button" className="btn btn-outline-secondary btn-sm mt-auto" onClick={handleReopen}>
                 <i className="bx bx-edit-alt me-1" aria-hidden="true" />
-                {t("edit")}
+                {t("common.actions.edit")}
               </button>
             </>
           ) : (
             <>
               <div className="mb-3">
-                <label className="form-label">{t("signerOptional")}</label>
+                <label className="form-label">{t("signatures.fields.signerOptional")}</label>
                 <input
                   type="text"
                   className="form-control"
@@ -272,17 +272,17 @@ function SignatureSlot({
               <div className="d-flex gap-2 mt-auto">
                 {initial && (
                   <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleCancel} disabled={saving}>
-                    {t("cancel")}
+                    {t("common.actions.cancel")}
                   </button>
                 )}
                 <button type="button" className="btn btn-primary btn-sm flex-grow-1" onClick={handleSubmit} disabled={saving}>
                   {saving ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                      {t("saving")}
+                      {t("common.status.saving")}
                     </>
                   ) : (
-                    t("validateSignature")
+                    t("signatures.actions.validate")
                   )}
                 </button>
               </div>
@@ -307,7 +307,7 @@ function ReservationsSection({
   reservations: ReservationInfo[];
   onChanged: () => void;
 }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [authorRole, setAuthorRole] = useState<ActorRole>("TEAM_HOME");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -317,7 +317,7 @@ function ReservationsSection({
   const handleAdd = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!content.trim()) {
-      setError(t("reservationRequired"));
+      setError(t("reservations.validation.required"));
       return;
     }
     setSubmitting(true);
@@ -328,7 +328,7 @@ function ReservationsSection({
         setContent("");
         onChanged();
       } else {
-        setError(result.error || t("addError"));
+        setError(result.error || t("common.errors.add"));
       }
     } finally {
       setSubmitting(false);
@@ -343,7 +343,7 @@ function ReservationsSection({
       if (result.success) {
         onChanged();
       } else {
-        setError(result.error || t("deleteError"));
+        setError(result.error || t("common.errors.delete"));
       }
     } finally {
       setDeletingId(null);
@@ -359,12 +359,12 @@ function ReservationsSection({
         {error && (
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-3">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label={t("close")} className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
           </div>
         )}
 
         {reservations.length === 0 ? (
-          <p className="text-muted mb-3">{t("noReservation")}</p>
+          <p className="text-muted mb-3">{t("reservations.empty")}</p>
         ) : (
           <ul className="list-group mb-3">
             {reservations.map((r) => (
@@ -372,7 +372,7 @@ function ReservationsSection({
                 <div className="d-flex justify-content-between align-items-start gap-2">
                   <div>
                     <span className={`badge ${ROLE_BADGES[r.authorRole]} me-2`}>{t(ROLE_KEYS[r.authorRole])}</span>
-                    <span className="text-muted small">{new Date(r.createdAt).toLocaleString("fr-FR")}</span>
+                    <span className="text-muted small">{new Date(r.createdAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-FR")}</span>
                     <p className="mb-0 mt-1">{r.content}</p>
                   </div>
                   <button
@@ -386,7 +386,7 @@ function ReservationsSection({
                     ) : (
                       <i className="bx bx-trash" aria-hidden="true" />
                     )}
-                    <span className="visually-hidden">{t("delete")}</span>
+                    <span className="visually-hidden">{t("common.actions.delete")}</span>
                   </button>
                 </div>
               </li>
@@ -396,20 +396,20 @@ function ReservationsSection({
 
         <form className="row g-2 align-items-end" onSubmit={handleAdd}>
           <div className="col-md-3">
-            <label className="form-label">{t("author")}</label>
+            <label className="form-label">{t("reservations.fields.author")}</label>
             <select
               className="form-select"
               value={authorRole}
               onChange={(e) => setAuthorRole(e.target.value as ActorRole)}
               disabled={submitting}
             >
-              <option value="TEAM_HOME">{t("homeTeam")}</option>
-              <option value="TEAM_AWAY">{t("awayTeam")}</option>
-              <option value="REFEREE">{t("referee")}</option>
+              <option value="TEAM_HOME">{t("teams.home")}</option>
+              <option value="TEAM_AWAY">{t("teams.away")}</option>
+              <option value="REFEREE">{t("officials.roles.referee")}</option>
             </select>
           </div>
           <div className="col-md-7">
-            <label className="form-label">{t("reservationContent")}</label>
+            <label className="form-label">{t("reservations.fields.content")}</label>
             <textarea
               className="form-control"
               rows={2}
@@ -425,7 +425,7 @@ function ReservationsSection({
               ) : (
                 <>
                   <i className="bx bx-plus me-1" aria-hidden="true" />
-                  {t("add")}
+                  {t("common.actions.add")}
                 </>
               )}
             </button>
