@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useEffect, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
@@ -41,6 +42,7 @@ const NEXT_STATUS: Record<string, { next: string; label: string }> = {
 };
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useI18n();
   const { id } = usePromise(params);
   const router = useRouter();
   const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -54,7 +56,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         setOrder(res.order);
         setError(null);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur de chargement."));
+      .catch((err) => setError(t("error.load")));
   }
 
   useEffect(load, [id]);
@@ -62,7 +64,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!order) return <LoadingState />;
 
-  const meta = sellerOrderStatusMeta[order.status] ?? { label: order.status, tone: "neutral" as const };
+  const meta = sellerOrderStatusMeta[order.status];
+  const metaLabel = meta ? t(meta.key) : order.status;
   const action = NEXT_STATUS[order.status];
 
   async function advance() {
@@ -80,27 +83,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div style={{ maxWidth: 780 }}>
-      <button onClick={() => router.push("/orders")} style={{ background: "none", border: "none", color: "var(--sp-primary)", fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 12 }}>
-        ← Retour aux commandes
-      </button>
+      <button onClick={() => router.push("/orders")} style={{ background: "none", border: "none", color: "var(--sp-primary)", fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 12 }}>{t("seller.order.back")}</button>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: "1.3rem", margin: 0 }}>Commande #{order.marketOrder?.orderNumber ?? order.id.slice(0, 8)}</h1>
-        <Badge label={meta.label} tone={meta.tone} />
+        <h1 style={{ fontSize: "1.3rem", margin: 0 }}>{t("seller.order.number", { number: order.marketOrder?.orderNumber ?? order.id.slice(0, 8) })}</h1>
+        <Badge label={metaLabel} tone={meta?.tone} />
       </div>
       <p style={{ color: "var(--sp-text-muted)", fontSize: "0.82rem", marginBottom: "1.25rem" }}>{formatDateTime(order.createdAt)}</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.25rem" }}>
         <Card padded={false}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--sp-border)" }}>
-            <strong>Produits</strong>
+            <strong>{t("seller.orders.products")}</strong>
           </div>
           <Table>
             <Thead>
-              <Th>Produit</Th>
-              <Th>Qté</Th>
-              <Th>Prix unitaire</Th>
-              <Th>Total</Th>
+              <Th>{t("seller.products.table.product")}</Th>
+              <Th>{t("seller.order.quantity")}</Th>
+              <Th>{t("seller.order.unitPrice")}</Th>
+              <Th>{t("common.total")}</Th>
             </Thead>
             <tbody>
               {order.items.map((it) => (
@@ -118,15 +119,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </Table>
 
           <div style={{ padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: 4, fontSize: "0.85rem" }}>
-            <Row label="Sous-total" value={formatCurrency(order.subtotal)} />
-            <Row label="Commission club" value={`- ${formatCurrency(order.commissionAmount)}`} />
-            <Row label="Montant net" value={formatCurrency(order.netAmount)} bold />
+            <Row label={t("seller.order.subtotal")} value={formatCurrency(order.subtotal)} />
+            <Row label={t("seller.dashboard.clubCommission")} value={`- ${formatCurrency(order.commissionAmount)}`} />
+            <Row label={t("seller.dashboard.net")} value={formatCurrency(order.netAmount)} bold />
           </div>
         </Card>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           <Card>
-            <strong style={{ display: "block", marginBottom: 8 }}>Client</strong>
+            <strong style={{ display: "block", marginBottom: 8 }}>{t("seller.orders.customer")}</strong>
             <p style={{ margin: 0, fontSize: "0.85rem" }}>{order.marketOrder?.customerName}</p>
             <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "var(--sp-text-muted)" }}>{order.marketOrder?.customerEmail}</p>
             {order.marketOrder?.customerPhone && <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "var(--sp-text-muted)" }}>{order.marketOrder.customerPhone}</p>}
@@ -134,14 +135,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </Card>
 
           <Card>
-            <strong style={{ display: "block", marginBottom: 8 }}>Livraison</strong>
+            <strong style={{ display: "block", marginBottom: 8 }}>{t("seller.order.shipping")}</strong>
             {order.shippingCarrier ? (
               <>
                 <p style={{ margin: 0, fontSize: "0.85rem" }}>{order.shippingCarrier}</p>
-                <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "var(--sp-text-muted)" }}>Suivi : {order.trackingNumber}</p>
+                <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "var(--sp-text-muted)" }}>{t("seller.order.tracking", { number: order.trackingNumber ?? "" })}</p>
               </>
             ) : (
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--sp-text-muted)" }}>Pas encore expédiée.</p>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--sp-text-muted)" }}>{t("seller.order.notShipped")}</p>
             )}
 
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -151,9 +152,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 </Button>
               )}
               {order.status === "READY_TO_SHIP" && (
-                <Button variant="secondary" onClick={() => router.push(`/orders/${id}/shipping`)}>
-                  Renseigner l&rsquo;expédition
-                </Button>
+                <Button variant="secondary" onClick={() => router.push(`/orders/${id}/shipping`)}>{t("seller.order.addShipping")}</Button>
               )}
             </div>
           </Card>

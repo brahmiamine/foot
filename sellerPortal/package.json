@@ -12,7 +12,8 @@
     "backfill:club-id": "tsx scripts/backfill-club-id.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:i18n": "node --test test/i18n-parity.test.mjs"
+    "test:i18n": "node --test test/i18n-parity.test.mjs",
+    "check:i18n": "node scripts/check-ui-literals.mjs && node --test test/i18n-parity.test.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -51,17 +51,17 @@ const sections: NavSection[] = [
 
 function icon(label: string): ReactNode {
   const map: Record<string, string> = {
-    Dashboard: "◧",
-    Produits: "▤",
-    Catégories: "▥",
-    Stock: "▦",
-    Commandes: "▧",
-    Retours: "↺",
-    Revenus: "◈",
-    Payouts: "⛁",
-    Notifications: "◔",
+    "seller.nav.dashboard": "◧",
+    "seller.nav.products": "▤",
+    "seller.nav.categories": "▥",
+    "seller.nav.inventory": "▦",
+    "seller.nav.orders": "▧",
+    "seller.nav.returns": "↺",
+    "seller.nav.earnings": "◈",
+    "seller.nav.payouts": "⛁",
+    "seller.nav.notifications": "◔",
     "seller.nav.profile": "◐",
-    Compte: "⚙",
+    "seller.nav.account": "⚙",
   };
   return map[label] ?? "•";
 }
@@ -115,9 +115,9 @@ export function Sidebar({ clubName, clubLogoUrl }: { clubName?: string; clubLogo
           </div>
         )}
         <div>
-          <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>Seller Portal</div>
+          <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>{t("app.metadata.title")}</div>
           <div style={{ fontSize: "0.68rem", color: "var(--sp-sidebar-text)" }}>
-            Marketplace {clubName ?? ""}
+            {t("app.brand.marketplace", { club: clubName ?? "" })}
           </div>
         </div>
       </div>

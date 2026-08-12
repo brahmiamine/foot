@@ -1,7 +1,11 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { Card } from "./Card";
+import { useI18n } from "@/i18n/provider";
 
-export function LoadingState({ label = "Chargement…" }: { label?: string }) {
+export function LoadingState({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--sp-text-muted)" }}>
       <div
@@ -16,12 +20,13 @@ export function LoadingState({ label = "Chargement…" }: { label?: string }) {
         }}
       />
       <style>{`@keyframes sp-spin { to { transform: rotate(360deg); } }`}</style>
-      <p style={{ fontSize: "0.85rem" }}>{label}</p>
+      <p style={{ fontSize: "0.85rem" }}>{label ?? t("common.loading")}</p>
     </div>
   );
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { t } = useI18n();
   return (
     <Card style={{ borderColor: "var(--sp-danger-soft)", background: "#fff8f8" }}>
       <p style={{ color: "var(--sp-danger)", fontWeight: 600, marginBottom: onRetry ? 8 : 0 }}>⚠ {message}</p>
@@ -37,7 +42,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
             padding: 0,
           }}
         >
-          Réessayer
+          {t("common.retry")}
         </button>
       )}
     </Card>
@@ -45,6 +50,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 }
 
 export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+  useI18n();
   return (
     <div style={{ padding: "3rem 1rem", textAlign: "center" }}>
       <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: 4 }}>{title}</p>

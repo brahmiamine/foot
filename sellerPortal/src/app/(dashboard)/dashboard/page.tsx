@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { StatCard, Card } from "@/components/ui/Card";
@@ -32,6 +33,7 @@ interface Summary {
 }
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [data, setData] = useState<Summary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +44,7 @@ export default function DashboardPage() {
         setData(res);
         setError(null);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Erreur de chargement."));
+      .catch((err) => setError(t("error.load")));
   }
 
   useEffect(load, []);
@@ -52,47 +54,42 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>Bonjour {data.sellerName}</h1>
-      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
-        Voici un résumé de votre activité sur la marketplace.
-      </p>
+      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>{t("seller.dashboard.hello", { name: data.sellerName })}</h1>
+      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>{t("seller.dashboard.description")}</p>
 
       {data.sellerStatus === "PENDING" && (
         <Card style={{ background: "var(--sp-warning-soft)", borderColor: "#fde68a", marginBottom: "1.5rem" }}>
-          <strong>Compte en attente de validation.</strong>
-          <p style={{ margin: "4px 0 0", fontSize: "0.85rem" }}>
-            L&rsquo;administration du club doit approuver votre inscription avant que vous puissiez publier des produits.
-          </p>
+          <strong>{t("seller.dashboard.pending")}</strong>
+          <p style={{ margin: "4px 0 0", fontSize: "0.85rem" }}>{t("seller.dashboard.pendingDescription")}</p>
         </Card>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        <StatCard label="Produits actifs" value={String(data.activeProducts)} tone="primary" />
-        <StatCard label="Commandes en attente" value={String(data.pendingOrders)} tone="warning" />
-        <StatCard label="Commandes à expédier" value={String(data.readyToShipOrders)} tone="warning" />
-        <StatCard label="Produits en rupture" value={String(data.lowStockCount)} tone={data.lowStockCount ? "danger" : "neutral"} />
+        <StatCard label={t("seller.dashboard.activeProducts")} value={String(data.activeProducts)} tone="primary" />
+        <StatCard label={t("seller.dashboard.pendingOrders")} value={String(data.pendingOrders)} tone="warning" />
+        <StatCard label={t("seller.dashboard.toShip")} value={String(data.readyToShipOrders)} tone="warning" />
+        <StatCard label={t("seller.dashboard.outOfStock")} value={String(data.lowStockCount)} tone={data.lowStockCount ? "danger" : "neutral"} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        <StatCard label="Ventes" value={formatCurrency(data.sales)} tone="primary" />
-        <StatCard label="Commission club" value={formatCurrency(data.commission)} />
-        <StatCard label="Montant net" value={formatCurrency(data.net)} tone="primary" />
+        <StatCard label={t("seller.dashboard.sales")} value={formatCurrency(data.sales)} tone="primary" />
+        <StatCard label={t("seller.dashboard.clubCommission")} value={formatCurrency(data.commission)} />
+        <StatCard label={t("seller.dashboard.net")} value={formatCurrency(data.net)} tone="primary" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
         <Card padded={false}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--sp-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <strong>Commandes récentes</strong>
-            <Link href="/orders" style={{ fontSize: "0.8rem", color: "var(--sp-primary)", fontWeight: 600 }}>
-              Voir tout
-            </Link>
+            <strong>{t("seller.dashboard.recentOrders")}</strong>
+            <Link href="/orders" style={{ fontSize: "0.8rem", color: "var(--sp-primary)", fontWeight: 600 }}>{t("common.viewAll")}</Link>
           </div>
           {data.recentOrders.length === 0 ? (
-            <p style={{ padding: "1.25rem", color: "var(--sp-text-muted)", fontSize: "0.85rem" }}>Aucune commande pour le moment.</p>
+            <p style={{ padding: "1.25rem", color: "var(--sp-text-muted)", fontSize: "0.85rem" }}>{t("seller.dashboard.noOrders")}</p>
           ) : (
             <div>
               {data.recentOrders.map((o) => {
-                const meta = sellerOrderStatusMeta[o.status] ?? { label: o.status, tone: "neutral" as const };
+                const meta = sellerOrderStatusMeta[o.status];
+  const metaLabel = meta ? t(meta.key) : o.status;
                 return (
                   <Link
                     key={o.id}
@@ -107,7 +104,7 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>{formatCurrency(o.subtotal)}</span>
-                      <Badge label={meta.label} tone={meta.tone} />
+                      <Badge label={metaLabel} tone={meta?.tone} />
                     </div>
                   </Link>
                 );
@@ -118,10 +115,10 @@ export default function DashboardPage() {
 
         <Card padded={false}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--sp-border)" }}>
-            <strong>Produits en rupture</strong>
+            <strong>{t("seller.dashboard.outOfStock")}</strong>
           </div>
           {data.lowStockProducts.length === 0 ? (
-            <p style={{ padding: "1.25rem", color: "var(--sp-text-muted)", fontSize: "0.85rem" }}>Aucune rupture de stock.</p>
+            <p style={{ padding: "1.25rem", color: "var(--sp-text-muted)", fontSize: "0.85rem" }}>{t("seller.dashboard.noOutOfStock")}</p>
           ) : (
             <div>
               {data.lowStockProducts.map((p) => (

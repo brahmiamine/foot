@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/provider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
@@ -13,6 +14,7 @@ interface Category {
 }
 
 export default function NewProductPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -70,11 +72,8 @@ export default function NewProductPage() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>Nouveau produit</h1>
-      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
-        Le produit sera enregistré en brouillon. Vous pourrez ensuite ajouter des variantes, des images et le soumettre à
-        validation.
-      </p>
+      <h1 style={{ fontSize: "1.3rem", marginBottom: 4 }}>{t("seller.products.newTitle")}</h1>
+      <p style={{ color: "var(--sp-text-muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>{t("seller.products.draftHint")}</p>
 
       <Card>
         <form onSubmit={handleSubmit}>
@@ -84,15 +83,15 @@ export default function NewProductPage() {
             </div>
           )}
 
-          <FormField label="Nom du produit" required>
+          <FormField label={t("field.productName")} required>
             <Input required value={form.name} onChange={(e) => set("name", e.target.value)} />
           </FormField>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-            <FormField label="SKU" required>
+            <FormField label={t("field.sku")} required>
               <Input required value={form.sku} onChange={(e) => set("sku", e.target.value)} />
             </FormField>
-            <FormField label="Catégorie">
+            <FormField label={t("field.category")}>
               <Select value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
                 <option value="">—</option>
                 {categories.map((c) => (
@@ -105,45 +104,43 @@ export default function NewProductPage() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-            <FormField label="Prix (DT)" required>
+            <FormField label={t("field.priceTnd")} required>
               <Input type="number" step="0.001" min="0" required value={form.price} onChange={(e) => set("price", e.target.value)} />
             </FormField>
-            <FormField label="Prix promo (DT)">
+            <FormField label={t("field.salePriceTnd")}>
               <Input type="number" step="0.001" min="0" value={form.compareAtPrice} onChange={(e) => set("compareAtPrice", e.target.value)} />
             </FormField>
-            <FormField label="TVA (%)">
+            <FormField label={t("field.taxRate")}>
               <Input type="number" step="0.01" min="0" value={form.taxRate} onChange={(e) => set("taxRate", e.target.value)} />
             </FormField>
           </div>
 
-          <FormField label="Marque">
+          <FormField label={t("field.brand")}>
             <Input value={form.brand} onChange={(e) => set("brand", e.target.value)} />
           </FormField>
 
-          <FormField label="Description courte">
+          <FormField label={t("field.shortDescription")}>
             <Input value={form.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} />
           </FormField>
 
-          <FormField label="Description">
+          <FormField label={t("field.description")}>
             <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} />
           </FormField>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-            <FormField label="Poids (kg)">
+            <FormField label={t("field.weight")}>
               <Input type="number" step="0.001" min="0" value={form.weightKg} onChange={(e) => set("weightKg", e.target.value)} />
             </FormField>
-            <FormField label="Dimensions" hint="Ex: 30x20x10 cm">
+            <FormField label={t("field.dimensions")} hint={t("field.dimensionsHint")}>
               <Input value={form.dimensions} onChange={(e) => set("dimensions", e.target.value)} />
             </FormField>
           </div>
 
           <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
             <Button type="submit" disabled={loading}>
-              {loading ? "Création…" : "Enregistrer en brouillon"}
+              {loading ? t("common.creating") : t("seller.products.create")}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => router.push("/products")}>
-              Annuler
-            </Button>
+            <Button type="button" variant="secondary" onClick={() => router.push("/products")}>{t("common.cancel")}</Button>
           </div>
         </form>
       </Card>
