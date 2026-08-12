@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -10,6 +10,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { BrandingModule } from './branding/branding.module';
+import { CorrelationIdMiddleware } from './common/correlation/correlation-id.middleware';
 import { databaseConfig } from './config/database.config';
 import { validateEnv } from './config/env.validation';
 import { redisConfig } from './config/redis.config';
@@ -50,4 +51,8 @@ import { PushSubscriptionsModule } from './push-subscriptions/push-subscriptions
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}

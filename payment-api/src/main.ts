@@ -2,12 +2,15 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { StructuredLoggerService } from './common/logging/structured-logger.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    // Never let framework-level error responses leak internal details
-    // (stack traces, provider payloads, etc.) in production.
-    logger: ['error', 'warn', 'log'],
+    // TS-58 : logs JSON structurés (service/correlationId/…) plutôt que le
+    // format texte coloré par défaut — voir StructuredLoggerService.
+    logger: new StructuredLoggerService('payment-api', {
+      logLevels: ['error', 'warn', 'log'],
+    }),
   });
 
   app.use(helmet());

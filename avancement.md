@@ -30,7 +30,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P2 | E16 – Returns Marketplace | 🔄 | fermer le workflow des retours |
 | P2 | E17 – Identity API | ⏳ | déplacer la gestion des comptes vers SSO |
 | P3 | E18 – API Gateway | ⏳ | fournir une entrée API globale |
-| P3 | E19 – Observabilité | ⏳ | correlation ID, logs, métriques et traces |
+| P3 | E19 – Observabilité | 🔄 | correlation ID, logs, métriques et traces |
 | P3 | E20 – Event Bus | ⏳ | découpler les projets par événements |
 
 ---
@@ -1549,9 +1549,22 @@ Les autorisations métiers restent dans les services.
 # EPIC E19 — Observabilité
 
 **Priorité : P3**  
-**Statut :** ⏳ À faire
+**Statut :** 🔄 Partiellement implémenté
+
+### État actuel
+
+- Correlation ID (TS-57) et logs structurés (TS-58) livrés pour les 3 API
+  NestJS (`payment-api`, `notification-api`, `marketplace-api`) — les 6
+  apps Next.js (arbinote/matchsheet/superadmin/teamManager/ob/billetterie)
+  et `sso` n'en bénéficient pas encore (voir note sous TS-57).
+- TS-59 (métriques) reste hors périmètre : nécessite un backend de
+  métriques réel (Prometheus, Datadog…) à provisionner, cohérent avec la
+  note déjà présente ailleurs dans ce document (« Monitoring/alerting
+  externe absent, suppose outil externe à provisionner »).
 
 ## TS-57 — Correlation ID
+
+**Statut :** 🔄 Livré pour les 3 API NestJS uniquement
 
 Chaque requête :
 
@@ -1567,7 +1580,33 @@ OB (ID: 123) → Marketplace → Payment API → Notification API
 
 Tous les logs portent le même `123`.
 
+`CorrelationIdMiddleware` (dupliqué dans les 3 apps sous
+`src/common/correlation/`, comme le reste des petits utilitaires
+NestJS de ce dépôt — pas de package partagé entre apps déployées
+indépendamment) : reprend `X-Correlation-Id` de la requête entrante s'il
+existe (propagé par un appelant amont), sinon en génère un nouveau ; le
+renvoie dans la réponse ; le rend disponible à tout code exécuté pendant
+le traitement de la requête via `AsyncLocalStorage`
+(`correlation-context.ts`) — sans avoir à le faire transiter en paramètre
+explicite de chaque fonction/service.
+
+### Limite assumée
+
+- Pas branché sur les 6 apps Next.js ni sur `sso` — seulement les 3 API
+  NestJS qui se répondent déjà entre elles par HTTP.
+- Pas propagé sur les appels HTTP *sortants* de `payment-api` vers
+  `billetterie` (webhook, `WebhookDispatchService`) ni vers
+  `notification-api` (`NotificationClientService`) : ces deux appels
+  partent du worker `OutboxWorkerService` (poll toutes les 5s), détaché de
+  toute requête HTTP entrante — il n'y a donc pas de `correlationId` en
+  cours à propager à ce point de la chaîne (l'`AsyncLocalStorage` ne
+  survit pas au-delà du traitement de la requête qui l'a créé). Fermer ce
+  point nécessiterait de stocker le `correlationId` sur `OutboxEvent` à sa
+  création, hors périmètre de cette passe.
+
 ## TS-58 — Structured logging
+
+**Statut :** ✅ Livré pour les 3 API NestJS
 
 Exemple :
 
@@ -1581,7 +1620,27 @@ Exemple :
 }
 ```
 
+`StructuredLoggerService` (`src/common/logging/`, dupliqué dans les 3
+apps) étend `ConsoleLogger` (Nest 11, sortie JSON native via `{ json:
+true }`) et ajoute `service` (nom fixe de l'app) et `correlationId` (TS-57,
+lu depuis `AsyncLocalStorage`, absent hors traitement de requête — ex:
+bootstrap, job planifié). Remplace le logger par défaut via
+`NestFactory.create(AppModule, { logger: new StructuredLoggerService(...) })`
+dans `main.ts` : le reste du code continue d'utiliser `new
+Logger(MyClass.name)` sans modification, Nest route tout vers cette
+implémentation. Pas de champ `event` dédié comme dans l'exemple du
+critère original — le `message` texte existant (`Logger.log('Payment ...
+confirmed')`) reste le contenu principal, un champ `event` structuré à
+part entière nécessiterait de revoir chaque site d'appel `Logger.log(...)`
+individuellement, hors périmètre de cette passe.
+
+Tests : `correlation-id.middleware.spec.ts` (4 cas) et
+`structured-logger.service.spec.ts` (3 cas) par app, soit 21 tests au
+total sur les 3 API.
+
 ## TS-59 — Métriques
+
+**Statut :** ⏳ À faire
 
 Mesurer :
 
@@ -1592,6 +1651,11 @@ Mesurer :
 - ticket scan rejects ;
 - vote anomaly rate ;
 - DB errors.
+
+Nécessite un backend de métriques provisionné (Prometheus + Grafana,
+Datadog…) avant de pouvoir instrumenter le code de façon utile — non
+traité ici (même limite que le monitoring/alerting des healthchecks,
+déjà documentée ailleurs dans ce fichier).
 
 ---
 
@@ -1867,6 +1931,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Fulfillment seller-orders (TS-20 à US-24) — préparation/prêt à expédier/expédition/livraison
 ✅ Payouts (US-47 à US-49) — solde, création, transitions, retry/audit ; aucun virement réel (dépend d'une intégration payment-api absente)
 ✅ Returns (US-50 à US-52) — demande/décision/complétion ; remboursement réel hors périmètre (Refund API absente côté payment-api)
+✅ Correlation ID + logs structurés (TS-57/TS-58)
 ⏳ Swagger
 ⏳ Business logic orders (toujours scaffolding — E06) ; création de commande toujours hors périmètre (pas de tunnel d'achat marketplace côté frontend)
 ⏳ Jamais démarré contre une vraie base MariaDB (pas de Docker/MariaDB dans ce bac à sable)
@@ -1881,6 +1946,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Transactional outbox (TS-12)
 ✅ Retry callback durable (TS-13, 1min→5min→15min→1h→6h puis DLQ)
 ✅ DLQ (statut FAILED en base) — monitoring/alerting externe hors périmètre (voir E19)
+✅ Correlation ID + logs structurés (TS-57/TS-58) — pas propagé sur les appels sortants de l'outbox worker (voir note E19/TS-57)
 ⏳ Configurer webhooks pour autres apps (ob, teamManager, sellerPortal)
 ⏳ Refund API
 ⏳ Payout provider abstraction
@@ -1895,8 +1961,9 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Fiabilisation ingress (outbox apps → notification-api)
 ⏳ Gouvernance événements (catalogue, destinataires, templates)
 ✅ SMS Tunisiesms (TS-44/45/46) — inactif tant que SMS_PROVIDER=tunisiesms n'est pas configuré en prod
+✅ Correlation ID + logs structurés (TS-57/TS-58)
 ⏳ Delivery reporting
-⏳ Métriques / observabilité
+⏳ Métriques (TS-59, nécessite un backend de métriques provisionné)
 ⏳ FCM tester avec vrai compte Firebase
 ⏳ Monitoring/alerting externe (Datadog, Uptime Kuma…)
 ```
