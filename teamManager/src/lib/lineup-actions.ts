@@ -62,9 +62,9 @@ export async function saveMatchLineup(ref: MatchRef, entriesJson: string) {
     });
 
     revalidatePath(buildRoutePath(ref));
-    return { success: true, message: "Composition enregistrée avec succès" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'enregistrement" };
+    return { success: true as const, messageKey: "lineup.feedback.saved" as const };
+  } catch {
+    return { success: false as const, errorKey: "lineup.errors.save" as const };
   }
 }
 
@@ -113,10 +113,11 @@ export async function sendMatchConvocations(ref: MatchRef) {
     revalidatePath(buildRoutePath(ref));
     revalidatePath("/admin/convocations");
     return {
-      success: true,
-      message: sent.length > 0 ? `${sent.length} convocation(s) envoyée(s)` : "Aucun joueur dans la composition à convoquer",
+      success: true as const,
+      messageKey: sent.length > 0 ? "lineup.feedback.callupsSent" as const : "lineup.feedback.noCallups" as const,
+      values: { count: sent.length },
     };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'envoi" };
+  } catch {
+    return { success: false as const, errorKey: "lineup.errors.callups" as const };
   }
 }
