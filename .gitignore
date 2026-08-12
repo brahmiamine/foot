@@ -1,6 +1,9 @@
 .DS_Store
 Skote_React_v4.4.0/
 db/*.zip
+# Sauvegardes produites par db/backup.sh (dump SQL + uploads, potentiellement
+# des données personnelles) — jamais commitées, voir db/restore.sh.
+db/backups/
 
 # node_modules à la racine : sert uniquement à packages/auth-shared pour
 # résoudre `jose` (voir packages/auth-shared/README.md) — pas un workspace,

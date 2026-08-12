@@ -9,7 +9,7 @@ livrés ne sont plus détaillés ici (voir l'historique git et les README de
 chaque app pour le détail de ce qui a été fait) : ce fichier ne garde que ce
 qui reste à faire, pour rester utilisable comme backlog.
 
-État vérifié sur le code au 11/08/2026.
+État vérifié sur le code au 12/08/2026.
 
 ---
 
@@ -17,13 +17,12 @@ qui reste à faire, pour rester utilisable comme backlog.
 
 | Rang | Action | Portée |
 |---|---|---|
-| 1 | Backup/restauration testée pour la base `foot` et les uploads | Infra — aucune stratégie au-delà du volume Docker local |
-| 2 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
-| 3 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
-| 4 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
-| 5 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
-| 6 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
-| 7 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
+| 1 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
+| 2 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
+| 3 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
+| 4 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
+| 5 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
+| 6 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
 
 ---
 
@@ -166,7 +165,7 @@ non audités de bout en bout.
 - Pas d'intégration `payment-api`/`notification-api` pour le cycle commande vendeur (paiement client, confirmation commande, notification vendeur, payout).
 
 ### Infra / `db`
-- Sauvegarde/restauration de `foot` et des uploads jamais testée (au-delà du volume Docker local).
+- `db/backup.sh`/`db/restore.sh` existent (dump `mariadb-dump` compressé de `foot` + archive des dossiers `public/uploads` d'arbinote/superadmin/teamManager, restauration avec confirmation). Logique testée via un harnais qui simule `docker`/`mariadb` (round-trip dump→gzip→restore et tar→untar vérifiés), mais jamais exécutés contre un vrai `mariadb_container` avec de vraies données — à valider une fois en conditions réelles avant de s'y fier en production.
 - Aucune passerelle API unique, aucun domaine de production configuré.
 - Aucun migrateur SQL partagé ni table de version globale pour la base `foot` ; ordre d'application des scripts encore manuel par projet.
 - Séparation des bases par domaine partielle (`payment-api`/`notification-api` isolées, le reste partage encore `foot`).
