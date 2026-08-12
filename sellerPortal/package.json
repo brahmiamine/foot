@@ -11,7 +11,8 @@
     "seed": "tsx scripts/seed.ts",
     "backfill:club-id": "tsx scripts/backfill-club-id.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:i18n": "node --test test/i18n-parity.test.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
