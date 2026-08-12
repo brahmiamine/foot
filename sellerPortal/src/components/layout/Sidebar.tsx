@@ -3,46 +3,48 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useI18n } from "@/i18n/provider";
+import type { TranslationKey } from "@/i18n";
 
 interface NavItem {
-  label: string;
+  label: TranslationKey;
   href: string;
 }
 interface NavSection {
-  title?: string;
+  title?: TranslationKey;
   items: NavItem[];
 }
 
 const sections: NavSection[] = [
-  { items: [{ label: "Dashboard", href: "/dashboard" }] },
+  { items: [{ label: "seller.nav.dashboard", href: "/dashboard" }] },
   {
-    title: "Catalogue",
+    title: "seller.nav.catalog",
     items: [
-      { label: "Produits", href: "/products" },
-      { label: "Catégories", href: "/categories" },
-      { label: "Stock", href: "/inventory" },
+      { label: "seller.nav.products", href: "/products" },
+      { label: "seller.nav.categories", href: "/categories" },
+      { label: "seller.nav.inventory", href: "/inventory" },
     ],
   },
   {
-    title: "Ventes",
+    title: "seller.nav.sales",
     items: [
-      { label: "Commandes", href: "/orders" },
-      { label: "Retours", href: "/orders/returns" },
+      { label: "seller.nav.orders", href: "/orders" },
+      { label: "seller.nav.returns", href: "/orders/returns" },
     ],
   },
   {
-    title: "Finances",
+    title: "seller.nav.finance",
     items: [
-      { label: "Revenus", href: "/earnings" },
-      { label: "Payouts", href: "/payouts" },
+      { label: "seller.nav.earnings", href: "/earnings" },
+      { label: "seller.nav.payouts", href: "/payouts" },
     ],
   },
-  { items: [{ label: "Notifications", href: "/notifications" }] },
+  { items: [{ label: "seller.nav.notifications", href: "/notifications" }] },
   {
-    title: "Paramètres",
+    title: "seller.nav.settings",
     items: [
-      { label: "Profil vendeur", href: "/settings/profile" },
-      { label: "Compte", href: "/settings/account" },
+      { label: "seller.nav.profile", href: "/settings/profile" },
+      { label: "seller.nav.account", href: "/settings/account" },
     ],
   },
 ];
@@ -58,7 +60,7 @@ function icon(label: string): ReactNode {
     Revenus: "◈",
     Payouts: "⛁",
     Notifications: "◔",
-    "Profil vendeur": "◐",
+    "seller.nav.profile": "◐",
     Compte: "⚙",
   };
   return map[label] ?? "•";
@@ -66,6 +68,7 @@ function icon(label: string): ReactNode {
 
 export function Sidebar({ clubName, clubLogoUrl }: { clubName?: string; clubLogoUrl?: string | null }) {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <aside
@@ -114,7 +117,7 @@ export function Sidebar({ clubName, clubLogoUrl }: { clubName?: string; clubLogo
         <div>
           <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>Seller Portal</div>
           <div style={{ fontSize: "0.68rem", color: "var(--sp-sidebar-text)" }}>
-            Marketplace {clubName ?? "du club"}
+            Marketplace {clubName ?? ""}
           </div>
         </div>
       </div>
@@ -133,7 +136,7 @@ export function Sidebar({ clubName, clubLogoUrl }: { clubName?: string; clubLogo
                   padding: "0 0.6rem 0.4rem",
                 }}
               >
-                {section.title}
+                {t(section.title)}
               </div>
             )}
             {section.items.map((item) => {
@@ -158,7 +161,7 @@ export function Sidebar({ clubName, clubLogoUrl }: { clubName?: string; clubLogo
                   <span aria-hidden style={{ width: 18, textAlign: "center" }}>
                     {icon(item.label)}
                   </span>
-                  {item.label}
+                  {t(item.label)}
                 </Link>
               );
             })}
