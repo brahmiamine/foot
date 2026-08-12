@@ -5,7 +5,7 @@ import type { AuthenticatedSeller } from '../auth/interfaces/authenticated-selle
 import { PayoutsService } from './payouts.service';
 import { Payout } from './entities/payout.entity';
 
-/** Scaffolding (TS-03) — voir PayoutsService. */
+/** E15 — lecture seule côté vendeur (déclaratif). Déclenchement et transitions : voir InternalPayoutsController. */
 @Controller('payouts')
 @UseGuards(SellerJwtGuard)
 export class PayoutsController {

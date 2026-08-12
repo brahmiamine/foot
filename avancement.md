@@ -26,8 +26,8 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P2 | E12 – ArbiNote audit | ✅ | compléter traçabilité et modération |
 | P2 | E13 – Live temps réel | 🔄 | remplacer progressivement le polling par SSE/WebSocket |
 | P2 | E14 – SMS | ⏳ | finaliser le canal SMS (stub actuellement) |
-| P2 | E15 – Payout Marketplace | ⏳ | automatiser les paiements vendeurs |
-| P2 | E16 – Returns Marketplace | ⏳ | fermer le workflow des retours |
+| P2 | E15 – Payout Marketplace | 🔄 | automatiser les paiements vendeurs |
+| P2 | E16 – Returns Marketplace | 🔄 | fermer le workflow des retours |
 | P2 | E17 – Identity API | ⏳ | déplacer la gestion des comptes vers SSO |
 | P3 | E18 – API Gateway | ⏳ | fournir une entrée API globale |
 | P3 | E19 – Observabilité | ⏳ | correlation ID, logs, métriques et traces |
@@ -1281,63 +1281,146 @@ avec validation E.164.
 # EPIC E15 — Payout Marketplace
 
 **Priorité : P2**  
-**Statut :** ⏳ À faire
+**Statut :** 🔄 Partiellement implémenté
 
 ### État actuel
 
-- Payouts affichés côté vendeur : déclaratifs, lecture seule.
-- Aucun déclenchement de virement.
-- Aucune preuve de paiement vendeur.
-- Aucun rapprochement avec `payment-api`.
+- Calcul de solde, création et transitions de payout livrés côté
+  `marketplace-api` (`src/payouts`) — voir US-47 à US-49 ci-dessous.
+- Aucun rapprochement avec `payment-api` : ces routes ne déclenchent aucun
+  virement réel, `payment-api` n'a pas de « payout provider abstraction »
+  (voir sa propre section « Reste à faire »). Le workflow PENDING →
+  PROCESSING → PAID/FAILED est piloté manuellement par l'app appelante
+  (`internal/payouts/*`, `ServiceAuthGuard`) tant que cette intégration
+  n'existe pas.
+- Aucune preuve de paiement vendeur (pas de justificatif/relevé attaché à
+  `Payout`).
 
 ## US-47 — Calculer solde vendeur
+
+**Statut :** ✅ Livré (`PayoutsService.computeAvailableBalance`)
 
 ```text
 orders delivered - returns - refunds - club commission = available balance
 ```
 
+Implémenté comme `SUM(SellerOrder.netAmount WHERE status=DELIVERED) -
+SUM(Payout.amount WHERE status IN (PENDING, PROCESSING, PAID))` pour ce
+vendeur. La commission est déjà déduite dans `netAmount` au moment de la
+commande (voir Epic E02), pas recalculée ici. Un retour complet
+(`RETURNED`, voir Epic E16) sort mécaniquement la commande du total
+`DELIVERED` — pas de soustraction séparée : le modèle `SellerOrderStatus`
+ne supporte pas les retours partiels par ligne, une commande retournée
+n'est donc jamais comptée deux fois. Les payouts déjà PENDING/PROCESSING/
+PAID sont déduits pour ne jamais recompter un montant déjà réclamé par un
+payout antérieur. Jamais négatif (`Math.max(0, …)`).
+
 ## US-48 — Créer payout
+
+**Statut :** ✅ Livré
 
 ```text
 PENDING → PROCESSING → PAID
 ```
 
+`POST /internal/payouts?sellerId=…` (`ServiceAuthGuard`, jamais
+auto-déclenché par le vendeur) crée un `Payout PENDING` pour la totalité
+du solde disponible (US-47) ; `POST /internal/payouts/:id/processing` et
+`/paid` font avancer le cycle. `periodStart`/`periodEnd` : approximation
+V1 documentée dans le code (de la plus ancienne commande `DELIVERED` du
+vendeur à aujourd'hui) — pas de lien explicite payout ↔ commandes
+couvertes, à affiner si un vrai rapprochement comptable est requis.
+
 ## US-49 — Gérer échec payout
+
+**Statut :** ✅ Livré
 
 ```text
 PROCESSING → FAILED
 ```
 
-avec :
+`POST /internal/payouts/:id/failed` (motif obligatoire, `FailPayoutDto`)
+et `POST /internal/payouts/:id/retry` (`FAILED → PENDING`) :
 
-- raison ;
-- retry ;
-- audit.
+- raison ✅ (`Payout.lastError`, obligatoire à l'échec) ;
+- retry ✅ (`retry()`, remet `PENDING` pour rejouer le virement) ;
+- audit ✅ (`Payout.attempts`, incrémenté à chaque passage
+  `PENDING → PROCESSING` — jamais réinitialisé par `retry()`, pour garder
+  la trace des tentatives précédentes ; `lastError` reste lisible jusqu'à
+  la tentative suivante).
+
+Tests : `marketplace-api/src/payouts/payouts.service.spec.ts` (12 cas —
+calcul de solde avec/sans plancher à 0, création refusée à solde nul,
+création avec période dérivée, toutes les transitions autorisées/refusées,
+audit `attempts`/`lastError` préservé au retry).
 
 ---
 
 # EPIC E16 — Returns Marketplace
 
 **Priorité : P2**  
-**Statut :** ⏳ À faire
+**Statut :** 🔄 Partiellement implémenté
+
+### État actuel
+
+- Workflow de retour livré côté `marketplace-api` (`src/returns`) — voir
+  US-50 à US-52 ci-dessous.
+- Aucune app cliente n'authentifie encore un acheteur marketplace (pas de
+  tunnel d'achat réel, voir Epic E05/E06) : la demande de retour (US-50)
+  est donc exposée en `internal/returns` (service-à-service,
+  `ServiceAuthGuard`), sur le modèle de `internal/products` (TS-04) —
+  l'identité du client est passée explicitement par l'app appelante,
+  faute de JWT acheteur.
+- Remboursement réel non déclenché (voir US-52).
 
 ## US-50 — Client demande retour
+
+**Statut :** ✅ Livré (`POST /internal/returns`, `ReturnsService.request`)
 
 ```text
 DELIVERED → RETURN_REQUESTED
 ```
 
+Ne gère que le retour de la commande dans son ensemble : le modèle
+`SellerOrderStatus` n'a pas d'état par ligne. `sellerOrderItemId` est
+validé (doit appartenir à la commande) et conservé pour documenter quel
+article est concerné, pas pour permettre un retour partiel côté statut.
+
 ## US-51 — Marketplace traite retour
+
+**Statut :** ✅ Livré (`POST /returns/:id/approve`, `/reject` — JWT vendeur)
 
 ```text
 REQUESTED → APPROVED ou REJECTED
 ```
 
+« La marketplace » = le vendeur ici (c'est lui qui reçoit physiquement
+l'article retourné) — `ReturnsController`, scopé au vendeur authentifié
+comme le reste de l'API self-service. Un rejet restaure `DELIVERED` côté
+`SellerOrder` (le retour n'a pas eu lieu) ; une approbation laisse
+`RETURN_REQUESTED` (article pas encore reçu, voir US-52).
+
 ## US-52 — Produit retourné
+
+**Statut :** 🔄 Transition livrée, remboursement hors périmètre
 
 ```text
 APPROVED → COMPLETED → refund
 ```
+
+`POST /returns/:id/complete` fait `APPROVED → COMPLETED` (`ReturnRequest`)
+et `SellerOrder.status → RETURNED` quand l'article est physiquement reçu
+en retour. Ne déclenche **aucun** remboursement réel : `payment-api`
+n'expose pas encore de Refund API (voir sa section « Reste à faire ») —
+le statut `REFUNDED` de `SellerOrderStatus` reste donc hors de portée de
+cette méthode, un remboursement retenu comme geste manuel jusqu'à ce que
+cette API existe côté `payment-api`.
+
+Tests : `marketplace-api/src/returns/returns.service.spec.ts` (10 cas —
+création avec validation de statut/appartenance, décision
+approuvée/rejetée avec restauration `DELIVERED`, refus hors `REQUESTED`,
+scoping vendeur — 404 jamais une autre commande —, complétion et refus
+hors `APPROVED`).
 
 ---
 
@@ -1743,8 +1826,10 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Variantes et stock (US-06) — seuil d'alerte bas-stock + désactivation dédiée livrés ; décrément automatique toujours dépendant de seller-orders (E06)
 ✅ Tests CI (TS-33) — absente de la matrice CI jusqu'ici, ajoutée
 ✅ Fulfillment seller-orders (TS-20 à US-24) — préparation/prêt à expédier/expédition/livraison
+✅ Payouts (US-47 à US-49) — solde, création, transitions, retry/audit ; aucun virement réel (dépend d'une intégration payment-api absente)
+✅ Returns (US-50 à US-52) — demande/décision/complétion ; remboursement réel hors périmètre (Refund API absente côté payment-api)
 ⏳ Swagger
-⏳ Business logic orders/returns/payouts (actuellement scaffolding — E15/E16) ; création de commande toujours hors périmètre (pas de tunnel d'achat marketplace côté frontend)
+⏳ Business logic orders (toujours scaffolding — E06) ; création de commande toujours hors périmètre (pas de tunnel d'achat marketplace côté frontend)
 ⏳ Jamais démarré contre une vraie base MariaDB (pas de Docker/MariaDB dans ce bac à sable)
 ⏳ Unification identité vendeur avec sellerPortal (double auth, voir Epic E17)
 ```

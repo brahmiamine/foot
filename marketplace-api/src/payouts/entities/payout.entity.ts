@@ -8,10 +8,10 @@ import {
 import { PayoutStatus } from '../enums/payout-status.enum';
 
 /**
- * Reversement au vendeur. Scaffolding (TS-03) : entité prête, calcul du
- * solde et déclenchement réel du virement (US-47 à US-49, Epic E15) à
- * implémenter — cette table n'expose pour l'instant qu'un historique en
- * lecture, jamais de credentials de provider de paiement.
+ * Reversement au vendeur (E15, US-47 à US-49). `lastError`/`attempts`
+ * portent l'audit d'échec (US-49) : un payout FAILED garde la raison de son
+ * dernier échec, `attempts` incrémenté à chaque passage PENDING ->
+ * PROCESSING (compte les tentatives, pas seulement les échecs).
  */
 @Entity('sp_payouts')
 export class Payout {
@@ -39,6 +39,12 @@ export class Payout {
 
   @Column({ type: 'datetime', nullable: true })
   paidAt: Date | null;
+
+  @Column({ type: 'int', default: 0 })
+  attempts: number;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  lastError: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
