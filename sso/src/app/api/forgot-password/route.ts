@@ -6,8 +6,7 @@ import { logSecurityEvent } from "@/lib/securityLog";
 
 export const runtime = "nodejs";
 
-const GENERIC_MESSAGE =
-  "Si un compte existe avec cet email, un lien de réinitialisation vient de lui être envoyé.";
+const GENERIC_MESSAGE = "PASSWORD_RESET_SENT";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     if (isPasswordResetRateLimited(clientIP)) {
       return NextResponse.json(
-        { error: "Trop de tentatives. Réessayez dans quelques minutes." },
+        { error: "RATE_LIMITED" },
         { status: 429 }
       );
     }
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest) {
     const email = typeof body.email === "string" ? body.email.trim() : "";
 
     if (!email) {
-      return NextResponse.json({ error: "Email requis" }, { status: 400 });
+      return NextResponse.json({ error: "EMAIL_REQUIRED" }, { status: 400 });
     }
 
     logSecurityEvent({ type: "PASSWORD_RESET_REQUESTED", email, ip: clientIP });
@@ -39,6 +38,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: GENERIC_MESSAGE });
   } catch (error) {
     console.error("SSO forgot-password error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
 }

@@ -2,10 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import Image from "next/image";
+import { useI18n } from "@/i18n/provider";
+import { apiErrorKey } from "@/i18n/apiErrors";
 
 type Step = "idle" | "enrolling" | "recovery-codes" | "enabled";
 
 export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boolean }) {
+  const { t } = useI18n();
   const [step, setStep] = useState<Step>(initialEnabled ? "enabled" : "idle");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,13 +27,13 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
       const response = await fetch("/api/mfa/setup", { method: "POST" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Impossible de démarrer l'activation");
+        throw new Error(t(apiErrorKey(payload.error, "auth.mfa.startFailed")));
       }
       setSecret(payload.secret);
       setQrCodeDataUrl(payload.qrCodeDataUrl);
       setStep("enrolling");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de démarrer l'activation");
+      setError(err instanceof Error ? err.message : t("auth.mfa.startFailed"));
     } finally {
       setLoading(false);
     }
@@ -48,12 +51,12 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Code invalide");
+        throw new Error(t(apiErrorKey(payload.error, "auth.mfa.invalid")));
       }
       setRecoveryCodes(payload.recoveryCodes);
       setStep("recovery-codes");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Code invalide");
+      setError(err instanceof Error ? err.message : t("auth.mfa.invalid"));
     } finally {
       setLoading(false);
     }
@@ -71,12 +74,12 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Impossible de désactiver la MFA");
+        throw new Error(t(apiErrorKey(payload.error, "auth.mfa.disableFailed")));
       }
       setDisablePassword("");
       setStep("idle");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de désactiver la MFA");
+      setError(err instanceof Error ? err.message : t("auth.mfa.disableFailed"));
     } finally {
       setLoading(false);
     }
@@ -86,13 +89,11 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
     return (
       <div className="sso-form">
         <p className="sso-success">
-          MFA activée. Conservez ces codes de récupération dans un endroit sûr — ils ne seront
-          plus jamais affichés et permettent de vous connecter si vous perdez l&apos;accès à votre
-          application d&apos;authentification.
+          {t("auth.mfa.recovery")}
         </p>
         <pre className="sso-codes">{recoveryCodes.join("\n")}</pre>
         <button type="button" className="sso-submit" onClick={() => setStep("enabled")}>
-          J&apos;ai noté mes codes
+          {t("auth.mfa.savedCodes")}
         </button>
         <style jsx>{`
           .sso-form {
@@ -131,16 +132,15 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
     return (
       <form onSubmit={handleConfirm} className="sso-form">
         <p className="sso-muted">
-          Scannez ce QR code avec votre application d&apos;authentification, puis saisissez le
-          code à 6 chiffres généré pour confirmer.
+          {t("auth.mfa.scan")}
         </p>
         {qrCodeDataUrl && (
-          <Image src={qrCodeDataUrl} alt="QR code MFA" width={200} height={200} unoptimized />
+          <Image src={qrCodeDataUrl} alt={t("auth.mfa.qrAlt")} width={200} height={200} unoptimized />
         )}
-        <p className="sso-secret">Secret manuel : {secret}</p>
+        <p className="sso-secret">{t("auth.mfa.manualSecret", { secret })}</p>
 
         <div className="sso-field">
-          <label htmlFor="confirmCode">Code de vérification</label>
+          <label htmlFor="confirmCode">{t("auth.mfa.code.label")}</label>
           <input
             id="confirmCode"
             type="text"
@@ -154,10 +154,10 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
         {error && <p className="sso-error">{error}</p>}
 
         <button type="submit" disabled={loading} className="sso-submit">
-          {loading ? "Vérification..." : "Confirmer et activer"}
+          {loading ? t("auth.mfa.verifying") : t("auth.mfa.confirm")}
         </button>
         <button type="button" className="sso-switch" onClick={() => setStep("idle")}>
-          Annuler
+          {t("common.cancel")}
         </button>
 
         <style jsx>{`
@@ -228,9 +228,9 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
   if (step === "enabled") {
     return (
       <form onSubmit={handleDisable} className="sso-form">
-        <p className="sso-success">✓ MFA activée sur ce compte.</p>
+        <p className="sso-success">{t("auth.mfa.enabled")}</p>
         <div className="sso-field">
-          <label htmlFor="disablePassword">Mot de passe (pour désactiver)</label>
+          <label htmlFor="disablePassword">{t("auth.mfa.disablePassword")}</label>
           <input
             id="disablePassword"
             type="password"
@@ -242,7 +242,7 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
         </div>
         {error && <p className="sso-error">{error}</p>}
         <button type="submit" disabled={loading} className="sso-submit sso-submit-danger">
-          {loading ? "Désactivation..." : "Désactiver la MFA"}
+          {loading ? t("auth.mfa.disabling") : t("auth.mfa.disable")}
         </button>
         <style jsx>{`
           .sso-form {
@@ -299,7 +299,7 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
     <div className="sso-form">
       {error && <p className="sso-error">{error}</p>}
       <button type="button" disabled={loading} className="sso-submit" onClick={startEnrollment}>
-        {loading ? "Chargement..." : "Activer la MFA"}
+        {loading ? t("common.loading") : t("auth.mfa.start")}
       </button>
       <style jsx>{`
         .sso-form {

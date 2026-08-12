@@ -2,8 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/i18n/provider";
+import { apiErrorKey } from "@/i18n/apiErrors";
 
 export default function ForgotPasswordForm() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -24,12 +27,12 @@ export default function ForgotPasswordForm() {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Impossible d'envoyer le lien de réinitialisation");
+        throw new Error(t(apiErrorKey(payload.error, "auth.password.forgotFailed")));
       }
 
-      setMessage(payload.message || "Si un compte existe avec cet email, un lien vient de lui être envoyé.");
+      setMessage(t("auth.password.forgotSuccess"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'envoyer le lien de réinitialisation");
+      setError(err instanceof Error ? err.message : t("auth.password.forgotFailed"));
     } finally {
       setLoading(false);
     }
@@ -40,7 +43,7 @@ export default function ForgotPasswordForm() {
       <div className="sso-form">
         <p className="sso-success">{message}</p>
         <Link href="/login" className="sso-switch">
-          Retour à la connexion
+          {t("auth.mfa.back")}
         </Link>
         <style jsx>{`
           .sso-form {
@@ -66,7 +69,7 @@ export default function ForgotPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="sso-form">
       <div className="sso-field">
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{t("common.email")}</label>
         <input
           id="email"
           type="email"
@@ -80,11 +83,11 @@ export default function ForgotPasswordForm() {
       {error && <p className="sso-error">{error}</p>}
 
       <button type="submit" disabled={loading} className="sso-submit">
-        {loading ? "Envoi..." : "Envoyer le lien de réinitialisation"}
+        {loading ? t("auth.password.forgotSending") : t("auth.password.forgotSend")}
       </button>
 
       <Link href="/login" className="sso-switch">
-        Retour à la connexion
+        {t("auth.mfa.back")}
       </Link>
 
       <style jsx>{`

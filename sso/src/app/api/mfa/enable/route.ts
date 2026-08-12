@@ -23,31 +23,31 @@ export const runtime = "nodejs";
  */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
-    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   const session = await getCurrentSession();
   if (!session || session.role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 403 });
   }
 
   const body = await request.json();
   const code = typeof body.code === "string" ? body.code.trim() : "";
   if (!code) {
-    return NextResponse.json({ error: "Code requis" }, { status: 400 });
+    return NextResponse.json({ error: "MFA_CODE_REQUIRED" }, { status: 400 });
   }
 
   const secret = await getPendingMfaSecret(session.id);
   if (!secret) {
     return NextResponse.json(
-      { error: "Aucune activation en cours ou délai expiré, relancez l'activation." },
+      { error: "MFA_ENROLLMENT_EXPIRED" },
       { status: 400 }
     );
   }
 
   const valid = await verifyTotpCode(secret, code);
   if (!valid) {
-    return NextResponse.json({ error: "Code invalide" }, { status: 400 });
+    return NextResponse.json({ error: "MFA_CODE_INVALID" }, { status: 400 });
   }
   await consumeMfaEnrollmentChallenge(session.id);
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   const userRepo = dataSource.getRepository(User);
   const user = await userRepo.findOne({ where: { id: session.id } });
   if (!user) {
-    return NextResponse.json({ error: "Compte introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 404 });
   }
 
   const recoveryCodes = generateRecoveryCodes();

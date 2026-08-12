@@ -1,8 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useI18n } from "@/i18n/provider";
+import { apiErrorKey } from "@/i18n/apiErrors";
 
 export default function ChangePasswordForm() {
+  const { t } = useI18n();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +18,7 @@ export default function ChangePasswordForm() {
     setSuccess(false);
 
     if (newPassword.length < 8) {
-      setError("Le nouveau mot de passe doit faire au moins 8 caractères.");
+      setError(t("auth.password.tooShort", { count: 8 }));
       return;
     }
 
@@ -28,13 +31,13 @@ export default function ChangePasswordForm() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error || "Impossible de changer le mot de passe");
+        throw new Error(t(apiErrorKey(payload.error, "auth.password.changeFailed"), { count: 8 }));
       }
       setCurrentPassword("");
       setNewPassword("");
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de changer le mot de passe");
+      setError(err instanceof Error ? err.message : t("auth.password.changeFailed"));
     } finally {
       setLoading(false);
     }
@@ -43,7 +46,7 @@ export default function ChangePasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="sso-form">
       <div className="sso-field">
-        <label htmlFor="currentPassword">Mot de passe actuel</label>
+        <label htmlFor="currentPassword">{t("auth.password.current")}</label>
         <input
           id="currentPassword"
           type="password"
@@ -55,7 +58,7 @@ export default function ChangePasswordForm() {
       </div>
 
       <div className="sso-field">
-        <label htmlFor="newPassword">Nouveau mot de passe</label>
+        <label htmlFor="newPassword">{t("auth.password.new")}</label>
         <input
           id="newPassword"
           type="password"
@@ -68,10 +71,10 @@ export default function ChangePasswordForm() {
       </div>
 
       {error && <p className="sso-error">{error}</p>}
-      {success && <p className="sso-success">Mot de passe changé. Vos autres sessions ont été déconnectées.</p>}
+      {success && <p className="sso-success">{t("auth.password.changed")}</p>}
 
       <button type="submit" disabled={loading} className="sso-submit">
-        {loading ? "Enregistrement..." : "Changer le mot de passe"}
+        {loading ? t("auth.password.changing") : t("auth.password.change")}
       </button>
 
       <style jsx>{`

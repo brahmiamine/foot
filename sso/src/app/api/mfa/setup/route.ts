@@ -19,12 +19,12 @@ export const runtime = "nodejs";
  */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
-    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   const session = await getCurrentSession();
   if (!session || session.role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 403 });
   }
 
   const secret = generateMfaSecret();

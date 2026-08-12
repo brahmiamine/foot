@@ -20,7 +20,7 @@ export const runtime = "nodejs";
  */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
-    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   try {
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (isLoginRateLimited(clientIP)) {
       logSecurityEvent({ type: "LOGIN_RATE_LIMITED", ip: clientIP });
       return NextResponse.json(
-        { error: "Trop de tentatives échouées. Réessayez dans quelques minutes." },
+        { error: "RATE_LIMITED" },
         { status: 429 }
       );
     }
@@ -41,14 +41,14 @@ export async function POST(request: NextRequest) {
     const redirect = sanitizeRedirect(typeof body.redirect === "string" ? body.redirect : null);
 
     if (!email || !password) {
-      return NextResponse.json({ error: "Identifiants requis" }, { status: 400 });
+      return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 400 });
     }
 
     const user = await authenticate({ email, password, teamId });
     if (!user) {
       recordFailedLoginAttempt(clientIP);
       logSecurityEvent({ type: "LOGIN_FAILED", email, ip: clientIP });
-      return NextResponse.json({ error: "Email, mot de passe ou club incorrect" }, { status: 401 });
+      return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
 
     clearFailedLoginAttempts(clientIP);
@@ -67,6 +67,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("SSO login error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
 }

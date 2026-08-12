@@ -14,30 +14,30 @@ export const runtime = "nodejs";
  */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
-    return NextResponse.json({ error: "Origine non autorisée" }, { status: 403 });
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   const session = await getCurrentSession();
   if (!session) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
   }
 
   const body = await request.json();
   const password = typeof body.password === "string" ? body.password : "";
   if (!password) {
-    return NextResponse.json({ error: "Mot de passe requis" }, { status: 400 });
+    return NextResponse.json({ error: "CURRENT_PASSWORD_REQUIRED" }, { status: 400 });
   }
 
   const dataSource = await getDataSource();
   const userRepo = dataSource.getRepository(User);
   const user = await userRepo.findOne({ where: { id: session.id } });
   if (!user) {
-    return NextResponse.json({ error: "Compte introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 404 });
   }
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
-    return NextResponse.json({ error: "Mot de passe incorrect" }, { status: 401 });
+    return NextResponse.json({ error: "INVALID_CURRENT_PASSWORD" }, { status: 401 });
   }
 
   user.mfaEnabled = false;
