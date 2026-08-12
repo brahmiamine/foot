@@ -171,7 +171,6 @@ non audités de bout en bout.
 - Scanner de contrôle d'accès au stade : jamais commencé, aucun dossier/route dans le dépôt.
 - Pas de tests automatisés.
 - Audience réservée à l'achat toujours auto-déclarée par conception (tracée et recoupée avec les affiliations `sso` comme signal de modération non bloquant, mais pas un mécanisme d'identité fiable — aucun n'existe dans ce dépôt pour la remplacer).
-- Aucun écran d'administration ne consomme le signal `audienceMismatch` aujourd'hui.
 - Pas de webhook applicatif venant de `payment-api` : la confirmation dépend du retour utilisateur ou d'une reconciliation à la prochaine visite.
 
 ### `payment-api`
