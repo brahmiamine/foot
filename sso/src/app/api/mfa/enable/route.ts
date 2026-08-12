@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession, issueSession } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
-import { generateRecoveryCodes, hashRecoveryCodes, verifyTotpCode } from "@/lib/mfa";
+import {
+  consumeMfaEnrollmentChallenge,
+  generateRecoveryCodes,
+  getPendingMfaSecret,
+  hashRecoveryCodes,
+  verifyTotpCode,
+} from "@/lib/mfa";
 import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
 /**
- * Exige `secret`+`code` valides : un CSRF aveugle ne peut déjà pas réussir
- * (l'attaquant ne connaît pas le secret généré pour la victime par
- * /api/mfa/setup, jamais lisible cross-origine). Vérification d'origine
- * ajoutée par cohérence avec le reste de cette revue (voir lib/csrf.ts).
+ * N'exige plus que `code` : le secret vient du challenge d'enrôlement
+ * stocké côté serveur par /api/mfa/setup (getPendingMfaSecret), jamais du
+ * client — voir avancement.md, "sso" — durcir l'enrôlement MFA. Un CSRF
+ * aveugle ne peut déjà pas réussir (l'attaquant ne connaît pas le code TOTP
+ * de la victime) ; vérification d'origine ajoutée par cohérence avec le
+ * reste de cette revue (voir lib/csrf.ts).
  */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -24,17 +32,24 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const secret = typeof body.secret === "string" ? body.secret : "";
   const code = typeof body.code === "string" ? body.code.trim() : "";
+  if (!code) {
+    return NextResponse.json({ error: "Code requis" }, { status: 400 });
+  }
 
-  if (!secret || !code) {
-    return NextResponse.json({ error: "Secret et code requis" }, { status: 400 });
+  const secret = await getPendingMfaSecret(session.id);
+  if (!secret) {
+    return NextResponse.json(
+      { error: "Aucune activation en cours ou délai expiré, relancez l'activation." },
+      { status: 400 }
+    );
   }
 
   const valid = await verifyTotpCode(secret, code);
   if (!valid) {
     return NextResponse.json({ error: "Code invalide" }, { status: 400 });
   }
+  await consumeMfaEnrollmentChallenge(session.id);
 
   const dataSource = await getDataSource();
   const userRepo = dataSource.getRepository(User);
