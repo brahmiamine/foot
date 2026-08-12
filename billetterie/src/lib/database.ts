@@ -8,6 +8,7 @@ import { TicketCategory } from "@/entities/TicketCategory";
 import { MatchTicketCategory } from "@/entities/MatchTicketCategory";
 import { TicketSaleRule } from "@/entities/TicketSaleRule";
 import { Ticket } from "@/entities/Ticket";
+import { TicketScanLog } from "@/entities/TicketScanLog";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
@@ -33,7 +34,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Jamais en production — voir sql/schema.sql
       logging: process.env.NODE_ENV === "development",
-      entities: [Team, Match, TicketCategory, MatchTicketCategory, TicketSaleRule, Ticket],
+      entities: [Team, Match, TicketCategory, MatchTicketCategory, TicketSaleRule, Ticket, TicketScanLog],
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",

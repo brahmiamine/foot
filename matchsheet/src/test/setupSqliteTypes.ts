@@ -20,6 +20,9 @@ vi.mock("typeorm", async (importOriginal) => {
     enum: "simple-enum",
     char: "varchar",
     timestamp: "datetime",
+    // better-sqlite3 only allows AUTOINCREMENT on a column declared exactly
+    // "INTEGER PRIMARY KEY" ; 'bigint' (used by Sheet.id) doesn't qualify.
+    bigint: "int",
   };
 
   function withTypeOverride(decorator: (...args: unknown[]) => PropertyDecorator) {
@@ -53,5 +56,6 @@ vi.mock("typeorm", async (importOriginal) => {
     PrimaryColumn: withTypeOverride(actual.PrimaryColumn as (...args: unknown[]) => PropertyDecorator),
     CreateDateColumn: withTypeOverride(actual.CreateDateColumn as (...args: unknown[]) => PropertyDecorator),
     UpdateDateColumn: withTypeOverride(actual.UpdateDateColumn as (...args: unknown[]) => PropertyDecorator),
+    PrimaryGeneratedColumn: withTypeOverride(actual.PrimaryGeneratedColumn as (...args: unknown[]) => PropertyDecorator),
   };
 });

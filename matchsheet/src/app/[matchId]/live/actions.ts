@@ -12,6 +12,7 @@ type ActionResult = { success: true; message?: string } | { success: false; erro
 
 /** Ajoute un carton (jaune/rouge/double jaune) — écrit directement dans la table Card partagée. */
 export async function addCard(
+  sheetId: number,
   matchId: string,
   playerId: string,
   type: CardType,
@@ -23,7 +24,7 @@ export async function addCard(
   try {
     if (!playerId) return { success: false, error: "Merci de sélectionner un joueur" };
     const cardEventService = new CardEventService();
-    await cardEventService.create({ matchId, playerId, type, minute, period, cardReasonId, commentFr });
+    await cardEventService.create({ sheetId, matchId, playerId, type, minute, period, cardReasonId, commentFr });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "Carton enregistré" };
   } catch (error) {
