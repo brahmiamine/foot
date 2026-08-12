@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureAdminAuth } from '@/lib/adminAuth'
+import { getSsoSessionFromRequest } from '@/lib/ssoSession'
 import { getDataSource } from '@/lib/db'
 import { VoteAlert } from '@/lib/entities'
 import { toPlain } from '@/lib/serialization'
@@ -38,15 +39,27 @@ export async function POST(
       )
     }
 
+    const session = await getSsoSessionFromRequest(request)
+    const previousStatus = alert.status
+
     alert.status = 'resolved'
     alert.reviewed_at = new Date()
+    alert.reviewed_by = session?.id ?? null
     alert.notes = notes || null
-    // TODO: Récupérer l'ID de l'admin depuis la session
-    // alert.reviewed_by = adminId
 
     await alertRepo.save(alert)
 
-    await logAdminAction({ request, action: 'update', entityType: 'alert', entityId: id, summary: 'Alerte résolue' })
+    // Résumé structuré (état précédent -> nouvel état, motif) consommé par
+    // l'historique de modération de l'alerte (US-40, voir
+    // /api/admin/alerts/[id]/history) — audit_logs reste la seule source de
+    // vérité pour la trace des transitions, vote_alerts ne garde que la dernière.
+    await logAdminAction({
+      request,
+      action: 'update',
+      entityType: 'alert',
+      entityId: id,
+      summary: `Alerte ${previousStatus} → resolved${notes ? ` — Motif : ${notes}` : ''}`,
+    })
 
     return NextResponse.json(toPlain(alert))
   } catch (error) {

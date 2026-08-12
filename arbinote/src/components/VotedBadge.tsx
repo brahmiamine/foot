@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n";
 import { useVote } from "@/contexts/VoteContext";
+import { useMounted } from "@/lib/useMounted";
 
 interface VotedBadgeProps {
   matchId: string;
@@ -11,15 +12,12 @@ interface VotedBadgeProps {
 export default function VotedBadge({ matchId }: VotedBadgeProps) {
   const { t } = useTranslations();
   const { hasVoted, refreshVotedMatches } = useVote();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
 
   // Vérifier le vote via le contexte (dynamique depuis la DB)
   const voted = hasVoted(matchId);
 
   useEffect(() => {
-    // Marquer comme monté pour éviter les problèmes d'hydratation
-    setMounted(true);
-
     // Rafraîchir périodiquement la liste des matchs votés (toutes les 10 secondes)
     const interval = setInterval(() => {
       refreshVotedMatches();

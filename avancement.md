@@ -23,7 +23,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P1 | E09 – Ownership des domaines | ⏳ | réduire les écritures DB cross-projects |
 | P1 | E10 – CI et tests | 🔄 | exécuter les tests existants sur tous les projets |
 | P1 | E11 – Billetterie supporters | 🔄 | renforcer le contrôle de l'audience avec scanner/offline |
-| P2 | E12 – ArbiNote audit | ⏳ | compléter traçabilité et modération |
+| P2 | E12 – ArbiNote audit | ✅ | compléter traçabilité et modération |
 | P2 | E13 – Live temps réel | ⏳ | remplacer progressivement le polling par SSE/WebSocket |
 | P2 | E14 – SMS | ⏳ | finaliser le canal SMS (stub actuellement) |
 | P2 | E15 – Payout Marketplace | ⏳ | automatiser les paiements vendeurs |
@@ -761,28 +761,52 @@ par match ou compétition.
 # EPIC E12 — Audit ArbiNote
 
 **Priorité : P2**  
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
 ## TS-39 — Alimenter `reviewed_by`
 
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
-Lors d'une résolution d'alerte :
+Lors d'une résolution d'alerte (`POST /api/admin/alerts/[id]/resolve` et
+`/dismiss`) :
 
 ```text
 reviewed_by = session.user.id
 reviewed_at = now
 ```
 
+`session.user.id` provient de la session SSO (`getSsoSessionFromRequest`,
+rôle `SUPERADMIN`) — plus le `// TODO: Récupérer l'ID de l'admin depuis la
+session` laissé après la migration ADMIN_USER/ADMIN_PASS → SSO.
+
 ## US-40 — Historique de modération
 
-Afficher :
+**Statut :** ✅ Livré (`/admin/alerts/[id]`, section « Historique de modération »)
 
-- admin ;
-- date ;
-- état précédent ;
-- nouvel état ;
-- motif.
+Affiche :
+
+- admin ; ✅ (`admin_username`, désormais l'email de la session SSO — voir
+  ci-dessous, la correction était nécessaire pour que ce champ soit rempli)
+- date ; ✅
+- état précédent ; ✅
+- nouvel état ; ✅
+- motif. ✅ (repris du `notes` envoyé à la résolution/l'ignorance)
+
+Reconstruit depuis `audit_logs` (`entity_type='alert'`, filtré par
+`entity_id`) via `GET /api/admin/alerts/[id]/history` — `vote_alerts.
+reviewed_by`/`reviewed_at` (TS-39) ne portent que la dernière décision, pas
+l'historique complet des transitions.
+
+### Correctif connexe : attribution `admin_username`
+
+`logAdminAction()` lisait un cookie/header `Basic` legacy
+(`ADMIN_USER`/`ADMIN_PASS`) resté après la migration du back-office vers une
+vraie session SSO (voir `adminAuth.ts`) — ce cookie n'étant plus jamais posé
+en pratique, `admin_username` restait `null` pour **toute** action
+journalisée (pas seulement les alertes), ce qui aurait rendu la colonne
+« admin » de l'historique vide. Corrigé : la session SSO (email) prime,
+fallback sur le cookie/header legacy s'il existe encore. Tests :
+`arbinote/src/lib/auditLog.test.ts` (4 cas).
 
 ---
 
@@ -1307,10 +1331,10 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Utiliser statut réel match pour autoriser votes
 ✅ Bloquer CANCELLED
 ⏳ Vote authentifié (actuellement sans compte)
-⏳ reviewed_by alimenté
-⏳ Audit complet modération
+✅ reviewed_by alimenté
+✅ Historique de modération des alertes
 ⏳ Consommer match events
-⏳ Corriger lint react-hooks (4 erreurs)
+✅ Corriger lint react-hooks (4 erreurs)
 ```
 
 ## `sellerPortal`
@@ -1399,7 +1423,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ TS-33 tests CI existants (activé)
 ✅ US-01 ArbiNote status réel
 ✅ TS-02 actualStartedAt
-⏳ TS-39 reviewed_by
+✅ TS-39 reviewed_by
 ```
 
 ## Sprint 2 — Marketplace fondations
