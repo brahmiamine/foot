@@ -46,6 +46,8 @@ export async function PUT(
     const body = await request.json()
     const branding = await upsertTeamBranding(id, {
       faviconUrl: body.faviconUrl,
+      icon192Url: body.icon192Url,
+      icon512Url: body.icon512Url,
       primaryColor: body.primaryColor,
       secondaryColor: body.secondaryColor,
       accentColor: body.accentColor,

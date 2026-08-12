@@ -153,7 +153,6 @@ non audités de bout en bout.
 - Concurrence sur `Card` avec `teamManager` (voir ci-dessus) à encadrer.
 
 ### `superadmin`
-- Icônes PWA personnalisables par club absentes de `ClubBranding`.
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).
 - Dette de lint pré-existante (~11 erreurs, essentiellement `@typescript-eslint/no-explicit-any`), rendue visible par la CI mais pas corrigée.
 

@@ -8,6 +8,8 @@ interface TeamBrandingPanelProps {
 
 interface BrandingState {
   faviconUrl: string
+  icon192Url: string
+  icon512Url: string
   primaryColor: string
   secondaryColor: string
   accentColor: string
@@ -16,6 +18,8 @@ interface BrandingState {
 
 const EMPTY: BrandingState = {
   faviconUrl: '',
+  icon192Url: '',
+  icon512Url: '',
   primaryColor: '',
   secondaryColor: '',
   accentColor: '',
@@ -51,6 +55,8 @@ export default function TeamBrandingPanel({ teamId }: TeamBrandingPanelProps) {
         if (cancelled) return
         setForm({
           faviconUrl: data.faviconUrl ?? '',
+          icon192Url: data.icon192Url ?? '',
+          icon512Url: data.icon512Url ?? '',
           primaryColor: data.primaryColor ?? '',
           secondaryColor: data.secondaryColor ?? '',
           accentColor: data.accentColor ?? '',
@@ -80,6 +86,8 @@ export default function TeamBrandingPanel({ teamId }: TeamBrandingPanelProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           faviconUrl: form.faviconUrl || null,
+          icon192Url: form.icon192Url || null,
+          icon512Url: form.icon512Url || null,
           primaryColor: form.primaryColor || null,
           secondaryColor: form.secondaryColor || null,
           accentColor: form.accentColor || null,
@@ -121,6 +129,26 @@ export default function TeamBrandingPanel({ teamId }: TeamBrandingPanelProps) {
                   onChange={(e) => setForm({ ...form, faviconUrl: e.target.value })}
                   className="form-control"
                   placeholder="https://..."
+                />
+              </div>
+              <div className="col-6">
+                <label className="form-label">Icône PWA 192×192 (URL)</label>
+                <input
+                  type="url"
+                  value={form.icon192Url}
+                  onChange={(e) => setForm({ ...form, icon192Url: e.target.value })}
+                  className="form-control"
+                  placeholder="https://... (PNG 192x192)"
+                />
+              </div>
+              <div className="col-6">
+                <label className="form-label">Icône PWA 512×512 (URL)</label>
+                <input
+                  type="url"
+                  value={form.icon512Url}
+                  onChange={(e) => setForm({ ...form, icon512Url: e.target.value })}
+                  className="form-control"
+                  placeholder="https://... (PNG 512x512)"
                 />
               </div>
               <div className="col-4">
