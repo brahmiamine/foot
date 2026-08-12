@@ -15,7 +15,6 @@ Application Next.js (App Router) réservée au rôle `SUPERADMIN` : c'est l'outi
 - **Motifs de cartons** (`/admin/card-reasons`) : référentiel disciplinaire utilisé par `teamManager` et `matchsheet`.
 - **Comptes club** (`/admin/club`, `/admin/club/[teamId]`) : gestion des utilisateurs rattachés à une équipe (accès à `teamManager`). Création par **invitation par email à usage unique** (`POST /api/admin/club/[teamId]/invitations`, table `staff_invitations`, lien valable 7 jours, page publique `/invite/[token]`) — `superadmin` ne choisit plus le mot de passe du compte, le destinataire le définit lui-même en acceptant. La réinitialisation du mot de passe d'un compte existant reste directe (dépannage d'un utilisateur bloqué), inchangée.
 - **Journal d'audit** (`/admin/audit`) : historique des actions effectuées dans le back-office.
-- **Test/mapping API-Football** (`/admin/testapi`) : panneau de test de l'intégration externe (voir [`matching.md`](./matching.md) et [`../roadmap.md`](../roadmap.md) § 1).
 
 Chaque ressource expose une API REST classique sous `src/app/api/admin/*` (liste/création en `GET`/`POST`, lecture/modification/suppression par identifiant en `GET`/`PUT`/`DELETE`), plus un endpoint `stats` pour le tableau de bord et un `health` pour le healthcheck.
 

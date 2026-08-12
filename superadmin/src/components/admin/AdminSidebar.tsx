@@ -16,7 +16,6 @@ const navItems = [
   { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
-  { label: 'Test API-Football', href: '/admin/testapi', icon: 'bx bx-test-tube' },
 ]
 
 export default function AdminSidebar() {

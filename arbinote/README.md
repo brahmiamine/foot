@@ -14,7 +14,6 @@ Application Next.js (App Router) qui remplace l'ancien "ArbiNote" : un site publ
 - **`/mes-votes`** : historique des votes de l'appareil courant.
 - **`/transparence`** : explication publique de la méthodologie de notation et de détection d'anomalies.
 - **Contact** (`/contact`) et pages légales (mentions légales, CGU, politique de cookies, politique de confidentialité).
-- **`/testapi`** : page de test de l'intégration API-Football (proxy à liste blanche d'endpoints côté serveur, quota du plan gratuit surveillé).
 - Multi-ligue : une préférence de ligue active peut être sélectionnée côté client.
 - PWA basique : `manifest.json` + service worker minimal avec mise en cache statique. Reçoit aussi les notifications Web Push (`push`/`notificationclick` dans `public/sw.js`) — abonnement depuis l'en-tête du back-office (`PushSubscribeButton`, `lib/notificationApi.ts` relaie le JWT `sso` vers `notification-api`/`api/push-subscriptions`), voir avancement.md, "Web Push généralisé".
 - i18n : français, anglais, arabe.
@@ -58,7 +57,3 @@ pnpm run dev        # http://localhost:3000 (voir aussi ./start.sh à la racine 
 ```bash
 pnpm test        # Vitest : bayesianRanking, voteAnomalyDetection, voteWeighting, apiError, imageHost, voteFiltering
 ```
-
-## Intégration API-Football
-
-Le rapprochement entre les matchs locaux et les fixtures de l'API externe (identifiants, score en direct) est documenté dans [`matching.md`](./matching.md) et suivi dans [`../roadmap.md`](../roadmap.md) § 1 : le plan gratuit de l'API interdit d'interroger le calendrier de la saison en cours à l'avance, le mapping des identifiants ne peut donc se faire qu'au moment où un match passe en direct.

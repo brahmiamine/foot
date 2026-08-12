@@ -51,8 +51,7 @@ racine du repo `foot`).
 - **Calculé** : le classement (`PublicStandingsService`) est reconstruit à
   la volée à partir des matchs `FINISHED` entre équipes de la même
   fédération/catégorie/sport — il n'existe pas encore de table "classement"
-  dans le schéma partagé (voir `../roadmap.md` § 1, intégration
-  API-Football pas encore faite). Le classement n'est donc fiable que si
+  dans le schéma partagé. Le classement n'est donc fiable que si
   tous les matchs de la ligue sont saisis côté ArbiNote/cardManager.
 - **Statique** : la section "Histoire du club" de la page d'accueil
   (`HistorySection.tsx`) reste un teaser éditorial en dur — la page

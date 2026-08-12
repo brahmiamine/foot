@@ -20,12 +20,11 @@ qui reste à faire, pour rester utilisable comme backlog.
 | 1 | Backup/restauration testée pour la base `foot` et les uploads | Infra — aucune stratégie au-delà du volume Docker local |
 | 2 | `teamManager` : boutique client (checkout/paiement réel), facturation sponsors, finance/trésorerie, RGPD, espace supporter/communauté | Produit — gros lots, voir détail par app |
 | 3 | Propagation de la révocation de session (`tokenVersion`) aux 6 apps clientes de `sso` | Sécurité — décision d'architecture (vérification DB/cache partagé vs TTL court) |
-| 4 | `superadmin` : synchronisation live API-Football (colonnes de matching, job, écran de mapping) | Produit |
-| 5 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
-| 6 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
-| 7 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
-| 8 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
-| 9 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
+| 4 | `billetterie` : scanner de contrôle d'accès au stade | Produit — jamais commencé |
+| 5 | Passerelle API unique + domaines de production | Infra — à déclencher au déploiement réel |
+| 6 | Outillage de migrations partagé et ordre d'application des scripts SQL | Infra/DB — scripts dispersés par app, pas de migrateur unique |
+| 7 | Boucles fermées post-paiement et post-annulation (billets, remboursements, notification métier) | Paiement/Billetterie — reconciliation par polling, pas de callback applicatif ni remboursement |
+| 8 | Gouvernance des notifications émettrices (catalogue d'événements, destinataires, templates, monitoring) | Plateforme — `notification-api` est prêt mais plusieurs apps ne publient rien |
 
 
 ---
@@ -158,14 +157,11 @@ non audités de bout en bout.
 - Concurrence sur `Card` avec `teamManager` (voir ci-dessus) à encadrer.
 
 ### `superadmin`
-- Colonnes de matching API-Football (`api_football_id`/`fixture_id`, live score/minute) absentes du schéma.
-- Aucun job de synchronisation live, aucun écran de mapping équipes/fixtures.
 - Icônes PWA personnalisables par club absentes de `ClubBranding`.
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).
 - Dette de lint pré-existante (~11 erreurs, essentiellement `@typescript-eslint/no-explicit-any`), rendue visible par la CI mais pas corrigée.
 
 ### `arbinote`
-- Intégration API-Football encore limitée par le mapping live (dépend du rang `superadmin` ci-dessus).
 - Vote sans compte reposant sur empreinte appareil/cookie — pas de vote authentifié.
 - Règles anti-fraude au-delà des anomalies/statistiques déjà en place non décrites/étendues.
 - Dette de lint pré-existante (~106 erreurs, essentiellement `@typescript-eslint/no-explicit-any`, + quelques `setState` synchrone dans un effet React), rendue visible par la CI mais pas corrigée.
