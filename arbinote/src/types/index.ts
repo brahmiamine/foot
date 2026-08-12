@@ -117,8 +117,9 @@ export interface Match {
   score_away?: number | null
   arbitre_id?: string | null
   journee?: {
+    id: string
     numero?: number | null
-    nom?: string | null
+    nom_fr?: string | null
     nom_en?: string | null
     nom_ar?: string | null
     saison_id: string

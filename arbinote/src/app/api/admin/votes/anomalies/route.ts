@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ensureAdminAuth } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { Vote, Match } from '@/lib/entities'
-import { detectVoteAnomalies, calculateVoteCredibility } from '@/lib/voteAnomalyDetection'
+import { detectVoteAnomalies, calculateVoteCredibility, VoteAnomalyResult } from '@/lib/voteAnomalyDetection'
 import { toPlainArray } from '@/lib/serialization'
 
 export const runtime = 'nodejs'
@@ -11,12 +11,7 @@ interface MatchAnomaly {
   match_id: string
   match_date: Date | null
   total_votes: number
-  anomaly: {
-    isSuspicious: boolean
-    confidence: number
-    reasons: string[]
-    details: any
-  }
+  anomaly: VoteAnomalyResult
   credibility: number
 }
 
@@ -72,7 +67,7 @@ export async function GET(request: NextRequest) {
       if (votes.length < 5) continue
 
       // Préparer les données pour l'analyse
-      const votesForAnalysis = toPlainArray(votes).map((v: any) => ({
+      const votesForAnalysis = toPlainArray(votes).map((v) => ({
         note_globale: typeof v.note_globale === 'string' 
           ? parseFloat(v.note_globale) 
           : Number(v.note_globale),

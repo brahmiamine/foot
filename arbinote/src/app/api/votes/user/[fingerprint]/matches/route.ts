@@ -36,13 +36,13 @@ export async function GET(
       .createQueryBuilder('vote')
       .select('DISTINCT vote.match_id', 'match_id')
       .where('vote.device_fingerprint = :fingerprint', { fingerprint })
-      .andWhere('vote.moderation_status IN (:...statuses)', { 
-        statuses: ['pending', 'validated'] 
+      .andWhere('vote.moderation_status IN (:...statuses)', {
+        statuses: ['pending', 'validated']
       })
-      .getRawMany()
+      .getRawMany<{ match_id: string }>()
 
     // Extraire les match_ids
-    const matchIds = votes.map((v: any) => v.match_id).filter(Boolean)
+    const matchIds = votes.map((v) => v.match_id).filter(Boolean)
 
     return NextResponse.json({ matchIds })
   } catch (error) {

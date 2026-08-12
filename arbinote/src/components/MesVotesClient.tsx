@@ -10,6 +10,7 @@ import { Match, Vote, CritereDefinition, CritereCategory } from "@/types";
 import { formatDateOnly, getJourneeDisplayName, getLocalizedName } from "@/lib/utils";
 import { defaultCritereDefinitions } from "@/lib/defaultCriteres";
 import { ShareBrandingInfo } from "./MatchShareCard";
+import type { Federation, League } from "@/lib/entities";
 
 interface VoteWithMatch extends Vote {
   match?: Match & {
@@ -26,11 +27,13 @@ interface VoteWithMatch extends Vote {
   };
 }
 
+type MatchWithJourneeSaison = NonNullable<VoteWithMatch["match"]>;
+
 type CategoryKey = CritereCategory;
 
 interface VoteEntry {
   vote: VoteWithMatch;
-  match: Match;
+  match: MatchWithJourneeSaison;
   categories: Record<CategoryKey, number | null>;
 }
 
@@ -44,7 +47,7 @@ export default function MesVotesClient({ criteresDefs = [] }: MesVotesClientProp
   const [fingerprint, setFingerprint] = useState<string | null>(null);
   const [votes, setVotes] = useState<VoteWithMatch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [federationsWithLeagues, setFederationsWithLeagues] = useState<any[]>([]);
+  const [federationsWithLeagues, setFederationsWithLeagues] = useState<Array<Federation & { leagues: League[] }>>([]);
 
   const critereCategoryMap = useMemo(() => {
     const map = new Map<string, CategoryKey>();
@@ -132,14 +135,14 @@ export default function MesVotesClient({ criteresDefs = [] }: MesVotesClientProp
   }, []);
 
   // Fonction pour obtenir le branding d'un match
-  const getMatchBranding = useCallback((match: Match): ShareBrandingInfo | null => {
-    const journee = (match as any).journee;
+  const getMatchBranding = useCallback((match: MatchWithJourneeSaison): ShareBrandingInfo | null => {
+    const journee = match.journee;
     if (!journee?.saison?.league_id || federationsWithLeagues.length === 0) {
       return null;
     }
     const leagueId = journee.saison.league_id;
     for (const fed of federationsWithLeagues) {
-      const league = fed.leagues?.find((l: any) => l.id === leagueId);
+      const league = fed.leagues?.find((l) => l.id === leagueId);
       if (league) {
         return {
           leagueName: getLocalizedName(locale, {
@@ -221,7 +224,7 @@ export default function MesVotesClient({ criteresDefs = [] }: MesVotesClientProp
             }
             acc.push({
               vote,
-              match: vote.match as Match,
+              match: vote.match,
               categories: computeCategoryAverages(vote),
             });
             return acc;

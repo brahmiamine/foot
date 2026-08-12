@@ -3,7 +3,7 @@
  * Crée des alertes quand un match dépasse un seuil d'anomalie
  */
 
-import { In } from 'typeorm'
+import { In, FindOptionsWhere } from 'typeorm'
 import { getDataSource } from './db'
 import { VoteAlert, AlertType, AlertStatus } from './entities'
 import { Vote, Match } from './entities'
@@ -48,7 +48,7 @@ export async function createOrUpdateVoteAlert(matchId: string): Promise<VoteAler
   }
 
   // Préparer les données pour l'analyse
-  const votesForAnalysis = toPlainArray(votes).map((v: any) => ({
+  const votesForAnalysis = toPlainArray(votes).map((v) => ({
     note_globale: typeof v.note_globale === 'string'
       ? parseFloat(v.note_globale)
       : Number(v.note_globale),
@@ -189,7 +189,7 @@ export async function getAlerts(options: {
     const dataSource = await getDataSource()
     const alertRepo = dataSource.getRepository<VoteAlert>('vote_alerts')
 
-    const where: any = {}
+    const where: FindOptionsWhere<VoteAlert> = {}
     if (options.status) {
       where.status = options.status
     }

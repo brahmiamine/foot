@@ -80,7 +80,7 @@ export async function listVotesForAdmin(filters: VoteFilters = {}, leagueId?: st
   const votes = await qb.getMany()
 
   return {
-    votes: toPlainArray(votes).map((vote: any) => ({
+    votes: toPlainArray(votes).map((vote) => ({
       ...vote,
       note_globale: typeof vote.note_globale === 'string' 
         ? parseFloat(vote.note_globale) 
@@ -117,7 +117,7 @@ export async function getVoteById(id: string, leagueId?: string | null) {
     return null
   }
 
-  const plain = toPlain(vote) as any
+  const plain = toPlain(vote)
   return {
     ...plain,
     note_globale: typeof plain.note_globale === 'string' 
@@ -236,9 +236,11 @@ export async function getMatchesForFilter(leagueId?: string | null) {
   
   // Combiner les entités avec le count
   const matchesWithVoteCount = results.entities.map((match, index) => {
-    const plain = toPlain(match) as any
-    plain.vote_count = parseInt(results.raw[index]?.vote_count || '0', 10)
-    return plain
+    const plain = toPlain(match)
+    return {
+      ...plain,
+      vote_count: parseInt(results.raw[index]?.vote_count || '0', 10),
+    }
   })
 
   return matchesWithVoteCount

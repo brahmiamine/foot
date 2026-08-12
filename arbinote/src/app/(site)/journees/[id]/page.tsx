@@ -209,7 +209,7 @@ export default async function JourneePage({
   let shareBranding: ShareBrandingInfo | null = null
   if (journee.saison?.league_id) {
     for (const fed of federations) {
-      const league = fed.leagues?.find((l: any) => l.id === journee.saison?.league_id)
+      const league = fed.leagues?.find((l) => l.id === journee.saison?.league_id)
       if (league) {
         shareBranding = {
           leagueName: getLocalizedName(locale, {

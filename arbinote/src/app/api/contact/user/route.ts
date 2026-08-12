@@ -23,14 +23,22 @@ export async function GET(request: Request) {
 
     const dataSource = await getDataSource()
 
+    interface ContactMessageRow {
+      id: string
+      email: string
+      subject: string
+      message: string
+      created_at: Date | string | null
+    }
+
     // Utiliser une requête SQL brute pour récupérer les messages de l'utilisateur
-    const messages = await dataSource.query(
+    const messages = await dataSource.query<ContactMessageRow[]>(
       'SELECT id, email, subject, message, created_at FROM contact_messages WHERE device_fingerprint = ? ORDER BY created_at DESC',
       [fingerprint]
     )
 
     // Formater les messages
-    const messagesData = messages.map((msg: any) => ({
+    const messagesData = messages.map((msg) => ({
       id: msg.id,
       email: msg.email,
       subject: msg.subject,

@@ -1,5 +1,6 @@
 import { getLocalizedName, formatNote } from '@/lib/utils'
 import { Locale } from '@/lib/i18n'
+import { Arbitre } from '@/types'
 import ArbitreLink from '../ArbitreLink'
 import StarsRating from '../StarsRating'
 import { RefereeStat, TFunction } from './types'
@@ -23,7 +24,9 @@ export default function RefereeRankingList({ referees, titleKey, noteColorClass,
         {t(titleKey)}
       </h2>
       <div className="space-y-2 sm:space-y-3">
-        {referees.map((stat) => {
+        {referees
+          .filter((stat): stat is RefereeStat & { arbitre: Arbitre } => stat.arbitre !== null)
+          .map((stat) => {
           const arbitreName = getLocalizedName(locale, {
             defaultValue: stat.arbitre.nom,
             fr: stat.arbitre.nom,

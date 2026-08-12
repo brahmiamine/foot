@@ -45,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
   let activeLeague = null
   if (leagueId) {
     for (const fed of federations) {
-      const league = fed.leagues.find((l: any) => l.id === leagueId)
+      const league = fed.leagues.find((l) => l.id === leagueId)
       if (league) {
         activeLeague = league
         break
@@ -207,7 +207,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         }
 
         const categoryMap = new Map<string, CategoryKey>();
-        criteresDefinitions.forEach((critere: any) => {
+        criteresDefinitions.forEach((critere) => {
           if (critere?.id) {
             categoryMap.set(critere.id, critere.categorie as CategoryKey);
           }
@@ -215,7 +215,7 @@ export default async function Home({ searchParams }: HomePageProps) {
 
         const tempMap = new Map<string, VoteAccumulator>();
 
-        votes.forEach((vote: any) => {
+        votes.forEach((vote) => {
           if (!vote?.match_id) return;
           const matchId = vote.match_id as string;
           const accumulator =
@@ -349,7 +349,7 @@ export default async function Home({ searchParams }: HomePageProps) {
 
   if (leagueId) {
     for (const fed of federations) {
-      const league = fed.leagues.find((l: any) => l.id === leagueId);
+      const league = fed.leagues.find((l) => l.id === leagueId);
       if (league) {
         activeLeague = league;
         activeFederation = fed;

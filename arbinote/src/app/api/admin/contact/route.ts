@@ -15,13 +15,22 @@ export async function GET() {
     }
 
     const dataSource = await getDataSource()
-    
+
+    interface ContactMessageRow {
+      id: string
+      email: string
+      subject: string
+      message: string
+      device_fingerprint: string | null
+      created_at: Date | string | null
+    }
+
     // Utiliser directement une requête SQL brute pour éviter les problèmes de métadonnées TypeORM
-    const rawMessages = await dataSource.query(
+    const rawMessages = await dataSource.query<ContactMessageRow[]>(
       'SELECT id, email, subject, message, device_fingerprint, created_at FROM contact_messages ORDER BY created_at DESC'
     )
-    
-    const messages = rawMessages.map((msg: any) => ({
+
+    const messages = rawMessages.map((msg) => ({
       id: msg.id,
       email: msg.email,
       subject: msg.subject,

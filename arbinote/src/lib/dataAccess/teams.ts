@@ -105,7 +105,7 @@ export async function fetchRefereeStatsForTeam(teamId: string) {
     }
   })
 
-  filteredVotes.forEach((vote: any) => {
+  filteredVotes.forEach((vote) => {
     if (!vote.match_id || !vote.arbitre_id) return
     const arbitreId = vote.arbitre_id
     const note = typeof vote.note_globale === 'string' ? parseFloat(vote.note_globale) : Number(vote.note_globale)
@@ -190,21 +190,22 @@ export async function fetchTopMatchesForTeam(
 
   // Grouper par match et calculer les moyennes
   const matchScores = new Map<string, {
-    match: any
+    match: Match
     notes: number[]
     voteCount: number
   }>()
 
   const matchMap = new Map(matches.map(m => [m.id, m]))
 
-  filteredVotes.forEach((vote: any) => {
+  filteredVotes.forEach((vote) => {
     if (!vote.match_id) return
     const matchId = vote.match_id
+    if (!matchMap.has(matchId)) return
     const note = typeof vote.note_globale === 'string' ? parseFloat(vote.note_globale) : Number(vote.note_globale)
 
     if (!matchScores.has(matchId)) {
       matchScores.set(matchId, {
-        match: matchMap.get(matchId),
+        match: matchMap.get(matchId)!,
         notes: [],
         voteCount: 0,
       })

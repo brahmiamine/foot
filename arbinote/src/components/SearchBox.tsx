@@ -16,9 +16,16 @@ export default function SearchBox({ placeholder, paramName = "q" }: SearchBoxPro
   const [value, setValue] = useState(initialValue);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    setValue(searchParams.get(paramName) ?? "");
-  }, [searchParams, paramName]);
+  // Resynchroniser le champ quand l'URL change (navigation, retour arrière...).
+  // Ajustement de state pendant le rendu (plutôt que dans un effet) : c'est le
+  // pattern recommandé par React pour "réinitialiser un state quand une prop change"
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  const [prevParamValue, setPrevParamValue] = useState(initialValue);
+  const currentParamValue = searchParams.get(paramName) ?? "";
+  if (currentParamValue !== prevParamValue) {
+    setPrevParamValue(currentParamValue);
+    setValue(currentParamValue);
+  }
 
   useEffect(() => {
     return () => {

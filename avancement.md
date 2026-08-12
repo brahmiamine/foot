@@ -130,7 +130,7 @@ non audités de bout en bout.
 ### `arbinote`
 - Vote sans compte reposant sur empreinte appareil/cookie — pas de vote authentifié.
 - Règles anti-fraude au-delà des anomalies/statistiques déjà en place non décrites/étendues.
-- Dette de lint pré-existante (~106 erreurs, essentiellement `@typescript-eslint/no-explicit-any`, + quelques `setState` synchrone dans un effet React), rendue visible par la CI mais pas corrigée.
+- Reste 4 erreurs de lint `react-hooks/set-state-in-effect` (`HomeClient`, `LiveMatchBadge`, `ThemeToggle`, `VotedBadge`) : effets de synchronisation externe (localStorage, timer, détection de montage) où une réécriture "dérivation au rendu" n'est pas un changement sûr à faire sans revue au cas par cas.
 
 ### `ob`
 - N'émet aucun événement métier vers `notification-api` (reste un émetteur muet, en lecture seule) hors actions espace membre qui consomment les notifications existantes.

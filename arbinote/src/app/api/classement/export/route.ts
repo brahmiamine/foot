@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     const matches = await fetchMatchesByJournee(journeeId)
-    const matchIds = matches.map((m: any) => m.id)
+    const matchIds = matches.map((m) => m.id)
     const votes = (await fetchVotesByMatchIds(matchIds)) as Vote[]
     const criteresDefinitions = (await fetchCritereDefinitions()) as unknown as CritereDefinition[]
     const arbitreCriteres = criteresDefinitions.filter((c) => c.categorie === 'arbitre')

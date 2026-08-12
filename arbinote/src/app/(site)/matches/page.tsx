@@ -5,7 +5,7 @@ import MatchCardClient from "@/components/MatchCardClient";
 import SearchBox from "@/components/SearchBox";
 import PaginationControls from "@/components/PaginationControls";
 import { getSEOKeywords } from "@/lib/seo";
-import type { CritereDefinition } from "@/types";
+import type { CritereDefinition, Match as MatchType } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 const PAGE_SIZE = 20;
@@ -73,7 +73,7 @@ export default async function MatchesPage({ searchParams }: PageProps) {
         <p className="text-gray-600 dark:text-gray-400 py-8 text-center">{t("search.noResults")}</p>
       ) : (
         <div className="space-y-4">
-          {matches.map((match: any) => (
+          {(matches as unknown as MatchType[]).map((match) => (
             <MatchCardClient key={match.id} match={match} criteresDefs={criteresDefs} />
           ))}
         </div>

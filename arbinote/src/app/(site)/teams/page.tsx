@@ -5,6 +5,7 @@ import TeamCard from "@/components/TeamCard";
 import SearchBox from "@/components/SearchBox";
 import PaginationControls from "@/components/PaginationControls";
 import { getSEOKeywords } from "@/lib/seo";
+import type { Team as TeamType } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 const PAGE_SIZE = 24;
@@ -71,7 +72,7 @@ export default async function TeamsPage({ searchParams }: PageProps) {
         <p className="text-gray-600 dark:text-gray-400 py-8 text-center">{t("search.noResults")}</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {teams.map((team: any) => (
+          {(teams as unknown as TeamType[]).map((team) => (
             <TeamCard key={team.id} team={team} />
           ))}
         </div>

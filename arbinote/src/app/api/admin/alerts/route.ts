@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ensureAdminAuth } from '@/lib/adminAuth'
 import { getAlerts } from '@/lib/voteAlerting'
 import { toPlainArray } from '@/lib/serialization'
+import type { AlertStatus, AlertType } from '@/lib/entities'
 
 export const runtime = 'nodejs'
 
@@ -22,8 +23,8 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     const { alerts, total } = await getAlerts({
-      status: status as any,
-      alertType: alertType as any,
+      status: (status as AlertStatus) ?? undefined,
+      alertType: (alertType as AlertType) ?? undefined,
       limit,
       offset,
     })

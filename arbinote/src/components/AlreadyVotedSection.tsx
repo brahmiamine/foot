@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "@/lib/i18n";
-import { CritereDefinition } from "@/types";
+import { CritereDefinition, Vote } from "@/types";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import UserVoteDisplay from "./UserVoteDisplay";
 import AlertBanner from "./ui/AlertBanner";
@@ -22,7 +22,7 @@ export default function AlreadyVotedSection({
   const [hasVoted, setHasVoted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
-  const [userVote, setUserVote] = useState<any>(null);
+  const [userVote, setUserVote] = useState<Vote | null>(null);
 
   useEffect(() => {
     let cancelled = false;

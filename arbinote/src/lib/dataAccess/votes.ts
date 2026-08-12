@@ -37,7 +37,7 @@ export async function fetchVotesByArbitre(arbitreId: string, filterSuspicious: b
   const votes = toPlainArray(rows) as Array<{
     id: string
     note_globale: number | string
-    criteres: any
+    criteres: Record<string, number>
     created_at?: Date | string
     match_id?: string
   }>

@@ -4,7 +4,7 @@ import { formatDate, getLocalizedName, canVoteMatch } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { getServerLocale, translate } from "@/lib/i18nServer";
-import { CritereDefinition } from "@/types";
+import { CritereDefinition, Match as MatchType, Arbitre as ArbitreType } from "@/types";
 import { fetchCritereDefinitions, fetchMatchById } from "@/lib/dataAccess";
 import ArbitreLink from "@/components/ArbitreLink";
 import LiveMatchBadge from "@/components/LiveMatchBadge";
@@ -128,7 +128,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
   const locale = await getServerLocale();
   const t = (key: string, params?: Record<string, string | number>) => translate(key, locale, params);
-  const arbitre = match.arbitre || null;
+  const arbitre = (match.arbitre || null) as unknown as ArbitreType | null;
+  const matchDateISO = match.date ? (typeof match.date === "string" ? match.date : match.date.toISOString()) : null;
+  const canVote = canVoteMatch({ arbitre_id: match.arbitre_id, date: matchDateISO });
   const journeeLabel = match.journee?.numero;
   const saisonLabel = match.journee?.saison?.nom;
   const homeName = getLocalizedName(locale, {
@@ -171,11 +173,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         })
       : null;
   const refereeCategory =
-    arbitre && typeof arbitre === "object" && ((arbitre as any).categorie || (arbitre as any).categorie_ar)
+    arbitre && typeof arbitre === "object" && (arbitre.categorie || arbitre.categorie_ar)
       ? getLocalizedName(locale, {
-          defaultValue: (arbitre as any).categorie ?? (arbitre as any).categorie_ar ?? "",
-          fr: (arbitre as any).categorie ?? undefined,
-          ar: (arbitre as any).categorie_ar ?? undefined,
+          defaultValue: arbitre.categorie ?? arbitre.categorie_ar ?? "",
+          fr: arbitre.categorie ?? undefined,
+          ar: arbitre.categorie_ar ?? undefined,
         })
       : null;
 
@@ -291,8 +293,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                 <MatchCredibility matchId={match.id} />
               </div>
               {/* Bouton de partage - visible seulement si déjà voté */}
-              <MatchDetailBadges 
-                match={match as any} 
+              <MatchDetailBadges
+                match={match as unknown as MatchType}
                 criteresDefs={criteresDefinitions} 
                 shareBranding={null}
                 locale={locale}
@@ -399,13 +401,13 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {arbitre && typeof arbitre === "object" && canVoteMatch(match as any) && (
+      {arbitre && typeof arbitre === "object" && canVote && (
         <VoteSectionWrapper
           matchId={match.id}
           arbitreId={arbitre.id}
           arbitreNom={refereeName ?? arbitre.nom}
           criteresDefs={criteresDefinitions}
-          matchDate={match.date ? (typeof match.date === "string" ? match.date : match.date.toISOString()) : null}
+          matchDate={matchDateISO}
         />
       )}
 
@@ -413,7 +415,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <AlertBanner variant="warning" message={t("matchDetail.noReferee")} className="mb-4 sm:mb-6" />
       )}
 
-      {arbitre && typeof arbitre === "object" && !canVoteMatch(match as any) && (() => {
+      {arbitre && typeof arbitre === "object" && !canVote && (() => {
         const matchDate = match.date ? (typeof match.date === "string" ? new Date(match.date) : match.date) : null;
         const now = new Date();
         let reasonMessage = t("matchDetail.cannotVote");

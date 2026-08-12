@@ -2,11 +2,12 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import FingerprintJS from '@fingerprintjs/fingerprintjs'
+import type { Vote } from '@/types'
 
 interface VoteContextValue {
   fingerprint: string | null
   hasVoted: (matchId: string) => boolean // Toujours dynamique depuis la DB
-  getUserVote: (matchId: string) => Promise<any | null> // Appel direct à la DB
+  getUserVote: (matchId: string) => Promise<Vote | null> // Appel direct à la DB
   votedMatchIds: Set<string> // Set des matchIds votés (chargé une fois au démarrage)
   isLoading: boolean
   refreshVotedMatches: () => Promise<void> // Recharger la liste des matchs votés
@@ -88,7 +89,7 @@ export function VoteProvider({ children }: { children: ReactNode }) {
 
   // Récupérer le vote d'un match (appel direct à la DB, pas de cache)
   const getUserVote = useCallback(
-    async (matchId: string): Promise<any | null> => {
+    async (matchId: string): Promise<Vote | null> => {
       if (!fingerprint) {
         return null
       }

@@ -5,6 +5,7 @@ import ArbitreCard from "@/components/ArbitreCard";
 import SearchBox from "@/components/SearchBox";
 import PaginationControls from "@/components/PaginationControls";
 import { getSEOKeywords } from "@/lib/seo";
+import type { Arbitre as ArbitreType } from "@/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 const PAGE_SIZE = 24;
@@ -71,7 +72,7 @@ export default async function ArbitresPage({ searchParams }: PageProps) {
         <p className="text-gray-600 dark:text-gray-400 py-8 text-center">{t("search.noResults")}</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {arbitres.map((arbitre: any) => (
+          {(arbitres as unknown as ArbitreType[]).map((arbitre) => (
             <ArbitreCard key={arbitre.id} arbitre={arbitre} />
           ))}
         </div>

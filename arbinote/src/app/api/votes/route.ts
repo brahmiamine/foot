@@ -176,8 +176,18 @@ export async function POST(request: Request) {
     let saved: VoteEntity
     try {
       saved = await voteRepo.save(vote)
-    } catch (error: any) {
-      const isDuplicate = error?.code === 'ER_DUP_ENTRY' || error?.driverError?.code === 'ER_DUP_ENTRY'
+    } catch (error) {
+      const mysqlErrorCode = (err: unknown): string | undefined => {
+        if (typeof err !== 'object' || err === null) return undefined
+        const record = err as Record<string, unknown>
+        if (typeof record.code === 'string') return record.code
+        if (typeof record.driverError === 'object' && record.driverError !== null) {
+          const driverCode = (record.driverError as Record<string, unknown>).code
+          if (typeof driverCode === 'string') return driverCode
+        }
+        return undefined
+      }
+      const isDuplicate = mysqlErrorCode(error) === 'ER_DUP_ENTRY'
       if (isDuplicate) {
         return NextResponse.json(
           { error: 'Vous avez déjà voté pour ce match' },
