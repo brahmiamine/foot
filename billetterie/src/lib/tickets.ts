@@ -677,3 +677,65 @@ export async function listRecentScans(limit = 20): Promise<RecentScan[]> {
     reference: l.ticketId ? (referenceByTicketId.get(l.ticketId) ?? null) : null,
   }));
 }
+
+export interface OfflineManifestTicket {
+  ticketId: string;
+  reference: string;
+  status: "PAID" | "USED";
+  categoryName: string;
+}
+
+export interface OfflineScanManifest {
+  matchId: string;
+  matchLabel: string;
+  matchCancelled: boolean;
+  generatedAt: string;
+  tickets: OfflineManifestTicket[];
+}
+
+/**
+ * Manifeste hors-ligne (avancement.md, rang 2 — mode offline du scanner) :
+ * téléchargé une fois en ligne pour un match donné, avant d'entrer dans une
+ * zone sans réseau. Ne contient jamais le secret de signature ni un jeton
+ * réutilisable — seulement `ticketId`/statut/référence, assez pour que le
+ * scanner évalue localement un jeton déjà scanné en douchette/caméra (dont
+ * le `ticketId` est lu depuis la charge utile du JWT, sans vérification de
+ * signature possible côté client — voir src/lib/offlineScan.ts). La
+ * vérification cryptographique réelle n'a lieu qu'à la synchronisation
+ * (POST /api/admin/tickets/scan, une fois la connexion revenue) : un jeton
+ * accepté hors-ligne sur la seule foi du manifeste peut donc être rejeté
+ * après coup si forgé, ce qui est le compromis assumé de ce mode (voir
+ * avancement.md, risque de double scan entre appareils non synchronisés).
+ */
+export async function getOfflineScanManifest(matchId: string): Promise<OfflineScanManifest> {
+  const ds = await getDataSource();
+
+  const match = await ds
+    .getRepository(Match)
+    .findOne({ where: { id: matchId }, relations: ["homeTeam", "awayTeam"] });
+  if (!match) {
+    throw new NotFoundError("Match introuvable.");
+  }
+
+  const tickets = await ds.getRepository(Ticket).find({ where: { matchId, status: In(["PAID", "USED"]) } });
+  const mtcIds = Array.from(new Set(tickets.map((t) => t.matchTicketCategoryId)));
+  const mtcs = mtcIds.length > 0 ? await ds.getRepository(MatchTicketCategory).find({ where: { id: In(mtcIds) } }) : [];
+  const categoryIds = Array.from(new Set(mtcs.map((m) => m.categoryId)));
+  const categories = categoryIds.length > 0 ? await ds.getRepository(TicketCategory).find({ where: { id: In(categoryIds) } }) : [];
+  const categoryNameByMtcId = new Map(
+    mtcs.map((mtc) => [mtc.id, categories.find((c) => c.id === mtc.categoryId)?.name ?? "Catégorie"]),
+  );
+
+  return {
+    matchId,
+    matchLabel: `${match.homeTeam?.nom ?? "?"} - ${match.awayTeam?.nom ?? "?"}`,
+    matchCancelled: match.status === "CANCELLED",
+    generatedAt: new Date().toISOString(),
+    tickets: tickets.map((t) => ({
+      ticketId: t.id,
+      reference: t.reference,
+      status: t.status as "PAID" | "USED",
+      categoryName: categoryNameByMtcId.get(t.matchTicketCategoryId) ?? "Catégorie",
+    })),
+  };
+}
