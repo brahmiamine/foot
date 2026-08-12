@@ -161,7 +161,6 @@ non audités de bout en bout.
 - Colonnes de matching API-Football (`api_football_id`/`fixture_id`, live score/minute) absentes du schéma.
 - Aucun job de synchronisation live, aucun écran de mapping équipes/fixtures.
 - Icônes PWA personnalisables par club absentes de `ClubBranding`.
-- PWA orpheline : `public/manifest.json`/`sw.js` existent mais ne sont référencés nulle part dans `src/app` — aucun service worker n'y est jamais enregistré côté navigateur.
 - Annulation de match implémentée comme action simple, mais pas comme processus complet (remboursements billetterie, message acheteurs, état de feuille, réactivation encadrée).
 - Dette de lint pré-existante (~11 erreurs, essentiellement `@typescript-eslint/no-explicit-any`), rendue visible par la CI mais pas corrigée.
 
