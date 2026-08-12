@@ -19,7 +19,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P1 | E05 – Boutique OB | ✅ | fermer le parcours catalogue → achat → commande |
 | P1 | E06 – Fulfillment boutique | 🔄 | gérer préparation, expédition, livraison et retours |
 | P1 | E07 – Notifications fiables | ⏳ | éviter la perte d'événements métiers via outbox |
-| P1 | E08 – Sécurisation SSO | ⏳ | réduire les risques liés à HS256/fail-open |
+| P1 | E08 – Sécurisation SSO | 🔄 | réduire les risques liés à HS256/fail-open |
 | P1 | E09 – Ownership des domaines | ⏳ | réduire les écritures DB cross-projects |
 | P1 | E10 – CI et tests | 🔄 | exécuter les tests existants sur tous les projets |
 | P1 | E11 – Billetterie supporters | 🔄 | renforcer le contrôle de l'audience avec scanner/offline |
@@ -626,15 +626,17 @@ local outbox → POST notification-api → 200 / idempotent → mark processed
 # EPIC E08 — Sécurité SSO
 
 **Priorité : P1**  
-**Statut :** ⏳ À faire
+**Statut :** 🔄 Partiellement implémenté
 
 ### État actuel
 
-- SSO avec HS256 (symétrique) — risque : applications clientes peuvent signer des tokens.
-- Aucune audience JWT.
-- Fail-open par défaut (révocation SSO en échec = accès permis).
+- SSO toujours en HS256 (symétrique) — risque persistant : applications clientes peuvent signer des tokens (TS-27, toujours ouvert — migration vers signature asymétrique non traitée dans cette passe, voir note sous TS-27).
+- Audience JWT ajoutée ✅ (TS-28, `aud = foot-platform`).
+- Mode d'échec de la révocation configurable ✅ (TS-29) — `closed` appliqué à `matchsheet`/`superadmin`/`teamManager`, `open` (par défaut) conservé ailleurs.
 
 ## TS-27 — Migrer HS256 vers signature asymétrique
+
+**Statut :** ⏳ À faire
 
 Recommandation :
 
@@ -652,37 +654,97 @@ SSO (private key) → JWT → applications (public key)
 
 Les applications clientes ne peuvent plus signer de tokens.
 
+### Note d'avancement
+
+Non traité dans cette passe (contrairement à TS-28/TS-29, plus ciblés) :
+migrer l'algorithme de signature change la nature du secret partagé
+(`SSO_JWT_SECRET`, un seul secret symétrique aujourd'hui) en une paire
+clé privée (uniquement `sso`) / clé publique (les 6 apps clientes +
+`notification-api`) — ça implique de générer et distribuer une nouvelle
+paire de clés, de mettre à jour la configuration des 7 services
+concernés de façon coordonnée, et de gérer la fenêtre de transition (les
+JWT déjà émis avec l'ancien secret doivent rester vérifiables jusqu'à
+expiration, 12h). Un changement de cette nature touche la configuration
+de production de tout l'écosystème et mérite sa propre revue, séparée
+des correctifs TS-28/TS-29 qui ne changent que la vérification côté
+`packages/auth-shared` sans toucher au secret ni à l'algorithme.
+
 ## TS-28 — Ajouter `aud` (audience)
 
-Ajouter :
+**Statut :** ✅ Livré
 
 ```text
-iss = foot-sso
+iss = foot-sso     (déjà en place avant ce ticket)
 aud = foot-platform
 ```
 
-voire audiences différentes :
+Une seule audience partagée plutôt que des audiences différentes par app
+(`team-manager`, `matchsheet`, `superadmin`, mentionnées comme option par le
+critère original) : `sso` émet un unique cookie de session consommé
+indifféremment par les 6 apps clientes (voir
+`packages/auth-shared/README.md`), il n'y a pas de destinataire unique à
+distinguer par jeton — introduire des audiences par app sans revoir aussi
+l'émission (un jeton par app cible) n'aurait fait qu'ajouter une vérification
+sans valeur de sécurité réelle.
 
-```text
-team-manager, matchsheet, superadmin
-```
+`sso/src/lib/session.ts` (`SSO_JWT_AUDIENCE = "foot-platform"`) signe
+désormais avec `.setAudience(...)` ; `verifySessionToken` (côté `sso`) et
+`verifySsoToken` (`packages/auth-shared/src/session.ts`, consommé par les 6
+apps clientes) vérifient `aud` manuellement après `jwtVerify` plutôt que via
+son option `audience` — un jeton signé avant ce ticket n'a pas de claim
+`aud` : traité comme valide (même politique transitoire que `tokenVersion`,
+voir TS-02/US-01), pour ne forcer aucune déconnexion à la mise en
+production. Un jeton qui porte un `aud` incorrect est rejeté.
+
+Tests : `billetterie/src/lib/ssoTokenAudience.test.ts` (4 cas — audience
+attendue, jeton pré-migration sans `aud`, audience incorrecte rejetée,
+`aud` sous forme de tableau contenant la valeur attendue). Exécuté via le
+harnais vitest de `billetterie`, comme `ssoRevocationFailureMode.test.ts`
+(TS-29) — `packages/auth-shared` n'a pas son propre outillage de test.
 
 ## TS-29 — Rendre fail-open / fail-closed configurable
 
-Configuration :
+**Statut :** ✅ Livré
+
+Configuration (`packages/auth-shared/src/session.ts`,
+`getSsoRevocationFailureMode()`) :
 
 ```text
 SSO_REVOCATION_FAILURE_MODE=open|closed
 ```
 
-Recommandation :
+`open` reste la valeur par défaut si la variable est absente (comportement
+historique inchangé, aucune app n'est affectée tant qu'elle ne définit pas
+explicitement `closed`) — décision cohérente avec le reste du dépôt (ex:
+`audienceValidationMode` par défaut `DECLARATIVE`, voir Epic E11). En mode
+`closed`, `verifySsoTokenWithRevocation()` refuse l'accès (renvoie `null`)
+dès que la révocation ne peut pas être confirmée par `sso` — `SSO_URL` non
+configuré, panne/timeout de l'appel d'introspection, ou réponse non-200 —
+au lieu de retomber sur le résultat cryptographique local. Une révocation
+confirmée (`active: false`) reste toujours honorée, quel que soit le mode.
+
+Recommandation (appliquée dans les `.env.example` correspondants) :
 
 | App | Mode |
 |---|---|
-| OB public/member | éventuellement open |
-| TeamManager | closed |
-| Matchsheet | closed |
-| Superadmin | closed |
+| OB public/member | `open` (par défaut, non modifié) |
+| `billetterie` | `open` (par défaut, non modifié) |
+| `arbinote` | `open` (par défaut, non modifié) |
+| TeamManager | `closed` ✅ (`teamManager/.env.example`) |
+| Matchsheet | `closed` ✅ (`matchsheet/.env.example`) |
+| Superadmin | `closed` ✅ (`superadmin/.env.example`) |
+
+Le changement vit dans `packages/auth-shared`, source unique importée par
+chemin relatif par les 6 apps clientes (voir README.md de ce dossier) :
+aucune duplication de logique à maintenir par app.
+
+Tests : `billetterie/src/lib/ssoRevocationFailureMode.test.ts` (8 cas —
+défaut `open`, valeur invalide traitée comme `open`, `closed` explicite,
+`SSO_URL` absent × 2 modes, échec réseau × 2 modes, révocation confirmée
+honorée indépendamment du mode). Exécuté via le harnais vitest de
+`billetterie` (une des 6 apps consommatrices) car `packages/auth-shared`
+n'a pas son propre outillage de test (pas de `node_modules` — voir
+README.md du dossier).
 
 ### Notes
 
@@ -1418,8 +1480,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Codage/validation JWT
 ✅ Module base
 ⏳ Migration HS256 → asymétrique
-⏳ Configurer fail-open / fail-closed
-⏳ Ajouter audience JWT
+✅ Configurer fail-open / fail-closed (par app, packages/auth-shared)
+✅ Ajouter audience JWT (aud = foot-platform)
 ⏳ Tests complets (login, MFA, reset, tokenVersion, introspection, logout)
 ⏳ Déplacer invitation staff dans SSO
 ⏳ API Identity interne
@@ -1628,8 +1690,8 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 
 ```text
 ⏳ TS-27 asymmetric JWT
-⏳ TS-28 aud
-⏳ TS-29 fail mode
+✅ TS-28 aud
+✅ TS-29 fail mode
 ⏳ TS-30 ownership
 🔄 TS-31 cross-domain cleanup (premier cas traité : reopenMatchAdmin)
 ```
@@ -1655,7 +1717,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 2. ~~Activer les tests existants dans la CI (TS-33)~~ ✅ Livré (12/08/2026).
 3. ~~Introduire Transactional Outbox dans Payment API (TS-12)~~ ✅ Livré (12/08/2026, avec TS-13 retry durable).
 4. ~~Compléter le fulfillment des commandes (TS-20 à US-24)~~ ✅ Livré côté `marketplace-api` (12/08/2026) — reste : tunnel d'achat marketplace multi-vendeurs côté frontend et notification membre à la livraison (voir Epic E06/E07).
-5. **Sécuriser le SSO (TS-27, TS-28, TS-29)** : risques identifiés.
+5. 🔄 **Sécuriser le SSO (TS-27, TS-28, TS-29)** — TS-28 (audience) et TS-29 (fail-open/closed configurable) livrés (12/08/2026) ; TS-27 (signature asymétrique) reste à faire, voir la note sous TS-27 (migration de secret coordonnée sur 7 services, hors périmètre de cette passe).
 6. 🔄 **Découpler progressivement les accès directs à la base (TS-31)** — premier cas traité (12/08/2026, `reopenMatchAdmin`), reste à généraliser au fur et à mesure que d'autres cas apparaissent.
 7. Seulement ensuite, mettre en place **Event Bus + API Gateway**.
 

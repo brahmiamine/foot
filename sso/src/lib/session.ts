@@ -45,6 +45,15 @@ function getJwtSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
+/**
+ * TS-28 : audience du JWT — identifie la plateforme cliente attendue. Une
+ * seule audience partagée (pas une par app) : `sso` émet un unique cookie
+ * de session consommé indifféremment par les 6 apps clientes (voir
+ * packages/auth-shared/README.md), il n'y a donc pas de destinataire
+ * unique à distinguer par jeton.
+ */
+export const SSO_JWT_AUDIENCE = "foot-platform";
+
 async function signSession(user: SsoUser): Promise<string> {
   return new SignJWT({
     email: user.email,
@@ -56,6 +65,7 @@ async function signSession(user: SsoUser): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
     .setIssuer("foot-sso")
+    .setAudience(SSO_JWT_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS)
     .sign(getJwtSecret());
@@ -69,12 +79,22 @@ async function signSession(user: SsoUser): Promise<string> {
  * mécanisme n'a pas de claim `tokenVersion` : traité comme 0, la valeur
  * par défaut de tous les comptes existants, pour ne forcer aucune
  * déconnexion lors de la migration.
+ *
+ * Même traitement transitoire pour `aud` (TS-28) : un jeton signé avant
+ * l'ajout de ce claim n'en porte aucun — accepté (pas de audience option
+ * passée à `jwtVerify`, qui rejetterait ces jetons pré-migration) — mais un
+ * jeton qui porte un `aud` doit correspondre à `SSO_JWT_AUDIENCE`, sans
+ * quoi il est rejeté (jeton émis pour un autre usage/audience).
  */
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecret(), { issuer: "foot-sso" });
     if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
       return null;
+    }
+    if (payload.aud !== undefined) {
+      const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+      if (!audiences.includes(SSO_JWT_AUDIENCE)) return null;
     }
     const tokenVersion = typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0;
 

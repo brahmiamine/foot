@@ -38,6 +38,13 @@ export interface SsoTokenPayload {
 
 const ISSUER = "foot-sso";
 
+/**
+ * TS-28 : audience du JWT émis par `sso` (voir sso/src/lib/session.ts,
+ * `SSO_JWT_AUDIENCE`) — une seule audience partagée, pas une par app (voir
+ * README.md de ce dossier).
+ */
+export const SSO_JWT_AUDIENCE = "foot-platform";
+
 export function getSsoCookieName(): string {
   return process.env.SSO_COOKIE_NAME || "foot_sso_session";
 }
@@ -48,11 +55,21 @@ function getJwtSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
+/**
+ * `aud` vérifié manuellement après `jwtVerify` (pas via son option
+ * `audience`, qui rejetterait les jetons pré-migration TS-28 sans ce
+ * claim) : un jeton sans `aud` reste accepté (transitoire, voir
+ * sso/src/lib/session.ts), un jeton avec un `aud` incorrect est rejeté.
+ */
 export async function verifySsoToken(token: string): Promise<SsoTokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecret(), { issuer: ISSUER });
     if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
       return null;
+    }
+    if (payload.aud !== undefined) {
+      const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+      if (!audiences.includes(SSO_JWT_AUDIENCE)) return null;
     }
     return {
       id: payload.sub,
@@ -89,6 +106,31 @@ function pruneRevocationCacheIfNeeded(now: number) {
 }
 
 /**
+ * TS-29 : que faire quand la révocation ne peut pas être confirmée
+ * (`SSO_URL` absent, panne/timeout de `sso`, réponse non-200) ?
+ *
+ * - `"open"` (compatibilité historique, valeur par défaut si la variable
+ *   n'est pas définie) : on retombe sur le résultat cryptographique de
+ *   `verifySsoToken()` — un incident réseau transitoire sur `sso` ne coupe
+ *   pas tout le trafic authentifié des apps clientes.
+ * - `"closed"` : on refuse l'accès tant que `sso` n'a pas confirmé
+ *   explicitement que la session est toujours active — recommandé pour les
+ *   back-offices (matchsheet, superadmin, teamManager, voir
+ *   avancement.md Epic E08/TS-29) où une fenêtre de tolérance en cas de
+ *   panne SSO est un risque plus grand qu'une indisponibilité temporaire.
+ *
+ * Lu à chaque appel (pas mis en cache au chargement du module) pour rester
+ * testable et pour qu'un changement de variable d'environnement soit pris
+ * en compte sans redémarrage forcé du process dans les runtimes qui le
+ * permettent.
+ */
+export type SsoRevocationFailureMode = "open" | "closed";
+
+export function getSsoRevocationFailureMode(): SsoRevocationFailureMode {
+  return process.env.SSO_REVOCATION_FAILURE_MODE === "closed" ? "closed" : "open";
+}
+
+/**
  * verifySsoToken() PUIS révocation réelle auprès de `sso`
  * (GET /api/session/introspect, voir sso/src/app/api/session/introspect),
  * avec un cache en mémoire de 30s par jeton pour ne pas appeler `sso` à
@@ -101,12 +143,10 @@ function pruneRevocationCacheIfNeeded(now: number) {
  *
  * Edge-safe (fetch uniquement, cache en mémoire du runtime — best-effort,
  * pas partagé entre instances, ce qui reste cohérent avec le choix "TTL
- * court" plutôt que "cache partagé" documenté dans avancement.md). Si `sso`
- * est injoignable (panne, timeout) ou si `SSO_URL` n'est pas configuré, on
- * retombe sur le résultat de verifySsoToken() (fail-open) plutôt que de
- * couper tout le trafic authentifié des 6 apps clientes pour un incident
- * réseau transitoire — seule une révocation confirmée par `sso` invalide le
- * jeton.
+ * court" plutôt que "cache partagé" documenté dans avancement.md). Quand la
+ * révocation ne peut pas être confirmée (SSO injoignable, timeout, `SSO_URL`
+ * non configuré), le comportement dépend de `SSO_REVOCATION_FAILURE_MODE`
+ * — voir getSsoRevocationFailureMode() (TS-29).
  */
 export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTokenPayload | null> {
   const payload = await verifySsoToken(token);
@@ -118,8 +158,11 @@ export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTo
     return cached.active ? payload : null;
   }
 
+  const onUnconfirmedRevocation = (): SsoTokenPayload | null =>
+    getSsoRevocationFailureMode() === "closed" ? null : payload;
+
   const ssoUrl = process.env.SSO_URL;
-  if (!ssoUrl) return payload;
+  if (!ssoUrl) return onUnconfirmedRevocation();
 
   try {
     const res = await fetch(`${ssoUrl.replace(/\/$/, "")}/api/session/introspect`, {
@@ -127,7 +170,7 @@ export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTo
       cache: "no-store",
       signal: AbortSignal.timeout(REVOCATION_FETCH_TIMEOUT_MS),
     });
-    if (!res.ok) return payload;
+    if (!res.ok) return onUnconfirmedRevocation();
 
     const body = (await res.json()) as { active?: boolean };
     const active = body.active === true;
@@ -137,7 +180,7 @@ export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTo
 
     return active ? payload : null;
   } catch {
-    return payload;
+    return onUnconfirmedRevocation();
   }
 }
 

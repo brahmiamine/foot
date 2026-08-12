@@ -16,7 +16,8 @@ Le seul point d'entrée est [`src/session.ts`](./src/session.ts). Il exporte :
 | `SsoTokenPayload` | Forme normalisée de la session rendue aux applications. |
 | `getSsoCookieName()` | Lit `SSO_COOKIE_NAME`, avec `foot_sso_session` par défaut. |
 | `verifySsoToken(token)` | Vérifie signature, expiration, issuer et claims obligatoires ; renvoie `null` si le jeton est invalide. |
-| `verifySsoTokenWithRevocation(token)` | Ajoute l'introspection auprès de `sso` et un cache de 30 s ; c'est le validateur recommandé. En cas d'indisponibilité de l'introspection, il conserve le résultat cryptographique (fail-open documenté dans le code). |
+| `verifySsoTokenWithRevocation(token)` | Ajoute l'introspection auprès de `sso` et un cache de 30 s ; c'est le validateur recommandé. Le comportement en cas d'indisponibilité de l'introspection dépend de `getSsoRevocationFailureMode()` (TS-29). |
+| `getSsoRevocationFailureMode()` | Lit `SSO_REVOCATION_FAILURE_MODE` (`"open"` par défaut, ou `"closed"`) — voir ci-dessous. |
 | `getSsoTokenFromRequest(request)` | Extrait le jeton du cookie partagé sans le valider. |
 | `buildSsoRedirectUrl(currentUrl, loginPath?)` | Construit une URL sous `SSO_URL` et ajoute le retour dans `redirect` (`/login` par défaut). |
 | `clearSsoCookie(response)` | Expire le cookie sur `/`, en respectant `SSO_COOKIE_DOMAIN`, et rend la réponse reçue. |
@@ -78,6 +79,35 @@ export async function middleware(request: NextRequest) {
 Configurer `SSO_JWT_SECRET` et, pour l'introspection, `SSO_URL` dans le secret
 manager ou le fichier d'environnement local de l'application. Ne jamais mettre
 leur valeur dans le code, un exemple ou Git.
+
+## Mode d'échec de la révocation (TS-29)
+
+`verifySsoTokenWithRevocation()` ne peut pas toujours confirmer qu'une
+session n'a pas été révoquée (`SSO_URL` non configuré, `sso` injoignable,
+timeout, réponse non-200). `SSO_REVOCATION_FAILURE_MODE` décide quoi faire
+dans ce cas :
+
+- `open` (par défaut si absent, comportement historique) : on retombe sur le
+  résultat cryptographique local (signature/expiration/`tokenVersion`
+  valides) — un incident réseau transitoire sur `sso` ne coupe pas le trafic
+  authentifié de l'app cliente.
+- `closed` : on refuse l'accès tant que `sso` n'a pas confirmé explicitement
+  que la session est active.
+
+Recommandation par app (voir avancement.md, Epic E08) :
+
+| App | Mode recommandé |
+|---|---|
+| `ob` (public/espace membre) | `open` |
+| `billetterie` | `open` |
+| `arbinote` | `open` |
+| `teamManager` | `closed` |
+| `matchsheet` | `closed` |
+| `superadmin` | `closed` |
+
+Chaque app définit sa propre valeur dans son `.env` — voir
+`matchsheet/.env.example`, `superadmin/.env.example` et
+`teamManager/.env.example` pour l'exemple `closed`.
 
 ## Pourquoi un import relatif
 
