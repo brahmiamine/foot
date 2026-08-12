@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 import { useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -37,11 +39,7 @@ interface PostMatchSignaturesProps {
 
 const PHASE: SignaturePhase = "POST_MATCH";
 
-const ROLE_LABELS: Record<ActorRole, string> = {
-  TEAM_HOME: "Équipe domicile",
-  TEAM_AWAY: "Équipe extérieure",
-  REFEREE: "Arbitre",
-};
+const ROLE_KEYS = { TEAM_HOME: "homeTeam", TEAM_AWAY: "awayTeam", REFEREE: "referee" } as const;
 
 const ROLE_BADGES: Record<ActorRole, string> = {
   TEAM_HOME: "bg-primary-subtle text-primary",
@@ -60,6 +58,7 @@ export function PostMatchSignatures({
   isPhaseComplete,
   closedAt,
 }: PostMatchSignaturesProps) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [closing, setClosing] = useState(false);
@@ -81,7 +80,7 @@ export function PostMatchSignatures({
   const handleClose = async () => {
     if (
       !window.confirm(
-        "Clôturer la feuille de match ? Cette action est définitive : la feuille ne pourra plus être modifiée ensuite."
+        t("closeSheetConfirm")
       )
     ) {
       return;
@@ -94,7 +93,7 @@ export function PostMatchSignatures({
       if (result.success) {
         router.push(`/${matchId}`);
       } else {
-        setPageError(result.error || "Erreur lors de la clôture.");
+        setPageError(result.error || t("closeError"));
       }
     } finally {
       setClosing(false);
@@ -105,9 +104,9 @@ export function PostMatchSignatures({
     <div className="container-fluid px-0">
       <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <div>
-          <h1 className="h4 mb-1">Signatures après-match</h1>
+          <h1 className="h4 mb-1">{t("postSignatures")}</h1>
           <p className="text-muted mb-0">
-            {homeTeamName} <span className="text-muted">vs</span> {awayTeamName}
+            {homeTeamName} <span className="text-muted">{t("vs")}</span> {awayTeamName}
           </p>
         </div>
       </div>
@@ -115,13 +114,13 @@ export function PostMatchSignatures({
       {pageError && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{pageError}</span>
-          <button type="button" onClick={() => setPageError(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setPageError(null)} aria-label={t("close")} className="btn-close" />
         </div>
       )}
       {pageSuccess && (
         <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{pageSuccess}</span>
-          <button type="button" onClick={() => setPageSuccess(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setPageSuccess(null)} aria-label={t("close")} className="btn-close" />
         </div>
       )}
 
@@ -138,7 +137,7 @@ export function PostMatchSignatures({
       <div className="row g-3 mb-4">
         <SignatureSlot
           role="TEAM_HOME"
-          label={`Équipe ${homeTeamName}`}
+          label={t("teamLabel", { name: homeTeamName })}
           sheetId={sheetId}
           initial={findSignature("TEAM_HOME")}
           onSaved={handleSaved}
@@ -146,7 +145,7 @@ export function PostMatchSignatures({
         />
         <SignatureSlot
           role="TEAM_AWAY"
-          label={`Équipe ${awayTeamName}`}
+          label={t("teamLabel", { name: awayTeamName })}
           sheetId={sheetId}
           initial={findSignature("TEAM_AWAY")}
           onSaved={handleSaved}
@@ -154,7 +153,7 @@ export function PostMatchSignatures({
         />
         <SignatureSlot
           role="REFEREE"
-          label="Arbitre"
+          label={t("referee")}
           sheetId={sheetId}
           initial={findSignature("REFEREE")}
           onSaved={handleSaved}
@@ -167,7 +166,7 @@ export function PostMatchSignatures({
           <div className="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
             <div className="d-flex align-items-center gap-2">
               <i className="bx bx-check-circle fs-4" aria-hidden="true" />
-              <span>Les 3 signatures après-match ont été recueillies.</span>
+              <span>{t("signaturesCompletePost")}</span>
             </div>
             <button type="button" className="btn btn-dark" onClick={handleClose} disabled={closing}>
               {closing ? (
@@ -178,7 +177,7 @@ export function PostMatchSignatures({
               ) : (
                 <>
                   <i className="bx bx-flag me-2" aria-hidden="true" />
-                  Clôturer la feuille de match
+                  {t("closeSheet")}
                 </>
               )}
             </button>
@@ -193,7 +192,7 @@ export function PostMatchSignatures({
       <ReservationsSection
         sheetId={sheetId}
         matchId={matchId}
-        title="Réserves après-match"
+        title={t("reservationsPost")}
         reservations={reservations}
         onChanged={refresh}
         readOnly={isClosed}
@@ -217,6 +216,7 @@ function SignatureSlot({
   onSaved: (message: string) => void;
   readOnly: boolean;
 }) {
+  const { lang, t } = useLanguage();
   const [editing, setEditing] = useState(!initial && !readOnly);
   const [signerName, setSignerName] = useState(initial?.signerName ?? "");
   const [pendingSignature, setPendingSignature] = useState<string | null>(null);
@@ -226,7 +226,7 @@ function SignatureSlot({
 
   const handleSubmit = async () => {
     if (!pendingSignature) {
-      setError("Veuillez signer dans le cadre avant de valider.");
+      setError(t("signFirst"));
       return;
     }
     setSaving(true);
@@ -236,9 +236,9 @@ function SignatureSlot({
       if (result.success) {
         setEditing(false);
         setPendingSignature(null);
-        onSaved(result.message ?? "Signature enregistrée.");
+        onSaved(result.message ?? t("signatureSaved"));
       } else {
-        setError(result.error || "Erreur lors de l'enregistrement.");
+        setError(result.error || t("saveError"));
       }
     } finally {
       setSaving(false);
@@ -265,36 +265,36 @@ function SignatureSlot({
       <div className={`card h-100 ${isSigned ? "border-success" : ""}`}>
         <div className="card-header bg-transparent d-flex align-items-center justify-content-between">
           <h6 className="card-title mb-0">{label}</h6>
-          <span className={`badge ${ROLE_BADGES[role]}`}>{ROLE_LABELS[role]}</span>
+          <span className={`badge ${ROLE_BADGES[role]}`}>{t(ROLE_KEYS[role])}</span>
         </div>
         <div className="card-body d-flex flex-column">
           {isSigned && initial ? (
             <>
               <div className="text-center mb-3">
                 <i className="bx bx-check-circle text-success" style={{ fontSize: "2rem" }} aria-hidden="true" />
-                <p className="mb-1 fw-medium">{initial.signerName || "Signé"}</p>
-                <p className="text-muted small mb-0">Signé le {new Date(initial.signedAt).toLocaleString("fr-FR")}</p>
+                <p className="mb-1 fw-medium">{initial.signerName || t("signed")}</p>
+                <p className="text-muted small mb-0">{t("signedOn", { date: new Date(initial.signedAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-FR") })}</p>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={initial.signatureData}
-                alt={`Signature — ${label}`}
+                alt={t("signatureAlt", { label })}
                 className="border rounded mb-3"
                 style={{ maxHeight: "120px", width: "100%", objectFit: "contain", background: "#fff" }}
               />
               {!readOnly && (
                 <button type="button" className="btn btn-outline-secondary btn-sm mt-auto" onClick={handleReopen}>
                   <i className="bx bx-edit-alt me-1" aria-hidden="true" />
-                  Modifier
+                  {t("edit")}
                 </button>
               )}
             </>
           ) : readOnly ? (
-            <p className="text-muted mb-0">Non signé.</p>
+            <p className="text-muted mb-0">{t("unsigned")}</p>
           ) : (
             <>
               <div className="mb-3">
-                <label className="form-label">Nom du signataire (optionnel)</label>
+                <label className="form-label">{t("signerOptional")}</label>
                 <input
                   type="text"
                   className="form-control"
@@ -310,17 +310,17 @@ function SignatureSlot({
               <div className="d-flex gap-2 mt-auto">
                 {initial && (
                   <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleCancel} disabled={saving}>
-                    Annuler
+                    {t("cancel")}
                   </button>
                 )}
                 <button type="button" className="btn btn-primary btn-sm flex-grow-1" onClick={handleSubmit} disabled={saving}>
                   {saving ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                      Enregistrement...
+                      {t("saving")}
                     </>
                   ) : (
-                    "Valider la signature"
+                    t("validateSignature")
                   )}
                 </button>
               </div>
@@ -347,6 +347,7 @@ function ReservationsSection({
   onChanged: () => void;
   readOnly: boolean;
 }) {
+  const { t } = useLanguage();
   const [authorRole, setAuthorRole] = useState<ActorRole>("TEAM_HOME");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -356,7 +357,7 @@ function ReservationsSection({
   const handleAdd = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!content.trim()) {
-      setError("Le contenu de la réserve est requis.");
+      setError(t("reservationRequired"));
       return;
     }
     setSubmitting(true);
@@ -367,7 +368,7 @@ function ReservationsSection({
         setContent("");
         onChanged();
       } else {
-        setError(result.error || "Erreur lors de l'ajout.");
+        setError(result.error || t("addError"));
       }
     } finally {
       setSubmitting(false);
@@ -382,7 +383,7 @@ function ReservationsSection({
       if (result.success) {
         onChanged();
       } else {
-        setError(result.error || "Erreur lors de la suppression.");
+        setError(result.error || t("deleteError"));
       }
     } finally {
       setDeletingId(null);
@@ -398,19 +399,19 @@ function ReservationsSection({
         {error && (
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-3">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("close")} className="btn-close" />
           </div>
         )}
 
         {reservations.length === 0 ? (
-          <p className="text-muted mb-3">Aucune réserve enregistrée.</p>
+          <p className="text-muted mb-3">{t("noReservation")}</p>
         ) : (
           <ul className="list-group mb-3">
             {reservations.map((r) => (
               <li key={r.id} className="list-group-item">
                 <div className="d-flex justify-content-between align-items-start gap-2">
                   <div>
-                    <span className={`badge ${ROLE_BADGES[r.authorRole]} me-2`}>{ROLE_LABELS[r.authorRole]}</span>
+                    <span className={`badge ${ROLE_BADGES[r.authorRole]} me-2`}>{t(ROLE_KEYS[r.authorRole])}</span>
                     <span className="text-muted small">{new Date(r.createdAt).toLocaleString("fr-FR")}</span>
                     <p className="mb-0 mt-1">{r.content}</p>
                   </div>
@@ -426,7 +427,7 @@ function ReservationsSection({
                       ) : (
                         <i className="bx bx-trash" aria-hidden="true" />
                       )}
-                      <span className="visually-hidden">Supprimer</span>
+                      <span className="visually-hidden">{t("delete")}</span>
                     </button>
                   )}
                 </div>
@@ -438,20 +439,20 @@ function ReservationsSection({
         {!readOnly && (
           <form className="row g-2 align-items-end" onSubmit={handleAdd}>
             <div className="col-md-3">
-              <label className="form-label">Auteur</label>
+              <label className="form-label">{t("author")}</label>
               <select
                 className="form-select"
                 value={authorRole}
                 onChange={(e) => setAuthorRole(e.target.value as ActorRole)}
                 disabled={submitting}
               >
-                <option value="TEAM_HOME">Équipe domicile</option>
-                <option value="TEAM_AWAY">Équipe extérieure</option>
-                <option value="REFEREE">Arbitre</option>
+                <option value="TEAM_HOME">{t("homeTeam")}</option>
+                <option value="TEAM_AWAY">{t("awayTeam")}</option>
+                <option value="REFEREE">{t("referee")}</option>
               </select>
             </div>
             <div className="col-md-7">
-              <label className="form-label">Contenu de la réserve</label>
+              <label className="form-label">{t("reservationContent")}</label>
               <textarea
                 className="form-control"
                 rows={2}
@@ -467,7 +468,7 @@ function ReservationsSection({
                 ) : (
                   <>
                     <i className="bx bx-plus me-1" aria-hidden="true" />
-                    Ajouter
+                    {t("add")}
                   </>
                 )}
               </button>

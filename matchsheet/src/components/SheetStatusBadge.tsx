@@ -1,12 +1,8 @@
+"use client";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { SheetStatus } from "@/entities/Sheet";
 
-const LABELS: Record<SheetStatus, string> = {
-  DRAFT: "Brouillon",
-  PRE_MATCH_SIGNED: "Avant-match signé",
-  IN_PROGRESS: "Match en cours",
-  POST_MATCH_SIGNED: "Après-match signé",
-  CLOSED: "Feuille clôturée",
-};
+const KEYS = { DRAFT: "draft", PRE_MATCH_SIGNED: "preSigned", IN_PROGRESS: "inProgress", POST_MATCH_SIGNED: "postSigned", CLOSED: "closed" } as const;
 
 const BADGES: Record<SheetStatus, string> = {
   DRAFT: "bg-secondary-subtle text-secondary",
@@ -17,5 +13,6 @@ const BADGES: Record<SheetStatus, string> = {
 };
 
 export function SheetStatusBadge({ status }: { status: SheetStatus }) {
-  return <span className={`badge ${BADGES[status]}`}>{LABELS[status]}</span>;
+  const { t } = useLanguage();
+  return <span className={`badge ${BADGES[status]}`}>{t(KEYS[status])}</span>;
 }

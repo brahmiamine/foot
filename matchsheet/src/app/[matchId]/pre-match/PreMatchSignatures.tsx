@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+
 import { useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -36,11 +38,7 @@ interface PreMatchSignaturesProps {
 
 const PHASE: SignaturePhase = "PRE_MATCH";
 
-const ROLE_LABELS: Record<ActorRole, string> = {
-  TEAM_HOME: "Équipe domicile",
-  TEAM_AWAY: "Équipe extérieure",
-  REFEREE: "Arbitre",
-};
+const ROLE_KEYS = { TEAM_HOME: "homeTeam", TEAM_AWAY: "awayTeam", REFEREE: "referee" } as const;
 
 const ROLE_BADGES: Record<ActorRole, string> = {
   TEAM_HOME: "bg-primary-subtle text-primary",
@@ -58,6 +56,7 @@ export function PreMatchSignatures({
   reservations,
   isPhaseComplete,
 }: PreMatchSignaturesProps) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
@@ -83,7 +82,7 @@ export function PreMatchSignatures({
       if (result.success) {
         router.push(`/${matchId}/live`);
       } else {
-        setPageError(result.error || "Erreur lors de la confirmation.");
+        setPageError(result.error || t("confirmError"));
       }
     } finally {
       setConfirming(false);
@@ -96,9 +95,9 @@ export function PreMatchSignatures({
     <div className="container-fluid px-0">
       <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <div>
-          <h1 className="h4 mb-1">Signatures avant-match</h1>
+          <h1 className="h4 mb-1">{t("preSignatures")}</h1>
           <p className="text-muted mb-0">
-            {homeTeamName} <span className="text-muted">vs</span> {awayTeamName}
+            {homeTeamName} <span className="text-muted">{t("vs")}</span> {awayTeamName}
           </p>
         </div>
       </div>
@@ -106,53 +105,53 @@ export function PreMatchSignatures({
       {pageError && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
           <span>{pageError}</span>
-          <button type="button" onClick={() => setPageError(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setPageError(null)} aria-label={t("close")} className="btn-close" />
         </div>
       )}
       {pageSuccess && (
         <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
           <span>{pageSuccess}</span>
-          <button type="button" onClick={() => setPageSuccess(null)} aria-label="Fermer" className="btn-close" />
+          <button type="button" onClick={() => setPageSuccess(null)} aria-label={t("close")} className="btn-close" />
         </div>
       )}
 
       <div className="row g-3 mb-4">
         <SignatureSlot
           role="TEAM_HOME"
-          label={`Équipe ${homeTeamName}`}
+          label={t("teamLabel", { name: homeTeamName })}
           sheetId={sheetId}
           initial={findSignature("TEAM_HOME")}
           onSaved={handleSaved}
         />
         <SignatureSlot
           role="TEAM_AWAY"
-          label={`Équipe ${awayTeamName}`}
+          label={t("teamLabel", { name: awayTeamName })}
           sheetId={sheetId}
           initial={findSignature("TEAM_AWAY")}
           onSaved={handleSaved}
         />
-        <SignatureSlot role="REFEREE" label="Arbitre" sheetId={sheetId} initial={findSignature("REFEREE")} onSaved={handleSaved} />
+        <SignatureSlot role="REFEREE" label={t("referee")} sheetId={sheetId} initial={findSignature("REFEREE")} onSaved={handleSaved} />
       </div>
 
       {isPhaseComplete ? (
         <div className="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
           <div className="d-flex align-items-center gap-2">
             <i className="bx bx-check-circle fs-4" aria-hidden="true" />
-            <span>Les 3 signatures avant-match ont été recueillies.</span>
+            <span>{t("signaturesCompletePre")}</span>
           </div>
           {alreadyConfirmed ? (
-            <span className="badge bg-success-subtle text-success">Avant-match déjà confirmé</span>
+            <span className="badge bg-success-subtle text-success">{t("preConfirmed")}</span>
           ) : (
             <button type="button" className="btn btn-success" onClick={handleConfirm} disabled={confirming}>
               {confirming ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                  Confirmation...
+                  {t("confirmation")}
                 </>
               ) : (
                 <>
                   <i className="bx bx-right-arrow-alt me-2" aria-hidden="true" />
-                  Confirmer et passer au match
+                  {t("confirmAndStart")}
                 </>
               )}
             </button>
@@ -161,11 +160,11 @@ export function PreMatchSignatures({
       ) : (
         <div className="alert alert-warning mb-4">
           <i className="bx bx-error me-2" aria-hidden="true" />
-          En attente des 3 signatures avant de pouvoir démarrer le match.
+          {t("waitingSignatures")}
         </div>
       )}
 
-      <ReservationsSection sheetId={sheetId} matchId={matchId} title="Réserves avant-match" reservations={reservations} onChanged={refresh} />
+      <ReservationsSection sheetId={sheetId} matchId={matchId} title={t("reservationsPre")} reservations={reservations} onChanged={refresh} />
     </div>
   );
 }
@@ -183,6 +182,7 @@ function SignatureSlot({
   initial: SignatureInfo | null;
   onSaved: (message: string) => void;
 }) {
+  const { lang, t } = useLanguage();
   const [editing, setEditing] = useState(!initial);
   const [signerName, setSignerName] = useState(initial?.signerName ?? "");
   const [pendingSignature, setPendingSignature] = useState<string | null>(null);
@@ -192,7 +192,7 @@ function SignatureSlot({
 
   const handleSubmit = async () => {
     if (!pendingSignature) {
-      setError("Veuillez signer dans le cadre avant de valider.");
+      setError(t("signFirst"));
       return;
     }
     setSaving(true);
@@ -202,9 +202,9 @@ function SignatureSlot({
       if (result.success) {
         setEditing(false);
         setPendingSignature(null);
-        onSaved(result.message ?? "Signature enregistrée.");
+        onSaved(result.message ?? t("signatureSaved"));
       } else {
-        setError(result.error || "Erreur lors de l'enregistrement.");
+        setError(result.error || t("saveError"));
       }
     } finally {
       setSaving(false);
@@ -231,32 +231,32 @@ function SignatureSlot({
       <div className={`card h-100 ${isSigned ? "border-success" : ""}`}>
         <div className="card-header bg-transparent d-flex align-items-center justify-content-between">
           <h6 className="card-title mb-0">{label}</h6>
-          <span className={`badge ${ROLE_BADGES[role]}`}>{ROLE_LABELS[role]}</span>
+          <span className={`badge ${ROLE_BADGES[role]}`}>{t(ROLE_KEYS[role])}</span>
         </div>
         <div className="card-body d-flex flex-column">
           {isSigned && initial ? (
             <>
               <div className="text-center mb-3">
                 <i className="bx bx-check-circle text-success" style={{ fontSize: "2rem" }} aria-hidden="true" />
-                <p className="mb-1 fw-medium">{initial.signerName || "Signé"}</p>
-                <p className="text-muted small mb-0">Signé le {new Date(initial.signedAt).toLocaleString("fr-FR")}</p>
+                <p className="mb-1 fw-medium">{initial.signerName || t("signed")}</p>
+                <p className="text-muted small mb-0">{t("signedOn", { date: new Date(initial.signedAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-FR") })}</p>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={initial.signatureData}
-                alt={`Signature — ${label}`}
+                alt={t("signatureAlt", { label })}
                 className="border rounded mb-3"
                 style={{ maxHeight: "120px", width: "100%", objectFit: "contain", background: "#fff" }}
               />
               <button type="button" className="btn btn-outline-secondary btn-sm mt-auto" onClick={handleReopen}>
                 <i className="bx bx-edit-alt me-1" aria-hidden="true" />
-                Modifier
+                {t("edit")}
               </button>
             </>
           ) : (
             <>
               <div className="mb-3">
-                <label className="form-label">Nom du signataire (optionnel)</label>
+                <label className="form-label">{t("signerOptional")}</label>
                 <input
                   type="text"
                   className="form-control"
@@ -272,17 +272,17 @@ function SignatureSlot({
               <div className="d-flex gap-2 mt-auto">
                 {initial && (
                   <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleCancel} disabled={saving}>
-                    Annuler
+                    {t("cancel")}
                   </button>
                 )}
                 <button type="button" className="btn btn-primary btn-sm flex-grow-1" onClick={handleSubmit} disabled={saving}>
                   {saving ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                      Enregistrement...
+                      {t("saving")}
                     </>
                   ) : (
-                    "Valider la signature"
+                    t("validateSignature")
                   )}
                 </button>
               </div>
@@ -307,6 +307,7 @@ function ReservationsSection({
   reservations: ReservationInfo[];
   onChanged: () => void;
 }) {
+  const { t } = useLanguage();
   const [authorRole, setAuthorRole] = useState<ActorRole>("TEAM_HOME");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -316,7 +317,7 @@ function ReservationsSection({
   const handleAdd = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!content.trim()) {
-      setError("Le contenu de la réserve est requis.");
+      setError(t("reservationRequired"));
       return;
     }
     setSubmitting(true);
@@ -327,7 +328,7 @@ function ReservationsSection({
         setContent("");
         onChanged();
       } else {
-        setError(result.error || "Erreur lors de l'ajout.");
+        setError(result.error || t("addError"));
       }
     } finally {
       setSubmitting(false);
@@ -342,7 +343,7 @@ function ReservationsSection({
       if (result.success) {
         onChanged();
       } else {
-        setError(result.error || "Erreur lors de la suppression.");
+        setError(result.error || t("deleteError"));
       }
     } finally {
       setDeletingId(null);
@@ -358,19 +359,19 @@ function ReservationsSection({
         {error && (
           <div className="alert alert-danger d-flex justify-content-between align-items-start mb-3">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
+            <button type="button" onClick={() => setError(null)} aria-label={t("close")} className="btn-close" />
           </div>
         )}
 
         {reservations.length === 0 ? (
-          <p className="text-muted mb-3">Aucune réserve enregistrée.</p>
+          <p className="text-muted mb-3">{t("noReservation")}</p>
         ) : (
           <ul className="list-group mb-3">
             {reservations.map((r) => (
               <li key={r.id} className="list-group-item">
                 <div className="d-flex justify-content-between align-items-start gap-2">
                   <div>
-                    <span className={`badge ${ROLE_BADGES[r.authorRole]} me-2`}>{ROLE_LABELS[r.authorRole]}</span>
+                    <span className={`badge ${ROLE_BADGES[r.authorRole]} me-2`}>{t(ROLE_KEYS[r.authorRole])}</span>
                     <span className="text-muted small">{new Date(r.createdAt).toLocaleString("fr-FR")}</span>
                     <p className="mb-0 mt-1">{r.content}</p>
                   </div>
@@ -385,7 +386,7 @@ function ReservationsSection({
                     ) : (
                       <i className="bx bx-trash" aria-hidden="true" />
                     )}
-                    <span className="visually-hidden">Supprimer</span>
+                    <span className="visually-hidden">{t("delete")}</span>
                   </button>
                 </div>
               </li>
@@ -395,20 +396,20 @@ function ReservationsSection({
 
         <form className="row g-2 align-items-end" onSubmit={handleAdd}>
           <div className="col-md-3">
-            <label className="form-label">Auteur</label>
+            <label className="form-label">{t("author")}</label>
             <select
               className="form-select"
               value={authorRole}
               onChange={(e) => setAuthorRole(e.target.value as ActorRole)}
               disabled={submitting}
             >
-              <option value="TEAM_HOME">Équipe domicile</option>
-              <option value="TEAM_AWAY">Équipe extérieure</option>
-              <option value="REFEREE">Arbitre</option>
+              <option value="TEAM_HOME">{t("homeTeam")}</option>
+              <option value="TEAM_AWAY">{t("awayTeam")}</option>
+              <option value="REFEREE">{t("referee")}</option>
             </select>
           </div>
           <div className="col-md-7">
-            <label className="form-label">Contenu de la réserve</label>
+            <label className="form-label">{t("reservationContent")}</label>
             <textarea
               className="form-control"
               rows={2}
@@ -424,7 +425,7 @@ function ReservationsSection({
               ) : (
                 <>
                   <i className="bx bx-plus me-1" aria-hidden="true" />
-                  Ajouter
+                  {t("add")}
                 </>
               )}
             </button>
