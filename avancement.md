@@ -133,7 +133,6 @@ non audités de bout en bout.
 - Révocation de session (`tokenVersion`) vérifiée uniquement dans `sso` lui-même : un JWT « révoqué » reste valide jusqu'à 12h dans les 6 apps clientes (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob`, `billetterie`), qui ne vérifient que signature/expiration (`packages/auth-shared`, volontairement sans DB pour rester Edge-safe). Étendre la vérification demanderait un appel DB par requête authentifiée dans 6 apps déployées indépendamment, ou un mécanisme différent (cache partagé, révocation courte) — décision à prendre consciemment.
 - Pas de viewer admin pour le journal de sécurité (`security_events`) : table interrogeable directement seulement.
 - MFA : le secret TOTP d'enrôlement est renvoyé au client puis reposté vers `/api/mfa/enable`; à durcir avec un challenge serveur court et expirant.
-- Pas d'endpoint d'introspection de session pour les apps clientes : toute solution de révocation centralisée devra être ajoutée explicitement.
 
 ### `teamManager`
 - Pas de checkout/paiement réel pour la boutique client (seule la gestion admin du catalogue existe, `admin/shop/`) — aucun tunnel d'achat, aucun appel à `payment-api`.
