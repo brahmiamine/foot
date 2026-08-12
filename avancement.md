@@ -25,7 +25,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P1 | E11 – Billetterie supporters | 🔄 | renforcer le contrôle de l'audience avec scanner/offline |
 | P2 | E12 – ArbiNote audit | ✅ | compléter traçabilité et modération |
 | P2 | E13 – Live temps réel | 🔄 | remplacer progressivement le polling par SSE/WebSocket |
-| P2 | E14 – SMS | ⏳ | finaliser le canal SMS (stub actuellement) |
+| P2 | E14 – SMS | ✅ | finaliser le canal SMS (Tunisiesms activable via SMS_PROVIDER) |
 | P2 | E15 – Payout Marketplace | 🔄 | automatiser les paiements vendeurs |
 | P2 | E16 – Returns Marketplace | 🔄 | fermer le workflow des retours |
 | P2 | E17 – Identity API | ⏳ | déplacer la gestion des comptes vers SSO |
@@ -775,7 +775,7 @@ Objectif : une table métier = un owner principal.
 | players/staff/training | TeamManager | ✅ Clair |
 | match sheet/live events | Matchsheet | ✅ Clair |
 | tickets/scans | Billetterie | ✅ Clair |
-| marketplace | Marketplace API | ⏳ À créer |
+| marketplace | Marketplace API | ✅ Clair (créée, voir Epic E02) |
 | payments | Payment API | ✅ Clair |
 | notifications | Notification API | ✅ Clair |
 
@@ -1233,21 +1233,40 @@ d'erreur visible pour l'utilisateur.
 # EPIC E14 — SMS
 
 **Priorité : P2**  
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
 ### État actuel
 
-- SMS reste un stub dans `notification-api`.
-- `NotImplementedSmsProvider` lève une erreur explicite (décision produit).
-- Notifications critiques en SMS ne doivent pas être promises commercialement.
+- `TunisieSmsProvider` livré et activable via `SMS_PROVIDER=tunisiesms`
+  (`notification-api/.env.example`) — `NotImplementedSmsProvider` reste le
+  provider par défaut tant que cette variable n'est pas positionnée
+  (comportement historique inchangé, décision produit toujours valable :
+  ne pas activer le canal SMS avant d'avoir un vrai compte Tunisiesms).
+- Numéro de téléphone propagé jusqu'aux canaux : `ChannelRecipient` (et
+  `SharedDirectoryService.getUserContact`) exposent désormais
+  `phoneNumber`, jusqu'ici absent du contrat de livraison (seuls
+  email/name/locale existaient).
 
 ## TS-44 — Intégrer Tunisiesms
+
+**Statut :** ✅ Livré
 
 Dans `notification-api` :
 
 ```text
 SmsChannel → TunisieSmsProvider
 ```
+
+`SmsProviderModule` sélectionne le provider par `useFactory` selon
+`SMS_PROVIDER`, même pattern que `EmailProviderModule`
+(`SMS_PROVIDER=tunisiesms` → `TunisieSmsProvider`, sinon
+`NotImplementedSmsProvider`). `TunisieSmsProvider` (`fetch` brut, pas de
+SDK officiel maintenu — cohérent avec `FcmProvider`) : `POST SMS_API_URL`,
+`Authorization: Bearer SMS_API_KEY`, corps `{ sender: SMS_SENDER, to,
+text }`, timeout 10s. Lève systématiquement en cas d'échec (jamais avalé)
+pour laisser BullMQ piloter le retry au niveau du worker (voir
+`queue/processors/base-channel.processor.ts`, déjà générique à tous les
+canaux — pas de logique de retry propre au provider).
 
 Configuration :
 
@@ -1260,6 +1279,8 @@ SMS_SENDER
 
 ## TS-45 — Ajouter normalisation téléphone
 
+**Statut :** ✅ Livré (`src/common/phone-number.ts`)
+
 Format cible :
 
 ```text
@@ -1268,13 +1289,31 @@ Format cible :
 
 avec validation E.164.
 
+`normalizeTunisianPhoneNumber()` accepte les formats de saisie libre
+attendus sur `User.phoneNumber` (0XX XXX XXX, +216XXXXXXXX, 216XXXXXXXX,
+avec espaces/tirets/points) et renvoie `+216XXXXXXXX` ou `null` si non
+reconnaissable — un numéro non tunisien ou mal formé ne casse jamais
+l'envoi des autres canaux, `SmsChannel.deliver()` lève une erreur
+explicite plutôt que de laisser `TunisieSmsProvider` recevoir un numéro
+invalide. `isValidE164()` est le dernier filet de sécurité côté provider
+(défense en profondeur, pas dupliqué avec le format de sortie de la
+normalisation).
+
 ## TS-46 — Tests provider
 
-- succès ;
-- 4xx ;
-- 5xx ;
-- timeout ;
-- retry.
+**Statut :** ✅ Livré
+
+- succès ✅ (payload `sender`/`to`/`text` avec `Authorization: Bearer`) ;
+- 4xx ✅ (`Tunisiesms send failed: 400 …`) ;
+- 5xx ✅ (`Tunisiesms send failed: 503 …`) ;
+- timeout ✅ (erreur réseau/`AbortSignal.timeout` propagée avec contexte) ;
+- retry ✅ (contrat vérifié : chaque échec est propagé sans être avalé,
+  ce qui permet au worker BullMQ générique de retenter — le retry
+  lui-même n'est pas réimplémenté dans le provider, voir TS-44).
+
+Tests : `notification-api/src/providers/sms/tunisiesms.provider.spec.ts`
+(8 cas), `src/common/phone-number.spec.ts` (12 cas), `src/channels/sms/
+sms.channel.spec.ts` (3 cas) — 23 tests au total.
 
 ---
 
@@ -1667,7 +1706,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 - Catalogue d'événements inter-projets non figé.
 - Convocations/compositions/sponsors, billetterie, marketplace, modération de votes, sécurité SSO, actions `superadmin` : non tous branchés avec `eventId` idempotents.
 - Modules de notification internes (`teamManager`, `sellerPortal`) coexistent — pas de gouvernance.
-- SMS : stub (décision produit documentée).
+- SMS : provider Tunisiesms disponible (TS-44), inactif tant que `SMS_PROVIDER=tunisiesms` n'est pas configuré en production (décision produit documentée).
 - FCM jamais testé avec vrai compte Firebase.
 - Monitoring/alerting externe absent (suppose outil externe à provisionner).
 
@@ -1855,7 +1894,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ✅ Push Web et FCM
 ⏳ Fiabilisation ingress (outbox apps → notification-api)
 ⏳ Gouvernance événements (catalogue, destinataires, templates)
-⏳ SMS Tunisiesms
+✅ SMS Tunisiesms (TS-44/45/46) — inactif tant que SMS_PROVIDER=tunisiesms n'est pas configuré en prod
 ⏳ Delivery reporting
 ⏳ Métriques / observabilité
 ⏳ FCM tester avec vrai compte Firebase

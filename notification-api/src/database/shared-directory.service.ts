@@ -11,6 +11,7 @@ export interface DirectoryUserContact {
   id: string;
   email: string;
   name: string;
+  phoneNumber: string | null;
 }
 
 export interface DirectoryTeamBranding {
@@ -107,7 +108,7 @@ export class SharedDirectoryService implements OnModuleInit, OnModuleDestroy {
 
   async getUserContact(userId: string): Promise<DirectoryUserContact | null> {
     const [rows] = await this.requirePool().query<mysql.RowDataPacket[]>(
-      'SELECT id, email, name FROM `User` WHERE id = ? LIMIT 1',
+      'SELECT id, email, name, phoneNumber FROM `User` WHERE id = ? LIMIT 1',
       [userId],
     );
     const row = rows[0];
@@ -116,6 +117,7 @@ export class SharedDirectoryService implements OnModuleInit, OnModuleDestroy {
       id: row.id as string,
       email: row.email as string,
       name: row.name as string,
+      phoneNumber: (row.phoneNumber as string | null) ?? null,
     };
   }
 

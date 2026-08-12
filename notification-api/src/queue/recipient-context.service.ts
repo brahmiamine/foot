@@ -20,12 +20,18 @@ export class RecipientContextService {
 
     let email: string | null = null;
     let name: string | null = null;
+    let phoneNumber: string | null = null;
     if (this.directory.isEnabled()) {
       const contact = await this.directory.getUserContact(notification.userId);
       email = contact?.email ?? null;
       name = contact?.name ?? null;
+      phoneNumber = contact?.phoneNumber ?? null;
     }
 
-    return { notification, recipient: { email, name, locale }, branding };
+    return {
+      notification,
+      recipient: { email, name, phoneNumber, locale },
+      branding,
+    };
   }
 }

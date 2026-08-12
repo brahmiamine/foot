@@ -5,6 +5,8 @@ import { Notification } from '../notifications/entities/notification.entity';
 export interface ChannelRecipient {
   email: string | null;
   name: string | null;
+  /** Non normalisé (voir common/phone-number.ts) : à charge de chaque canal de le normaliser avant envoi. */
+  phoneNumber: string | null;
   locale: NotificationLocale;
 }
 
