@@ -23,6 +23,11 @@ Un autre document complète ce README :
 
 - [`avancement.md`](./avancement.md) — panorama des 11 apps, fonctionnalités manquantes par projet, processus manquants entre les projets (auth partagée, gouvernance des données, cycle de vie du match, CI/CD…) et suivi des actions au fil des sessions.
 
+## Composants partagés non déployables
+
+- [`packages/auth-shared`](./packages/auth-shared) — contrat et helpers de vérification des sessions JWT émises par `sso`, importés par les applications clientes.
+- [`db`](./db) — instantané SQL de la base partagée `foot`, inventaire des écarts avec les migrations et règles de propriété des domaines.
+
 ## Classification des projets — générique vs custom
 
 Cette classification est la source de vérité pour toute contribution future : **rien de générique ne doit connaître un club en particulier ; tout ce qui est spécifique à l'identité et au contenu de l'Olympique de Béja reste dans `ob`.**
