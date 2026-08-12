@@ -21,7 +21,7 @@ Les correctifs déjà livrés restent documentés pour traçabilité, mais seul 
 | P1 | E07 – Notifications fiables | ⏳ | éviter la perte d'événements métiers via outbox |
 | P1 | E08 – Sécurisation SSO | 🔄 | réduire les risques liés à HS256/fail-open |
 | P1 | E09 – Ownership des domaines | ⏳ | réduire les écritures DB cross-projects |
-| P1 | E10 – CI et tests | 🔄 | exécuter les tests existants sur tous les projets (TS-33 ✅, TS-34 ✅, TS-35 ✅, TS-36 ⏳) |
+| P1 | E10 – CI et tests | ✅ | exécuter les tests existants sur tous les projets (TS-33/34/35/36 ✅) |
 | P1 | E11 – Billetterie supporters | 🔄 | renforcer le contrôle de l'audience avec scanner/offline |
 | P2 | E12 – ArbiNote audit | ✅ | compléter traçabilité et modération |
 | P2 | E13 – Live temps réel | ⏳ | remplacer progressivement le polling par SSE/WebSocket |
@@ -851,7 +851,7 @@ au lieu de deux écrivains sur les mêmes tables.
 # EPIC E10 — CI / qualité
 
 **Priorité : P1**  
-**Statut :** 🔄 En cours
+**Statut :** ✅ Livré
 
 ## TS-33 — Activer tous les tests existants en CI
 
@@ -975,14 +975,29 @@ plutôt que de laisser les deux coexister.
 
 ## TS-36 — Tests OB
 
-**Statut :** ⏳ À faire
+**Statut :** ✅ Livré
 
-Tester au minimum :
+`ob` n'avait jusqu'ici aucun harnais de test (seul `test:i18n` existait).
+Ajout du même harnais vitest + SQLite en mémoire que les autres apps
+(`src/test/testDataSource.ts`, `setupSqliteTypes.ts`, `fixtures.ts`),
+nouveau script `test`, activé dans la matrice CI (`.github/workflows/
+ci.yml`, `ob` passe de `test: false` à `test: true`). 17 tests :
 
-- pages publiques ;
-- restrictions membre ;
-- live API ;
-- notification actions.
+- **pages publiques** — `src/services/PublicMatchService.test.ts` (6 cas :
+  un match `isPublicVisible=false` n'apparaît jamais, ni dans
+  `getNextMatch` ni dans `getRecentResults`, tri par date, exclusion des
+  matchs déjà passés sauf `IN_PROGRESS`) ;
+- **live API** — `src/app/api/live/[matchId]/route.test.ts` (3 cas : match
+  inconnu → 404, match masqué par le club → 404, match visible → statut/
+  score/événements) ;
+- **restrictions membre** — `src/app/espace-membre/layout.test.ts` (3 cas :
+  redirection vers `/membre/login` sans session, rendu normal pour un
+  membre authentifié, dégradation propre si `notification-api` est
+  indisponible — le compteur de notifications reste best-effort) ;
+- **notification actions** — `src/lib/notificationApi.test.ts` (5 cas :
+  401 local sans appel réseau si pas de session, `Authorization: Bearer`
+  relayé, marquage lu, propagation d'une erreur HTTP avec son statut,
+  enregistrement d'un abonnement push).
 
 ---
 
@@ -1615,6 +1630,7 @@ Ces flux traversent plusieurs projets et restent incomplets, fragiles ou non aud
 ⏳ Page commandes réelle (actuellement dépendante billetterie)
 ⏳ Live SSE
 ⏳ Intégration future Marketplace API
+✅ Tests (TS-36) — pages publiques, live API (polling), restrictions membre, notification actions
 ```
 
 ## `billetterie`

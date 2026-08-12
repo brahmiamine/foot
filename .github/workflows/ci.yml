@@ -49,7 +49,7 @@ jobs:
           - name: ob
             dir: ob
             pm: pnpm
-            test: false
+            test: true
           - name: sellerPortal
             dir: sellerPortal
             pm: pnpm
