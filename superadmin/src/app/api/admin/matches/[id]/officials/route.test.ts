@@ -67,7 +67,7 @@ describe('POST /api/admin/matches/:id/officials — autorisation dérivée de la
       params: Promise.resolve({ id: match.id }),
     })
 
-    expect(response.status).toBe(403)
+    expect(response!.status).toBe(403)
     expect(mockAssignMatchOfficial).not.toHaveBeenCalled()
   })
 
@@ -80,7 +80,7 @@ describe('POST /api/admin/matches/:id/officials — autorisation dérivée de la
       params: Promise.resolve({ id: match.id }),
     })
 
-    expect(response.status).toBe(201)
+    expect(response!.status).toBe(201)
     expect(mockAssignMatchOfficial).toHaveBeenCalledWith(match.id, {
       userId: 'referee-1',
       role: 'CENTER_REFEREE',
@@ -98,7 +98,7 @@ describe('POST /api/admin/matches/:id/officials — autorisation dérivée de la
       params: Promise.resolve({ id: match.id }),
     })
 
-    expect(response.status).toBe(403)
+    expect(response!.status).toBe(403)
   })
 
   it('allows PLATFORM_SUPERADMIN even when the match has no resolvable federation', async () => {
@@ -111,6 +111,6 @@ describe('POST /api/admin/matches/:id/officials — autorisation dérivée de la
       params: Promise.resolve({ id: match.id }),
     })
 
-    expect(response.status).toBe(201)
+    expect(response!.status).toBe(201)
   })
 })
