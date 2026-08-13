@@ -3,6 +3,7 @@ import { getObTeam } from "@/lib/ob-team";
 import { PublicMatchService } from "@/services/PublicMatchService";
 import { PublicNewsService } from "@/services/PublicNewsService";
 import { PublicPlayerService } from "@/services/PublicPlayerService";
+import { PublicTransferService } from "@/services/PublicTransferService";
 import { PublicStandingsService } from "@/services/PublicStandingsService";
 import { PublicGalleryService } from "@/services/PublicGalleryService";
 import { PublicShopService } from "@/services/PublicShopService";
@@ -15,6 +16,7 @@ import { LiveMatchSection } from "@/components/LiveMatchSection";
 import { RecentResults } from "@/components/RecentResults";
 import { NewsSection } from "@/components/NewsSection";
 import { SquadSection } from "@/components/SquadSection";
+import { TransfersSection } from "@/components/TransfersSection";
 import { StandingsSection } from "@/components/StandingsSection";
 import { HistorySection } from "@/components/HistorySection";
 import { GallerySection } from "@/components/GallerySection";
@@ -37,11 +39,12 @@ export default async function HomePage() {
   const matchService = new PublicMatchService();
   const stadiumService = new PublicStadiumService();
 
-  const [nextMatch, recentResults, news, squad, standings, photos, products, homeStadium] = await Promise.all([
+  const [nextMatch, recentResults, news, squad, transfers, standings, photos, products, homeStadium] = await Promise.all([
     matchService.getNextMatch(team.id),
     matchService.getRecentResults(team.id),
     new PublicNewsService().getLatest(team.id),
     new PublicPlayerService().getSquad(team.id),
+    new PublicTransferService().getRecent(team.id),
     new PublicStandingsService().getStandings(team),
     new PublicGalleryService().getPhotos(team.id),
     new PublicShopService().getActiveProducts(team.id),
@@ -80,6 +83,9 @@ export default async function HomePage() {
       </Reveal>
       <Reveal variant="right">
         <SquadSection groups={squad} />
+      </Reveal>
+      <Reveal variant="up">
+        <TransfersSection transfers={transfers} />
       </Reveal>
       <Reveal variant="up">
         <StandingsSection standings={standings} obTeamId={team.id} federationName={team.federation?.nom} />

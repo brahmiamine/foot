@@ -26,6 +26,7 @@ import { Goal } from "@/entities/Goal";
 import { Substitution } from "@/entities/Substitution";
 import { Injury } from "@/entities/Injury";
 import { Card } from "@/entities/Card";
+import { PlayerTransfer } from "@/entities/PlayerTransfer";
 
 /**
  * Connexion en lecture seule à la base "foot" partagée avec arbinote,
@@ -76,6 +77,7 @@ export async function getDataSource(): Promise<DataSource> {
         Substitution,
         Injury,
         Card,
+        PlayerTransfer,
       ],
       migrations: [],
       charset: "utf8mb4",

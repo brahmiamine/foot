@@ -141,12 +141,18 @@ export function PlayersList({ initialPlayers, canCreate, canEdit, canDelete }: P
       <div className="row mb-4">
         <div className="col-12 d-flex justify-content-between align-items-center">
           <h1 className="mb-0">Gestion des Joueurs</h1>
-          {canCreate && (
-            <Link href="/admin/players/create" className="btn btn-primary">
-              <i className="fas fa-plus me-2" aria-hidden="true" />
-              Ajouter un joueur
+          <div className="d-flex gap-2">
+            <Link href="/admin/players/transfers" className="btn btn-outline-secondary">
+              <i className="bx bx-transfer me-2" aria-hidden="true" />
+              Historique des transferts
             </Link>
-          )}
+            {canCreate && (
+              <Link href="/admin/players/create" className="btn btn-primary">
+                <i className="fas fa-plus me-2" aria-hidden="true" />
+                Ajouter un joueur
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
