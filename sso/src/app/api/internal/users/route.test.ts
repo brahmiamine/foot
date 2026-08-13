@@ -26,6 +26,16 @@ function buildRequest(body: unknown, apiKey?: string) {
   });
 }
 
+function buildGetRequest(email?: string, apiKey?: string) {
+  const url = email
+    ? `http://localhost/api/internal/users?email=${encodeURIComponent(email)}`
+    : "http://localhost/api/internal/users";
+  return new NextRequest(url, {
+    method: "GET",
+    headers: apiKey ? { "x-api-key": apiKey } : undefined,
+  });
+}
+
 /** TS-53/TS-54 — POST /api/internal/users. */
 describe("POST /api/internal/users", () => {
   it("rejects a request without a valid service API key", async () => {
@@ -79,5 +89,50 @@ describe("POST /api/internal/users", () => {
     );
 
     expect(response.status).toBe(409);
+  });
+});
+
+/** TASK-P0-013 (todo.md) — GET /api/internal/users?email=... */
+describe("GET /api/internal/users", () => {
+  it("rejects a request without a valid service API key", async () => {
+    const { GET } = await import("./route");
+
+    const response = await GET(buildGetRequest("a@example.com"));
+
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects a request without an email query param", async () => {
+    const { GET } = await import("./route");
+
+    const response = await GET(buildGetRequest(undefined, "test-service-key"));
+
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 404 when no user matches the email", async () => {
+    const { GET } = await import("./route");
+
+    const response = await GET(buildGetRequest("nobody@example.com", "test-service-key"));
+
+    expect(response.status).toBe(404);
+  });
+
+  it("returns the user when the email matches", async () => {
+    const { POST } = await import("./route");
+    await POST(
+      buildRequest(
+        { name: "Amine", email: "a@example.com", password: "s3cret!", role: "ADMIN", teamId: "team-1" },
+        "test-service-key",
+      ),
+    );
+
+    const { GET } = await import("./route");
+    const response = await GET(buildGetRequest("a@example.com", "test-service-key"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.email).toBe("a@example.com");
+    expect(body.teamId).toBe("team-1");
   });
 });

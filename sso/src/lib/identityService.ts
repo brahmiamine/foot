@@ -77,6 +77,20 @@ export async function getUserById(id: string): Promise<IdentityUser | null> {
   return user ? toIdentityUser(user) : null;
 }
 
+/**
+ * TASK-P0-013 (todo.md) : permet à un appelant (ex: superadmin,
+ * acceptInvitation) de vérifier après un `email_taken` sur `createUser` si
+ * le compte existant est celui qu'IL vient de créer (retry après un échec
+ * réseau/DB survenu APRÈS le succès de la création côté sso, mais AVANT
+ * que l'appelant ait pu persister sa propre confirmation) plutôt qu'un
+ * conflit avec un compte tiers.
+ */
+export async function getUserByEmail(email: string): Promise<IdentityUser | null> {
+  const dataSource = await getDataSource();
+  const user = await dataSource.getRepository(User).findOne({ where: { email } });
+  return user ? toIdentityUser(user) : null;
+}
+
 export interface UpdateUserInput {
   isActive?: boolean;
   role?: User["role"];
