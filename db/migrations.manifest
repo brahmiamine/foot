@@ -73,6 +73,8 @@ superadmin/mysql/migration_widen_staff_invitations_scope.sql
 # §6, Phase 2). Dépend de teams/federations/ligues/saisons (FK), donc
 # placée après leurs migrations respectives.
 superadmin/mysql/migration_add_team_affiliations.sql
+# Backfill idempotent des clubs historiques depuis teams.federation_id.
+superadmin/mysql/migration_backfill_team_affiliations.sql
 superadmin/migrations/add_is_active_to_federations.sql
 superadmin/migrations/add_is_active_to_leagues.sql
 superadmin/migrations/add_unique_vote_per_match_device.sql
@@ -110,6 +112,8 @@ teamManager/sql/migration_add_processed_webhook_events.sql
 # Module central de transfert/homologation (migration.md §19-21, Phase 3).
 # Dépend de Player (migration_unify_players.sql) et teams (déjà en base).
 teamManager/sql/migration_add_player_transfers.sql
+# Étend le workflow : approbation club destination puis homologation fédérale.
+teamManager/sql/migration_extend_player_transfer_workflow.sql
 
 # --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
 matchsheet/sql/migration_matchsheet_init.sql
