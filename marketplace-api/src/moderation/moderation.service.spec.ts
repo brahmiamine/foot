@@ -7,9 +7,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/enums/notification-type.enum';
 
 describe('ModerationService', () => {
-  let productRepository: jest.Mocked<
-    Pick<Repository<Product>, 'save' | 'createQueryBuilder'>
-  >;
+  let productRepository: { save: jest.Mock; createQueryBuilder: jest.Mock };
   let queryBuilder: {
     innerJoinAndSelect: jest.Mock;
     where: jest.Mock;
@@ -41,9 +39,7 @@ describe('ModerationService', () => {
     };
     productRepository = {
       save: jest.fn((product) => Promise.resolve(product as Product)),
-      createQueryBuilder: jest.fn(
-        () => queryBuilder,
-      ) as unknown as Repository<Product>['createQueryBuilder'],
+      createQueryBuilder: jest.fn(() => queryBuilder),
     };
     notificationsService = { notify: jest.fn() };
     service = new ModerationService(
