@@ -526,15 +526,17 @@ APIs implicites. Changement cassant sans notification.
 **Projets**: matchsheet, teamManager, arbinote, ob  
 **Estimation**: 5 jours  
 **Dépendances**: TASK-P0-001, TASK-P0-019  
-**Status**: [ ] À faire
+**Status**: [ ] Bloqué sur infrastructure — voir Note d'audit (aucune partie applicable sans Redis/RabbitMQ)
+
+> **Note d'audit** : vérifié (grep) — le risque décrit est réel et concret : `ob/src/entities/Goal.ts` définit sa **propre** entité TypeORM pointant directement sur la table partagée `ms_goals` (source de vérité = matchsheet), sans aucun contrat intermédiaire. Si matchsheet fait évoluer ce schéma sans qu'ob soit mis à jour en miroir, la divergence est silencieuse — exactement le problème que le todo décrit. Le correctif structurel (un bus d'événements découplant les deux apps) dépend entièrement de Redis Pub/Sub ou RabbitMQ, aucun des deux n'existe dans ce repo (même constat que TASK-P0-003/vault, TASK-P0-006/broker). Contrairement aux autres tâches bloquées sur infra de cette passe (où une portion applicative substantielle restait possible — rotation de clé, health-checks...), il n'y a pas ici de sous-partie honnêtement livrable sans le bus : définir une interface `MatchEvent` versionnée sans producteur/consommateur réel qui l'utilise serait un artefact mort, pas un progrès (aucune des 4 apps ne la consommerait tant que le bus n'existe pas). Laissé entièrement non fait plutôt que de fabriquer un livrable cosmétique.
 
 **Description**:
 Plusieurs apps lisent tables matchsheet. Pas de contrat événement. Score/stats divergent.
 
-- [ ] MatchEvent interface versionnée
-- [ ] EventBus: Redis Pub/Sub ou RabbitMQ
-- [ ] Consumers: notification-api (créer notif), ob (live update)
-- [ ] Tests: publier MATCH_GOAL → notification créée, score ob mis à jour
+- [ ] MatchEvent interface versionnée — non fait, voir note (sans bus, aucun consommateur réel)
+- [ ] EventBus: Redis Pub/Sub ou RabbitMQ — non fait, infra absente de ce repo
+- [ ] Consumers: notification-api (créer notif), ob (live update) — non fait, dépend du bus
+- [ ] Tests: publier MATCH_GOAL → notification créée, score ob mis à jour — non fait, dépend du bus
 
 ---
 
