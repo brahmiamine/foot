@@ -30,9 +30,7 @@ function buildItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
 }
 
 describe('InventoryService.setAvailable', () => {
-  let repository: jest.Mocked<
-    Pick<Repository<InventoryItem>, 'findOne' | 'save'>
-  >;
+  let repository: { findOne: jest.Mock; save: jest.Mock };
   let notificationsService: jest.Mocked<Pick<NotificationsService, 'notify'>>;
   let service: InventoryService;
 
