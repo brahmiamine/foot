@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth } from '@/lib/adminAuth'
+import { ensureAdminAuth, ensureAdminOrFederationAuth, getAdminSession } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { Federation } from '@/lib/entities'
 import { toPlain } from '@/lib/serialization'
@@ -8,14 +8,22 @@ import { logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
 
+/**
+ * Lecture ouverte à `FEDERATION_ADMIN` (données de référence, rien de
+ * sensible) — filtrée à sa propre fédération, jamais la liste complète.
+ * L'écriture (POST ci-dessous, création d'une fédération) reste
+ * `PLATFORM_SUPERADMIN` uniquement.
+ */
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
+  const unauthorized = await ensureAdminOrFederationAuth(request)
   if (unauthorized) return unauthorized
 
   try {
+    const session = await getAdminSession(request)
     const dataSource = await getDataSource()
     const repo = dataSource.getRepository<Federation>('federations')
     const federations = await repo.find({
+      where: session?.role === 'FEDERATION_ADMIN' && session.federationId ? { id: session.federationId } : {},
       order: { nom: 'ASC' },
     })
     return NextResponse.json(toPlain(federations))

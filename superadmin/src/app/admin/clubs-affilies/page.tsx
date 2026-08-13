@@ -1,10 +1,10 @@
-import AdminStaffInvitationsManager from '@/components/admin/AdminStaffInvitationsManager'
+import AdminFederationAffiliationsManager from '@/components/admin/AdminFederationAffiliationsManager'
 import AdminLogin from '@/components/admin/AdminLogin'
 import { getAdminPageSession } from '@/lib/adminAuth'
 
-export default async function AdminStaffInvitationsPage() {
+export default async function AdminClubsAffiliesPage() {
   const session = await getAdminPageSession()
   if (!session) return <AdminLogin />
   const isPlatform = session.role === 'SUPERADMIN' || session.role === 'PLATFORM_SUPERADMIN'
-  return <AdminStaffInvitationsManager isPlatform={isPlatform} />
+  return <AdminFederationAffiliationsManager isPlatform={isPlatform} ownFederationId={session.federationId ?? null} />
 }

@@ -1,4 +1,4 @@
-import type { DataSource } from 'typeorm'
+import { In, type DataSource } from 'typeorm'
 import { Federation, League, Saison, Team, TeamAffiliation, type TeamAffiliationStatus } from './entities'
 
 export class TeamAffiliationError extends Error {
@@ -44,6 +44,31 @@ export async function getActiveAffiliation(
 export async function listAffiliations(dataSource: DataSource, teamId: string): Promise<TeamAffiliation[]> {
   const repo = dataSource.getRepository(TeamAffiliation)
   return repo.find({ where: { teamId }, order: { startDate: 'DESC', createdAt: 'DESC' } })
+}
+
+export interface FederationAffiliationRow {
+  affiliation: TeamAffiliation
+  team: { id: string; nom: string; logo_url: string | null } | null
+}
+
+/**
+ * Toutes les affiliations (tous statuts) rattachées à une fédération —
+ * vue "clubs affiliés" pour un `FEDERATION_ADMIN` (migration.md §9), sans
+ * passer par le gros écran générique `/admin/teams`. `ACTIVE` d'abord,
+ * puis la plus récente.
+ */
+export async function listAffiliationsForFederation(dataSource: DataSource, federationId: string): Promise<FederationAffiliationRow[]> {
+  const affiliationRepo = dataSource.getRepository(TeamAffiliation)
+  const affiliations = await affiliationRepo.find({
+    where: { federationId },
+    order: { status: 'ASC', startDate: 'DESC' },
+  })
+
+  const teamIds = [...new Set(affiliations.map((a) => a.teamId))]
+  const teams = teamIds.length ? await dataSource.getRepository(Team).find({ where: { id: In(teamIds) } }) : []
+  const teamById = new Map(teams.map((t) => [t.id, { id: t.id, nom: t.nom, logo_url: t.logo_url ?? null }]))
+
+  return affiliations.map((affiliation) => ({ affiliation, team: teamById.get(affiliation.teamId) ?? null }))
 }
 
 /**

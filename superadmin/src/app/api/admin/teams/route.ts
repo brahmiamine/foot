@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth } from '@/lib/adminAuth'
+import { ensureAdminAuth, ensureAdminOrFederationAuth } from '@/lib/adminAuth'
 import { listTeamsForAdmin, createTeamAdmin, getTeamsFilterOptions, TeamFilters } from '@/lib/adminTeams'
 import type { TeamType, Sport, AgeCategory, Gender } from '@/types'
 import { logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
 
+/** Lecture ouverte à FEDERATION_ADMIN (référentiel club, non sensible — sélecteurs des écrans affiliations/transferts). Écriture (POST ci-dessous) inchangée, PLATFORM_SUPERADMIN uniquement. */
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
+  const unauthorized = await ensureAdminOrFederationAuth(request)
   if (unauthorized) return unauthorized
 
   try {
