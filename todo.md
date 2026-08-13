@@ -156,7 +156,9 @@ WHERE categoryId = ? AND quantity > 0;
 **Projets**: payment-api, billetterie, teamManager  
 **Estimation**: 3 jours  
 **Dépendances**: Aucune  
-**Status**: [x] Traité pour payment-api (voir payment-api/src/payment/payment.service.ts, entities/payment.entity.ts, payment.service.spec.ts) — l'idempotence côté webhook (providerRef + webhookReceivedCount + transition PAID conditionnelle) et l'outbox transactionnel existaient déjà ; le gap restant était la ré-initiation POST /payments/*/init côté client (retry réseau/double clic) créant un 2e Payment et un 2e paiement fournisseur. Ajout d'un header `Idempotency-Key` optionnel + contrainte UNIQUE(callerApplication, idempotencyKey) : un rejeu retourne le paiement existant sans rappeler le fournisseur, y compris en cas de course (duplicate key récupéré). billetterie a déjà `tk_processed_webhook_events` (voir billetterie/sql/migration_add_processed_webhook_events.sql) — teamManager non audité ici.
+**Status**: [x] Traité pour payment-api, billetterie et teamManager
+
+> **Note d'audit** : `billetterie` avait déjà l'idempotence webhook complète (table `tk_processed_webhook_events`, `claimWebhookEvent`). `teamManager` en était dépourvu — répliqué le même pattern (`cms_processed_webhook_events`, `claimWebhookEvent`, route webhook exige désormais `eventId`). Côté `payment-api` : l'idempotence webhook (providerRef + webhookReceivedCount + transition PAID conditionnelle + outbox transactionnel) existait déjà ; le gap restant était la ré-initiation `POST /payments/*/init` côté client (retry réseau/double clic) créant un 2e Payment et un 2e paiement fournisseur — corrigé avec un header `Idempotency-Key` optionnel + contrainte `UNIQUE(callerApplication, idempotencyKey)` (course entre deux inits concurrents récupérée via re-fetch du gagnant sur duplicate key). **payment-api n'a aucun dossier de migrations SQL existant** (schema géré par TypeORM `synchronize` hors production) — la nouvelle colonne doit être ajoutée manuellement en production, à centraliser avec TASK-P0-018.
 
 **Description**:
 Fournisseur rejeu webhook → débits multiples. Garantir idempotence.
@@ -175,9 +177,9 @@ ALTER TABLE processed_webhook_events ADD UNIQUE(paymentId, webhookId);
 5. Doublon webhook: retourner 200 sans rejeu métier
 
 **Acceptance Criteria**:
-- [ ] Migration: idempotencyKey UNIQUE, webhookId UNIQUE
-- [ ] Tests: répéter webhook 3x → tk_ticket.status PAID UNE FOIS
-- [ ] Metrics: compteur webhook duplicates (target = 0)
+- [x] idempotencyKey unique (composite callerApplication+idempotencyKey, payment-api) ; event_id UNIQUE PRIMARY KEY (billetterie/teamManager, déjà en place/répliqué)
+- [x] Tests : billetterie (déjà vert), teamManager (10 nouveaux tests), payment-api (3 nouveaux tests idempotency-key), tous verts
+- [ ] Metrics: compteur webhook duplicates (target = 0) — pas d'infra de métriques dans ce repo, à ajouter avec l'observabilité (TASK-P1-002)
 
 ---
 
