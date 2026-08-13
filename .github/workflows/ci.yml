@@ -23,6 +23,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # TASK-P0-017 (todo.md) : "CI pré-deploy check conflits migrations" —
+  # détecte une migration ajoutée sous <app>/sql|mysql|migrations/ mais
+  # jamais enregistrée dans db/migrations.manifest (silencieusement absente
+  # de tout déploiement passant par db/migrate.sh). Pur filesystem, pas de
+  # service MySQL requis.
+  db-migrations:
+    name: db migrations manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./db/validate-manifest.sh
+
   check:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest

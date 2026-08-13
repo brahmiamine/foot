@@ -23,6 +23,14 @@
 #   (voir `diff`) des fichiers superadmin/migrations et superadmin/mysql
 #   correspondants — un seul exemplaire de chaque référencé ici, pour ne
 #   pas rejouer deux fois la même altération.
+# - matchsheet/sql/migration_add_card_unique_constraint.sql : copie
+#   identique de teamManager/sql/migration_add_card_unique_constraint.sql
+#   (référencé ci-dessus, section teamManager) — même altération de `Card`,
+#   voir db/OWNERSHIP.md "Card a deux écrivains".
+# - teamManager/sql/migration_add_team_gender_and_youth_categories.sql :
+#   copie identique de
+#   superadmin/mysql/migration_add_team_gender_and_youth_categories.sql
+#   (référencé ci-dessus, section superadmin).
 #
 # Ordre : par app dans un ordre de dépendance de domaine best-effort (sso
 # avant superadmin avant les apps qui dépendent du référentiel sportif),
@@ -79,11 +87,19 @@ teamManager/sql/migration_add_card_unique_constraint.sql
 teamManager/sql/migration_add_shop_orders.sql
 # Table propre à teamManager, aucune dépendance (TS-25/TS-26, avancement.md).
 teamManager/sql/migration_add_notification_outbox.sql
+# Table propre à teamManager, aucune dépendance (TASK-P0-005, todo.md).
+teamManager/sql/migration_add_processed_webhook_events.sql
 
 # --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
 matchsheet/sql/migration_matchsheet_init.sql
 # Dépend explicitement de migration_matchsheet_init.sql (voir son en-tête).
 matchsheet/sql/migration_matchsheet_officials_controls.sql
+# Colonne propre à ms_sheets, aucune dépendance (TASK-P0-023, todo.md).
+matchsheet/sql/migration_add_sheet_version.sql
+# Table propre à matchsheet, aucune dépendance (TASK-P0-014, todo.md).
+matchsheet/sql/migration_add_match_reopen_log.sql
+# Colonnes propres à ms_signatures, aucune dépendance (TASK-P0-024, todo.md).
+matchsheet/sql/migration_add_signature_integrity.sql
 
 # --- billetterie (tk_*, dépend de teams/matches) ---
 billetterie/sql/schema.sql

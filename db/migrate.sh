@@ -64,6 +64,51 @@ mariadb_query() {
   docker exec mariadb_container mariadb -u"$DB_USER" -p"$DB_PASSWORD" foot -Nse "$1"
 }
 
+# TASK-P0-017 (todo.md) : deux exécutions concurrentes de ce script (deux
+# pipelines de déploiement lancés en même temps, ou un run bloqué relancé
+# sans attendre) pouvaient toutes deux voir la même migration comme "en
+# attente" et l'appliquer deux fois en parallèle — au mieux une erreur
+# (CREATE TABLE déjà existante), au pire une ALTER TABLE partiellement
+# rejouée. `GET_LOCK`/`RELEASE_LOCK` sont des verrous nommés MySQL/MariaDB
+# scopés à LA CONNEXION qui les détient : chaque appel `mariadb_query`/
+# `mariadb_exec` ci-dessus ouvre une nouvelle connexion (donc un nouveau
+# scope de verrou), il faut donc une connexion persistante dédiée pour tenir
+# le verrou pendant toute la durée du apply — d'où le coprocess ci-dessous,
+# gardé ouvert du début à la fin du mode "apply" et fermé par le `trap`
+# (fermer la connexion relâche aussi le verrou automatiquement côté MySQL,
+# filet de sécurité si RELEASE_LOCK explicite n'était pas atteint).
+#
+# ⚠️ Non testé contre une vraie base MariaDB dans cet environnement (pas de
+# daemon Docker disponible ici) — à vérifier en dev avant de s'appuyer
+# dessus en déploiement (ex: lancer `./migrate.sh` deux fois en parallèle
+# et confirmer que la 2e attend puis n'a rien à faire, ou échoue proprement
+# après le timeout plutôt que de dupliquer une migration).
+MIGRATION_LOCK_NAME="foot_schema_migrations"
+MIGRATION_LOCK_TIMEOUT_S=30
+DBLOCK_ACQUIRED=0
+
+acquire_migration_lock() {
+  coproc DBLOCK { docker exec -i mariadb_container mariadb -N -s -u"$DB_USER" -p"$DB_PASSWORD" foot; }
+  echo "SELECT GET_LOCK('$MIGRATION_LOCK_NAME', $MIGRATION_LOCK_TIMEOUT_S);" >&"${DBLOCK[1]}"
+  local result
+  if ! read -r -t $((MIGRATION_LOCK_TIMEOUT_S + 10)) result <&"${DBLOCK[0]}"; then
+    echo "❌ Pas de réponse du verrou de migration (connexion perdue ?)."
+    exit 1
+  fi
+  if [ "$result" != "1" ]; then
+    echo "❌ Impossible d'acquérir le verrou de migration '$MIGRATION_LOCK_NAME' après ${MIGRATION_LOCK_TIMEOUT_S}s : une autre exécution de migrate.sh est probablement en cours."
+    exit 1
+  fi
+  DBLOCK_ACQUIRED=1
+}
+
+release_migration_lock() {
+  if [ "$DBLOCK_ACQUIRED" = "1" ]; then
+    echo "SELECT RELEASE_LOCK('$MIGRATION_LOCK_NAME');" >&"${DBLOCK[1]}" 2>/dev/null || true
+  fi
+  exec {DBLOCK[1]}>&- 2>/dev/null || true
+}
+
 mariadb_exec >/dev/null <<'SQL'
 CREATE TABLE IF NOT EXISTS schema_migrations (
   id VARCHAR(255) NOT NULL PRIMARY KEY,
@@ -74,6 +119,11 @@ SQL
 if [ ! -f "$MANIFEST" ]; then
   echo "❌ Manifest introuvable : $MANIFEST"
   exit 1
+fi
+
+if [ "$MODE" = "apply" ]; then
+  trap release_migration_lock EXIT
+  acquire_migration_lock
 fi
 
 # Chemins non vides, hors commentaires (#).

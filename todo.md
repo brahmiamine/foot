@@ -449,7 +449,11 @@ Réouverture match doit être idempotente (peut être rejouée sans double effet
 **Projets**: db (tous)  
 **Estimation**: 4 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité (voir note pour le détail par sous-tâche et une limite connue)
+
+> **Note d'audit** : `db/OWNERSHIP.md` (owner + lecteurs par domaine, bien plus détaillé qu'une simple liste de 22 tables) et `db/migrate.sh` (table `schema_migrations`, application ordonnée idempotente) existaient déjà, contrairement à la description du todo. Deux gaps réels corrigés :
+> - **Migration lock** : `db/migrate.sh` ouvrait une nouvelle connexion MySQL par requête, donc un `GET_LOCK` par appel se relâchait immédiatement (ne protégeait rien). Ajout d'une connexion persistante dédiée (coprocess bash) qui tient `GET_LOCK('foot_schema_migrations', 30s)` pendant toute la durée du mode `apply` — deux exécutions concurrentes ne peuvent plus appliquer la même migration en double. ⚠️ Non testé contre une vraie base (pas de daemon Docker dans cet environnement) — à vérifier en dev avant un déploiement qui s'appuie dessus.
+> - **CI pré-deploy** : nouveau `db/validate-manifest.sh` (job CI `db-migrations`, pas de DB requise) détecte un fichier `migration_*.sql` présent sur disque mais absent de `db/migrations.manifest`. En l'exécutant sur l'état actuel du dépôt, a immédiatement trouvé 4 migrations réelles non enregistrées (dérive silencieuse déjà en cours) : `teamManager/sql/migration_add_processed_webhook_events.sql`, `matchsheet/sql/migration_add_sheet_version.sql`, `matchsheet/sql/migration_add_match_reopen_log.sql`, `matchsheet/sql/migration_add_signature_integrity.sql` — ajoutées au manifest. Deux copies cross-app légitimes (déjà couvertes par une entrée jumelle) documentées comme exclusions explicites plutôt que silencieuses.
 
 **Description**:
 Aucun owner explicite. Plusieurs projets peuvent modifier même table.
