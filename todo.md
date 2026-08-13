@@ -139,7 +139,7 @@ Construire le tunnel absent entre catalogue et commande.
 ### TASK-P0-008 — Validation des conflits de programmation
 
 **Projets :** `superadmin`
-**Statut :** [ ]
+**Statut :** [~] Chevauchements équipe/arbitre/stade, cohérence saison/date, verrou anti-course et dérogation auditée implémentés ; appartenance équipe↔compétition non vérifiable (pas de table d'inscription) et UI de dérogation non câblée
 
 **Critères d'acceptation :**
 - détecter les chevauchements d'équipe, arbitre et stade ;
@@ -148,6 +148,8 @@ Construire le tunnel absent entre catalogue et commande.
 - empêcher la modification des équipes après préparation/signature sans procédure de correction ;
 - permettre une dérogation motivée avec permission spécifique et audit ;
 - tests de création, modification et concurrence.
+
+> **Note d'implémentation** : `superadmin/src/lib/scheduleConflicts.ts` (`findScheduleConflicts`) détecte les chevauchements équipe/arbitre/stade autour de chaque création/modification de match (`createMatchAdmin`/`updateMatchAdmin` dans `adminMatches.ts`) via une fenêtre symétrique configurable (`MATCH_MIN_REST_MINUTES`, défaut 120 min) — le modèle de données n'a pas de durée de match ni de colonne de lieu propre, donc le "stade" est approximé par `Team.stadium` (texte libre) de l'équipe qui reçoit ; `assertSeasonDateCoherence` rejette une date hors des bornes `saisons.date_debut/date_fin`. La vérification et l'écriture (insert/update) sont exécutées sous le même verrou en mémoire par ressource (`scheduleLock.ts`, clés équipe/arbitre) pour fermer la fenêtre de course entre deux requêtes concurrentes sur la même équipe/le même arbitre — limite assumée : verrou par instance de process, pas de coordination multi-instance (documentée dans le fichier). La modification des équipes d'un match est bloquée dès que sa feuille (`ms_sheets`, lue en local comme pour `reopenMatchAdmin`) n'est plus `DRAFT`, sans procédure de correction (celle-ci reste à construire, voir TASK-P0-009). Une dérogation nécessite un motif d'au moins 10 caractères (`derogation_reason`) ; les conflits outrepassés sont renvoyés par l'appel et journalisés côté route (`logAdminAction`, nouvelle action `derogation`) avec le motif et le détail des conflits. **Limites non résolues** : (1) aucune notion d'"appartenance à la compétition" n'existe dans le schéma (pas de table d'inscription équipe↔saison), donc ce critère n'est pas vérifiable sans décision de modélisation ; (2) la "permission spécifique" pour la dérogation est en pratique la même que l'accès SUPERADMIN générique — RBAC actuel n'a qu'un seul rôle admin (voir TASK-P0-014) ; (3) les routes renvoient déjà un 409 structuré (`{ error, conflicts }`) mais l'UI admin (`useAdminMatches.ts`) ne propose pas encore de ressaisir avec un motif de dérogation — le conflit remonte pour l'instant comme une erreur bloquante côté formulaire. Tests : `superadmin/src/lib/adminMatches.scheduleConflicts.test.ts` (chevauchement équipe/arbitre/stade, fenêtre de repos configurable, cohérence de saison, dérogation acceptée/rejetée, non-conflit avec soi-même en modification, blocage post-signature, et concurrence réelle — deux créations simultanées sur la même équipe : une seule persiste).
 
 ### TASK-P0-009 — Workflow de correction des événements de match
 

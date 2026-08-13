@@ -3,6 +3,7 @@ import { safeErrorMessage } from '@/lib/apiError'
 import { ensureAdminAuth } from '@/lib/adminAuth'
 import { updateMatchAdmin, deleteMatchAdmin } from '@/lib/adminMatches'
 import { logAdminAction } from '@/lib/auditLog'
+import { ScheduleConflictError } from '@/lib/scheduleConflicts'
 
 export const runtime = 'nodejs'
 
@@ -17,11 +18,23 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
     // Permettre la modification de matchs sans restriction de ligue
-    const match = await updateMatchAdmin(id, body, null)
+    const { match, overriddenConflicts } = await updateMatchAdmin(id, body, null)
     await logAdminAction({ request, action: 'update', entityType: 'match', entityId: id })
+    if (overriddenConflicts.length > 0) {
+      await logAdminAction({
+        request,
+        action: 'derogation',
+        entityType: 'match',
+        entityId: id,
+        summary: `Conflit(s) de programmation outrepassé(s) : ${overriddenConflicts.map((c) => c.message).join(' ; ')} | Motif : ${body.derogation_reason ?? ''}`,
+      })
+    }
     return NextResponse.json(match)
   } catch (error) {
     console.error('Error updating match:', error)
+    if (error instanceof ScheduleConflictError) {
+      return NextResponse.json({ error: error.message, conflicts: error.conflicts }, { status: 409 })
+    }
     return NextResponse.json(
       { error: safeErrorMessage(error) },
       { status: 400 }
