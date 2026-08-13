@@ -10,5 +10,10 @@ export { VoteAlert, type AlertType, type AlertStatus } from './VoteAlert'
 export { CritereDefinitionEntity } from './CritereDefinition'
 export { Contact } from './Contact'
 export { AuditLog, type AuditAction } from './AuditLog'
+export { Player } from './Player'
+export { Card, type CardType, type MatchPeriod } from './Card'
+export { Goal } from './Goal'
+export { Injury } from './Injury'
+export { Substitution } from './Substitution'
 
 

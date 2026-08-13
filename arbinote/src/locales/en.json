@@ -100,6 +100,7 @@
   "matchCard.referee": "Referee",
   "matchCard.matchday": "Matchday",
   "matchCard.alreadyVoted": "Already voted",
+  "matchDetail.matchFacts": "Match facts",
   "matchDetail.voteTitle": "Vote for the referee",
   "matchDetail.noReferee": "No referee assigned to this match. Voting is disabled.",
   "matchDetail.cannotVote": "You cannot vote for this match. The match must have an assigned referee and the match date/time must be in the past.",

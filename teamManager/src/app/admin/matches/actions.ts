@@ -2,6 +2,7 @@
 
 import { MatchService } from "@/services/MatchService";
 import { MatchGalleryService } from "@/services/MatchGalleryService";
+import { MatchFactsService, type MatchFact } from "@/services/MatchFactsService";
 import { requireTeamId } from "@/lib/team-context";
 import { revalidatePath } from "next/cache";
 
@@ -22,6 +23,32 @@ export async function toggleMatchVisibility(id: string, isPublicVisible: boolean
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors de la mise à jour",
+    };
+  }
+}
+
+/**
+ * Fil des faits de match (buts/cartons/blessures/remplacements) saisis dans
+ * la feuille de match électronique (`matchsheet`). Vérifie d'abord que le
+ * match appartient bien à l'équipe du club connecté avant de lire les
+ * tables partagées (voir MatchFactsService, lecture seule).
+ */
+export async function fetchMatchFacts(matchId: string): Promise<{ success: true; facts: MatchFact[] } | { success: false; error: string }> {
+  try {
+    const teamId = await requireTeamId();
+    const matchService = new MatchService();
+    const match = await matchService.findById(matchId, teamId);
+    if (!match) {
+      throw new Error("Match non trouvé");
+    }
+
+    const matchFactsService = new MatchFactsService();
+    const facts = await matchFactsService.getFacts(matchId);
+    return { success: true, facts };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur lors du chargement des faits de match",
     };
   }
 }

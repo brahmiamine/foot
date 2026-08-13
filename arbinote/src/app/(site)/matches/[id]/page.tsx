@@ -6,7 +6,9 @@ import Image from "next/image";
 import { getServerLocale, translate } from "@/lib/i18nServer";
 import { CritereDefinition, Match as MatchType, Arbitre as ArbitreType } from "@/types";
 import { fetchCritereDefinitions, fetchMatchById } from "@/lib/dataAccess";
+import { fetchMatchFacts } from "@/lib/dataAccess/matchFacts";
 import ArbitreLink from "@/components/ArbitreLink";
+import MatchFactsTimeline from "@/components/MatchFactsTimeline";
 import LiveMatchBadge from "@/components/LiveMatchBadge";
 import StructuredData from "@/components/StructuredData";
 import AlertBanner from "@/components/ui/AlertBanner";
@@ -125,6 +127,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   if (!match) {
     notFound();
   }
+
+  const matchFacts = await fetchMatchFacts(id);
 
   const locale = await getServerLocale();
   const t = (key: string, params?: Record<string, string | number>) => translate(key, locale, params);
@@ -402,6 +406,17 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
       </div>
+
+      {matchFacts.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden mb-4 sm:mb-6 w-full">
+          <div className="p-3 sm:p-4 md:p-6 w-full max-w-full overflow-x-hidden">
+            <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white mb-3">
+              {t("matchDetail.matchFacts") || "Faits de match"}
+            </h2>
+            <MatchFactsTimeline facts={matchFacts} homeTeamId={match.equipe_home_id} />
+          </div>
+        </div>
+      )}
 
       {arbitre && typeof arbitre === "object" && canVote && (
         <VoteSectionWrapper
