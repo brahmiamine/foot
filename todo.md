@@ -559,7 +559,9 @@ Plusieurs apps lisent tables matchsheet. Pas de contrat événement. Score/stats
 **Projets**: arbinote  
 **Estimation**: 3 jours  
 **Dépendances**: TASK-P0-001  
-**Status**: [ ] À faire
+**Status**: [ ] Audité, non traité — nécessite une décision produit (voir note), pas juste un correctif
+
+> **Note d'audit** : deux des sous-parties étaient déjà couvertes différemment de ce que décrit le todo : la contrainte `UNIQUE(match_id, device_fingerprint)` existe déjà en base (`Vote.ts`, `uniq_votes_match_device`) — un vote dupliqué avec la même empreinte est déjà rejeté serveur, pas seulement côté client ; et un cookie de preuve HMAC (`fingerprintProof.ts`) existe déjà, mais pour un usage différent (protection IDOR sur la lecture de l'historique de vote, pas anti-fraude sur l'écriture). Ce qui manque réellement — vote authentifié JWT en alternative au fingerprint, toggle UI "Se connecter pour voter", consent checkbox, rate limit 24h — est une **fonctionnalité produit nouvelle** (nouveau parcours utilisateur, décision UX sur la coexistence des deux modes, choix d'infra pour le rate limit — aucun Redis dans arbinote aujourd'hui, seul `notification-api` en a un) plutôt qu'un bug à corriger dans du code existant. Contrairement aux autres tâches de cette passe (patchs ciblés sur un gap réel identifié), la concevoir et l'implémenter à l'aveugle risquerait d'introduire de nouveaux bugs dans un système anti-fraude déjà en place — laissé de côté pour une décision produit explicite plutôt qu'une implémentation précipitée.
 
 **Description**:
 Empreinte contournable, sensibilité changement appareil, risque vie privée.
