@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getOfficialEvalSession } from '@/lib/adminAuth'
-import { getRefereeOfficialStats } from '@/lib/refereeOfficialEvaluations'
+import { getRefereeOfficialAnalytics } from '@/lib/refereeOfficialAnalytics'
 
 export const runtime = 'nodejs'
 
@@ -12,6 +12,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { arbitreId } = await params
-  const stats = await getRefereeOfficialStats(arbitreId)
+  const stats = await getRefereeOfficialAnalytics(arbitreId)
   return NextResponse.json(stats)
 }
