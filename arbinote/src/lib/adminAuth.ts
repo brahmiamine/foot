@@ -9,9 +9,14 @@ import { getClientIP } from "./utils";
  * ne pas toucher aux ~25 routes/pages qui les appellent déjà.
  */
 
+/** migration.md §7 : PLATFORM_SUPERADMIN est l'alias cible de SUPERADMIN, accès plateforme complet équivalent. */
+function isPlatformSuperAdminRole(role: string | undefined): boolean {
+  return role === "SUPERADMIN" || role === "PLATFORM_SUPERADMIN";
+}
+
 async function isSuperAdmin(request: NextRequest): Promise<boolean> {
   const session = await getSsoSessionFromRequest(request);
-  return session?.role === "SUPERADMIN";
+  return isPlatformSuperAdminRole(session?.role);
 }
 
 /**
@@ -45,7 +50,7 @@ export async function ensureAdminAuth(request: NextRequest) {
 
 export async function hasAdminSession() {
   const session = await getSsoSession();
-  return session?.role === "SUPERADMIN";
+  return isPlatformSuperAdminRole(session?.role);
 }
 
 export { redirectToLogin };

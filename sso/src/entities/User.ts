@@ -36,18 +36,49 @@ export class User {
   @Column({ type: "varchar", length: 191 })
   password!: string;
 
+  /**
+   * migration.md §7 : rôles cibles PLATFORM_SUPERADMIN/FEDERATION_ADMIN/
+   * LEAGUE_ADMIN ajoutés à côté des rôles historiques (compatibilité
+   * additive, voir sso/sql/migration_add_federation_league_scope.sql).
+   * SUPERADMIN reste émis pour les comptes existants ; les deux valeurs
+   * sont interprétées de façon équivalente côté autorisation (voir
+   * packages/auth-shared/src/roles.ts, normalizeRole).
+   */
   @Column({
     type: "enum",
-    enum: ["ADMIN", "OBSERVATEUR", "SUPERADMIN", "MEMBER"],
+    enum: [
+      "ADMIN",
+      "OBSERVATEUR",
+      "SUPERADMIN",
+      "MEMBER",
+      "PLATFORM_SUPERADMIN",
+      "FEDERATION_ADMIN",
+      "LEAGUE_ADMIN",
+    ],
     default: "OBSERVATEUR",
   })
-  role!: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER";
+  role!:
+    | "ADMIN"
+    | "OBSERVATEUR"
+    | "SUPERADMIN"
+    | "MEMBER"
+    | "PLATFORM_SUPERADMIN"
+    | "FEDERATION_ADMIN"
+    | "LEAGUE_ADMIN";
 
   @Column({ type: "tinyint" })
   isActive!: boolean;
 
   @Column({ type: "varchar", length: 191, nullable: true })
   teamId?: string | null;
+
+  /** Fédération administrée par un compte FEDERATION_ADMIN (migration.md §7-8). `null` pour tout autre rôle. */
+  @Column({ type: "varchar", length: 191, nullable: true, name: "federation_id" })
+  federationId?: string | null;
+
+  /** Ligue administrée par un compte LEAGUE_ADMIN (migration.md §7-8). `null` pour tout autre rôle. */
+  @Column({ type: "varchar", length: 191, nullable: true, name: "league_id" })
+  leagueId?: string | null;
 
   /**
    * MFA (TOTP) — voir src/lib/mfa.ts. `mfaSecret` reste NULL tant que

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth } from '@/lib/adminAuth'
+import { ensureAdminAuth, ensureFederationAccess } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { Federation } from '@/lib/entities'
 import { toPlain } from '@/lib/serialization'
@@ -37,11 +37,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await ensureAdminAuth(request)
+  const { id } = await params
+  const unauthorized = await ensureFederationAccess(request, id)
   if (unauthorized) return unauthorized
 
   try {
-    const { id } = await params
     const body = await request.json()
     const { code, nom, nom_en, nom_ar, logo_url } = body
 
@@ -93,12 +93,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await ensureAdminAuth(request)
+  const { id } = await params
+  const unauthorized = await ensureFederationAccess(request, id)
   if (unauthorized) return unauthorized
 
   try {
-    const { id } = await params
-
     const dataSource = await getDataSource()
     const repo = dataSource.getRepository<Federation>('federations')
     const federation = await repo.findOne({ where: { id } })

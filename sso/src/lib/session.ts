@@ -27,8 +27,19 @@ export interface SsoUser {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER";
+  role:
+    | "ADMIN"
+    | "OBSERVATEUR"
+    | "SUPERADMIN"
+    | "MEMBER"
+    | "PLATFORM_SUPERADMIN"
+    | "FEDERATION_ADMIN"
+    | "LEAGUE_ADMIN";
   teamId: string | null;
+  /** Scope FEDERATION_ADMIN (migration.md §7-8) — optionnel pour ne pas casser les appelants existants qui construisent un SsoUser littéral sans ce champ ; traité comme `null` s'il est omis. */
+  federationId?: string | null;
+  /** Scope LEAGUE_ADMIN (migration.md §7-8) — même remarque que federationId. */
+  leagueId?: string | null;
   /**
    * Génération de session — voir User.tokenVersion (entité). Obligatoire
    * (pas de valeur par défaut implicite) pour forcer chaque émetteur de
@@ -54,6 +65,8 @@ async function signSession(user: SsoUser): Promise<string> {
     name: user.name,
     role: user.role,
     teamId: user.teamId,
+    federationId: user.federationId ?? null,
+    leagueId: user.leagueId ?? null,
     tokenVersion: user.tokenVersion,
   })
     .setProtectedHeader({ alg: "RS256", kid })
@@ -124,6 +137,8 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
       name: typeof payload.name === "string" ? payload.name : payload.email,
       role: payload.role as SsoUser["role"],
       teamId: typeof payload.teamId === "string" ? payload.teamId : null,
+      federationId: typeof payload.federationId === "string" ? payload.federationId : null,
+      leagueId: typeof payload.leagueId === "string" ? payload.leagueId : null,
       tokenVersion: user.tokenVersion,
     };
   } catch {

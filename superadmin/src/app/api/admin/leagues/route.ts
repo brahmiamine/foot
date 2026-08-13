@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth } from '@/lib/adminAuth'
+import { ensureAdminAuth, ensureFederationAccess } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { League } from '@/lib/entities'
 import { toPlain } from '@/lib/serialization'
@@ -127,9 +127,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
-  if (unauthorized) return unauthorized
-
   try {
     const body = await request.json()
     const { federation_id, nom, nom_en, nom_ar, logo_url } = body
@@ -140,6 +137,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // migration.md §9 : créer une ligue dans une fédération est un droit
+    // de niveau fédération (PLATFORM_SUPERADMIN ou le FEDERATION_ADMIN de
+    // cette fédération précise), pas du seul back-office générique.
+    const unauthorized = await ensureFederationAccess(request, federation_id)
+    if (unauthorized) return unauthorized
 
     const dataSource = await getDataSource()
     const federationRepo = dataSource.getRepository('federations')

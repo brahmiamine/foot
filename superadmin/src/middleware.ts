@@ -20,7 +20,22 @@ import {
  *
  * /api/admin/logout reste public : un cookie de session expiré/invalide
  * doit pouvoir être effacé même sans session SUPERADMIN valide.
+ *
+ * migration.md §7/§9 : laisse aussi passer PLATFORM_SUPERADMIN (alias
+ * cible de SUPERADMIN) et FEDERATION_ADMIN/LEAGUE_ADMIN — ce filet ne fait
+ * qu'un contrôle d'authentification (un compte avec un rôle admin valide
+ * existe), PAS d'autorisation fine par ressource. Le périmètre réel de
+ * FEDERATION_ADMIN/LEAGUE_ADMIN (leur seule fédération/ligue) reste
+ * appliqué route par route via ensureFederationAccess/ensureLeagueAccess
+ * (src/lib/adminAuth.ts) — ensureAdminAuth (le gate "accès total") n'est,
+ * lui, jamais élargi à ces deux rôles.
  */
+const ADMIN_PERIMETER_ROLES = new Set([
+  "SUPERADMIN",
+  "PLATFORM_SUPERADMIN",
+  "FEDERATION_ADMIN",
+  "LEAGUE_ADMIN",
+]);
 export const config = {
   matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
@@ -33,7 +48,7 @@ export async function middleware(request: NextRequest) {
   const token = getSsoTokenFromRequest(request);
   const session = token ? await verifySsoTokenWithRevocation(token) : null;
 
-  if (session?.role === "SUPERADMIN") {
+  if (session?.role && ADMIN_PERIMETER_ROLES.has(session.role)) {
     return NextResponse.next();
   }
 

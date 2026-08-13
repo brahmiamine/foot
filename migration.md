@@ -8,7 +8,7 @@ Ce document sert de source de vérité pour le suivi de ce chantier. Chaque phas
 
 | Phase | Contenu | Statut |
 |---|---|---|
-| Phase 1 | Modèle d'autorisation (rôles `PLATFORM_SUPERADMIN` / `FEDERATION_ADMIN` / `LEAGUE_ADMIN`, scopes, guards) | `[ ]` |
+| Phase 1 | Modèle d'autorisation (rôles `PLATFORM_SUPERADMIN` / `FEDERATION_ADMIN` / `LEAGUE_ADMIN`, scopes, guards) | `[~]` |
 | Phase 2 | Affiliations historiques club ↔ fédération/ligue/saison | `[ ]` |
 | Phase 3 | Joueurs & transferts (`player_transfers`, workflow, transaction) | `[ ]` |
 | Phase 4 | Officiels de match (`match_official_assignments`, contrôle serveur `matchsheet`) | `[ ]` |
@@ -16,12 +16,13 @@ Ce document sert de source de vérité pour le suivi de ce chantier. Chaque phas
 
 Détail des sous-tâches par phase, mis à jour au fil de l'implémentation :
 
-### Phase 1 — Modèle d'autorisation
-- [ ] Inspecter les rôles/guards/middlewares existants (`sso`, `superadmin`, autres consommateurs)
-- [ ] Introduire `PLATFORM_SUPERADMIN`, `FEDERATION_ADMIN`, `LEAGUE_ADMIN` en conservant la compatibilité avec `SUPERADMIN`/`ADMIN`/`OBSERVATEUR`/`MEMBER`
-- [ ] Définir les scopes serveur (`platform`, `federationId`, `leagueId`, `teamId`, `matchId`)
-- [ ] Ajouter les guards serveur correspondants
-- [ ] Tests négatifs (admin fédération A ne peut pas modifier fédération B, etc.)
+### Phase 1 — Modèle d'autorisation `[~]`
+- [x] Inspecter les rôles/guards/middlewares existants (`sso`, `superadmin`, `matchsheet`, `teamManager`, `arbinote`, `billetterie`, `ob`) — audit complet, rien dupliqué (rôles stockés en `enum` sur `User.role`, dupliqué en union TS par app ; pas de scope fédéral/ligue existant avant ce chantier).
+- [x] Introduire `PLATFORM_SUPERADMIN`, `FEDERATION_ADMIN`, `LEAGUE_ADMIN` dans l'enum `User.role` (migration SQL additive, `sso/sql/migration_add_federation_league_scope.sql`) en conservant `SUPERADMIN`/`ADMIN`/`OBSERVATEUR`/`MEMBER` — `PLATFORM_SUPERADMIN` traité comme un alias strict de `SUPERADMIN` partout (aucun élargissement d'accès).
+- [x] Définir les scopes serveur : `federationId`/`leagueId` ajoutés à `User` (colonnes), au JWT (`sso/src/lib/session.ts`, `packages/auth-shared/src/session.ts`) et modélisés dans `packages/auth-shared/src/roles.ts` (`normalizeRole`, `canAccessFederation`, `canAccessLeague`, `canAccessPlatform`) — `teamId`/`matchId` existaient déjà (Phase 4 les exploitera pour `MATCH_OFFICIAL`).
+- [x] Ajouter les guards serveur : `superadmin/src/lib/adminAuth.ts` (`ensureFederationAccess`, `ensureLeagueAccess`, `getAdminSession`), branchés sur `federations/route.ts` (POST), `federations/[id]/route.ts` (PUT/DELETE), `leagues/route.ts` (POST), `leagues/[id]/route.ts` (PUT/DELETE) — `ensureAdminAuth` (accès plateforme complet) explicitement **non élargi** à `FEDERATION_ADMIN`/`LEAGUE_ADMIN` pour ne pas leur donner par erreur un accès complet aux ~40 autres routes qui ne font que cette vérification. `matchsheet`/`teamManager`/`arbinote`/`billetterie` : `PLATFORM_SUPERADMIN` reconnu comme alias de `SUPERADMIN` dans leurs middlewares/guards existants (comportement inchangé pour les comptes actuels).
+- [x] Tests négatifs : `superadmin/src/lib/roles.test.ts` (24 cas — dont `FEDERATION_ADMIN A` ne peut pas accéder à la fédération B, `LEAGUE_ADMIN X` ne peut pas accéder à la ligue Y, refus sans scope) + `superadmin/src/lib/adminAuth.test.ts` (guards HTTP 401/403). `pnpm vitest run` et `pnpm tsc --noEmit` verts sur `sso`, `superadmin`, `matchsheet`, `teamManager`, `arbinote`, `billetterie`, `ob`.
+- [ ] **Reste ouvert (reporté, hors périmètre "modèle d'autorisation")** : les routes `superadmin` autres que fédérations/ligues (saisons, journées, clubs affiliés, arbitres, matchs) ne sont pas encore scopées par fédération/ligue — elles restent `PLATFORM_SUPERADMIN`-only comme avant, à traiter au fil des Phases 2-4 quand ces domaines seront eux-mêmes modélisés. Adaptation des écrans `superadmin` (formulaires filtrés par scope) : Phase 2. Provisioning des comptes `FEDERATION_ADMIN`/`LEAGUE_ADMIN` (aucun compte de ce type ne peut encore être créé depuis l'UI) : Phase 2.
 
 ### Phase 2 — Affiliations
 - [ ] Modèle `team_affiliations` (federationId, leagueId, competitionId, seasonId, teamId, status, startDate, endDate)

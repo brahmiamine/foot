@@ -17,7 +17,13 @@ import type { SessionUser } from "@/types/auth";
  */
 export async function auth(): Promise<{ user: SessionUser } | null> {
   const session = await getSsoSession();
-  if (!session || session.role === "SUPERADMIN" || session.role === "MEMBER" || !session.teamId) {
+  if (
+    !session ||
+    session.role === "SUPERADMIN" ||
+    session.role === "PLATFORM_SUPERADMIN" ||
+    session.role === "MEMBER" ||
+    !session.teamId
+  ) {
     return null;
   }
 
