@@ -96,6 +96,9 @@ teamManager/sql/migration_add_shop_orders.sql
 teamManager/sql/migration_add_notification_outbox.sql
 # Table propre à teamManager, aucune dépendance (TASK-P0-005, todo.md).
 teamManager/sql/migration_add_processed_webhook_events.sql
+# Module central de transfert/homologation (migration.md §19-21, Phase 3).
+# Dépend de Player (migration_unify_players.sql) et teams (déjà en base).
+teamManager/sql/migration_add_player_transfers.sql
 
 # --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
 matchsheet/sql/migration_matchsheet_init.sql

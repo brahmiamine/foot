@@ -10,7 +10,7 @@ Ce document sert de source de vérité pour le suivi de ce chantier. Chaque phas
 |---|---|---|
 | Phase 1 | Modèle d'autorisation (rôles `PLATFORM_SUPERADMIN` / `FEDERATION_ADMIN` / `LEAGUE_ADMIN`, scopes, guards) | `[~]` |
 | Phase 2 | Affiliations historiques club ↔ fédération/ligue/saison | `[~]` |
-| Phase 3 | Joueurs & transferts (`player_transfers`, workflow, transaction) | `[ ]` |
+| Phase 3 | Joueurs & transferts (`player_transfers`, workflow, transaction) | `[~]` |
 | Phase 4 | Officiels de match (`match_official_assignments`, contrôle serveur `matchsheet`) | `[ ]` |
 | Phase 5 | ArbiNote officiel (évaluation fédérale séparée du score public) | `[ ]` |
 
@@ -32,12 +32,13 @@ Détail des sous-tâches par phase, mis à jour au fil de l'implémentation :
 - [x] Tests (8 cas, `superadmin/src/lib/teamAffiliations.test.ts`) : première affiliation, changement de ligue clôturant l'ancienne sans la supprimer, rejet ligue ↔ fédération incohérente, rejet d'antidatage, désaffiliation, appartenance historique à une date passée (avant/à/après un changement), suspension sans clôture. `vitest run` + `tsc --noEmit` verts.
 - [ ] **Reste ouvert** : écrans `superadmin` (aucune UI ne consomme encore ces routes — actuellement API-only) ; provisioning des comptes `FEDERATION_ADMIN`/`LEAGUE_ADMIN` depuis l'UI ; migration/rétro-remplissage d'une affiliation initiale pour les clubs déjà en base (`teams.federation_id` existant) — à faire avant de basculer un écran dessus.
 
-### Phase 3 — Joueurs & transferts
-- [ ] Vue globale joueurs dans `superadmin`
-- [ ] Table `player_transfers`
-- [ ] Workflow + transaction atomique (affiliation historique + `Player.teamId`)
-- [ ] Vérification temporelle dans `matchsheet` (appartenance au moment du match)
-- [ ] Audit + notifications
+### Phase 3 — Joueurs & transferts `[~]`
+- [x] Table `player_transfers` (`teamManager/src/entities/PlayerTransfer.ts`, migration `teamManager/sql/migration_add_player_transfers.sql`) : types `PERMANENT`/`LOAN`/`LOAN_RETURN`/`FREE_TRANSFER`, statuts `DRAFT`/`PENDING`/`APPROVED`/`COMPLETED`/`CANCELLED`/`REJECTED` — propriété `teamManager` (seul à posséder à la fois `Player` et `cms_team_members`, condition nécessaire pour la transaction unique du §20).
+- [x] Workflow + transaction atomique : `teamManager/src/services/PlayerTransferService.ts#completeTransfer` clôture l'affiliation `cms_team_members` du club source, en ouvre une au club destination et met à jour `Player.teamId` dans **une seule transaction DB** — jamais un enchaînement d'appels séparés. `Player.id` n'est jamais recréé. Idempotent : un transfert déjà `COMPLETED` ne peut pas être rejoué (double validation concurrente rejetée) ; rejette aussi si le joueur a déjà changé de club entre la création et l'homologation.
+- [x] Orchestration `superadmin` → `teamManager` : `superadmin` ne possède ni n'écrit `Player`/`cms_team_members`/`player_transfers` — `POST /api/admin/player-transfers` (superadmin) appelle les routes internes service-à-service `POST /api/internal/player-transfers`, `.../:id/complete`, `.../:id/close` (teamManager, `ensureServiceAuth`), même pattern que la saga d'annulation de match (TASK-P0-003, `matchSagaClients.ts`). Version v1 simplifiée (explicitement autorisée par le §19) : create + complete enchaînés en un seul appel superadmin, pas de workflow de validation à deux clubs pour l'instant.
+- [x] Autorisation dérivée de `team_affiliations` (Phase 2) : la fédération autorisée à transférer un joueur est celle qui gouverne ACTUELLEMENT le club source (`getActiveAffiliation`), jamais un `federation_id` fourni par le client ; un club sans affiliation active ne peut être transféré que par `PLATFORM_SUPERADMIN`.
+- [x] Tests : 10 cas côté `teamManager` (`PlayerTransferService.test.ts` — même club rejeté, joueur/club inconnu, club source incorrect, transaction atomique avec vérification `Player.id` préservé + anciennes/nouvelles affiliations, double validation concurrente, joueur déjà transféré ailleurs, transfert `CANCELLED` non compétable) + 5 cas côté `superadmin` (`route.test.ts` — fédération A ne peut pas transférer un club de fédération B, club sans affiliation réservé à `PLATFORM_SUPERADMIN`, champs requis manquants). `vitest run` + `tsc --noEmit` verts sur `teamManager` (102 tests) et `superadmin` (98 tests).
+- [ ] **Reste ouvert** : vue globale `/joueurs` (§18, filtres fédération/ligue/saison/club/catégorie/poste/statut) et écran `/clubs/{clubId}/joueurs` dans `superadmin` — API-only pour l'instant, pas d'UI. Écran `Transferts` (§23, nouveau/en attente/approuvés/historique/prêts/annulés) — non fait, seule la route `POST` existe. Workflow de validation à deux acteurs (club source propose, club destination confirme, fédération homologue) — la v1 simplifiée saute cette étape. Notifications (`PLAYER_TRANSFER_*` vers `notification-api`) — non câblées. Vérification temporelle dans `matchsheet` (§22, `player.teamId === match.teamId` actuel à remplacer par une lecture de l'historique d'appartenance à la date du match) — prévue en Phase 4 avec les officiels de match, réutilisera `getAffiliationAt`/l'équivalent côté `cms_team_members`. Historique clubs en lecture seule pour un ancien joueur dans `teamManager` (§23) — non fait.
 
 ### Phase 4 — Officiels de match
 - [ ] Table `match_official_assignments`
