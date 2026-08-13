@@ -10,6 +10,14 @@ export async function getMatchLeagueId(dataSource: DataSource, matchId: string):
   return saison?.league_id ?? null
 }
 
+export async function getMatchScope(dataSource: DataSource, matchId: string): Promise<{ leagueId: string; federationId: string } | null> {
+  const leagueId = await getMatchLeagueId(dataSource, matchId)
+  if (!leagueId) return null
+  const league = await dataSource.getRepository(League).findOne({ where: { id: leagueId } })
+  if (!league?.federation_id) return null
+  return { leagueId, federationId: league.federation_id }
+}
+
 export async function getMatchFederationId(dataSource: DataSource, matchId: string): Promise<string | null> {
   const leagueId = await getMatchLeagueId(dataSource, matchId)
   if (!leagueId) return null
