@@ -34,6 +34,46 @@ interface TransferResult {
   warning?: string
 }
 
+type TransferStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED'
+
+interface Transfer {
+  id: string
+  playerId: string
+  fromTeamId: string
+  toTeamId: string
+  transferType: TransferType
+  status: TransferStatus
+  effectiveDate: string
+  fee?: string | null
+  currency?: string | null
+  notes?: string | null
+  statusReason?: string | null
+  createdAt?: string
+  fromTeamName: string | null
+  toTeamName: string | null
+  playerName: string | null
+}
+
+const STATUS_LABELS: Record<TransferStatus, { label: string; badge: string }> = {
+  DRAFT: { label: 'Brouillon', badge: 'bg-secondary-subtle text-secondary' },
+  PENDING: { label: 'En attente', badge: 'bg-warning-subtle text-warning' },
+  APPROVED: { label: 'Approuvé', badge: 'bg-info-subtle text-info' },
+  COMPLETED: { label: 'Complété', badge: 'bg-success-subtle text-success' },
+  CANCELLED: { label: 'Annulé', badge: 'bg-secondary-subtle text-secondary' },
+  REJECTED: { label: 'Rejeté', badge: 'bg-danger-subtle text-danger' },
+}
+
+type DashboardTab = 'ALL' | 'PENDING' | 'APPROVED' | 'COMPLETED' | 'LOAN' | 'CANCELLED'
+
+const TAB_LABELS: Record<DashboardTab, string> = {
+  ALL: 'Tous',
+  PENDING: 'En attente',
+  APPROVED: 'Approuvés',
+  COMPLETED: 'Historique',
+  LOAN: 'Prêts',
+  CANCELLED: 'Annulés',
+}
+
 const emptyForm = {
   from_team_id: '',
   to_team_id: '',
@@ -52,9 +92,10 @@ const emptyForm = {
  * migration.md §19-23, Phase 3 : module central de transfert/homologation.
  * v1 simplifiée (autorisée par §19) — create + complete enchaînés côté
  * `POST /api/admin/player-transfers`, pas de workflow de validation à deux
- * clubs. Pas d'historique/tableau de bord ici : aucune route `GET` de
- * listing n'existe encore côté `teamManager` (reste ouvert, voir
- * migration.md Phase 3).
+ * clubs. Tableau de bord (§23) sous forme d'onglets filtrant une seule
+ * liste chargée une fois (`GET /api/admin/player-transfers`, scopée par
+ * fédération côté serveur pour un FEDERATION_ADMIN) plutôt que six routes
+ * séparées.
  */
 export default function AdminPlayerTransfersManager() {
   const [teams, setTeams] = useState<TeamOption[]>([])
@@ -67,6 +108,10 @@ export default function AdminPlayerTransfersManager() {
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState(emptyForm)
+
+  const [transfers, setTransfers] = useState<Transfer[]>([])
+  const [loadingTransfers, setLoadingTransfers] = useState(true)
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('ALL')
 
   useEffect(() => {
     async function load() {
@@ -85,7 +130,27 @@ export default function AdminPlayerTransfersManager() {
       }
     }
     load()
+    loadTransfers()
   }, [])
+
+  async function loadTransfers() {
+    setLoadingTransfers(true)
+    try {
+      const response = await fetch('/api/admin/player-transfers', { cache: 'no-store', credentials: 'include' })
+      if (response.ok) setTransfers(await response.json())
+    } catch {
+      // silencieux : le formulaire de création reste utilisable même si le tableau de bord échoue à charger
+    } finally {
+      setLoadingTransfers(false)
+    }
+  }
+
+  const filteredTransfers = useMemo(() => {
+    if (dashboardTab === 'ALL') return transfers
+    if (dashboardTab === 'LOAN') return transfers.filter((t) => t.transferType === 'LOAN')
+    if (dashboardTab === 'CANCELLED') return transfers.filter((t) => t.status === 'CANCELLED' || t.status === 'REJECTED')
+    return transfers.filter((t) => t.status === dashboardTab)
+  }, [transfers, dashboardTab])
 
   useEffect(() => {
     if (!form.from_team_id) {
@@ -141,6 +206,7 @@ export default function AdminPlayerTransfersManager() {
       }
       setResult({ id: data.id, status: data.status, warning: data.warning })
       setForm(emptyForm)
+      await loadTransfers()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
     } finally {
@@ -325,6 +391,65 @@ export default function AdminPlayerTransfersManager() {
                 </button>
               </div>
             </form>
+          )}
+        </div>
+      </div>
+
+      <div className="card shadow-sm border-0">
+        <div className="card-body">
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h5 className="mb-0">Tableau de bord</h5>
+            <div className="btn-group btn-group-sm" role="group">
+              {(Object.keys(TAB_LABELS) as DashboardTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`btn ${dashboardTab === tab ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => setDashboardTab(tab)}
+                >
+                  {TAB_LABELS[tab]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loadingTransfers ? (
+            <p className="text-muted mb-0">Chargement...</p>
+          ) : filteredTransfers.length === 0 ? (
+            <p className="text-muted mb-0">Aucun transfert dans cette catégorie.</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Joueur</th>
+                    <th>De</th>
+                    <th>Vers</th>
+                    <th>Type</th>
+                    <th>Date d&apos;effet</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransfers.map((t) => {
+                    const status = STATUS_LABELS[t.status]
+                    return (
+                      <tr key={t.id}>
+                        <td>{t.playerName ?? t.playerId}</td>
+                        <td>{t.fromTeamName ?? t.fromTeamId}</td>
+                        <td>{t.toTeamName ?? t.toTeamId}</td>
+                        <td>{TRANSFER_TYPE_LABELS[t.transferType]}</td>
+                        <td className="text-muted small">{t.effectiveDate}</td>
+                        <td>
+                          <span className={`badge ${status.badge}`}>{status.label}</span>
+                          {t.statusReason && <div className="text-muted small">{t.statusReason}</div>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

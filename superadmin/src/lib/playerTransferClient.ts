@@ -35,7 +35,7 @@ function getConfig(): { baseUrl: string; apiKey: string } {
   return { baseUrl, apiKey }
 }
 
-async function postJsonWithRetries<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+async function requestWithRetries<T>(method: 'GET' | 'POST', path: string, body?: Record<string, unknown>): Promise<T> {
   const { baseUrl, apiKey } = getConfig()
   const url = `${baseUrl.replace(/\/$/, '')}${path}`
 
@@ -43,7 +43,7 @@ async function postJsonWithRetries<T>(path: string, body?: Record<string, unknow
     let response: Response
     try {
       response = await fetch(url, {
-        method: 'POST',
+        method,
         headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(5000),
@@ -68,6 +68,10 @@ async function postJsonWithRetries<T>(path: string, body?: Record<string, unknow
   throw new PlayerTransferClientError('Nombre maximal de tentatives atteint')
 }
 
+async function postJsonWithRetries<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+  return requestWithRetries<T>('POST', path, body)
+}
+
 export interface RemotePlayerTransfer {
   id: string
   playerId: string
@@ -76,7 +80,16 @@ export interface RemotePlayerTransfer {
   transferType: string
   status: string
   effectiveDate: string
+  seasonId?: string | null
+  fee?: string | null
+  currency?: string | null
+  loanStartDate?: string | null
+  loanEndDate?: string | null
+  notes?: string | null
+  createdBy?: string | null
   approvedBy?: string | null
+  statusReason?: string | null
+  createdAt?: string
 }
 
 export interface CreatePlayerTransferInput {
@@ -96,6 +109,18 @@ export interface CreatePlayerTransferInput {
 
 export async function createPlayerTransfer(input: CreatePlayerTransferInput): Promise<RemotePlayerTransfer> {
   return postJsonWithRetries<RemotePlayerTransfer>('/api/internal/player-transfers', { ...input })
+}
+
+/**
+ * migration.md §23 : tableau de bord Transferts. Pas de filtre par
+ * fédération côté `teamManager` (`team_affiliations` n'existe pas dans
+ * cette base) — `superadmin` (voir route `/api/admin/player-transfers`)
+ * filtre le résultat après coup avec sa propre connaissance des
+ * affiliations pour un `FEDERATION_ADMIN`.
+ */
+export async function listPlayerTransfers(status?: string): Promise<RemotePlayerTransfer[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : ''
+  return requestWithRetries<RemotePlayerTransfer[]>('GET', `/api/internal/player-transfers${query}`)
 }
 
 export async function completePlayerTransfer(transferId: string, approvedBy?: string | null): Promise<RemotePlayerTransfer> {

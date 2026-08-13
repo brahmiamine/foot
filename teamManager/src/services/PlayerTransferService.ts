@@ -4,7 +4,7 @@ import { getDataSource } from "@/lib/database";
 import { Player } from "@/entities/Player";
 import { Team } from "@/entities/Team";
 import { TeamMember } from "@/entities/TeamMember";
-import { PlayerTransfer, type PlayerTransferType } from "@/entities/PlayerTransfer";
+import { PlayerTransfer, type PlayerTransferType, type PlayerTransferStatus } from "@/entities/PlayerTransfer";
 
 export class PlayerTransferError extends Error {
   constructor(message: string) {
@@ -165,4 +165,20 @@ export async function closeTransfer(transferId: string, input: CloseTransferInpu
 export async function getTransferById(transferId: string): Promise<PlayerTransfer | null> {
   const dataSource = await getDataSource();
   return dataSource.getRepository(PlayerTransfer).findOne({ where: { id: transferId } });
+}
+
+/**
+ * migration.md §23 : tableau de bord Transferts (superadmin) — pas de
+ * filtre par fédération ici (`team_affiliations` vit côté superadmin, pas
+ * dans cette base) : `superadmin` filtre le résultat après coup avec sa
+ * propre connaissance des affiliations, voir playerTransferClient.ts.
+ */
+export async function listTransfers(status?: PlayerTransferStatus, limit = 200): Promise<PlayerTransfer[]> {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(PlayerTransfer);
+  return repo.find({
+    where: status ? { status } : {},
+    order: { createdAt: "DESC" },
+    take: limit,
+  });
 }
