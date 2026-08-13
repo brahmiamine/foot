@@ -99,15 +99,19 @@ Construire le tunnel absent entre catalogue et commande.
 ### TASK-P0-005 — Réservation atomique du stock marketplace
 
 **Projets :** `marketplace-api`
-**Statut :** [!] Dépend de TASK-P0-004
+**Statut :** [~] Primitive implémentée et testée dans `InventoryService` ; sans appelant tant que TASK-P0-004 (tunnel de commande) n'existe pas
+
+Contrairement au statut précédent ("dépend de TASK-P0-004") : l'ordre a été inversé délibérément — le tunnel de commande a besoin de cette primitive pour réserver le stock de façon sûre, pas l'inverse. `InventoryService.reserveStock/confirmReservation/releaseReservation/expireStaleReservations` (voir `src/inventory/inventory.service.ts`) sont prêtes à être appelées par TASK-P0-004 dès qu'il sera construit ; aucune route HTTP ajoutée pour l'instant (aucun appelant réel, cf. "pas de code mort" — TASK-P0-004 décidera si l'appel se fait en process ou par HTTP interne).
 
 **Critères d'acceptation :**
-- quantités `available`, `reserved`, `sold` avec invariants en base ;
-- réservation transactionnelle conditionnelle empêchant tout stock négatif ;
-- expiration et libération idempotente des réservations ;
-- conversion `reserved → sold` exactement une fois après paiement ;
-- verrouillage/concurrence testé sur la dernière unité ;
-- métrique d'oversell avec cible zéro.
+- [x] quantités `available`, `reserved`, `sold` avec invariants en base : colonnes déjà présentes (`sp_inventory_items`), garantis par l'UPDATE conditionnel plutôt que par une contrainte CHECK SQL (MySQL/MariaDB ne les vérifie pas de façon fiable selon version) — voir `détecte l'oversell` ci-dessous pour la sonde défensive ;
+- [x] réservation transactionnelle conditionnelle empêchant tout stock négatif (`reserveStock` : `UPDATE ... WHERE available >= :qty`, `affected !== 1` rejette plutôt que de committer un stock négatif) ;
+- [x] expiration et libération idempotente des réservations (`expireStaleReservations` scheduler-ready, `releaseReservation` idempotente — relâcher deux fois ne rend jamais deux fois le stock) ;
+- [x] conversion `reserved → sold` exactement une fois après paiement (`confirmReservation`, UPDATE conditionnel sur `status = RESERVED`, idempotente) ;
+- [x] verrouillage/concurrence testé sur la dernière unité (`inventory.service.spec.ts` : réservation de la dernière unité disponible, puis rejet d'une seconde réservation concurrente) ;
+- [x] métrique d'oversell avec cible zéro (`InventoryService.detectOversell`, exposée par `GET /health/inventory`, sonde ops non authentifiée).
+
+Nouvelle table `sp_stock_reservations` (une ligne par réservation individuelle, pas seulement les compteurs agrégés — nécessaire pour l'idempotence par référence d'appelant) : migration dans `sellerPortal/sql/migration_add_stock_reservations.sql` (schéma `sp_*` possédé par `sellerPortal`, pas par `marketplace-api` — voir `marketplace-api/README.md` § Données possédées). 22 tests (`inventory.service.spec.ts`).
 
 ### TASK-P0-006 — Relier les retours marketplace aux remboursements et payouts
 
@@ -487,7 +491,7 @@ Ajouter tests accessibilité, visuels et performance, CAPTCHA/antispam, feature 
 
 ## Lot 1 — Fermer les flux financiers
 
-`P0-001 → P0-002/P0-003/P0-006`, en parallèle de `P0-004 → P0-005`.
+`P0-001 → P0-002/P0-003/P0-006`, en parallèle de `P0-005 → P0-004` (inversé par rapport à l'ordre initial : la réservation de stock est la primitive dont le checkout a besoin, pas l'inverse — voir la note dans TASK-P0-005).
 
 ## Lot 2 — Garantir le match officiel
 

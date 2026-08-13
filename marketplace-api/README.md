@@ -16,7 +16,9 @@ API sans pages. Routes de service pour catégories, modération produits, lectur
 
 ## API
 
-Contrôleurs: health; auth; categories; sellers; products et internal-products; variants; inventory; seller-orders et orders; returns; payouts; notifications; moderation. Les verbes et gardes sont ceux des décorateurs NestJS; Swagger est exposé par l'application en développement.
+Contrôleurs: health; auth; categories; sellers; products et internal-products; variants; inventory (+ `health/inventory`, sonde ops non authentifiée — TASK-P0-005); seller-orders et orders; returns; payouts; notifications; moderation. Les verbes et gardes sont ceux des décorateurs NestJS; Swagger est exposé par l'application en développement.
+
+**Réservation de stock (TASK-P0-005)** : `InventoryService.reserveStock/confirmReservation/releaseReservation/expireStaleReservations` — primitive transactionnelle (UPDATE SQL conditionnel, jamais de stock négatif même sous requêtes concurrentes sur la dernière unité), pas encore exposée en HTTP : aucun appelant aujourd'hui, le tunnel de commande qui en aura besoin (TASK-P0-004) reste à construire. `GET /health/inventory` expose la métrique d'oversell (compte des `InventoryItem.available < 0`, cible zéro).
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
@@ -26,9 +28,9 @@ Contrôleurs: health; auth; categories; sellers; products et internal-products; 
 
 ## Données possédées
 
-Base dédiée configurée par `DB_*`: vendeurs/utilisateurs, catégories, produits/images/variantes, inventaire, commandes vendeur/lignes, commandes marché, retours, payouts et notifications.
+Base dédiée configurée par `DB_*`: vendeurs/utilisateurs, catégories, produits/images/variantes, inventaire (+ réservations de stock, TASK-P0-005), commandes vendeur/lignes, commandes marché, retours, payouts et notifications.
 
-**Migrations réellement présentes :** Aucun dossier `migrations/`, `mysql/` ou `sql/`.
+**Migrations réellement présentes :** Aucun dossier `migrations/`, `mysql/` ou `sql/` dans `marketplace-api` lui-même — le schéma des tables `sp_*` est possédé par `sellerPortal` (`sql/schema.sql` + `sql/migration_*.sql`, voir `src/config/database.config.ts`), pas par ce service. La table `sp_stock_reservations` (TASK-P0-005) est ajoutée par `sellerPortal/sql/migration_add_stock_reservations.sql`.
 
 ## Intégrations
 
@@ -66,4 +68,4 @@ Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `su
 
 ## Limites connues
 
-Aucune migration SQL n'est présente; le déploiement doit fournir le schéma autrement et ne doit pas compter sur une description. Pas de paiement/expédition externe. Deux modèles existent encore avec sellerPortal local.
+Aucune migration SQL n'est présente dans ce dépôt (le schéma `sp_*` est possédé par `sellerPortal`, voir "Données possédées"); le déploiement doit s'assurer qu'elle est appliquée là-bas. Pas de tunnel de commande/panier (checkout) : `TASK-P0-004` reste à construire, donc `InventoryService.reserveStock` et consorts (TASK-P0-005) n'ont aujourd'hui aucun appelant réel — voir `todo.md`. Pas de paiement/expédition externe. Deux modèles existent encore avec sellerPortal local.
