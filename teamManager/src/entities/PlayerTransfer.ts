@@ -5,23 +5,6 @@ import { Team } from "./Team";
 export type PlayerTransferType = "PERMANENT" | "LOAN" | "LOAN_RETURN" | "FREE_TRANSFER";
 export type PlayerTransferStatus = "DRAFT" | "PENDING" | "APPROVED" | "COMPLETED" | "CANCELLED" | "REJECTED";
 
-/**
- * migration.md §19-21 : module central de transfert/homologation. Table
- * propre à `teamManager`, qui possède déjà `Player` et `TeamMember`
- * (`cms_team_members`) — un transfert `COMPLETED` doit clôturer l'ancienne
- * affiliation `TeamMember`, en créer une nouvelle et mettre à jour
- * `Player.teamId` dans UNE SEULE transaction DB (§20) : ce n'est possible
- * de façon atomique que si les trois écritures restent dans la même app/
- * connexion, d'où ce choix de propriétaire plutôt que `superadmin`.
- *
- * `superadmin` (fédération/ligue, homologation) pilote ce workflow via les
- * routes `/api/internal/player-transfers/*` (service-à-service, voir
- * lib/serviceAuth.ts) — même pattern que la saga d'annulation de match
- * (TASK-P0-003), pas d'écriture directe de superadmin sur cette table.
- *
- * `Player.id` n'est jamais recréé lors d'un transfert (§19) : seul
- * `Player.teamId` change, piloté par PlayerTransferService.complete.
- */
 @Entity("player_transfers")
 export class PlayerTransfer {
   @PrimaryColumn({ type: "varchar", length: 191 })
@@ -48,21 +31,12 @@ export class PlayerTransfer {
   @JoinColumn({ name: "to_team_id" })
   toTeam?: Team;
 
-  @Column({
-    type: "enum",
-    enum: ["PERMANENT", "LOAN", "LOAN_RETURN", "FREE_TRANSFER"],
-    name: "transfer_type",
-  })
+  @Column({ type: "enum", enum: ["PERMANENT", "LOAN", "LOAN_RETURN", "FREE_TRANSFER"], name: "transfer_type" })
   transferType!: PlayerTransferType;
 
-  @Column({
-    type: "enum",
-    enum: ["DRAFT", "PENDING", "APPROVED", "COMPLETED", "CANCELLED", "REJECTED"],
-    default: "PENDING",
-  })
+  @Column({ type: "enum", enum: ["DRAFT", "PENDING", "APPROVED", "COMPLETED", "CANCELLED", "REJECTED"], default: "PENDING" })
   status!: PlayerTransferStatus;
 
-  /** Date à laquelle le transfert prend effet — utilisée pour clôturer/ouvrir les TeamMember et vérifier l'appartenance historique (§22). */
   @Column({ type: "date", name: "effective_date" })
   effectiveDate!: string;
 
@@ -84,12 +58,24 @@ export class PlayerTransfer {
   @Column({ type: "text", nullable: true })
   notes?: string | null;
 
-  /** Identité de l'auteur (ex: email FEDERATION_ADMIN côté superadmin) — pas de FK vers `User` : l'acteur n'est jamais un compte club teamManager. */
   @Column({ type: "varchar", length: 191, nullable: true, name: "created_by" })
   createdBy?: string | null;
 
+  /** Legacy field kept for backward compatibility with already deployed rows. */
   @Column({ type: "varchar", length: 191, nullable: true, name: "approved_by" })
   approvedBy?: string | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "destination_approved_by" })
+  destinationApprovedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "destination_approved_at" })
+  destinationApprovedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "homologated_by" })
+  homologatedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "homologated_at" })
+  homologatedAt?: Date | null;
 
   @Column({ type: "text", nullable: true, name: "status_reason" })
   statusReason?: string | null;
