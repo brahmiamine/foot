@@ -16,15 +16,14 @@ function buildQueryBuilder(rawResult: Record<string, unknown>) {
 }
 
 describe('PayoutsService', () => {
-  let repository: jest.Mocked<
-    Pick<
-      Repository<Payout>,
-      'findOne' | 'save' | 'find' | 'create' | 'createQueryBuilder'
-    >
-  >;
-  let sellerOrderRepository: jest.Mocked<
-    Pick<Repository<SellerOrder>, 'createQueryBuilder'>
-  >;
+  let repository: {
+    findOne: jest.Mock;
+    save: jest.Mock;
+    find: jest.Mock;
+    create: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let sellerOrderRepository: { createQueryBuilder: jest.Mock };
   let service: PayoutsService;
 
   function buildPayout(overrides: Partial<Payout> = {}): Payout {
