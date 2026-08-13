@@ -1,6 +1,7 @@
 import {
   IsIn,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   Max,
@@ -49,6 +50,17 @@ class EnvironmentVariables {
   // JSON: {"teamManager":"clé1","payment-api":"clé2", ...}
   @IsNotEmpty({ message: 'SERVICE_API_KEYS is required' })
   SERVICE_API_KEYS: string;
+
+  // TASK-P0-003 : rotation sans interruption — clé précédente encore
+  // acceptée en parallèle (même format JSON que SERVICE_API_KEYS) jusqu'à
+  // SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT. Les deux sont optionnels : leur
+  // absence dégrade simplement vers l'acceptation de la seule clé courante.
+  @IsOptional()
+  SERVICE_API_KEYS_PREVIOUS?: string;
+
+  @IsOptional()
+  @IsISO8601({}, { message: 'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date' })
+  SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?: string;
 
   // --- Database (notification-api, données propres) ---
   @IsNotEmpty()

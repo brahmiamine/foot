@@ -22,7 +22,7 @@ Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Pa
 
 ## Authentification et autorisations
 
-`ServiceAuthGuard` contrôle initialisations et lecture avec `SERVICE_API_KEYS`. Les webhooks ne portent pas cette clé; ils valident signature/secret ou relisent le statut fournisseur selon l'implémentation. `PAYMENT_WEBHOOK_SECRET` signe les callbacks sortants. Aucun secret ne doit aller au frontend.
+`ServiceAuthGuard` contrôle initialisations et lecture avec `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`, TASK-P0-003 — voir `src/config/service-clients.config.ts`). Les webhooks ne portent pas cette clé; ils valident signature/secret ou relisent le statut fournisseur selon l'implémentation. `PAYMENT_WEBHOOK_SECRET` signe les callbacks sortants. Aucun secret ne doit aller au frontend.
 
 ## Données possédées
 

@@ -61,4 +61,20 @@ describe('validateEnv', () => {
 
     expect(() => validateEnv(env)).toThrow(/SERVICE_API_KEYS/);
   });
+
+  // TASK-P0-003 : rotation sans interruption — champs optionnels.
+  it('accepts an environment with SERVICE_API_KEYS_PREVIOUS and a valid ISO expiry', () => {
+    const env = validEnv({
+      SERVICE_API_KEYS_PREVIOUS: '{"ob":"ob-old-key"}',
+      SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT: '2026-08-20T00:00:00.000Z',
+    });
+
+    expect(() => validateEnv(env)).not.toThrow();
+  });
+
+  it('rejects an invalid SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT', () => {
+    const env = validEnv({ SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT: 'not-a-date' });
+
+    expect(() => validateEnv(env)).toThrow(/SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT/);
+  });
 });

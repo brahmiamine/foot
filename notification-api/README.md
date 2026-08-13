@@ -22,7 +22,7 @@ Contrôleurs: health; `/api/notifications`, `/api/preferences`, `/api/push-subsc
 
 ## Authentification et autorisations
 
-Les routes `/api/*` sont protégées globalement par `JwtAuthGuard` et le JWT SSO. Les contrôleurs admin ajoutent `RolesGuard`; l'interne utilise `ServiceAuthGuard` et `SERVICE_API_KEYS`. La santé reste publique. Les clés restent uniquement serveur.
+Les routes `/api/*` sont protégées globalement par `JwtAuthGuard` et le JWT SSO. Les contrôleurs admin ajoutent `RolesGuard`; l'interne utilise `ServiceAuthGuard` et `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`, TASK-P0-003). La santé reste publique. Les clés restent uniquement serveur.
 
 ## Données possédées
 

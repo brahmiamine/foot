@@ -22,7 +22,7 @@ Contrôleurs: health; auth; categories; sellers; products et internal-products; 
 
 ## Authentification et autorisations
 
-`SellerJwtGuard` protège les ressources vendeur et impose l'identité portée par le JWT. `ServiceAuthGuard` protège `/internal/products`, modération, commandes, mutations catégories et administration vendeurs via une clé appartenant à `SERVICE_API_KEYS`. Ne jamais exposer ces clés au navigateur.
+`SellerJwtGuard` protège les ressources vendeur et impose l'identité portée par le JWT. `ServiceAuthGuard` protège `/internal/products`, modération, commandes, mutations catégories et administration vendeurs via une clé appartenant à `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`, TASK-P0-003). Ne jamais exposer ces clés au navigateur.
 
 ## Données possédées
 

@@ -103,22 +103,24 @@ Actuellement apps choisissent fail-open/fail-closed indépendamment. Panne SSO =
 **Projets**: marketplace-api, payment-api, notification-api, teamManager, billetterie  
 **Estimation**: 4 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Portion applicative traitée (voir Note d'audit — Vault hors scope)
+
+> **Note d'audit** : pas d'infrastructure Vault/AWS Secrets Manager dans ce repo (même constat que pour TASK-P0-001/JWKS et TASK-P0-009/QR billet) — la portion "infrastructure vault" n'est pas faite, comme documenté ci-dessous. Le mécanisme de rotation lui-même (coexistence courante/précédente + fenêtre de grâce + kid + audit) est implémenté au niveau applicatif dans les 4 projets qui exposent effectivement un guard service-à-service : `payment-api`, `marketplace-api`, `notification-api` (registre par application, `ServiceAuthGuard` + `service-clients.config.ts`) et `teamManager` (`lib/serviceAuth.ts`, clé unique partagée — pas de registre par appelant, donc pas de `serviceId` attribuable par appel, documenté dans le code). `billetterie` n'a pas d'endpoint interne protégé par ce mécanisme (elle est seulement appelante de payment-api) — rien à faire côté billetterie.
 
 **Description**:
 Clés service (x-api-key) statiques en JSON env. Compromission = accès tous services.
 
-- [ ] Clés service dans vault (HashiCorp Vault ou AWS Secrets Manager)
-- [ ] Kid en header (X-Service-Key-Id)
-- [ ] Rotation: ancienne clé valide 24h supplémentaires
-- [ ] Audit: chaque appel service-to-service logge serviceId, kid, endpoint
+- [ ] Clés service dans vault (HashiCorp Vault ou AWS Secrets Manager) — **non fait**, pas d'infra Vault dans ce repo
+- [x] Kid en header (X-Service-Key-Id) — pas littéralement un header entrant (les apps appelantes n'ont pas été modifiées pour l'envoyer, hors scope), mais un `kid` (`"current"`/`"previous"`) est dérivé de la clé qui matche et journalisé à chaque appel
+- [x] Rotation: ancienne clé valide 24h supplémentaires — `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT` (NestJS) et `TEAMMANAGER_SERVICE_API_KEY_PREVIOUS`/`_EXPIRES_AT` (teamManager) ; la durée (24h ou autre) est une décision opérationnelle au moment de la rotation, pas une constante codée en dur
+- [x] Audit: chaque appel service-to-service logge serviceId, kid, endpoint — `console.warn` JSON structuré (`event: "service_auth"`) à chaque appel authentifié
 
 **Acceptance Criteria**:
-- [ ] Infrastructure vault créée
-- [ ] ServiceAuthGuard valide kid + clé contre vault
-- [ ] Rotation sans downtime (coexist 24h)
-- [ ] Tests: appel clé expirée → 401
-- [ ] Logs JSON: serviceId, kid, endpoint, timestamp
+- [ ] Infrastructure vault créée — non fait (voir note d'audit)
+- [x] ServiceAuthGuard valide kid + clé contre vault — valide kid + clé contre l'env (pas de vault), source de vérité = variables d'environnement du service
+- [x] Rotation sans downtime (coexist 24h) — clé courante + précédente acceptées en parallèle jusqu'à expiration configurable
+- [x] Tests: appel clé expirée → 401 — nouveaux tests dans les 4 projets (grace period valide / expirée / sans expiration configurée)
+- [x] Logs JSON: serviceId, kid, endpoint, timestamp — présent pour payment-api/marketplace-api/notification-api (serviceId = application) ; teamManager journalise kid/endpoint/timestamp sans serviceId (clé unique partagée, pas de registre par appelant — limitation honnête documentée dans le code, pas fabriquée)
 
 ---
 

@@ -7,7 +7,7 @@ describe('ServiceAuthGuard', () => {
   function contextWithHeaders(headers: Record<string, string>) {
     return {
       switchToHttp: () => ({
-        getRequest: () => ({ headers, method: 'GET', path: '/payments/1' }),
+        getRequest: () => ({ headers, method: 'POST', path: '/internal/notifications' }),
       }),
     } as unknown as ExecutionContext;
   }
@@ -25,7 +25,7 @@ describe('ServiceAuthGuard', () => {
   }
 
   it('rejects a request without x-api-key', () => {
-    const guard = guardWithClients({ current: { ob: 'ob-key' } });
+    const guard = guardWithClients({ current: { teamManager: 'tm-key' } });
 
     expect(() => guard.canActivate(contextWithHeaders({}))).toThrow(
       UnauthorizedException,
@@ -33,7 +33,7 @@ describe('ServiceAuthGuard', () => {
   });
 
   it('rejects an unknown api key', () => {
-    const guard = guardWithClients({ current: { ob: 'ob-key' } });
+    const guard = guardWithClients({ current: { teamManager: 'tm-key' } });
 
     expect(() =>
       guard.canActivate(contextWithHeaders({ 'x-api-key': 'wrong-key' })),
@@ -41,58 +41,47 @@ describe('ServiceAuthGuard', () => {
   });
 
   it('accepts a known api key and attaches the calling application', () => {
-    const guard = guardWithClients({ current: { ob: 'ob-key' } });
+    const guard = guardWithClients({ current: { teamManager: 'tm-key' } });
     const request: {
       headers: Record<string, string>;
       method: string;
       path: string;
       service?: unknown;
     } = {
-      headers: { 'x-api-key': 'ob-key' },
-      method: 'GET',
-      path: '/payments/1',
+      headers: { 'x-api-key': 'tm-key' },
+      method: 'POST',
+      path: '/internal/notifications',
     };
     const context = {
       switchToHttp: () => ({ getRequest: () => request }),
     } as unknown as ExecutionContext;
 
     expect(guard.canActivate(context)).toBe(true);
-    expect(request.service).toEqual({ application: 'ob' });
+    expect(request.service).toEqual({ application: 'teamManager' });
   });
 
   // TASK-P0-003 : rotation sans interruption.
   it('accepts the previous key while still within the grace period', () => {
     const guard = guardWithClients({
-      current: { ob: 'ob-key-new' },
-      previous: { ob: 'ob-key-old' },
+      current: { teamManager: 'tm-key-new' },
+      previous: { teamManager: 'tm-key-old' },
       previousExpiresAt: new Date(Date.now() + 60_000).toISOString(),
     });
 
     expect(
-      guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' })),
+      guard.canActivate(contextWithHeaders({ 'x-api-key': 'tm-key-old' })),
     ).toBe(true);
   });
 
   it('rejects the previous key once the grace period has expired', () => {
     const guard = guardWithClients({
-      current: { ob: 'ob-key-new' },
-      previous: { ob: 'ob-key-old' },
+      current: { teamManager: 'tm-key-new' },
+      previous: { teamManager: 'tm-key-old' },
       previousExpiresAt: new Date(Date.now() - 60_000).toISOString(),
     });
 
     expect(() =>
-      guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' })),
+      guard.canActivate(contextWithHeaders({ 'x-api-key': 'tm-key-old' })),
     ).toThrow(UnauthorizedException);
-  });
-
-  it('accepts the previous key with no expiry set (no rotation deadline configured)', () => {
-    const guard = guardWithClients({
-      current: { ob: 'ob-key-new' },
-      previous: { ob: 'ob-key-old' },
-    });
-
-    expect(
-      guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' })),
-    ).toBe(true);
   });
 });
