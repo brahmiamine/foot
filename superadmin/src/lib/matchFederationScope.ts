@@ -1,6 +1,14 @@
 import type { DataSource } from 'typeorm'
 import { Journee, Match, Saison, League } from './entities'
 
+export async function getSaisonScope(dataSource: DataSource, saisonId: string): Promise<{ leagueId: string; federationId: string } | null> {
+  const saison = await dataSource.getRepository(Saison).findOne({ where: { id: saisonId } })
+  if (!saison?.league_id) return null
+  const league = await dataSource.getRepository(League).findOne({ where: { id: saison.league_id } })
+  if (!league?.federation_id) return null
+  return { leagueId: saison.league_id, federationId: league.federation_id }
+}
+
 export async function getJourneeScope(dataSource: DataSource, journeeId: string): Promise<{ leagueId: string; federationId: string } | null> {
   const journee = await dataSource.getRepository(Journee).findOne({ where: { id: journeeId } })
   if (!journee) return null
