@@ -308,7 +308,7 @@ export function TeamMembersManagement({
           <button
             type="button"
             className={`nav-link ${historyView === "FORMER_PLAYERS" ? "active" : ""}`}
-            onClick={() => { setHistoryView("FORMER_PLAYERS"); setPage(1); }}
+            onClick={() => { setHistoryView("FORMER_PLAYERS"); setPage(1); setFormMode(null); setEditingMember(null); }}
           >
             Anciens joueurs
           </button>
@@ -526,9 +526,11 @@ export function TeamMembersManagement({
               {scopedMembers.length === 0 ? (
                 <div className="text-center py-5">
                   <p className="text-muted mb-3">Aucun membre d&apos;équipe enregistré</p>
-                  <button type="button" className="btn btn-primary" onClick={handleAddClick}>
-                    Ajouter le premier membre
-                  </button>
+                  {historyView === "CURRENT" && (
+                    <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+                      Ajouter le premier membre
+                    </button>
+                  )}
                 </div>
               ) : totalCount === 0 ? (
                 <p className="text-muted text-center py-5 mb-0">Aucun membre ne correspond à votre recherche</p>
