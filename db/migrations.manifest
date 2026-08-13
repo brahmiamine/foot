@@ -63,6 +63,10 @@ superadmin/mysql/migration_add_vote_alerts.sql
 superadmin/mysql/migration_add_vote_moderation.sql
 superadmin/mysql/migration_add_staff_invitations.sql
 superadmin/mysql/migration_add_match_actual_times.sql
+# Historique d'affiliation club <-> fédération/ligue/saison (migration.md
+# §6, Phase 2). Dépend de teams/federations/ligues/saisons (FK), donc
+# placée après leurs migrations respectives.
+superadmin/mysql/migration_add_team_affiliations.sql
 superadmin/migrations/add_is_active_to_federations.sql
 superadmin/migrations/add_is_active_to_leagues.sql
 superadmin/migrations/add_unique_vote_per_match_device.sql

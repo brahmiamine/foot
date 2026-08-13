@@ -9,7 +9,7 @@ Ce document sert de source de vérité pour le suivi de ce chantier. Chaque phas
 | Phase | Contenu | Statut |
 |---|---|---|
 | Phase 1 | Modèle d'autorisation (rôles `PLATFORM_SUPERADMIN` / `FEDERATION_ADMIN` / `LEAGUE_ADMIN`, scopes, guards) | `[~]` |
-| Phase 2 | Affiliations historiques club ↔ fédération/ligue/saison | `[ ]` |
+| Phase 2 | Affiliations historiques club ↔ fédération/ligue/saison | `[~]` |
 | Phase 3 | Joueurs & transferts (`player_transfers`, workflow, transaction) | `[ ]` |
 | Phase 4 | Officiels de match (`match_official_assignments`, contrôle serveur `matchsheet`) | `[ ]` |
 | Phase 5 | ArbiNote officiel (évaluation fédérale séparée du score public) | `[ ]` |
@@ -24,11 +24,13 @@ Détail des sous-tâches par phase, mis à jour au fil de l'implémentation :
 - [x] Tests négatifs : `superadmin/src/lib/roles.test.ts` (24 cas — dont `FEDERATION_ADMIN A` ne peut pas accéder à la fédération B, `LEAGUE_ADMIN X` ne peut pas accéder à la ligue Y, refus sans scope) + `superadmin/src/lib/adminAuth.test.ts` (guards HTTP 401/403). `pnpm vitest run` et `pnpm tsc --noEmit` verts sur `sso`, `superadmin`, `matchsheet`, `teamManager`, `arbinote`, `billetterie`, `ob`.
 - [ ] **Reste ouvert (reporté, hors périmètre "modèle d'autorisation")** : les routes `superadmin` autres que fédérations/ligues (saisons, journées, clubs affiliés, arbitres, matchs) ne sont pas encore scopées par fédération/ligue — elles restent `PLATFORM_SUPERADMIN`-only comme avant, à traiter au fil des Phases 2-4 quand ces domaines seront eux-mêmes modélisés. Adaptation des écrans `superadmin` (formulaires filtrés par scope) : Phase 2. Provisioning des comptes `FEDERATION_ADMIN`/`LEAGUE_ADMIN` (aucun compte de ce type ne peut encore être créé depuis l'UI) : Phase 2.
 
-### Phase 2 — Affiliations
-- [ ] Modèle `team_affiliations` (federationId, leagueId, competitionId, seasonId, teamId, status, startDate, endDate)
-- [ ] Migration DB versionnée
-- [ ] Adapter les écrans `superadmin`
-- [ ] Tests promotion / relégation / changement de ligue
+### Phase 2 — Affiliations `[~]`
+- [x] Modèle `team_affiliations` (`superadmin/src/lib/entities/TeamAffiliation.ts`) : `teamId`, `federationId` obligatoires, `leagueId`/`saisonId` nullable, `status` (`ACTIVE`/`ENDED`/`SUSPENDED`), `startDate`/`endDate`, `notes`, `createdBy`. Pas de `competitionId` séparé : ce dépôt n'a pas de table Competition, `Saison.type_competition` en tient déjà lieu (décision documentée dans l'entité et la migration).
+- [x] Migration DB versionnée : `superadmin/mysql/migration_add_team_affiliations.sql` (additive, FK vers `teams`/`federations`/`ligues`/`saisons`), enregistrée dans `db/migrations.manifest`. `teams.federation_id` (lien courant non historisé) conservé tel quel, pas remplacé.
+- [x] Service `superadmin/src/lib/teamAffiliations.ts` : `changeAffiliation` (clôture l'affiliation `ACTIVE` précédente dans la même transaction avant d'en créer une nouvelle — jamais un simple UPDATE, l'historique n'est jamais écrasé), `endAffiliation` (désaffiliation), `setAffiliationStatus` (suspension), `getAffiliationAt` (appartenance historique à une date donnée, §22 — réutilisable par `matchsheet` en Phase 4), avec vérification serveur qu'une ligue/saison fournie appartient réellement à la fédération/ligue indiquée (§3).
+- [x] Routes API : `POST/GET /api/admin/teams/:id/affiliations`, `PATCH /api/admin/teams/:id/affiliations/:affiliationId` — écriture gardée par `ensureFederationAccess`/`canAccessFederation` sur la fédération réellement propriétaire de la ressource (Phase 1), jamais sur un `federation_id` fourni par le client sans revérification.
+- [x] Tests (8 cas, `superadmin/src/lib/teamAffiliations.test.ts`) : première affiliation, changement de ligue clôturant l'ancienne sans la supprimer, rejet ligue ↔ fédération incohérente, rejet d'antidatage, désaffiliation, appartenance historique à une date passée (avant/à/après un changement), suspension sans clôture. `vitest run` + `tsc --noEmit` verts.
+- [ ] **Reste ouvert** : écrans `superadmin` (aucune UI ne consomme encore ces routes — actuellement API-only) ; provisioning des comptes `FEDERATION_ADMIN`/`LEAGUE_ADMIN` depuis l'UI ; migration/rétro-remplissage d'une affiliation initiale pour les clubs déjà en base (`teams.federation_id` existant) — à faire avant de basculer un écran dessus.
 
 ### Phase 3 — Joueurs & transferts
 - [ ] Vue globale joueurs dans `superadmin`
