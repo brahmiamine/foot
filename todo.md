@@ -599,16 +599,20 @@ Empreinte contournable, sensibilité changement appareil, risque vie privée.
 **Projets**: matchsheet  
 **Estimation**: 3 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité (voir note pour la limite honnête sur "signatoryId"/RSA)
 
 **Description**:
 Signatures faibles (pas hash, timestamp). Renforcer.
 
-- [ ] Signature: role, signatoryId, timestamp, contentHash, signature
-- [ ] Hash: SHA256 matchsheet JSON
-- [ ] Timestamp: ISO format (no replay)
-- [ ] Verification: RSA signature contentHash
-- [ ] Audit: historique signatures (append-only)
+> **Note d'audit** : les 3 signataires (domicile/extérieur/arbitre) dessinent chacun sur l'appareil unique de l'officiel du club recevant — matchsheet n'a **aucune authentification individuelle par acteur**, seule une session SSO pour l'opérateur du device (middleware.ts). Un vrai `signatoryId` cryptographique par signataire, ou une signature RSA produite par le signataire lui-même, sont donc irréalisables sans ajouter un système d'authentification individuelle par acteur (hors périmètre de cette tâche) — implémenté à la place : `recordedByUserId`/`recordedByName` = identité SSO authentifiée de l'**opérateur** ayant enregistré la signature (traçabilité réelle, documentée comme telle, pas simulée comme une preuve d'identité du signataire physique). Le hash protège contre la falsification du **contenu** (pas de signataire) : `contentHash` = SHA256 d'un instantané canonique de la feuille (statut + tous les événements) au moment de la signature — recalculer et comparer révèle si la feuille a changé depuis. `signedAt` (déjà existant) est fixé serveur-side à l'écriture, jamais fourni par le client.
+
+- [x] Signature: role (existant), recordedByUserId/recordedByName (opérateur, voir note), timestamp (existant), contentHash — signatoryId/signature cryptographique du signataire physique non implémentable, voir note
+- [x] Hash: SHA256 du contenu de la feuille (statut + événements), pas de la feuille entière au format non-canonique
+- [x] Timestamp: fixé serveur-side (`@CreateDateColumn`), jamais client-fourni — pas de rejeu possible sur ce champ
+- [ ] Verification: RSA signature contentHash — non implémentable sans clé privée détenue par chaque signataire (pad de signature dessiné, pas un dispositif de signature cryptographique) ; le hash seul (sans signature RSA) reste la protection d'intégrité de contenu la plus honnête ici
+- [x] Audit: historique signatures append-only (`SignatureService.save()` insère toujours, ne modifie jamais ; `findHistoryBySheet()` expose l'historique complet, `findBySheet()` la version courante par rôle)
+
+Effet de bord découvert et corrigé au passage : `Signature.signatureData` était en `longtext` (non supporté par better-sqlite3, donc jamais couvert par les tests SQLite existants) — passé en `text` (limite ~64 Ko MySQL, largement suffisante pour un tracé de signature).
 
 ---
 

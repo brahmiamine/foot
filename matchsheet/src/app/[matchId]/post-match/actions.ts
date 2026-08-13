@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
 import { SheetService } from "@/services/SheetService";
@@ -31,8 +32,16 @@ export async function saveSignature(
       return { success: false, error: "actions.sheet.errors.locked" };
     }
 
+    const requestHeaders = await headers();
     const signatureService = new SignatureService();
-    await signatureService.save(sheetId, phase, actorRole, { signerName, signatureData });
+    await signatureService.save(
+      sheetId,
+      sheet.matchId,
+      phase,
+      actorRole,
+      { signerName, signatureData },
+      { userId: requestHeaders.get("x-sso-user-id"), name: requestHeaders.get("x-sso-name") },
+    );
 
     revalidatePath(`/${sheet.matchId}/post-match`);
     return { success: true, message: "actions.signatures.messages.saved" };

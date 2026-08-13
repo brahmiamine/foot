@@ -10,6 +10,7 @@ import { Matchday } from "@/entities/Matchday";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { Player } from "@/entities/Player";
 import { Sheet } from "@/entities/Sheet";
+import { Signature } from "@/entities/Signature";
 import { Substitution } from "@/entities/Substitution";
 import { Team } from "@/entities/Team";
 
@@ -36,6 +37,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       MatchReopenLog,
       Player,
       Sheet,
+      Signature,
       Substitution,
       Team,
     ],
