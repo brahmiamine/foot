@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from "typeorm";
 import { Sheet } from "./Sheet";
 import { Match } from "./Match";
 import { Team } from "./Team";
@@ -10,6 +10,7 @@ import type { MatchPeriod } from "./Card";
  * csc / penalty).
  */
 @Entity("ms_goals")
+@Index("uniq_ms_goals_sheet_client_request", ["sheetId", "clientRequestId"], { unique: true })
 export class Goal {
   @PrimaryGeneratedColumn({ type: "bigint" })
   id!: number;
@@ -53,6 +54,17 @@ export class Goal {
 
   @Column({ type: "tinyint", default: 0, name: "is_penalty" })
   isPenalty!: boolean;
+
+  /**
+   * Idempotency key (TASK-P0-025, portion scopée) fournie par le client au
+   * moment de la soumission — un double-clic ou un retry réseau sur le
+   * même formulaire renvoie l'événement déjà créé plutôt que d'en créer
+   * un doublon. NULL pour les lignes créées avant cette colonne (MySQL
+   * traite NULL comme distinct, donc plusieurs NULL ne collisionnent
+   * jamais sur l'index unique).
+   */
+  @Column({ type: "char", length: 36, nullable: true, name: "client_request_id" })
+  clientRequestId?: string | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

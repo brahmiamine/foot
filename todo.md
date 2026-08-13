@@ -629,16 +629,20 @@ Effet de bord découvert et corrigé au passage : `Signature.signatureData` éta
 **Projets**: matchsheet  
 **Estimation**: 5 jours  
 **Dépendances**: TASK-P0-023  
-**Status**: [ ] À faire
+**Status**: [x] Portion scopée traitée (idempotence des événements) — mode offline complet non fait, voir Note d'audit
+
+> **Note d'audit** : recherche préalable (grep du repo) a trouvé que matchsheet a **explicitement écarté** une file d'attente offline pour les écritures dans le passé — `public/sw.js` : *"Ne met en cache aucune donnée de match... pas de file d'attente offline pour les écritures (roadmap.md §3, §9)"*. Reconstruire IndexedDB + queue + UI de résolution de conflits complète (5 jours, reversal d'une décision produit documentée) dépasse le scope d'une passe de correctifs applicatifs rapides et mériterait une décision produit explicite plutôt qu'une implémentation unilatérale.
+>
+> Portion réellement traitée, de valeur indépendante du mode offline : les créations d'événements live (but, blessure, remplacement) n'avaient **aucune protection contre les doublons** — un double-clic ou un simple retry réseau créait un second événement identique, un bug réel dès aujourd'hui (pas seulement en cas de coupure réseau). `Card` avait déjà une contrainte unique naturelle (`playerId`, `matchId`, `type`) ; Goal/Substitution/Injury n'en avaient aucune. Ajouté une `clientRequestId` (UUID généré côté client à la soumission, réutilisé sur retry) + index unique `(sheetId, clientRequestId)`, avec insert-puis-catch-doublon (`isDuplicateKeyError`, extrait de `SheetService.ts` vers `lib/dbErrors.ts` pour être réutilisable) qui renvoie l'événement déjà créé plutôt que d'échouer ou de dupliquer.
 
 **Description**:
 Stades mauvaise connectivité. matchsheet crash offline. Implémenter:
 
-- [ ] IndexedDB: matchsheets + events
-- [ ] Événement offline: enregistrer localement
-- [ ] Synchro: au retour réseau, POST events serveur
-- [ ] Conflict resolution: log, manual review UI
-- [ ] Tests: offline → créer 5 events → sync → tous créés (ou conflicts resolved)
+- [ ] IndexedDB: matchsheets + events — **non fait**, reverserait la décision documentée dans sw.js sans validation produit (voir note d'audit)
+- [ ] Événement offline: enregistrer localement — non fait, dépend du point précédent
+- [ ] Synchro: au retour réseau, POST events serveur — non fait, dépend du point précédent
+- [ ] Conflict resolution: log, manual review UI — non fait, dépend du point précédent
+- [ ] Tests: offline → créer 5 events → sync → tous créés (ou conflicts resolved) — non fait (pas de queue offline à tester) ; à la place, `LiveEntryGuards.test.ts` couvre l'idempotence par clientRequestId (5 nouveaux tests : rejeu même clé → même événement, sans clé → non-idempotent, clés différentes → événements distincts, pour Goal/Injury/Substitution)
 
 ---
 

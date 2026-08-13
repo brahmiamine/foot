@@ -42,7 +42,12 @@ export async function deleteCard(id: string, matchId: string): Promise<ActionRes
   }
 }
 
-/** Enregistre un but (joueur optionnel — but non identifié). */
+/**
+ * Enregistre un but (joueur optionnel — but non identifié).
+ * `clientRequestId` (TASK-P0-025) : généré une fois par le client au moment
+ * de la soumission (voir LiveMatchSheet.tsx) — un double-clic ou un retry
+ * réseau renvoie le but déjà créé plutôt que d'en créer un doublon.
+ */
 export async function addGoal(
   sheetId: number,
   matchId: string,
@@ -52,11 +57,12 @@ export async function addGoal(
   period: MatchPeriod,
   isOwnGoal: boolean,
   isPenalty: boolean,
+  clientRequestId?: string,
 ): Promise<ActionResult> {
   try {
     if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     const goalService = new GoalService();
-    await goalService.create({ sheetId, matchId, teamId, playerId, minute, period, isOwnGoal, isPenalty });
+    await goalService.create({ sheetId, matchId, teamId, playerId, minute, period, isOwnGoal, isPenalty, clientRequestId });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.goal.saved" };
   } catch {
@@ -75,7 +81,7 @@ export async function deleteGoal(id: number, matchId: string): Promise<ActionRes
   }
 }
 
-/** Enregistre une blessure constatée pendant le match. */
+/** Enregistre une blessure constatée pendant le match. `clientRequestId` : voir addGoal. */
 export async function addInjury(
   sheetId: number,
   matchId: string,
@@ -85,11 +91,12 @@ export async function addInjury(
   period: MatchPeriod | null,
   description: string | null,
   requiresSubstitution: boolean,
+  clientRequestId?: string,
 ): Promise<ActionResult> {
   try {
     if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     const injuryService = new InjuryService();
-    await injuryService.create({ sheetId, matchId, teamId, playerId, minute, period, description, requiresSubstitution });
+    await injuryService.create({ sheetId, matchId, teamId, playerId, minute, period, description, requiresSubstitution, clientRequestId });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.injury.saved" };
   } catch {
@@ -108,7 +115,7 @@ export async function deleteInjury(id: number, matchId: string): Promise<ActionR
   }
 }
 
-/** Enregistre un remplacement (joueur sortant / joueur entrant). */
+/** Enregistre un remplacement (joueur sortant / joueur entrant). `clientRequestId` : voir addGoal. */
 export async function addSubstitution(
   sheetId: number,
   matchId: string,
@@ -117,13 +124,14 @@ export async function addSubstitution(
   playerInId: string,
   minute: number,
   period: MatchPeriod,
+  clientRequestId?: string,
 ): Promise<ActionResult> {
   try {
     if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     if (!playerOutId || !playerInId) return { success: false, error: "events.validation.selectBothPlayers" };
     if (playerOutId === playerInId) return { success: false, error: "actions.events.substitution.samePlayer" };
     const substitutionService = new SubstitutionService();
-    await substitutionService.create({ sheetId, matchId, teamId, playerOutId, playerInId, minute, period });
+    await substitutionService.create({ sheetId, matchId, teamId, playerOutId, playerInId, minute, period, clientRequestId });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.substitution.saved" };
   } catch {

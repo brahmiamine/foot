@@ -611,7 +611,17 @@ function GoalsSection({
     setError(null);
     setSuccess(null);
     try {
-      const result = await addGoal(sheetId, matchId, teamId, playerId || null, Number(minute), period, isOwnGoal, isPenalty);
+      const result = await addGoal(
+        sheetId,
+        matchId,
+        teamId,
+        playerId || null,
+        Number(minute),
+        period,
+        isOwnGoal,
+        isPenalty,
+        crypto.randomUUID(),
+      );
       if (result.success) {
         setSuccess(result.message ? t(result.message, result.messageParams) : t("events.goal.messages.saved"));
         setPlayerId("");
@@ -836,6 +846,7 @@ function InjuriesSection({
         period === "" ? null : period,
         description || null,
         requiresSubstitution,
+        crypto.randomUUID(),
       );
       if (result.success) {
         setSuccess(result.message ? t(result.message, result.messageParams) : t("events.injury.messages.saved"));
@@ -1055,7 +1066,16 @@ function SubstitutionsSection({
     setError(null);
     setSuccess(null);
     try {
-      const result = await addSubstitution(sheetId, matchId, teamId, playerOutId, playerInId, Number(minute), period);
+      const result = await addSubstitution(
+        sheetId,
+        matchId,
+        teamId,
+        playerOutId,
+        playerInId,
+        Number(minute),
+        period,
+        crypto.randomUUID(),
+      );
       if (result.success) {
         setSuccess(result.message ? t(result.message, result.messageParams) : t("events.substitution.messages.saved"));
         setPlayerOutId("");

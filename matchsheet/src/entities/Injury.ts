@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from "typeorm";
 import { Sheet } from "./Sheet";
 import { Match } from "./Match";
 import { Team } from "./Team";
@@ -9,6 +9,7 @@ import type { MatchPeriod } from "./Card";
  * Injury Entity — blessure constatée pendant le match.
  */
 @Entity("ms_injuries")
+@Index("uniq_ms_injuries_sheet_client_request", ["sheetId", "clientRequestId"], { unique: true })
 export class Injury {
   @PrimaryGeneratedColumn({ type: "bigint" })
   id!: number;
@@ -52,6 +53,10 @@ export class Injury {
 
   @Column({ type: "tinyint", default: 0, name: "requires_substitution" })
   requiresSubstitution!: boolean;
+
+  /** Idempotency key (TASK-P0-025, portion scopée) — voir Goal.clientRequestId. */
+  @Column({ type: "char", length: 36, nullable: true, name: "client_request_id" })
+  clientRequestId?: string | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

@@ -3,6 +3,7 @@ import { Goal } from "@/entities/Goal";
 import { MatchPeriod } from "@/entities/Card";
 import { Repository } from "typeorm";
 import { assertSheetEditable } from "./sheetGuard";
+import { isDuplicateKeyError } from "@/lib/dbErrors";
 
 interface CreateGoalInput {
   sheetId: number;
@@ -13,6 +14,8 @@ interface CreateGoalInput {
   period: MatchPeriod;
   isOwnGoal?: boolean;
   isPenalty?: boolean;
+  /** TASK-P0-025 : voir Goal.clientRequestId — un doublon renvoie l'événement déjà créé, sans erreur. */
+  clientRequestId?: string | null;
 }
 
 export class GoalService {
@@ -38,8 +41,19 @@ export class GoalService {
       period: data.period,
       isOwnGoal: data.isOwnGoal ?? false,
       isPenalty: data.isPenalty ?? false,
+      clientRequestId: data.clientRequestId ?? null,
     });
-    return repository.save(goal);
+    try {
+      return await repository.save(goal);
+    } catch (error) {
+      if (data.clientRequestId && isDuplicateKeyError(error)) {
+        const existing = await repository.findOne({
+          where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId },
+        });
+        if (existing) return existing;
+      }
+      throw error;
+    }
   }
 
   async delete(id: number): Promise<void> {

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from "typeorm";
 import { Sheet } from "./Sheet";
 import { Match } from "./Match";
 import { Team } from "./Team";
@@ -9,6 +9,7 @@ import type { MatchPeriod } from "./Card";
  * Substitution Entity — changement de joueur pendant le match.
  */
 @Entity("ms_substitutions")
+@Index("uniq_ms_subs_sheet_client_request", ["sheetId", "clientRequestId"], { unique: true })
 export class Substitution {
   @PrimaryGeneratedColumn({ type: "bigint" })
   id!: number;
@@ -53,6 +54,10 @@ export class Substitution {
 
   @Column({ type: "enum", enum: ["H1", "H2", "ET1", "ET2"], default: "H1" })
   period!: MatchPeriod;
+
+  /** Idempotency key (TASK-P0-025, portion scopée) — voir Goal.clientRequestId. */
+  @Column({ type: "char", length: 36, nullable: true, name: "client_request_id" })
+  clientRequestId?: string | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

@@ -3,18 +3,7 @@ import { Sheet, SheetStatus } from "@/entities/Sheet";
 import { Match } from "@/entities/Match";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { Not, Repository } from "typeorm";
-
-function isDuplicateKeyError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const record = error as Record<string, unknown>;
-  const code =
-    typeof record.code === "string"
-      ? record.code
-      : typeof (record.driverError as Record<string, unknown> | undefined)?.code === "string"
-        ? ((record.driverError as Record<string, unknown>).code as string)
-        : undefined;
-  return code === "ER_DUP_ENTRY" || (code?.startsWith("SQLITE_CONSTRAINT") ?? false);
-}
+import { isDuplicateKeyError } from "@/lib/dbErrors";
 
 /**
  * TASK-P0-023 : levée quand `expectedVersion` (fourni par l'appelant) ne

@@ -3,6 +3,7 @@ import { Injury } from "@/entities/Injury";
 import { MatchPeriod } from "@/entities/Card";
 import { Repository } from "typeorm";
 import { assertSheetEditable } from "./sheetGuard";
+import { isDuplicateKeyError } from "@/lib/dbErrors";
 
 interface CreateInjuryInput {
   sheetId: number;
@@ -13,6 +14,8 @@ interface CreateInjuryInput {
   period?: MatchPeriod | null;
   description?: string | null;
   requiresSubstitution?: boolean;
+  /** TASK-P0-025 : voir Goal.clientRequestId — un doublon renvoie l'événement déjà créé, sans erreur. */
+  clientRequestId?: string | null;
 }
 
 export class InjuryService {
@@ -38,8 +41,19 @@ export class InjuryService {
       period: data.period ?? null,
       description: data.description ?? null,
       requiresSubstitution: data.requiresSubstitution ?? false,
+      clientRequestId: data.clientRequestId ?? null,
     });
-    return repository.save(injury);
+    try {
+      return await repository.save(injury);
+    } catch (error) {
+      if (data.clientRequestId && isDuplicateKeyError(error)) {
+        const existing = await repository.findOne({
+          where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId },
+        });
+        if (existing) return existing;
+      }
+      throw error;
+    }
   }
 
   async delete(id: number): Promise<void> {

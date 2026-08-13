@@ -28,7 +28,7 @@ Aucune authentification applicative des pages métier. Les gardes d'état (`shee
 
 Base `foot`: feuilles, compositions, officiels, contrôles, réserves, signatures et événements de match (buts, cartons, blessures, remplacements).
 
-**Migrations réellement présentes :** Initialisation matchsheet; officiels/contrôles; contrainte unique des cartons dans `sql/`.
+**Migrations réellement présentes :** Initialisation matchsheet; officiels/contrôles; contrainte unique des cartons; version optimiste des feuilles; intégrité des signatures; clé d'idempotence des événements live (TASK-P0-025, `sql/migration_add_event_client_request_id.sql`) dans `sql/`.
 
 ## Intégrations
 
