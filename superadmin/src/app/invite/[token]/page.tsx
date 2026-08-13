@@ -1,9 +1,7 @@
 import AcceptInvitationForm from '@/components/AcceptInvitationForm'
-import { getInvitationPreview } from '@/lib/staffInvitations'
+import { getInvitationPreview, ROLE_LABELS } from '@/lib/staffInvitations'
 
 export const dynamic = 'force-dynamic'
-
-const roleLabels: Record<string, string> = { ADMIN: 'Admin', OBSERVATEUR: 'Observateur' }
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -23,9 +21,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
                   </div>
                 ) : (
                   <>
-                    <h1 className="h4 mb-1">Rejoindre {preview.clubName}</h1>
+                    <h1 className="h4 mb-1">Rejoindre {preview.scopeName}</h1>
                     <p className="text-muted mb-4">
-                      {preview.name} · {preview.email} · rôle {roleLabels[preview.role] ?? preview.role}
+                      {preview.name} · {preview.email} · rôle {ROLE_LABELS[preview.role] ?? preview.role}
                     </p>
                     <AcceptInvitationForm token={token} />
                   </>

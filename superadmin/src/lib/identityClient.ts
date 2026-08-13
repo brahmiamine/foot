@@ -7,13 +7,29 @@
  * de cette table (voir TS-30).
  */
 
+export type IdentityUserRole =
+  | 'ADMIN'
+  | 'OBSERVATEUR'
+  | 'SUPERADMIN'
+  | 'MEMBER'
+  | 'PLATFORM_SUPERADMIN'
+  | 'FEDERATION_ADMIN'
+  | 'LEAGUE_ADMIN'
+  | 'REFEREE'
+  | 'MATCH_OFFICIAL'
+  | 'REFEREE_OBSERVER'
+
 export interface IdentityUser {
   id: string
   name: string
   email: string
-  role: 'ADMIN' | 'OBSERVATEUR' | 'SUPERADMIN' | 'MEMBER'
+  role: IdentityUserRole
   isActive: boolean
   teamId: string | null
+  /** Scope FEDERATION_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
+  federationId?: string | null
+  /** Scope LEAGUE_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
+  leagueId?: string | null
   createdAt: string
 }
 
@@ -56,8 +72,10 @@ export interface CreateIdentityUserInput {
   name: string
   email: string
   password: string
-  role: 'ADMIN' | 'OBSERVATEUR'
-  teamId: string
+  role: IdentityUserRole
+  teamId?: string | null
+  federationId?: string | null
+  leagueId?: string | null
 }
 
 export type CreateIdentityUserResult =

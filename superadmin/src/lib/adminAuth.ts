@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSsoSession, getSsoSessionFromRequest, redirectToLogin, type SsoUser } from "./ssoSession";
-import { canAccessFederation, canAccessLeague } from "../../../packages/auth-shared/src/roles";
+import { canAccessFederation, canAccessLeague, canAccessPlatform } from "../../../packages/auth-shared/src/roles";
 
-export { canAccessFederation, canAccessLeague };
+export { canAccessFederation, canAccessLeague, canAccessPlatform };
 
 /**
  * Garde d'accès au back-office : anciennement un login unique codé en dur

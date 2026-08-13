@@ -1,45 +1,119 @@
 import { randomBytes, createHash } from 'node:crypto'
 import { IsNull } from 'typeorm'
 import { getDataSource } from './db'
-import { StaffInvitation, Team, User, type UserRole } from './entities'
+import { StaffInvitation, Team, Federation, League, User, type StaffInvitationRole } from './entities'
 import { sendEmail } from './mailer'
 import { toPlain } from './serialization'
 import { createIdentityUser, getIdentityUserByEmail, type IdentityUser } from './identityClient'
-import type { ClubUser } from './clubAccounts'
 
 /**
- * Invitation à usage unique pour créer un compte staff (ADMIN/OBSERVATEUR)
- * — remplace la création "à la main" où `superadmin` choisissait lui-même
- * le mot de passe du compte (voir clubAccounts.ts, createClubUser, toujours
+ * Invitation à usage unique pour créer un compte staff — remplace la
+ * création "à la main" où `superadmin` choisissait lui-même le mot de
+ * passe du compte (voir clubAccounts.ts, createClubUser, toujours
  * disponible mais plus utilisée par l'UI de /admin/club). Le destinataire
  * choisit lui-même son mot de passe en acceptant l'invitation, jamais connu
  * de `superadmin` (voir sso/src/lib/passwordReset.ts pour le même principe
  * appliqué à la réinitialisation de mot de passe).
+ *
+ * migration.md §0 (provisioning) : élargi au-delà d'ADMIN/OBSERVATEUR d'un
+ * club (voir StaffInvitation entity) pour couvrir FEDERATION_ADMIN,
+ * LEAGUE_ADMIN, REFEREE, MATCH_OFFICIAL, REFEREE_OBSERVER — exactement un
+ * scope requis selon le rôle, imposé par `createInvitation` ci-dessous.
  */
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 jours
+
+const CLUB_ROLES: StaffInvitationRole[] = ['ADMIN', 'OBSERVATEUR']
+
+export const ROLE_LABELS: Record<StaffInvitationRole, string> = {
+  ADMIN: 'Admin',
+  OBSERVATEUR: 'Observateur',
+  FEDERATION_ADMIN: 'Administrateur fédéral',
+  LEAGUE_ADMIN: 'Administrateur de ligue',
+  REFEREE: 'Arbitre',
+  MATCH_OFFICIAL: 'Officiel de match',
+  REFEREE_OBSERVER: "Observateur d'arbitres",
+}
+
+function roleLabel(role: StaffInvitationRole): string {
+  return ROLE_LABELS[role]
+}
 
 function hashToken(rawToken: string): string {
   return createHash('sha256').update(rawToken).digest('hex')
 }
 
 export interface CreateInvitationInput {
-  teamId: string
   name: string
   email: string
-  role: 'ADMIN' | 'OBSERVATEUR'
+  role: StaffInvitationRole
+  teamId?: string | null
+  federationId?: string | null
+  leagueId?: string | null
+}
+
+interface ResolvedScope {
+  teamId: string | null
+  federationId: string | null
+  leagueId: string | null
+  /** Nom lisible de l'entité concernée, pour le sujet/corps de l'email — "la plateforme" pour les rôles sans scope propre (arbitrage). */
+  scopeName: string
+}
+
+/**
+ * Impose exactement le scope attendu par le rôle (migration.md §3 : ne
+ * jamais faire confiance à un scope fourni sans le revérifier) et résout
+ * son nom lisible pour l'email d'invitation.
+ */
+async function resolveScope(input: CreateInvitationInput): Promise<ResolvedScope> {
+  const dataSource = await getDataSource()
+
+  if (CLUB_ROLES.includes(input.role)) {
+    if (!input.teamId) {
+      throw new Error('teamId est requis pour ce rôle')
+    }
+    const team = await dataSource.getRepository(Team).findOne({ where: { id: input.teamId } })
+    if (!team) {
+      throw new Error('Club introuvable')
+    }
+    return { teamId: team.id, federationId: null, leagueId: null, scopeName: team.nom }
+  }
+
+  if (input.role === 'FEDERATION_ADMIN') {
+    if (!input.federationId) {
+      throw new Error('federationId est requis pour ce rôle')
+    }
+    const federation = await dataSource.getRepository(Federation).findOne({ where: { id: input.federationId } })
+    if (!federation) {
+      throw new Error('Fédération introuvable')
+    }
+    return { teamId: null, federationId: federation.id, leagueId: null, scopeName: federation.nom }
+  }
+
+  if (input.role === 'LEAGUE_ADMIN') {
+    if (!input.leagueId) {
+      throw new Error('leagueId est requis pour ce rôle')
+    }
+    const league = await dataSource.getRepository(League).findOne({ where: { id: input.leagueId } })
+    if (!league) {
+      throw new Error('Ligue introuvable')
+    }
+    return { teamId: null, federationId: null, leagueId: league.id, scopeName: league.nom }
+  }
+
+  // REFEREE / MATCH_OFFICIAL / REFEREE_OBSERVER : pas de scope à la création
+  // du compte — leur périmètre réel est vérifié match par match (Phase 4,
+  // match_official_assignments) / fédération par fédération à la
+  // validation (Phase 5), jamais figé sur le compte lui-même.
+  return { teamId: null, federationId: null, leagueId: null, scopeName: 'la plateforme' }
 }
 
 export async function createInvitation(input: CreateInvitationInput, appUrl: string): Promise<{ id: string }> {
   const dataSource = await getDataSource()
-  const teamRepo = dataSource.getRepository(Team)
   const userRepo = dataSource.getRepository(User)
   const invitationRepo = dataSource.getRepository(StaffInvitation)
 
-  const team = await teamRepo.findOne({ where: { id: input.teamId } })
-  if (!team) {
-    throw new Error('Club introuvable')
-  }
+  const scope = await resolveScope(input)
 
   const existingUser = await userRepo.findOne({ where: { email: input.email } })
   if (existingUser) {
@@ -52,7 +126,9 @@ export async function createInvitation(input: CreateInvitationInput, appUrl: str
 
   const rawToken = randomBytes(32).toString('hex')
   const invitation = invitationRepo.create({
-    teamId: input.teamId,
+    teamId: scope.teamId,
+    federationId: scope.federationId,
+    leagueId: scope.leagueId,
     name: input.name,
     email: input.email,
     role: input.role,
@@ -62,12 +138,19 @@ export async function createInvitation(input: CreateInvitationInput, appUrl: str
   const saved = await invitationRepo.save(invitation)
 
   const inviteUrl = `${appUrl.replace(/\/$/, '')}/invite/${rawToken}`
+  const label = roleLabel(input.role)
+  const subject = CLUB_ROLES.includes(input.role)
+    ? `Invitation à rejoindre ${scope.scopeName}`
+    : `Invitation à administrer ${scope.scopeName} (${label})`
+  const bodyIntro = CLUB_ROLES.includes(input.role)
+    ? `Vous avez été invité(e) à administrer le club <strong>${scope.scopeName}</strong> (rôle ${label}).`
+    : `Vous avez été invité(e) en tant que <strong>${label}</strong> pour <strong>${scope.scopeName}</strong>.`
   await sendEmail({
     to: input.email,
-    subject: `Invitation à rejoindre ${team.nom}`,
+    subject,
     html: `
       <p>Bonjour ${input.name},</p>
-      <p>Vous avez été invité(e) à administrer le club <strong>${team.nom}</strong> (rôle ${input.role === 'ADMIN' ? 'Admin' : 'Observateur'}).</p>
+      <p>${bodyIntro}</p>
       <p><a href="${inviteUrl}">Accepter l'invitation et créer mon mot de passe</a></p>
       <p>Ce lien expire dans 7 jours et ne peut être utilisé qu'une seule fois.</p>
     `,
@@ -79,14 +162,14 @@ export async function createInvitation(input: CreateInvitationInput, appUrl: str
 export interface InvitationPreview {
   name: string
   email: string
-  role: UserRole
-  clubName: string
+  role: StaffInvitationRole
+  /** Nom lisible du club/fédération/ligue concerné, ou "la plateforme" pour les rôles d'arbitrage. */
+  scopeName: string
 }
 
 export async function getInvitationPreview(rawToken: string): Promise<InvitationPreview | null> {
   const dataSource = await getDataSource()
   const invitationRepo = dataSource.getRepository(StaffInvitation)
-  const teamRepo = dataSource.getRepository(Team)
 
   const invitation = await invitationRepo.findOne({ where: { tokenHash: hashToken(rawToken) } })
   const isExpired = !invitation || new Date(invitation.expiresAt).getTime() < Date.now()
@@ -94,17 +177,37 @@ export async function getInvitationPreview(rawToken: string): Promise<Invitation
     return null
   }
 
-  const team = await teamRepo.findOne({ where: { id: invitation.teamId } })
+  let scopeName = 'la plateforme'
+  if (invitation.teamId) {
+    const team = await dataSource.getRepository(Team).findOne({ where: { id: invitation.teamId } })
+    scopeName = team?.nom ?? 'Club'
+  } else if (invitation.federationId) {
+    const federation = await dataSource.getRepository(Federation).findOne({ where: { id: invitation.federationId } })
+    scopeName = federation?.nom ?? 'Fédération'
+  } else if (invitation.leagueId) {
+    const league = await dataSource.getRepository(League).findOne({ where: { id: invitation.leagueId } })
+    scopeName = league?.nom ?? 'Ligue'
+  }
+
   return {
     name: invitation.name,
     email: invitation.email,
     role: invitation.role,
-    clubName: team?.nom ?? 'Club',
+    scopeName,
   }
 }
 
+export interface AcceptedInvitationUser {
+  id: string
+  name: string
+  email: string
+  role: StaffInvitationRole
+  isActive: boolean
+  createdAt: Date
+}
+
 export type AcceptInvitationResult =
-  | { ok: true; user: ClubUser }
+  | { ok: true; user: AcceptedInvitationUser }
   | { ok: false; error: 'invalid_or_expired_token' | 'email_taken' }
 
 /**
@@ -122,7 +225,7 @@ export type AcceptInvitationResult =
  * double clic) retomberait sur `email_taken` alors que LE compte de CET
  * utilisateur vient d'être créé avec succès. Pour rester idempotent sans
  * saga distribuée, on vérifie dans ce cas si le compte existant correspond
- * exactement à cette invitation (même email, rôle, club) : si oui, c'est
+ * exactement à cette invitation (même email, rôle, scope) : si oui, c'est
  * notre propre création, on la traite comme un succès ; sinon c'est un
  * vrai conflit (email pris par un tiers).
  */
@@ -141,7 +244,9 @@ export async function acceptInvitation(rawToken: string, password: string): Prom
     email: invitation.email,
     password,
     role: invitation.role,
-    teamId: invitation.teamId,
+    teamId: invitation.teamId ?? null,
+    federationId: invitation.federationId ?? null,
+    leagueId: invitation.leagueId ?? null,
   })
 
   let identityUser: IdentityUser
@@ -150,7 +255,11 @@ export async function acceptInvitation(rawToken: string, password: string): Prom
   } else {
     const existing = await getIdentityUserByEmail(invitation.email)
     const isOwnRetry =
-      existing !== null && existing.role === invitation.role && existing.teamId === invitation.teamId
+      existing !== null &&
+      existing.role === invitation.role &&
+      (existing.teamId ?? null) === (invitation.teamId ?? null) &&
+      (existing.federationId ?? null) === (invitation.federationId ?? null) &&
+      (existing.leagueId ?? null) === (invitation.leagueId ?? null)
     if (!isOwnRetry) {
       return { ok: false, error: 'email_taken' }
     }
@@ -166,7 +275,7 @@ export async function acceptInvitation(rawToken: string, password: string): Prom
       id: identityUser.id,
       name: identityUser.name,
       email: identityUser.email,
-      role: identityUser.role as 'ADMIN' | 'OBSERVATEUR',
+      role: identityUser.role as StaffInvitationRole,
       isActive: identityUser.isActive,
       createdAt: new Date(identityUser.createdAt),
     }),

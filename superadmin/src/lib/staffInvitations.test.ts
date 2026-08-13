@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DataSource } from 'typeorm'
 import { createHash } from 'node:crypto'
 import { createTestDataSource } from '@/test/testDataSource'
-import { StaffInvitation, Team } from '@/lib/entities'
+import { StaffInvitation, Team, Federation, League } from '@/lib/entities'
 
 let dataSource: DataSource
 
@@ -85,6 +85,8 @@ describe('acceptInvitation', () => {
       password: 'new-password!',
       role: 'ADMIN',
       teamId: invitation.teamId,
+      federationId: null,
+      leagueId: null,
     })
   })
 
@@ -191,5 +193,126 @@ describe('acceptInvitation', () => {
     expect(result).toEqual({ ok: true, user: expect.objectContaining({ id: 'user-1', email: 'amine@example.com' }) })
     const reloaded = await dataSource.getRepository(StaffInvitation).findOne({ where: { id: invitation.id } })
     expect(reloaded?.acceptedAt).toBeInstanceOf(Date)
+  })
+})
+
+/** migration.md §0 (provisioning) : createInvitation élargi aux rôles Fédération/Ligue/Club. */
+describe('createInvitation', () => {
+  it('creates a club invitation (ADMIN/OBSERVATEUR) when teamId is valid — unchanged behavior', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+    const team = await seedTeam()
+
+    const invitation = await createInvitation(
+      { name: 'Amine', email: 'amine@example.com', role: 'ADMIN', teamId: team.id },
+      'https://superadmin.example.com',
+    )
+
+    expect(invitation.id).toBeTruthy()
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'amine@example.com', subject: expect.stringContaining(team.nom) }),
+    )
+    const saved = await dataSource.getRepository(StaffInvitation).findOne({ where: { id: invitation.id } })
+    expect(saved?.teamId).toBe(team.id)
+    expect(saved?.federationId).toBeNull()
+  })
+
+  it('rejects a club invitation for an unknown team', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+
+    await expect(
+      createInvitation({ name: 'Amine', email: 'amine@example.com', role: 'ADMIN', teamId: 'does-not-exist' }, 'https://x'),
+    ).rejects.toThrow('Club introuvable')
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('rejects a club invitation without teamId', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+
+    await expect(createInvitation({ name: 'Amine', email: 'amine@example.com', role: 'ADMIN' }, 'https://x')).rejects.toThrow(
+      'teamId est requis',
+    )
+  })
+
+  it('creates a FEDERATION_ADMIN invitation scoped to a real federation', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+    const federationRepo = dataSource.getRepository(Federation)
+    const federation = await federationRepo.save(federationRepo.create({ code: 'FTF', nom: 'Fédération Tunisienne', is_active: true }))
+
+    const invitation = await createInvitation(
+      { name: 'Fatma', email: 'fatma@example.com', role: 'FEDERATION_ADMIN', federationId: federation.id },
+      'https://x',
+    )
+
+    const saved = await dataSource.getRepository(StaffInvitation).findOne({ where: { id: invitation.id } })
+    expect(saved?.federationId).toBe(federation.id)
+    expect(saved?.teamId).toBeNull()
+  })
+
+  it('rejects a FEDERATION_ADMIN invitation without federationId', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+
+    await expect(
+      createInvitation({ name: 'Fatma', email: 'fatma@example.com', role: 'FEDERATION_ADMIN' }, 'https://x'),
+    ).rejects.toThrow('federationId est requis')
+  })
+
+  it('creates a LEAGUE_ADMIN invitation scoped to a real league', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+    const federationRepo = dataSource.getRepository(Federation)
+    const leagueRepo = dataSource.getRepository(League)
+    const federation = await federationRepo.save(federationRepo.create({ code: 'FTF', nom: 'Fédération Tunisienne', is_active: true }))
+    const league = await leagueRepo.save(leagueRepo.create({ federation_id: federation.id, nom: 'Ligue 1', is_active: true }))
+
+    const invitation = await createInvitation(
+      { name: 'Karim', email: 'karim@example.com', role: 'LEAGUE_ADMIN', leagueId: league.id },
+      'https://x',
+    )
+
+    const saved = await dataSource.getRepository(StaffInvitation).findOne({ where: { id: invitation.id } })
+    expect(saved?.leagueId).toBe(league.id)
+    expect(saved?.federationId).toBeNull()
+    expect(saved?.teamId).toBeNull()
+  })
+
+  it('rejects a LEAGUE_ADMIN invitation for an unknown league', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+
+    await expect(
+      createInvitation({ name: 'Karim', email: 'karim@example.com', role: 'LEAGUE_ADMIN', leagueId: 'does-not-exist' }, 'https://x'),
+    ).rejects.toThrow('Ligue introuvable')
+  })
+
+  it.each(['REFEREE', 'MATCH_OFFICIAL', 'REFEREE_OBSERVER'] as const)(
+    'creates a %s invitation without requiring any team/federation/league scope',
+    async (role) => {
+      const { createInvitation } = await import('./staffInvitations')
+
+      const invitation = await createInvitation({ name: 'Sami', email: `${role}@example.com`, role }, 'https://x')
+
+      const saved = await dataSource.getRepository(StaffInvitation).findOne({ where: { id: invitation.id } })
+      expect(saved?.teamId).toBeNull()
+      expect(saved?.federationId).toBeNull()
+      expect(saved?.leagueId).toBeNull()
+      expect(saved?.role).toBe(role)
+    },
+  )
+
+  it('rejects an invitation when an account already exists for that email', async () => {
+    const { createInvitation } = await import('./staffInvitations')
+    const userRepo = dataSource.getRepository((await import('@/lib/entities')).User)
+    await userRepo.save(
+      userRepo.create({
+        id: 'existing-user',
+        name: 'Existant',
+        email: 'taken@example.com',
+        password: 'hash',
+        role: 'OBSERVATEUR',
+        isActive: true,
+      }),
+    )
+
+    await expect(
+      createInvitation({ name: 'Sami', email: 'taken@example.com', role: 'REFEREE' }, 'https://x'),
+    ).rejects.toThrow('Un compte existe déjà')
   })
 })

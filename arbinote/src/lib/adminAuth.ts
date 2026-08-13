@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSsoSession, getSsoSessionFromRequest, redirectToLogin } from "./ssoSession";
+import { getSsoSession, getSsoSessionFromRequest, redirectToLogin, type SsoUser } from "./ssoSession";
 import { getClientIP } from "./utils";
+import { canAccessFederation, canAccessPlatform } from "../../../packages/auth-shared/src/roles";
+
+export { canAccessFederation, canAccessPlatform };
 
 /**
  * Garde d'accès au back-office : anciennement un login unique codé en dur
@@ -51,6 +54,24 @@ export async function ensureAdminAuth(request: NextRequest) {
 export async function hasAdminSession() {
   const session = await getSsoSession();
   return isPlatformSuperAdminRole(session?.role);
+}
+
+/**
+ * migration.md §9/§12 (Phase 5) : accès aux évaluations officielles
+ * d'arbitre — réservé à REFEREE_OBSERVER (auteur des rapports),
+ * FEDERATION_ADMIN (homologation) et PLATFORM_SUPERADMIN/SUPERADMIN (accès
+ * complet). Distinct de `ensureAdminAuth` (accès plateforme complet
+ * uniquement) : ne jamais l'utiliser pour les routes du back-office
+ * général existant.
+ */
+const OFFICIAL_EVAL_ROLES = new Set(["SUPERADMIN", "PLATFORM_SUPERADMIN", "FEDERATION_ADMIN", "REFEREE_OBSERVER"]);
+
+export async function getOfficialEvalSession(request: NextRequest): Promise<SsoUser | null> {
+  const session = await getSsoSessionFromRequest(request);
+  if (!session || !OFFICIAL_EVAL_ROLES.has(session.role)) {
+    return null;
+  }
+  return session;
 }
 
 export { redirectToLogin };
