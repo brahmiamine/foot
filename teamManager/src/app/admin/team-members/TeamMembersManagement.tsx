@@ -317,7 +317,7 @@ export function TeamMembersManagement({
 
       {historyView === "FORMER_PLAYERS" && (
         <div className="alert alert-info">
-          Historique en lecture seule : les dates d'appartenance sont conservées après le transfert.
+          Historique en lecture seule : les dates d&apos;appartenance sont conservées après le transfert.
         </div>
       )}
 
