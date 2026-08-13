@@ -301,18 +301,18 @@ Route modération contient TODO pour adminId. Audit non attribuable.
 **Projets**: ob  
 **Estimation**: 3 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Audit fait, 1 IDOR réelle trouvée et corrigée (voir note)
 
 **Description**:
 Omission filtrage teamId expose données autre club.
 
+> **Note d'audit** : `ob` est en réalité conçu single-tenant-par-déploiement (`getObTeam()` résout `OB_TEAM_ID` une fois, mis en cache, voir ob-team.ts) — pas de table `teamId`/`OB_TEAM_ID` par route comme le suggérait la checklist ci-dessous (les routes `/api/club/info`, `/api/news`, `/api/formulaires` telles que décrites n'existent pas : ce sont des Server Components qui appellent des services scopés par `team.id`, ex. `PublicClubService`, `PublicNewsService`). Audit complet des 12 services publics + 8 pages + routes dynamiques : **tous déjà correctement scopés**, sauf **`GET /api/live/[matchId]` et `[matchId]/stream`** — la table `matches` est partagée entre clubs, et ces deux endpoints publics non authentifiés ne filtraient que sur `isPublicVisible`, jamais sur l'équipe : un `matchId` d'un autre club (deviné/énuméré) exposait son score et son fil d'événements live en clair. **Corrigé** : les deux routes exigent maintenant `equipeHome = OB_TEAM_ID OR equipeAway = OB_TEAM_ID` en plus de `isPublicVisible`. `PublicStandingsService` interroge intentionnellement d'autres équipes de la même fédération pour construire un classement — exception documentée, pas une fuite (données de classement déjà publiques).
+
 **Audit checklist**:
-- [ ] /api/club/info → WHERE teamId = OB_TEAM_ID
-- [ ] /api/news → WHERE teamId = OB_TEAM_ID
-- [ ] /api/tickets → WHERE ticket.match.teamId = OB_TEAM_ID
-- [ ] /api/formulaires → enregistrer teamId = OB_TEAM_ID
-- [ ] Middleware: `withTeamIdScope` appliqué partout
-- [ ] Tests: changer OB_TEAM_ID → données correspondent nouveau team
+- [x] Services publics (club/news/stadium/academy/announcement/contact/socials/sponsor/shop/player/match/gallery) → tous scopés par `team.id`
+- [x] `/api/live/[matchId]` et `/stream` → **IDOR trouvée et corrigée**
+- [x] Formulaires (contact/recrutement/inscription) → `ob` ne fait que rediriger vers `teamManager/.../{teamId}`, aucune écriture DB côté `ob`
+- [x] Tests : 3 nouveaux tests d'isolation (route.test.ts, stream/route.test.ts)
 
 **Impact si ignoré**: 🚨 Exposition données autre club = grave
 

@@ -1,6 +1,7 @@
 import { getDataSource } from "@/lib/database";
 import { Match } from "@/entities/Match";
 import { LiveMatchService, type LiveEvent } from "@/services/LiveMatchService";
+import { getObTeam } from "@/lib/ob-team";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +23,28 @@ interface LivePayload {
  * navigateur que lorsque le contenu change réellement. Le polling client
  * existant reste le repli si l'EventSource échoue (proxy qui coupe le
  * flux, navigateur qui ne supporte pas SSE) — voir US-43.
+ *
+ * TASK-P0-011 : `matches` est une table partagée entre tous les clubs — sans
+ * filtrer par OB_TEAM_ID, un `matchId` d'un autre club diffusait quand même
+ * son fil live via ce flux public non authentifié. Le match doit désormais
+ * impliquer l'équipe OB (domicile ou visiteur), vérifié à l'ouverture ET à
+ * chaque tick (mêmes garde-fous que route.ts).
  */
 export async function GET(_request: Request, context: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await context.params;
 
+  const team = await getObTeam();
+  if (!team) {
+    return new Response("not_found", { status: 404 });
+  }
+
   const ds = await getDataSource();
-  const match = await ds.getRepository(Match).findOne({ where: { id: matchId } });
+  const match = await ds.getRepository(Match).findOne({
+    where: [
+      { id: matchId, equipeHome: team.id },
+      { id: matchId, equipeAway: team.id },
+    ],
+  });
   if (!match || !match.isPublicVisible) {
     return new Response("not_found", { status: 404 });
   }
