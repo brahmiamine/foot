@@ -57,6 +57,39 @@ function assertTransition(current: RefereeOfficialEvaluationStatus, allowed: Ref
   }
 }
 
+export interface UpdateEvaluationInput {
+  criteres?: Record<string, number>
+  noteOfficielle?: number
+  pointsForts?: string | null
+  pointsFaibles?: string | null
+  recommandations?: string | null
+}
+
+/**
+ * Corrige un rapport avant sa soumission — seul un `DRAFT` est modifiable
+ * (une fois `SUBMITTED`, le rapport est figé jusqu'à la décision fédérale ;
+ * un `REJECTED` doit être recréé, pas réédité, pour garder une trace de ce
+ * qui a été effectivement homologué/rejeté). Autorisation (auteur du
+ * rapport) vérifiée par l'appelant, comme pour `submitEvaluation`.
+ */
+export async function updateEvaluation(evaluationId: string, input: UpdateEvaluationInput): Promise<RefereeOfficialEvaluation> {
+  const dataSource = await getDataSource()
+  const repo = dataSource.getRepository(RefereeOfficialEvaluation)
+  const evaluation = await repo.findOne({ where: { id: evaluationId } })
+  if (!evaluation) {
+    throw new RefereeOfficialEvaluationError('Évaluation introuvable')
+  }
+  assertTransition(evaluation.status, ['DRAFT'])
+
+  if (input.criteres !== undefined) evaluation.criteres = input.criteres
+  if (input.noteOfficielle !== undefined) evaluation.note_officielle = input.noteOfficielle
+  if (input.pointsForts !== undefined) evaluation.points_forts = input.pointsForts
+  if (input.pointsFaibles !== undefined) evaluation.points_faibles = input.pointsFaibles
+  if (input.recommandations !== undefined) evaluation.recommandations = input.recommandations
+
+  return repo.save(evaluation)
+}
+
 /** DRAFT -> SUBMITTED. Seul l'observateur auteur du rapport peut le soumettre (vérifié par l'appelant, voir routes). */
 export async function submitEvaluation(evaluationId: string): Promise<RefereeOfficialEvaluation> {
   const dataSource = await getDataSource()

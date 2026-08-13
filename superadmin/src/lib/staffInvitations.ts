@@ -180,8 +180,15 @@ const STAFF_ROLES: StaffInvitationRole[] = ['FEDERATION_ADMIN', 'LEAGUE_ADMIN', 
  * plus récentes d'abord — les invitations ADMIN/OBSERVATEUR d'un club
  * restent affichées séparément par `/admin/club/:teamId` (comptes déjà
  * listés là, pas dupliqués ici).
+ *
+ * `scopeFederationId` (omis pour PLATFORM_SUPERADMIN, qui voit tout) filtre
+ * la liste pour un `FEDERATION_ADMIN` : ses propres invitations FEDERATION_
+ * ADMIN/LEAGUE_ADMIN (`federationId`/`league.federation_id` = sa fédération)
+ * plus les invitations REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER — sans scope
+ * propre, visibles par tout FEDERATION_ADMIN, symétrique du POST qui
+ * autorise déjà n'importe quel FEDERATION_ADMIN à les créer.
  */
-export async function listStaffInvitations(): Promise<StaffInvitationSummary[]> {
+export async function listStaffInvitations(scopeFederationId?: string | null): Promise<StaffInvitationSummary[]> {
   const dataSource = await getDataSource()
   const invitations = await dataSource.getRepository(StaffInvitation).find({
     where: STAFF_ROLES.map((role) => ({ role })),
@@ -200,10 +207,19 @@ export async function listStaffInvitations(): Promise<StaffInvitationSummary[]> 
 
   const federationNames = new Map(federations.map((f) => [f.id, f.nom]))
   const leagueNames = new Map(leagues.map((l) => [l.id, l.nom]))
+  const leagueFederationIds = new Map(leagues.map((l) => [l.id, l.federation_id]))
+
+  const scoped = scopeFederationId
+    ? invitations.filter((invitation) => {
+        if (invitation.federationId) return invitation.federationId === scopeFederationId
+        if (invitation.leagueId) return leagueFederationIds.get(invitation.leagueId) === scopeFederationId
+        return true // REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER : pas de scope propre, visibles par tout FEDERATION_ADMIN
+      })
+    : invitations
 
   const now = Date.now()
   return toPlain(
-    invitations.map((invitation) => ({
+    scoped.map((invitation) => ({
       id: invitation.id,
       name: invitation.name,
       email: invitation.email,

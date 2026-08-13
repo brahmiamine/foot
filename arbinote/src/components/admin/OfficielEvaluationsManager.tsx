@@ -116,7 +116,7 @@ export default function OfficielEvaluationsManager({
       </div>
 
       {tab === 'new' && canWrite && <NewReportForm criteres={criteres} onCreated={() => setTab('mine')} />}
-      {tab === 'mine' && canWrite && <MyReportsList />}
+      {tab === 'mine' && canWrite && <MyReportsList criteres={criteres} />}
       {tab === 'review' && canReview && <ReviewQueue />}
       {tab === 'history' && <ArbitreHistory />}
     </div>
@@ -330,11 +330,12 @@ function useEvaluationLabels() {
   return { matchById, arbitreById }
 }
 
-function MyReportsList() {
+function MyReportsList({ criteres }: { criteres: CritereOption[] }) {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const { matchById, arbitreById } = useEvaluationLabels()
 
   async function load() {
@@ -383,6 +384,20 @@ function MyReportsList() {
       ) : (
         evaluations.map((evaluation) => {
           const status = STATUS_LABELS[evaluation.status]
+          if (editingId === evaluation.id) {
+            return (
+              <EditReportForm
+                key={evaluation.id}
+                evaluation={evaluation}
+                criteres={criteres}
+                onCancel={() => setEditingId(null)}
+                onSaved={() => {
+                  setEditingId(null)
+                  load()
+                }}
+              />
+            )
+          }
           return (
             <div key={evaluation.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-start justify-between gap-3">
@@ -399,20 +414,163 @@ function MyReportsList() {
                 <span className={`text-xs font-medium px-2 py-1 rounded ${status.className}`}>{status.label}</span>
               </div>
               {evaluation.status === 'DRAFT' && (
-                <button
-                  type="button"
-                  disabled={submittingId === evaluation.id}
-                  onClick={() => handleSubmitReport(evaluation.id)}
-                  className="mt-3 px-4 py-1.5 bg-[#c42221] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-                >
-                  {submittingId === evaluation.id ? 'Soumission...' : 'Soumettre à la fédération'}
-                </button>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(evaluation.id)}
+                    className="px-4 py-1.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submittingId === evaluation.id}
+                    onClick={() => handleSubmitReport(evaluation.id)}
+                    className="px-4 py-1.5 bg-[#c42221] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                  >
+                    {submittingId === evaluation.id ? 'Soumission...' : 'Soumettre à la fédération'}
+                  </button>
+                </div>
               )}
             </div>
           )
         })
       )}
     </div>
+  )
+}
+
+function EditReportForm({
+  evaluation,
+  criteres,
+  onCancel,
+  onSaved,
+}: {
+  evaluation: Evaluation
+  criteres: CritereOption[]
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  const [scores, setScores] = useState<Record<string, number>>(evaluation.criteres ?? {})
+  const [pointsForts, setPointsForts] = useState(evaluation.points_forts ?? '')
+  const [pointsFaibles, setPointsFaibles] = useState(evaluation.points_faibles ?? '')
+  const [recommandations, setRecommandations] = useState(evaluation.recommandations ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const noteOfficielle = useMemo(() => {
+    const values = Object.values(scores)
+    if (values.length === 0) return null
+    return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100
+  }, [scores])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (noteOfficielle === null) {
+      setError('Notez au moins un critère')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/officiel/evaluations/${evaluation.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          criteres: scores,
+          note_officielle: noteOfficielle,
+          points_forts: pointsForts || null,
+          points_faibles: pointsFaibles || null,
+          recommandations: recommandations || null,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error ?? 'Erreur lors de la mise à jour')
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="border border-[#c42221]/40 rounded-lg p-4 space-y-3">
+      {error && <div className="p-3 border border-red-200 bg-red-50 text-red-700 rounded">{error}</div>}
+
+      <div>
+        <label className="block text-sm font-medium mb-2">Critères techniques (1 à 5)</label>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {criteres.map((c) => (
+            <div key={c.id} className="flex items-center justify-between gap-2 border border-gray-200 rounded-lg px-3 py-2">
+              <span className="text-sm">{c.label}</span>
+              <select
+                required
+                value={scores[c.id] ?? ''}
+                onChange={(e) => setScores({ ...scores, [c.id]: Number(e.target.value) })}
+                className="border border-gray-300 rounded px-2 py-1 w-16"
+              >
+                <option value="">—</option>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+        {noteOfficielle !== null && (
+          <p className="text-sm text-gray-500 mt-2">Note officielle (moyenne) : {noteOfficielle}/5</p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Points forts</label>
+        <textarea
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+          rows={2}
+          value={pointsForts}
+          onChange={(e) => setPointsForts(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Points faibles</label>
+        <textarea
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+          rows={2}
+          value={pointsFaibles}
+          onChange={(e) => setPointsFaibles(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Recommandations</label>
+        <textarea
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+          rows={2}
+          value={recommandations}
+          onChange={(e) => setRecommandations(e.target.value)}
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={saving}
+          className="px-4 py-1.5 bg-[#c42221] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? 'Enregistrement...' : 'Enregistrer'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-1.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+        >
+          Annuler
+        </button>
+      </div>
+    </form>
   )
 }
 

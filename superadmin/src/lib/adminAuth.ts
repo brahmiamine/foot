@@ -43,6 +43,41 @@ export async function hasAdminSession() {
 }
 
 /**
+ * Équivalent `getAdminSession` pour les Server Components (pas de
+ * `NextRequest`, cookie lu via `next/headers` comme `hasAdminSession`).
+ * Réservé à `PLATFORM_SUPERADMIN`/`FEDERATION_ADMIN` — pas `LEAGUE_ADMIN`,
+ * dont aucune route Phase 2/3/4 ne reconnaît le scope aujourd'hui
+ * (`canAccessFederation` dans packages/auth-shared/src/roles.ts renvoie
+ * `false` pour ce rôle) : l'inclure ici ferait passer le gate de page à un
+ * LEAGUE_ADMIN qui se heurterait ensuite à des 403 partout. Utilisé par
+ * les pages `superadmin` qui consomment des routes déjà scopées par
+ * fédération (staff-invitations, transferts) plutôt que `hasAdminSession`
+ * (accès plateforme complet uniquement).
+ */
+export async function getAdminPageSession(): Promise<SsoUser | null> {
+  const session = await getSsoSession();
+  if (!session) return null;
+  const allowedRoles: SsoUser["role"][] = ["SUPERADMIN", "PLATFORM_SUPERADMIN", "FEDERATION_ADMIN"];
+  return allowedRoles.includes(session.role) ? session : null;
+}
+
+/**
+ * Garde pour les routes de LECTURE de données de référence (fédérations,
+ * ligues, équipes...) qui n'exposent rien de sensible en elles-mêmes —
+ * contrairement à `ensureAdminAuth` (accès plateforme complet), accepte
+ * aussi `FEDERATION_ADMIN`. Ne remplace jamais une vérification de scope
+ * sur une ÉCRITURE : `ensureFederationAccess`/`ensureLeagueAccess`
+ * restent obligatoires pour les routes POST/PUT/DELETE/PATCH.
+ */
+export async function ensureAdminOrFederationAuth(request: NextRequest) {
+  const session = await getAdminSession(request);
+  if (session && (isPlatformSuperAdminRole(session.role) || session.role === "FEDERATION_ADMIN")) {
+    return null;
+  }
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+/**
  * Session complète du compte admin appelant, quel que soit son rôle
  * (PLATFORM_SUPERADMIN/FEDERATION_ADMIN/LEAGUE_ADMIN inclus) — utile aux
  * routes qui doivent lire le scope (`federationId`/`leagueId`) pour

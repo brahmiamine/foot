@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth, getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
+import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { League } from '@/lib/entities'
 import { createInvitation, listStaffInvitations, type CreateInvitationInput } from '@/lib/staffInvitations'
@@ -11,16 +11,19 @@ export const runtime = 'nodejs'
 /**
  * GET /api/admin/staff-invitations — liste des invitations fédération/
  * ligue/officiels envoyées (migration.md §0), pour l'écran de provisioning.
- * Réservé à PLATFORM_SUPERADMIN : contrairement au POST, pas encore ouvert
- * à FEDERATION_ADMIN (filtrer la liste par fédération d'origine reste à
- * faire, voir migration.md §1 "reste ouvert").
+ * Ouvert à PLATFORM_SUPERADMIN (liste complète) et FEDERATION_ADMIN (liste
+ * filtrée à sa fédération, voir `listStaffInvitations`) — même périmètre
+ * que le POST.
  */
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
-  if (unauthorized) return unauthorized
+  const session = await getAdminSession(request)
+  if (!session || !(canAccessPlatform(session) || session.role === 'FEDERATION_ADMIN')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   try {
-    const invitations = await listStaffInvitations()
+    const scopeFederationId = canAccessPlatform(session) ? null : session.federationId
+    const invitations = await listStaffInvitations(scopeFederationId)
     return NextResponse.json(invitations)
   } catch (error) {
     console.error('Error listing staff invitations:', error)

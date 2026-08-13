@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth } from '@/lib/adminAuth'
+import { ensureAdminAuth, ensureAdminOrFederationAuth } from '@/lib/adminAuth'
 import { ArbitreInput, createArbitre, listArbitres } from '@/lib/adminArbitres'
 import { logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
 
+/** Lecture ouverte à FEDERATION_ADMIN (référentiel arbitres, non sensible — sélecteur de l'écran officiels de match). */
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
+  const unauthorized = await ensureAdminOrFederationAuth(request)
   if (unauthorized) return unauthorized
 
   try {

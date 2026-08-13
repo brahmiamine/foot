@@ -43,9 +43,19 @@ const STATUS_LABELS: Record<InvitationSummary['status'], { label: string; badge:
   EXPIRED: { label: 'Expirée', badge: 'bg-secondary-subtle text-secondary' },
 }
 
-const emptyForm = { name: '', email: '', role: 'FEDERATION_ADMIN' as StaffRole, federation_id: '', league_id: '' }
+function buildEmptyForm(defaultRole: StaffRole) {
+  return { name: '', email: '', role: defaultRole, federation_id: '', league_id: '' }
+}
 
-export default function AdminStaffInvitationsManager() {
+/**
+ * `isPlatform` distingue PLATFORM_SUPERADMIN (tous les rôles) d'un
+ * FEDERATION_ADMIN (ne peut pas créer un autre FEDERATION_ADMIN — réservé
+ * plateforme côté API, voir POST /api/admin/staff-invitations) : option
+ * masquée plutôt que proposée puis rejetée en 403.
+ */
+export default function AdminStaffInvitationsManager({ isPlatform }: { isPlatform: boolean }) {
+  const availableRoles = (Object.keys(ROLE_LABELS) as StaffRole[]).filter((role) => isPlatform || role !== 'FEDERATION_ADMIN')
+  const emptyForm = buildEmptyForm(availableRoles[0])
   const [invitations, setInvitations] = useState<InvitationSummary[]>([])
   const [federations, setFederations] = useState<Federation[]>([])
   const [leagues, setLeagues] = useState<LeagueOption[]>([])
@@ -160,7 +170,7 @@ export default function AdminStaffInvitationsManager() {
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value as StaffRole, federation_id: '', league_id: '' })}
                 >
-                  {(Object.keys(ROLE_LABELS) as StaffRole[]).map((role) => (
+                  {availableRoles.map((role) => (
                     <option key={role} value={role}>
                       {ROLE_LABELS[role]}
                     </option>

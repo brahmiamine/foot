@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth } from '@/lib/adminAuth'
+import { ensureAdminAuth, ensureAdminOrFederationAuth } from '@/lib/adminAuth'
 import { listSaisonsForAdmin, createSaisonAdmin } from '@/lib/adminSaisons'
 import { getActiveLeagueId } from '@/lib/leagueSelection'
 import { logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
 
+/** Lecture ouverte à FEDERATION_ADMIN (référentiel saisons, non sensible — sélecteur de l'écran transferts). */
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
+  const unauthorized = await ensureAdminOrFederationAuth(request)
   if (unauthorized) return unauthorized
 
   try {

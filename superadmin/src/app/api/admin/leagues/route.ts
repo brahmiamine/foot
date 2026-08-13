@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth, ensureFederationAccess } from '@/lib/adminAuth'
+import { ensureAdminOrFederationAuth, ensureFederationAccess, getAdminSession } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { League } from '@/lib/entities'
 import { toPlain } from '@/lib/serialization'
@@ -23,9 +23,13 @@ interface RawLeagueRow {
   federation_code: string | null
 }
 
+/** Lecture ouverte à `FEDERATION_ADMIN` (filtrée à sa propre fédération) en plus de `PLATFORM_SUPERADMIN` — l'écriture (POST) reste gardée par `ensureFederationAccess` par ligue créée. */
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
+  const unauthorized = await ensureAdminOrFederationAuth(request)
   if (unauthorized) return unauthorized
+
+  const session = await getAdminSession(request)
+  const federationFilter = session?.role === 'FEDERATION_ADMIN' ? session.federationId : null
 
   try {
     const dataSource = await getDataSource()
@@ -84,7 +88,8 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    return NextResponse.json(formattedLeagues)
+    const filtered = federationFilter ? formattedLeagues.filter((l) => l.federation_id === federationFilter) : formattedLeagues
+    return NextResponse.json(filtered)
   } catch (error) {
     console.error('Error fetching leagues:', error)
     // Si l'erreur est due à une colonne manquante, retourner les ligues avec is_active = true par défaut
@@ -117,7 +122,10 @@ export async function GET(request: NextRequest) {
             code: row.federation_code,
           } : undefined,
         }))
-        return NextResponse.json(formattedLeagues)
+        const filteredFallback = federationFilter
+          ? formattedLeagues.filter((l) => l.federation_id === federationFilter)
+          : formattedLeagues
+        return NextResponse.json(filteredFallback)
       } catch (fallbackError) {
         console.error('Fallback query also failed:', fallbackError)
       }
