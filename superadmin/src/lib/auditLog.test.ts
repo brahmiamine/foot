@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const mockCreate = vi.fn((value) => value)
+const mockCreate = vi.fn((value: unknown) => value)
 const mockSave = vi.fn()
 const mockGetRepository = vi.fn(() => ({ create: mockCreate, save: mockSave }))
 
