@@ -505,17 +505,19 @@ Match (superadmin)
 **Projets**: payment-api, notification-api, marketplace-api  
 **Estimation**: 3 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Portion scopée traitée (payment-api + notification-api) — marketplace-api non fait, voir Note d'audit
+
+> **Note d'audit** : `payment-api/openapi.yaml` (10 opérations) et `notification-api/openapi.yaml` (20 opérations) écrits à la main en lisant chaque controller/DTO/entité pour garantir l'exactitude (pas d'outillage de génération automatique dans ce repo), puis validés avec `npx @redocly/cli lint` (0 erreur, seulement des avertissements cosmétiques attendus — ex. sondes de santé sans réponse 4xx). `marketplace-api` (16 controllers, ~60 opérations) **non fait** dans cette passe : à ce volume, documenter à la main sans outillage de génération risque de dériver du contrat réel sans qu'aucun test ne le détecte (contrairement au code applicatif de ce repo, toujours vérifié par sa suite de tests) — mieux vaut le faire dans une passe dédiée, avec plus de temps pour vérifier chaque route, que de produire quelque chose d'imprécis rapidement.
 
 **Description**:
 APIs implicites. Changement cassant sans notification.
 
-- [ ] payment-api/openapi.yaml: toutes routes
-- [ ] notification-api/openapi.yaml
-- [ ] marketplace-api/openapi.yaml
-- [ ] Versioning URL: /v1/payments, /v2/payments
-- [ ] Client generation: SDK TypeScript depuis OpenAPI
-- [ ] Consumer contract tests
+- [x] payment-api/openapi.yaml: toutes routes — 10/10 routes documentées (schémas requête/réponse, codes d'erreur par provider)
+- [x] notification-api/openapi.yaml — 20/20 opérations documentées (3 schémas d'auth : session sso, rôle SUPERADMIN, clé de service)
+- [ ] marketplace-api/openapi.yaml — non fait, voir note d'audit (volume + risque d'imprécision sans outillage)
+- [ ] Versioning URL: /v1/payments, /v2/payments — **non fait délibérément** : changement cassant pour toutes les apps appelantes actuelles (ob, teamManager, sellerPortal, billetterie, marketplace-api) sans coordination de déploiement ; les deux fichiers openapi.yaml documentent les routes non versionnées réelles et incluent une recommandation (introduire `/v1/*` en alias plutôt qu'en remplacement)
+- [ ] Client generation: SDK TypeScript depuis OpenAPI — non fait, dépend du point précédent et de la couverture complète (marketplace-api manquant)
+- [ ] Consumer contract tests — non fait, même dépendance
 
 ---
 

@@ -20,6 +20,8 @@ Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Pa
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
+**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les 10 routes ci-dessus (schémas de requête/réponse, codes d'erreur). Reflète les routes non versionnées actuelles — le versioning d'URL (`/v1/*`) suggéré par le todo n'a pas été fait, changement cassant pour toutes les apps appelantes sans coordination de déploiement (voir commentaire en tête du fichier). Validé avec `npx @redocly/cli lint openapi.yaml`.
+
 ## Authentification et autorisations
 
 `ServiceAuthGuard` contrôle initialisations et lecture avec `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`, TASK-P0-003 — voir `src/config/service-clients.config.ts`). Les webhooks ne portent pas cette clé; ils valident signature/secret ou relisent le statut fournisseur selon l'implémentation. `PAYMENT_WEBHOOK_SECRET` signe les callbacks sortants. Aucun secret ne doit aller au frontend.

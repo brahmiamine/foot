@@ -1,0 +1,709 @@
+openapi: 3.0.3
+info:
+  title: notification-api
+  description: >
+    Service central de notifications (in-app, email, push, SMS) pour
+    l'écosystème foot. Trois surfaces distinctes : `/api/*` consommée par
+    les frontends (JWT `sso`, cookie de session), `/admin/*` réservée à
+    SUPERADMIN (même JWT + rôle), `/internal/*` réservée aux applications
+    backend de l'écosystème (header `x-api-key`, ServiceAuthGuard —
+    jamais le JWT utilisateur, voir TASK-P0-003 pour la rotation).
+
+    TASK-P0-019 (portion scopée) : ce document décrit les routes telles
+    qu'elles existent réellement aujourd'hui (non versionnées). Le
+    versioning d'URL n'a pas été implémenté — voir payment-api/openapi.yaml
+    pour le raisonnement complet (changement cassant pour les apps
+    appelantes, hors scope sans décision produit/coordination de
+    déploiement).
+  version: "1.0.0"
+servers:
+  - url: http://localhost:3010
+    description: Développement local
+
+paths:
+  /health:
+    get:
+      summary: Sonde de santé (infra, non authentifiée)
+      operationId: getHealth
+      tags: [Santé]
+      security: []
+      responses:
+        "200":
+          description: Service et base de données disponibles.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+                  service: { type: string, example: notification-api }
+                  database: { type: string, enum: [ok] }
+                  directoryDb: { type: string, enum: [configured, not_configured] }
+                  responseTimeMs: { type: number }
+                  timestamp: { type: string, format: date-time }
+        "503":
+          description: Base de données inaccessible.
+
+  /api/notifications:
+    get:
+      summary: Liste les notifications de l'utilisateur courant (paginé)
+      operationId: listMyNotifications
+      tags: [Notifications]
+      security: [{ SsoSession: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Page de notifications.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedNotifications"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/unread:
+    get:
+      summary: Liste les notifications non lues de l'utilisateur courant (paginé)
+      operationId: listMyUnreadNotifications
+      tags: [Notifications]
+      security: [{ SsoSession: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Page de notifications non lues.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedNotifications"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/unread-count:
+    get:
+      summary: Compte les notifications non lues de l'utilisateur courant
+      operationId: countMyUnreadNotifications
+      tags: [Notifications]
+      security: [{ SsoSession: [] }]
+      responses:
+        "200":
+          description: Compteur.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/read-all:
+    patch:
+      summary: Marque toutes les notifications de l'utilisateur courant comme lues
+      operationId: markAllMyNotificationsRead
+      tags: [Notifications]
+      security: [{ SsoSession: [] }]
+      responses:
+        "200":
+          description: Notifications mises à jour.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/{id}:
+    get:
+      summary: Lit une notification de l'utilisateur courant
+      operationId: getMyNotification
+      tags: [Notifications]
+      security: [{ SsoSession: [] }]
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: La notification.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Notification introuvable, ou n'appartenant pas à l'utilisateur courant.
+    delete:
+      summary: Supprime une notification de l'utilisateur courant
+      operationId: deleteMyNotification
+      tags: [Notifications]
+      security: [{ SsoSession: [] }]
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: Supprimée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Notification introuvable, ou n'appartenant pas à l'utilisateur courant.
+
+  /api/notifications/{id}/read:
+    patch:
+      summary: Marque une notification comme lue
+      operationId: markMyNotificationRead
+      tags: [Notifications]
+      security: [{ SsoSession: [] }]
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: Notification mise à jour.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Notification introuvable, ou n'appartenant pas à l'utilisateur courant.
+
+  /api/preferences:
+    get:
+      summary: Lit les préférences de notification de l'utilisateur courant
+      operationId: getMyPreferences
+      tags: [Préférences]
+      security: [{ SsoSession: [] }]
+      responses:
+        "200":
+          description: Liste des préférences (canal/catégorie).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NotificationPreference" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      summary: Met à jour (upsert) les préférences de notification de l'utilisateur courant
+      operationId: upsertMyPreferences
+      tags: [Préférences]
+      security: [{ SsoSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertPreferencesDto"
+      responses:
+        "200":
+          description: Préférences mises à jour.
+        "400":
+          description: Corps invalide.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/preferences/locale:
+    get:
+      summary: Lit la langue de notification préférée de l'utilisateur courant
+      operationId: getMyLocale
+      tags: [Préférences]
+      security: [{ SsoSession: [] }]
+      responses:
+        "200":
+          description: Langue préférée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  locale: { $ref: "#/components/schemas/NotificationLocale" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      summary: Définit la langue de notification préférée de l'utilisateur courant
+      operationId: setMyLocale
+      tags: [Préférences]
+      security: [{ SsoSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locale]
+              properties:
+                locale: { $ref: "#/components/schemas/NotificationLocale" }
+      responses:
+        "200":
+          description: Langue mise à jour.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  locale: { $ref: "#/components/schemas/NotificationLocale" }
+        "400":
+          description: Locale invalide.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/push-subscriptions:
+    get:
+      summary: Liste les appareils enregistrés pour le push de l'utilisateur courant
+      operationId: listMyPushSubscriptions
+      tags: [Push]
+      security: [{ SsoSession: [] }]
+      responses:
+        "200":
+          description: Appareils enregistrés.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PushSubscription" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      summary: Enregistre (ou met à jour) un appareil pour le push
+      operationId: registerMyPushSubscription
+      tags: [Push]
+      security: [{ SsoSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPushSubscriptionDto"
+      responses:
+        "201":
+          description: Appareil enregistré.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushSubscription"
+        "400":
+          description: Corps invalide.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/push-subscriptions/{deviceId}:
+    delete:
+      summary: Désenregistre un appareil pour le push
+      operationId: removeMyPushSubscription
+      tags: [Push]
+      security: [{ SsoSession: [] }]
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Désenregistré.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/stats:
+    get:
+      summary: Statistiques agrégées pour le dashboard technique SUPERADMIN
+      operationId: getAdminStats
+      tags: [Admin]
+      security: [{ SsoSession: [] }]
+      description: Réservé au rôle SUPERADMIN (RolesGuard).
+      responses:
+        "200":
+          description: Statistiques du jour.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant (SUPERADMIN requis).
+
+  /admin/templates:
+    get:
+      summary: Liste tous les gabarits de notification (type/canal/langue)
+      operationId: listAdminTemplates
+      tags: [Admin]
+      security: [{ SsoSession: [] }]
+      description: Réservé au rôle SUPERADMIN (RolesGuard).
+      responses:
+        "200":
+          description: Gabarits.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NotificationTemplate" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant (SUPERADMIN requis).
+
+  /admin/templates/{type}/{channel}/{locale}:
+    put:
+      summary: Crée ou met à jour un gabarit de notification
+      operationId: upsertAdminTemplate
+      tags: [Admin]
+      security: [{ SsoSession: [] }]
+      description: >
+        Réservé au rôle SUPERADMIN (RolesGuard). Absence de gabarit pour un
+        (type, canal, locale) donné : le service retombe sur le titre/corps
+        bruts fournis à la création de la notification.
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string }
+        - name: channel
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/NotificationChannelType" }
+        - name: locale
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/NotificationLocale" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertTemplateDto"
+      responses:
+        "200":
+          description: Gabarit créé ou mis à jour.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationTemplate"
+        "400":
+          description: Corps invalide, ou channel/locale hors énumération.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant (SUPERADMIN requis).
+
+  /admin/audit/notifications/{id}/deliveries:
+    get:
+      summary: Historique de livraison d'une notification (audit)
+      operationId: getNotificationDeliveries
+      tags: [Admin]
+      security: [{ SsoSession: [] }]
+      description: >
+        Réservé au rôle SUPERADMIN (RolesGuard). "Notification créée ->
+        Email envoyé -> Provider accepté -> Delivered" ou "Email -> FAILED
+        -> Retry -> SUCCESS".
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: Lignes de livraison, une par canal résolu.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NotificationDelivery" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Rôle insuffisant (SUPERADMIN requis).
+
+  /internal/notifications:
+    post:
+      summary: Crée et distribue une notification pour un destinataire ou une cible broadcast
+      operationId: createInternalNotification
+      tags: [Interne]
+      security: [{ ServiceApiKey: [] }]
+      description: >
+        Réservé aux applications backend de l'écosystème. Un seul
+        destinataire (`userId`) ou une cible broadcast (`target`) — jamais
+        les deux, validé côté service. `eventId` (optionnel) rend l'appel
+        idempotent : rejoué avec le même `eventId`, renvoie les
+        `notificationIds` déjà créés (`deduplicated: true`) plutôt que de
+        dupliquer l'envoi.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInternalNotificationDto"
+      responses:
+        "201":
+          description: Notification(s) créée(s) et distribuée(s) (ou déduplication détectée).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispatchResult"
+        "400":
+          description: Corps invalide (ex. ni userId ni target, ou les deux).
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    SsoSession:
+      type: apiKey
+      in: cookie
+      name: foot_sso_session
+      description: JWT de session `sso` (voir packages/auth-shared). Requis sur toutes les routes `/api/*` et `/admin/*`.
+    ServiceApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: >
+        Clé service-à-service par application appelante (registre
+        SERVICE_API_KEYS). Rotation sans interruption via
+        SERVICE_API_KEYS_PREVIOUS (TASK-P0-003).
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    NotificationId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Session ou clé de service absente/invalide.
+
+  schemas:
+    NotificationChannelType:
+      type: string
+      enum: [IN_APP, EMAIL, PUSH, SMS]
+    NotificationLocale:
+      type: string
+      enum: [fr, ar, en]
+    NotificationPriority:
+      type: string
+      enum: [LOW, NORMAL, HIGH, URGENT]
+    NotificationTargetType:
+      type: string
+      enum: [USER, TEAM, ROLE, CATEGORY, SELLER, MEMBERS]
+    PushPlatform:
+      type: string
+      enum: [WEB, IOS, ANDROID]
+    DeliveryStatus:
+      type: string
+      enum: [PENDING, SENT, DELIVERED, FAILED, SKIPPED]
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string }
+        teamId: { type: string, nullable: true }
+        application: { type: string, description: "Application source (ne détermine jamais la logique métier ici — routage uniquement)." }
+        type: { type: string }
+        category: { type: string }
+        priority: { $ref: "#/components/schemas/NotificationPriority" }
+        title: { type: string }
+        body: { type: string }
+        data: { type: object, nullable: true, additionalProperties: true }
+        channels:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationChannelType" }
+        mandatory: { type: boolean }
+        notificationEventId: { type: string, nullable: true }
+        readAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        scheduledAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    PaginatedNotifications:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Notification" }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    NotificationPreference:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string }
+        category: { type: string }
+        channel: { $ref: "#/components/schemas/NotificationChannelType" }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    UpsertPreferencesDto:
+      type: object
+      required: [preferences]
+      properties:
+        preferences:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [category, channel, enabled]
+            properties:
+              category: { type: string }
+              channel: { $ref: "#/components/schemas/NotificationChannelType" }
+              enabled: { type: boolean }
+
+    PushSubscription:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string }
+        deviceId: { type: string }
+        platform: { $ref: "#/components/schemas/PushPlatform" }
+        token: { type: string, nullable: true, description: "Jeton FCM (Android/iOS/Web via Firebase)." }
+        endpoint: { type: string, nullable: true, description: "Endpoint Web Push standard (navigateur)." }
+        p256dh: { type: string, nullable: true }
+        auth: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    RegisterPushSubscriptionDto:
+      type: object
+      required: [deviceId, platform]
+      description: Un seul des deux jeux de champs (token vs endpoint/p256dh/auth) est renseigné selon `platform`.
+      properties:
+        deviceId: { type: string }
+        platform: { $ref: "#/components/schemas/PushPlatform" }
+        token: { type: string }
+        endpoint: { type: string }
+        p256dh: { type: string }
+        auth: { type: string }
+
+    NotificationTemplate:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        channel: { $ref: "#/components/schemas/NotificationChannelType" }
+        locale: { $ref: "#/components/schemas/NotificationLocale" }
+        subject: { type: string, nullable: true, description: "EMAIL uniquement." }
+        title: { type: string, nullable: true }
+        body: { type: string, description: "Supporte des variables Handlebars ({{firstName}}, …)." }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    UpsertTemplateDto:
+      type: object
+      required: [body]
+      properties:
+        subject: { type: string }
+        title: { type: string }
+        body: { type: string }
+
+    NotificationDelivery:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        notificationId: { type: string }
+        channel: { $ref: "#/components/schemas/NotificationChannelType" }
+        provider: { type: string, nullable: true }
+        status: { $ref: "#/components/schemas/DeliveryStatus" }
+        attempt: { type: integer }
+        sentAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        error: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AdminStats:
+      type: object
+      properties:
+        since: { type: string, format: date-time }
+        notificationsToday: { type: integer }
+        unreadTotal: { type: integer }
+        failuresToday: { type: integer }
+        retriesToday: { type: integer }
+        byApplication:
+          type: array
+          items:
+            type: object
+            properties:
+              application: { type: string }
+              count: { type: integer }
+        byChannel:
+          type: array
+          items:
+            type: object
+            properties:
+              channel: { type: string }
+              status: { type: string }
+              count: { type: integer }
+
+    TargetDto:
+      type: object
+      required: [type]
+      description: >
+        CATEGORY/SELLER dépendent de données propres à une application
+        métier : l'appelant doit résoudre `userIds` lui-même pour ces deux
+        types, le Notification API se contente alors de les utiliser tels
+        quels.
+      properties:
+        type: { $ref: "#/components/schemas/NotificationTargetType" }
+        teamId: { type: string }
+        role: { type: string }
+        userIds:
+          type: array
+          minItems: 1
+          items: { type: string }
+
+    CreateInternalNotificationDto:
+      type: object
+      required: [type, title, body]
+      properties:
+        eventId:
+          type: string
+          description: Clé d'idempotence — un rejeu avec le même eventId ne duplique jamais l'envoi.
+        type: { type: string }
+        userId: { type: string, description: "Destinataire unique. Mutuellement exclusif avec target." }
+        target:
+          allOf:
+            - $ref: "#/components/schemas/TargetDto"
+          description: Cible broadcast. Mutuellement exclusif avec userId.
+        teamId: { type: string }
+        category: { type: string }
+        priority: { $ref: "#/components/schemas/NotificationPriority" }
+        title: { type: string }
+        body: { type: string }
+        data: { type: object, additionalProperties: true }
+        channels:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationChannelType" }
+        scheduledAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+
+    DispatchResult:
+      type: object
+      properties:
+        notificationIds:
+          type: array
+          items: { type: string, format: uuid }
+        deduplicated:
+          type: boolean
+          description: true si eventId correspondait déjà à un envoi précédent — aucune nouvelle notification créée.

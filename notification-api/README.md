@@ -20,6 +20,8 @@ Contrôleurs: health; `/api/notifications`, `/api/preferences`, `/api/push-subsc
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
+**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les 20 opérations ci-dessus (schémas de requête/réponse, codes d'erreur, 3 schémas d'auth : session sso, rôle SUPERADMIN, clé de service). Reflète les routes non versionnées actuelles — voir payment-api/openapi.yaml pour le raisonnement sur le versioning d'URL non implémenté. Validé avec `npx @redocly/cli lint openapi.yaml`.
+
 ## Authentification et autorisations
 
 Les routes `/api/*` sont protégées globalement par `JwtAuthGuard` et le JWT SSO. Les contrôleurs admin ajoutent `RolesGuard`; l'interne utilise `ServiceAuthGuard` et `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`, TASK-P0-003). La santé reste publique. Les clés restent uniquement serveur.
