@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
+import { getAdminSession, canAccessFederation, canAccessLeague, canAccessPlatform } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
-import { getMatchFederationId } from '@/lib/matchFederationScope'
+import { getMatchScope } from '@/lib/matchFederationScope'
 import { revokeMatchOfficial, MatchOfficialClientError } from '@/lib/matchOfficialClient'
 import { logAdminAction } from '@/lib/auditLog'
 
@@ -22,9 +22,12 @@ export async function POST(
     }
 
     const dataSource = await getDataSource()
-    const federationId = await getMatchFederationId(dataSource, matchId)
-
-    const authorized = federationId ? canAccessFederation(session, federationId) : canAccessPlatform(session)
+    const scope = await getMatchScope(dataSource, matchId)
+    const authorized = scope
+      ? canAccessPlatform(session) ||
+        canAccessLeague(session, scope.leagueId, scope.federationId) ||
+        canAccessFederation(session, scope.federationId)
+      : false
     if (!authorized) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
