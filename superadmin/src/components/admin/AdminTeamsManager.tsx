@@ -3,6 +3,7 @@
 import CreateTeamForm from './teams/CreateTeamForm'
 import EditTeamForm from './teams/EditTeamForm'
 import TeamBrandingPanel from './teams/TeamBrandingPanel'
+import AffiliationsPanel from './teams/AffiliationsPanel'
 import ImportTeamsModal from './teams/ImportTeamsModal'
 import TeamsTable from './teams/TeamsTable'
 import { AGE_CATEGORY_LABELS, emptyForm, GENDER_LABELS, getCountryLabel, SPORT_LABELS, TEAM_TYPE_LABELS } from './teams/constants'
@@ -215,6 +216,7 @@ export default function AdminTeamsManager() {
         )}
 
         {editingId && <TeamBrandingPanel teamId={editingId} />}
+        {editingId && <AffiliationsPanel teamId={editingId} />}
       </div>
     </div>
   )

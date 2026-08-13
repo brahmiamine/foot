@@ -1,6 +1,15 @@
 import { Column, Entity, PrimaryColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm'
 
-export type UserRole = 'ADMIN' | 'OBSERVATEUR' | 'SUPERADMIN'
+export type UserRole =
+  | 'ADMIN'
+  | 'OBSERVATEUR'
+  | 'SUPERADMIN'
+  | 'PLATFORM_SUPERADMIN'
+  | 'FEDERATION_ADMIN'
+  | 'LEAGUE_ADMIN'
+  | 'REFEREE'
+  | 'MATCH_OFFICIAL'
+  | 'REFEREE_OBSERVER'
 
 /**
  * Comptes de connexion partagés par les 5 apps (matchsheet, arbinote,
@@ -27,7 +36,17 @@ export class User {
 
   @Column({
     type: 'enum',
-    enum: ['ADMIN', 'OBSERVATEUR', 'SUPERADMIN'],
+    enum: [
+      'ADMIN',
+      'OBSERVATEUR',
+      'SUPERADMIN',
+      'PLATFORM_SUPERADMIN',
+      'FEDERATION_ADMIN',
+      'LEAGUE_ADMIN',
+      'REFEREE',
+      'MATCH_OFFICIAL',
+      'REFEREE_OBSERVER',
+    ],
     default: 'OBSERVATEUR',
   })
   role!: UserRole

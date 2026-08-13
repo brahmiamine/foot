@@ -14,6 +14,8 @@ const navItems = [
   { label: 'Clubs', href: '/admin/club', icon: 'bx bx-shield-quarter' },
   { label: 'Matchs', href: '/admin/matches', icon: 'bx bx-football' },
   { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },
+  { label: 'Invitations staff', href: '/admin/staff-invitations', icon: 'bx bx-envelope' },
+  { label: 'Transferts', href: '/admin/player-transfers', icon: 'bx bx-transfer' },
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
 ]
