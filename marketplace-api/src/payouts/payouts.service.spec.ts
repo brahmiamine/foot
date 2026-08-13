@@ -60,6 +60,35 @@ describe('PayoutsService', () => {
     );
   });
 
+  /** TASK-P0-021 : un vendeur ne doit jamais voir les payouts d'un autre. */
+  describe('findAllForSeller (isolation vendeur)', () => {
+    it('interroge toujours par sellerId, jamais tous les payouts', async () => {
+      repository.find.mockResolvedValue([buildPayout({ sellerId: 'seller-1' })]);
+
+      await service.findAllForSeller('seller-1');
+
+      expect(repository.find).toHaveBeenCalledWith({
+        where: { sellerId: 'seller-1' },
+        order: { createdAt: 'DESC' },
+      });
+    });
+
+    it("ne retourne jamais les payouts d'un autre vendeur", async () => {
+      repository.find.mockImplementation(({ where }: { where: { sellerId: string } }) =>
+        Promise.resolve(
+          [buildPayout({ id: 'payout-1', sellerId: 'seller-1' }), buildPayout({ id: 'payout-2', sellerId: 'seller-2' })].filter(
+            (p) => p.sellerId === where.sellerId,
+          ),
+        ),
+      );
+
+      const result = await service.findAllForSeller('seller-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].sellerId).toBe('seller-1');
+    });
+  });
+
   describe('computeAvailableBalance (US-47)', () => {
     it('subtracts already-claimed payouts from delivered net revenue', async () => {
       sellerOrderRepository.createQueryBuilder.mockReturnValue(
