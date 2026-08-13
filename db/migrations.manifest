@@ -57,6 +57,7 @@ sso/sql/migration_add_match_official_roles.sql
 
 # --- superadmin (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
 superadmin/mysql/migration_add_audit_logs.sql
+superadmin/mysql/migration_add_user_agent_to_audit_logs.sql
 superadmin/mysql/migration_add_ip_address_to_votes.sql
 superadmin/mysql/migration_add_team_fields.sql
 superadmin/mysql/migration_add_team_gender_and_youth_categories.sql
