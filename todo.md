@@ -505,18 +505,18 @@ Match (superadmin)
 **Projets**: payment-api, notification-api, marketplace-api  
 **Estimation**: 3 jours  
 **Dépendances**: Aucune  
-**Status**: [x] Portion scopée traitée (payment-api + notification-api) — marketplace-api non fait, voir Note d'audit
+**Status**: [x] Traité pour les 3 apps (voir note pour ce qui reste hors périmètre)
 
-> **Note d'audit** : `payment-api/openapi.yaml` (10 opérations) et `notification-api/openapi.yaml` (20 opérations) écrits à la main en lisant chaque controller/DTO/entité pour garantir l'exactitude (pas d'outillage de génération automatique dans ce repo), puis validés avec `npx @redocly/cli lint` (0 erreur, seulement des avertissements cosmétiques attendus — ex. sondes de santé sans réponse 4xx). `marketplace-api` (16 controllers, ~60 opérations) **non fait** dans cette passe : à ce volume, documenter à la main sans outillage de génération risque de dériver du contrat réel sans qu'aucun test ne le détecte (contrairement au code applicatif de ce repo, toujours vérifié par sa suite de tests) — mieux vaut le faire dans une passe dédiée, avec plus de temps pour vérifier chaque route, que de produire quelque chose d'imprécis rapidement.
+> **Note d'audit** : `payment-api/openapi.yaml` (10 opérations) et `notification-api/openapi.yaml` (20 opérations) écrits à la main en lisant chaque controller/DTO/entité pour garantir l'exactitude (pas d'outillage de génération automatique dans ce repo), puis validés avec `npx @redocly/cli lint` (0 erreur). `marketplace-api/openapi.yaml` (16 controllers, 60 opérations — compte croisé avec un grep des décorateurs de route, 60/60) écrit dans un second temps avec un niveau de détail volontairement plus léger sur les schémas de requête/réponse (vu le volume) mais une couverture complète des routes et du modèle d'autorisation par route (SellerJwt / clé de service / clé de service + AllowedApplicationsGuard) — le vrai problème visé par cette tâche ("APIs implicites, changement cassant sans notification"). Également validé avec `npx @redocly/cli lint` (0 erreur, seulement des avertissements cosmétiques attendus — ex. sondes de santé sans réponse 4xx).
 
 **Description**:
 APIs implicites. Changement cassant sans notification.
 
 - [x] payment-api/openapi.yaml: toutes routes — 10/10 routes documentées (schémas requête/réponse, codes d'erreur par provider)
 - [x] notification-api/openapi.yaml — 20/20 opérations documentées (3 schémas d'auth : session sso, rôle SUPERADMIN, clé de service)
-- [ ] marketplace-api/openapi.yaml — non fait, voir note d'audit (volume + risque d'imprécision sans outillage)
-- [ ] Versioning URL: /v1/payments, /v2/payments — **non fait délibérément** : changement cassant pour toutes les apps appelantes actuelles (ob, teamManager, sellerPortal, billetterie, marketplace-api) sans coordination de déploiement ; les deux fichiers openapi.yaml documentent les routes non versionnées réelles et incluent une recommandation (introduire `/v1/*` en alias plutôt qu'en remplacement)
-- [ ] Client generation: SDK TypeScript depuis OpenAPI — non fait, dépend du point précédent et de la couverture complète (marketplace-api manquant)
+- [x] marketplace-api/openapi.yaml — 60/60 opérations documentées (schémas allégés pour les DTO de write, voir note)
+- [ ] Versioning URL: /v1/payments, /v2/payments — **non fait délibérément** : changement cassant pour toutes les apps appelantes actuelles (ob, teamManager, sellerPortal, billetterie, marketplace-api) sans coordination de déploiement ; les 3 fichiers openapi.yaml documentent les routes non versionnées réelles et incluent une recommandation (introduire `/v1/*` en alias plutôt qu'en remplacement)
+- [ ] Client generation: SDK TypeScript depuis OpenAPI — non fait, dépend du versioning (ci-dessus) pour éviter de générer un SDK contre des routes qui vont changer de préfixe
 - [ ] Consumer contract tests — non fait, même dépendance
 
 ---
