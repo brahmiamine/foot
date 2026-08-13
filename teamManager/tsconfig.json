@@ -27,6 +27,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "jose": [
+        "./node_modules/jose"
       ]
     }
   },
