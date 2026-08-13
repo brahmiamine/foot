@@ -566,19 +566,18 @@ Empreinte contournable, sensibilité changement appareil, risque vie privée.
 **Projets**: matchsheet  
 **Estimation**: 4 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité au niveau service (voir note) — plomberie UI non faite
 
-**Description**:
-Deux officiels événements simultanés → écrasement. Implémenter optimistic locking.
+> **Note d'audit** : les événements (buts/cartons/remplacements/blessures) sont de purs INSERT sans lecture-modification-écriture — pas de risque d'écrasement, pas de verrou nécessaire là (confirmé par audit). Le vrai risque est `Sheet.status`/`closedAt` (transitions DRAFT→...→CLOSED, réouverture) via `SheetService.updateStatus`/`reopen`, qui faisaient un `find` puis `save()` en mémoire — deux officiels agissant en même temps pouvaient s'écraser silencieusement. Corrigé : colonne `version` sur `ms_sheets`, les deux méthodes font désormais un `UPDATE` atomique conditionnel (`WHERE id=... AND version=...` quand `expectedVersion` est fourni) et lèvent `SheetVersionConflictError` sur mismatch — mappée en 409 par la route `/api/internal/matches/[matchId]/reopen` existante. Cette app n'a pas d'API REST `GET/POST /api/matchsheet/:id` (Next.js Server Actions + Server Components) : le mécanisme de verrouillage est prêt et testé côté service, mais **aucun appelant (live/pre-match/post-match actions.ts) ne passe encore `expectedVersion`** — cela demande de faire remonter la version jusqu'au state client dans l'UI, hors périmètre de cette passe sécurité. Tant que ce plombage UI n'est pas fait, les 4 appelants existants restent protégés contre l'écrasement en mémoire (UPDATE atomique par id) mais sans détection de conflit actif.
 
-- [ ] Matchsheet: version column
-- [ ] GET /api/matchsheet/:id retourne version
-- [ ] POST /api/matchsheet/:id/events accepte previousVersion
-- [ ] Serveur: compare avant save, reject si mismatch (409)
+- [x] Matchsheet: version column (ms_sheets.version, voir migration_add_sheet_version.sql)
+- [ ] GET /api/matchsheet/:id retourne version — n'existe pas (Server Components), non applicable tel quel
+- [x] SheetService.updateStatus/reopen acceptent expectedVersion (mécanisme prêt, non encore appelé depuis l'UI)
+- [x] Serveur: compare avant écriture (UPDATE conditionnel), reject si mismatch (SheetVersionConflictError → 409)
 
 **Tests**:
-- [ ] Deux officiels changements concurrents → 1 succès, 1 conflict (409)
-- [ ] Client retry avec nouvelle version → succès
+- [x] SheetService.test.ts : 7 nouveaux tests (conflit détecté, retry après conflit réussit, reopen versionné)
+- [ ] Deux officiels changements concurrents via l'UI → 1 succès, 1 conflict (409) — bloqué sur le plombage UI ci-dessus
 
 ---
 

@@ -139,3 +139,94 @@ describe("SheetService.reopen", () => {
     expect(updatedMatch?.status).toBe("CANCELLED");
   });
 });
+
+/**
+ * TASK-P0-023 : verrou optimiste — deux officiels transitionnant la même
+ * feuille en même temps ne doivent plus s'écraser silencieusement.
+ */
+describe("SheetService — verrou optimiste (version)", () => {
+  it("updateStatus incrémente version à chaque appel réussi", async () => {
+    const { SheetService } = await import("./SheetService");
+    const { sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "DRAFT", version: 1 });
+
+    const service = new SheetService();
+    const result = await service.updateStatus(sheet.id, "PRE_MATCH_SIGNED");
+
+    expect(result.version).toBe(2);
+  });
+
+  it("updateStatus réussit quand expectedVersion correspond à la version en base", async () => {
+    const { SheetService } = await import("./SheetService");
+    const { sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "DRAFT", version: 5 });
+
+    const service = new SheetService();
+    const result = await service.updateStatus(sheet.id, "PRE_MATCH_SIGNED", 5);
+
+    expect(result.status).toBe("PRE_MATCH_SIGNED");
+    expect(result.version).toBe(6);
+  });
+
+  it("updateStatus rejette (SheetVersionConflictError) quand expectedVersion est périmée, sans modifier la feuille", async () => {
+    const { SheetService, SheetVersionConflictError } = await import("./SheetService");
+    const { sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "DRAFT", version: 5 });
+
+    const service = new SheetService();
+    await expect(service.updateStatus(sheet.id, "PRE_MATCH_SIGNED", 3)).rejects.toThrow(SheetVersionConflictError);
+
+    const reloaded = await dataSource.getRepository(Sheet).findOneOrFail({ where: { id: sheet.id } });
+    expect(reloaded.status).toBe("DRAFT");
+    expect(reloaded.version).toBe(5);
+  });
+
+  it("simule deux officiels concurrents : le premier gagne, le second (version périmée) est rejeté", async () => {
+    const { SheetService, SheetVersionConflictError } = await import("./SheetService");
+    const { sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "DRAFT", version: 1 });
+
+    const service = new SheetService();
+    // Les deux officiels ont chargé la feuille à version=1 avant que l'un des deux n'écrive.
+    await service.updateStatus(sheet.id, "PRE_MATCH_SIGNED", 1);
+
+    await expect(service.updateStatus(sheet.id, "PRE_MATCH_SIGNED", 1)).rejects.toThrow(SheetVersionConflictError);
+  });
+
+  it("retry avec la nouvelle version après un conflit réussit", async () => {
+    const { SheetService, SheetVersionConflictError } = await import("./SheetService");
+    const { sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "DRAFT", version: 1 });
+
+    const service = new SheetService();
+    const winner = await service.updateStatus(sheet.id, "PRE_MATCH_SIGNED", 1);
+    await expect(service.updateStatus(sheet.id, "PRE_MATCH_SIGNED", 1)).rejects.toThrow(SheetVersionConflictError);
+
+    const retried = await service.updateStatus(sheet.id, "PRE_MATCH_SIGNED", winner.version);
+    expect(retried.version).toBe(winner.version + 1);
+  });
+
+  it("reopen rejette (SheetVersionConflictError) quand expectedVersion est périmée", async () => {
+    const { SheetService, SheetVersionConflictError } = await import("./SheetService");
+    const { match, sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date(), version: 4 });
+
+    const service = new SheetService();
+    await expect(service.reopen(match.id, 2)).rejects.toThrow(SheetVersionConflictError);
+
+    const reloaded = await dataSource.getRepository(Sheet).findOneOrFail({ where: { id: sheet.id } });
+    expect(reloaded.status).toBe("CLOSED");
+  });
+
+  it("reopen réussit et incrémente version quand expectedVersion correspond", async () => {
+    const { SheetService } = await import("./SheetService");
+    const { match, sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date(), version: 4 });
+
+    const service = new SheetService();
+    const result = await service.reopen(match.id, 4);
+
+    expect(result.status).toBe("IN_PROGRESS");
+    expect(result.version).toBe(5);
+  });
+});

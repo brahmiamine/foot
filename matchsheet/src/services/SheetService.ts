@@ -4,6 +4,19 @@ import { Match } from "@/entities/Match";
 import { Not, Repository } from "typeorm";
 
 /**
+ * TASK-P0-023 : levée quand `expectedVersion` (fourni par l'appelant) ne
+ * correspond plus à `Sheet.version` en base — un autre appel a déjà modifié
+ * la feuille entre la lecture côté client et cette écriture. Mappable en
+ * HTTP 409 par l'appelant (voir même pattern que sheetGuard.ts).
+ */
+export class SheetVersionConflictError extends Error {
+  constructor() {
+    super("Cette feuille de match a été modifiée entre-temps : rechargez et réessayez.");
+    this.name = "SheetVersionConflictError";
+  }
+}
+
+/**
  * Service for Sheet operations (la feuille de match elle-même — statut,
  * horodatage des deux phases de signature).
  */
@@ -37,18 +50,45 @@ export class SheetService {
     return repository.findOne({ where: { id } });
   }
 
-  async updateStatus(id: number, status: SheetStatus): Promise<Sheet> {
+  /**
+   * TASK-P0-023 : `expectedVersion`, quand fourni, transforme cette écriture
+   * en UPDATE conditionnel (`WHERE id = :id AND version = :expectedVersion`)
+   * — deux officiels transitionnant la même feuille en même temps ne
+   * s'écrasent plus silencieusement : le second appel (version périmée)
+   * lève SheetVersionConflictError au lieu d'écraser le résultat du
+   * premier. Omis (appelants existants non encore migrés vers le
+   * versioning côté UI) : l'update reste un UPDATE direct par id (toujours
+   * atomique, jamais un find+save en mémoire qui pourrait écraser des
+   * champs modifiés entre-temps), mais sans le contrôle de conflit.
+   */
+  async updateStatus(id: number, status: SheetStatus, expectedVersion?: number): Promise<Sheet> {
     const repository = await this.getRepository();
-    const sheet = await repository.findOne({ where: { id } });
-    if (!sheet) {
-      throw new Error("Feuille de match non trouvée");
+
+    const fields: Partial<Sheet> = { status };
+    if (status === "PRE_MATCH_SIGNED") fields.preMatchSignedAt = new Date();
+    if (status === "POST_MATCH_SIGNED") fields.postMatchSignedAt = new Date();
+    if (status === "CLOSED") fields.closedAt = new Date();
+
+    const qb = repository
+      .createQueryBuilder()
+      .update(Sheet)
+      .set({ ...fields, version: () => "version + 1" })
+      .where("id = :id", { id });
+    if (expectedVersion !== undefined) {
+      qb.andWhere("version = :expectedVersion", { expectedVersion });
     }
-    sheet.status = status;
-    if (status === "PRE_MATCH_SIGNED") sheet.preMatchSignedAt = new Date();
-    if (status === "POST_MATCH_SIGNED") sheet.postMatchSignedAt = new Date();
-    if (status === "CLOSED") sheet.closedAt = new Date();
-    const saved = await repository.save(sheet);
-    await this.mirrorMatchStatus(sheet.matchId, status);
+    const result = await qb.execute();
+
+    if (result.affected === 0) {
+      const exists = await repository.findOne({ where: { id } });
+      if (!exists) {
+        throw new Error("Feuille de match non trouvée");
+      }
+      throw new SheetVersionConflictError();
+    }
+
+    const saved = await repository.findOneOrFail({ where: { id } });
+    await this.mirrorMatchStatus(saved.matchId, status);
     return saved;
   }
 
@@ -64,7 +104,15 @@ export class SheetService {
    * jamais `actual_started_at`, qui reste la trace du tout premier
    * démarrage réel du match, quel que soit le nombre de réouvertures.
    */
-  async reopen(matchId: string): Promise<Sheet> {
+  /**
+   * TASK-P0-023 : même mécanisme que updateStatus — `expectedVersion`
+   * (optionnel) transforme la réouverture en UPDATE conditionnel. En plus,
+   * la condition `status = 'CLOSED'` de l'UPDATE lui-même (pas seulement le
+   * check applicatif ci-dessous) garantit qu'une réouverture concurrente ne
+   * peut jamais s'exécuter deux fois : la seconde échoue sur `affected = 0`
+   * plutôt que de rejouer silencieusement l'effet de bord sur `matches`.
+   */
+  async reopen(matchId: string, expectedVersion?: number): Promise<Sheet> {
     const repository = await this.getRepository();
     const sheet = await repository.findOne({ where: { matchId } });
     if (!sheet) {
@@ -75,10 +123,24 @@ export class SheetService {
         `Impossible de rouvrir une feuille au statut ${sheet.status} (seule une feuille CLOSED peut être rouverte)`
       );
     }
+    if (expectedVersion !== undefined && sheet.version !== expectedVersion) {
+      throw new SheetVersionConflictError();
+    }
 
-    sheet.status = "IN_PROGRESS";
-    sheet.closedAt = null;
-    const saved = await repository.save(sheet);
+    const qb = repository
+      .createQueryBuilder()
+      .update(Sheet)
+      .set({ status: "IN_PROGRESS", closedAt: null, version: () => "version + 1" })
+      .where("id = :id AND status = :closed", { id: sheet.id, closed: "CLOSED" });
+    if (expectedVersion !== undefined) {
+      qb.andWhere("version = :expectedVersion", { expectedVersion });
+    }
+    const result = await qb.execute();
+    if (result.affected === 0) {
+      throw new SheetVersionConflictError();
+    }
+
+    const saved = await repository.findOneOrFail({ where: { id: sheet.id } });
 
     const matchRepository = await this.getMatchRepository();
     await matchRepository.update(

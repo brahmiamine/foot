@@ -31,6 +31,18 @@ export class Sheet {
   @Column({ type: "datetime", nullable: true, name: "closed_at" })
   closedAt?: Date | null;
 
+  // TASK-P0-023 : verrou optimiste pour les transitions de statut
+  // (SheetService.updateStatus/reopen) — deux officiels agissant sur la
+  // même feuille en même temps (ex. les deux clôturent/rouvrent) ne
+  // s'écrasent plus silencieusement : le second appel dont le
+  // `expectedVersion` ne correspond plus à la version en base échoue
+  // explicitement (SheetVersionConflictError) au lieu d'écraser le travail
+  // du premier. Colonne simple (pas `@VersionColumn`) : l'incrément est géré
+  // manuellement dans les seules méthodes à risque, pas sur chaque save()
+  // de l'entité (ex. mirrorMatchStatus n'a pas besoin de ce garde-fou).
+  @Column({ type: "int", default: 1 })
+  version!: number;
+
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
 
