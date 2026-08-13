@@ -26,11 +26,11 @@ La migration n'est pas encore considérée comme terminée : `LEAGUE_ADMIN` doit
 3. Workflow `PENDING → APPROVED → COMPLETED` avec approbation/rejet du club destination et homologation fédérale.
 4. Transaction atomique sur `cms_team_members` et `Player.teamId`, champs d'audit et notifications `PLAYER_TRANSFER_*`.
 5. Vérification temporelle de l'appartenance joueur dans `matchsheet`.
-6. Scope `LEAGUE_ADMIN` actif sur les matchs et les affectations/révocations d'officiels, avec résolution serveur `match → journée → saison → ligue → fédération`.
+6. Scope `LEAGUE_ADMIN` actif sur les journées, les matchs et les affectations/révocations d'officiels, avec résolution serveur depuis les ressources réellement enregistrées.
 7. Calcul des analytics officielles ArbiNote : évolution chronologique et comparaison par observateur.
 
 **P0 — écarts fonctionnels ou de sécurité restant à fermer**
-1. Finaliser `LEAGUE_ADMIN` sur le CRUD des journées et ajouter les tests négatifs cross-ligue. Le scope est désormais actif sur la liste/création/modification/suppression des matchs et sur la lecture/affectation/révocation des officiels.
+1. Ajouter les tests négatifs cross-ligue pour `LEAGUE_ADMIN`. Le scope est désormais actif sur le CRUD des journées, le CRUD des matchs et la lecture/affectation/révocation des officiels.
 2. Exposer les analytics officielles ArbiNote sur l'endpoint `/stats` sans mélanger note publique et note officielle.
 3. Enrichir l'audit des affectations/révocations d'officiels avec IP et User-Agent.
 
