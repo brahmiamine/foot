@@ -49,3 +49,27 @@ export interface FlouciVerifyPaymentResponse {
   success: boolean;
   result: FlouciVerifyPaymentResult;
 }
+
+/**
+ * POST /api/v2/refund_payment request body.
+ * Source of truth: https://docs.flouci.com/api-reference/refund-payment
+ * Flouci's refund endpoint only takes the payment_id — it refunds the full
+ * amount of that payment; there is no documented partial-refund parameter.
+ */
+export interface FlouciRefundPaymentRequest {
+  payment_id: string;
+}
+
+export interface FlouciRefundPaymentResult {
+  refund_id: string;
+  payment_id: string;
+  amount: string;
+  status: string;
+  refunded_at: string;
+}
+
+/** POST /api/v2/refund_payment response body. */
+export interface FlouciRefundPaymentResponse {
+  result: FlouciRefundPaymentResult;
+  status: string;
+}

@@ -12,7 +12,7 @@ API NestJS mutualisée d'initialisation, suivi et réception de paiements Konnec
 
 ## Fonctionnalités administratives
 
-API sans pages. `POST` d'initialisation pour chaque fournisseur et `GET /payments/:id` sont réservés aux services appelants.
+API sans pages. `POST` d'initialisation pour chaque fournisseur, `GET /payments/:id` et toute l'API de remboursement (`/payments/:id/refunds/*`, `/refunds/*`) sont réservés aux services appelants — une éventuelle UI opérateur (superadmin) appelle ces routes avec sa propre clé de service.
 
 ## API
 
@@ -20,7 +20,18 @@ Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Pa
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
-**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les 10 routes ci-dessus (schémas de requête/réponse, codes d'erreur). Reflète les routes non versionnées actuelles — le versioning d'URL (`/v1/*`) suggéré par le todo n'a pas été fait, changement cassant pour toutes les apps appelantes sans coordination de déploiement (voir commentaire en tête du fichier). Validé avec `npx @redocly/cli lint openapi.yaml`.
+**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les routes ci-dessus (schémas de requête/réponse, codes d'erreur). Reflète les routes non versionnées actuelles — le versioning d'URL (`/v1/*`) suggéré par le todo n'a pas été fait, changement cassant pour toutes les apps appelantes sans coordination de déploiement (voir commentaire en tête du fichier). Validé avec `npx @redocly/cli lint openapi.yaml`.
+
+### Remboursements (TASK-P0-001)
+
+- `POST /payments/:paymentId/refunds` (idempotent via header `idempotency-key`) : demande un remboursement total (montant omis) ou partiel. Le montant restant remboursable est toujours recalculé côté serveur sous verrou (`SELECT ... FOR UPDATE` sur `payments`) pour rester correct sous requêtes concurrentes.
+- `GET /payments/:paymentId/refunds` / `GET /payments/:paymentId/refunds/remaining` : consultation.
+- `GET /refunds?status=MANUAL_REVIEW` (défaut) : file d'attente opérateur.
+- `GET /refunds/:id` : détail + historique de statuts (append-only).
+- `POST /refunds/:id/retry` : rejoue un remboursement automatisé `FAILED`.
+- `POST /refunds/:id/confirm` / `POST /refunds/:id/reject` : réconciliation opérateur d'un remboursement `MANUAL_REVIEW`.
+
+**Seul Flouci expose une API de remboursement automatisée**, vérifié contre la documentation officielle des trois fournisseurs (`https://docs.konnect.network`, `https://www.paymee.tn`, `https://docs.flouci.com/api-reference/refund-payment`) : Konnect et Paymee ne documentent aucun endpoint de remboursement public — leurs remboursements passent systématiquement par `MANUAL_REVIEW`, jamais par un faux succès. Flouci ne documente par ailleurs aucun paramètre de montant partiel sur `refund_payment` (il rembourse le montant total de l'appel) : un remboursement partiel sur un paiement Flouci est donc, lui aussi, orienté vers `MANUAL_REVIEW` plutôt que d'appeler le fournisseur pour plus que ce qui a été demandé.
 
 ## Authentification et autorisations
 
@@ -28,9 +39,9 @@ Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Pa
 
 ## Données possédées
 
-Base dédiée configurée par `DB_*`, entité Payment (référence externe, fournisseur, montant/devise, état et métadonnées).
+Base dédiée configurée par `DB_*`, entités Payment (référence externe, fournisseur, montant/devise, état et métadonnées), Refund et RefundStatusHistory (montant, statut, motif, historique append-only des transitions).
 
-**Migrations réellement présentes :** Aucun dossier SQL/migration; ne pas déduire un schéma déployable de la seule entité TypeORM.
+**Migrations réellement présentes :** `sql/migration_add_refunds.sql` (tables `refunds`/`refund_status_history`, additive). Le reste du schéma (`payments`, outbox) n'a toujours pas de fichier de migration ; ne pas en déduire un schéma déployable complet à partir des seules entités TypeORM.
 
 ## Intégrations
 
@@ -68,4 +79,4 @@ Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `su
 
 ## Limites connues
 
-Le service ne rembourse pas automatiquement et n'est pas un ledger comptable. La fiabilité des redirections dépend des URLs fournisseur; les consommateurs doivent réconcilier par ID/webhook. Aucun fichier de migration présent.
+Le service n'est pas un ledger comptable (pas d'écritures brut/frais/commission — voir TASK-P1-007 du backlog). Le remboursement automatisé n'existe que pour Flouci et seulement en totalité (voir "Remboursements" ci-dessus) ; Konnect, Paymee et tout remboursement partiel Flouci passent par une file opérateur `MANUAL_REVIEW`, sans SLA ni alerte automatique en cas de file qui grossit (pas de tableau de bord ni d'astreinte — TASK-P2-002 du backlog). La fiabilité des redirections dépend des URLs fournisseur; les consommateurs doivent réconcilier par ID/webhook. Le schéma `payments`/outbox n'a pas de fichier de migration (voir "Données possédées").

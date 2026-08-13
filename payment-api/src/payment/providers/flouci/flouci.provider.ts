@@ -18,6 +18,11 @@ export interface FlouciVerifiedPayment {
   internalStatus: PaymentStatus;
 }
 
+export interface FlouciRefundResult {
+  providerRefundRef: string;
+  providerStatus: string;
+}
+
 /**
  * Application-facing entry point for the Flouci integration.
  * Orchestrates the HTTP client and the request/status mapping; this is the
@@ -73,6 +78,27 @@ export class FlouciProvider {
     return {
       providerStatus: response.result.status,
       internalStatus: mapFlouciVerification(response),
+    };
+  }
+
+  /**
+   * TASK-P0-001 (todo.md): only Flouci exposes an automated refund API
+   * among the three providers integrated here (verified against
+   * https://docs.flouci.com/api-reference/refund-payment — Konnect and
+   * Paymee document no equivalent endpoint). RefundService is the only
+   * caller and is responsible for routing Konnect/Paymee refunds to
+   * MANUAL_REVIEW instead of calling this.
+   */
+  async refundPayment(providerRef: string): Promise<FlouciRefundResult> {
+    const result = await this.client.refundPayment(providerRef);
+
+    this.logger.log(
+      `Flouci payment ${providerRef} refunded (refund ${result.refund_id})`,
+    );
+
+    return {
+      providerRefundRef: result.refund_id,
+      providerStatus: result.status,
     };
   }
 }

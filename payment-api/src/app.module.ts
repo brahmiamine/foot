@@ -11,6 +11,7 @@ import { validateEnv } from './config/env.validation';
 import { serviceClientsConfig } from './config/service-clients.config';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentModule } from './payment/payment.module';
+import { RefundModule } from './refund/refund.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
@@ -31,6 +32,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AuthModule,
     NotificationsModule,
     PaymentModule,
+    RefundModule,
     WebhooksModule,
   ],
   controllers: [AppController],

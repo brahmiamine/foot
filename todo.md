@@ -30,18 +30,23 @@
 ### TASK-P0-001 — API de remboursement multi-fournisseur
 
 **Projets :** `payment-api`
-**Statut :** [ ]
+**Statut :** [~] Implémenté et testé ; compensation automatique (TASK-P0-002/003/006) toujours bloquée par une brique manquante
 
 Implémenter les remboursements Konnect, Paymee et Flouci, sans simuler un succès lorsqu'un fournisseur ne les supporte pas.
 
 **Critères d'acceptation :**
-- remboursement total et partiel avec montant restant remboursable calculé côté serveur ;
-- clé d'idempotence et unicité par paiement/opération ;
-- états `REQUESTED`, `PROCESSING`, `SUCCEEDED`, `FAILED`, `MANUAL_REVIEW` ;
-- motif, initiateur, timestamps, référence fournisseur et historique immuable ;
-- webhook ou polling de réconciliation, outbox et notification du système appelant ;
-- tests de rejeu, concurrence, montant excessif, fournisseur indisponible et succès tardif ;
-- endpoints de consultation et écran/API de réconciliation opérateur.
+- [x] remboursement total et partiel avec montant restant remboursable calculé côté serveur (verrou `SELECT ... FOR UPDATE` sur `payments`, somme des remboursements non-`FAILED` — voir `RefundService.computeReserved`) ;
+- [x] clé d'idempotence et unicité par paiement/opération (`@Unique(['paymentId', 'idempotencyKey'])` sur `Refund`, même pattern que `Payment`) ;
+- [x] états `REQUESTED`, `PROCESSING`, `SUCCEEDED`, `FAILED`, `MANUAL_REVIEW` ;
+- [x] motif, initiateur, timestamps, référence fournisseur et historique immuable (`RefundStatusHistory`, append-only) ;
+- [x] outbox et notification du système appelant (`REFUND_SUCCEEDED`/`REFUND_FAILED`/`REFUND_MANUAL_REVIEW` via `OutboxWorkerService`, même pattern que `PAYMENT_PAID`) ;
+- [x] tests de rejeu, concurrence (montant restant sous refunds concurrents), montant excessif, fournisseur indisponible et succès tardif (19 tests, `refund.service.spec.ts`) ;
+- [x] endpoints de consultation et réconciliation opérateur (`GET /refunds?status=MANUAL_REVIEW`, `POST /refunds/:id/{confirm,reject,retry}`).
+- [!] "webhook ... de réconciliation" : non fait pour les remboursements — aucun des trois fournisseurs n'expose de webhook de remboursement documenté (vérifié contre leur documentation publique), donc rien à écouter ; la réconciliation reste l'API opérateur ci-dessus, pas un webhook entrant.
+
+> **Note d'audit (vérifiée contre la documentation officielle des 3 fournisseurs, pas supposée)** : `docs.konnect.network` ne documente que 3 endpoints (Initiate Payment, Get Payment Details, Webhook) — aucun remboursement. `paymee.tn` (le Paymee tunisien utilisé ici — à ne pas confondre avec le PayMee brésilien `paymee.com.br`, sans rapport) ne documente pas non plus de remboursement public ; cohérent avec `payment-reconciliation.service.ts` qui note déjà que Paymee n'expose aucun endpoint de statut serveur-à-serveur. `docs.flouci.com/api-reference/refund-payment` documente `POST /api/v2/refund_payment` (`payment_id` uniquement, pas de paramètre de montant partiel — il rembourse le total). Conséquence directe sur l'implémentation : **seul un remboursement Flouci portant sur le montant total, et unique (aucun autre remboursement déjà réservé), est automatisé** ; Konnect, Paymee, et tout remboursement partiel — y compris chez Flouci — passent par `MANUAL_REVIEW` plutôt que d'appeler un endpoint inexistant ou de rembourser plus que demandé. Voir `payment-api/README.md` § Remboursements et § Limites connues.
+>
+> **Reste ouvert** : TASK-P0-002 (compensation automatique paiement tardif), TASK-P0-003 (saga annulation match) et TASK-P0-006 (retours marketplace) dépendaient de « TASK-P0-001 » au sens large ; l'API de remboursement existe désormais mais ces sagas doivent encore être écrites pour l'appeler (elles ne le font pas aujourd'hui). Pas de tableau de bord/alerte sur la profondeur de la file `MANUAL_REVIEW` (TASK-P2-002).
 
 ### TASK-P0-002 — Compensation automatique des paiements tardifs sans stock
 

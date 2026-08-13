@@ -299,4 +299,85 @@ describe('FlouciClient', () => {
       }
     });
   });
+
+  describe('refundPayment', () => {
+    it('returns the refund result on success', async () => {
+      request.mockReturnValueOnce(
+        of({
+          data: {
+            result: {
+              refund_id: 'ref_a1b2c3d4',
+              payment_id: 'FoPKKHqfQIKfBqhEj8M47A',
+              amount: '25500',
+              status: 'success',
+              refunded_at: '2026-08-13T10:30:00Z',
+            },
+            status: 'success',
+          },
+        }),
+      );
+
+      const result = await client.refundPayment('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(result).toEqual({
+        refund_id: 'ref_a1b2c3d4',
+        payment_id: 'FoPKKHqfQIKfBqhEj8M47A',
+        amount: '25500',
+        status: 'success',
+        refunded_at: '2026-08-13T10:30:00Z',
+      });
+      const calledWith = request.mock.calls[0][0];
+      expect(calledWith.method).toBe('POST');
+      expect(calledWith.url).toBe('/api/v2/refund_payment');
+      expect(calledWith.data).toEqual({
+        payment_id: 'FoPKKHqfQIKfBqhEj8M47A',
+      });
+    });
+
+    it('throws FlouciBadRequestError when the top-level status is not success', async () => {
+      request.mockReturnValueOnce(
+        of({
+          data: {
+            status: 'error',
+            message: 'Payment cannot be refunded',
+            code: 'REFUND_NOT_ALLOWED',
+          },
+        }),
+      );
+
+      await expect(
+        client.refundPayment('FoPKKHqfQIKfBqhEj8M47A'),
+      ).rejects.toThrow(FlouciBadRequestError);
+    });
+
+    it('throws FlouciInvalidResponseError when the response is missing expected fields', async () => {
+      request.mockReturnValueOnce(
+        of({ data: { status: 'success', result: { amount: '25500' } } }),
+      );
+
+      await expect(
+        client.refundPayment('FoPKKHqfQIKfBqhEj8M47A'),
+      ).rejects.toThrow(FlouciInvalidResponseError);
+    });
+
+    it('maps a 404 response to FlouciPaymentNotFoundError with no retry', async () => {
+      request.mockReturnValue(throwError(() => axiosError(404)));
+
+      await expect(client.refundPayment('missing-payment')).rejects.toThrow(
+        FlouciPaymentNotFoundError,
+      );
+      expect(request).toHaveBeenCalledTimes(1);
+    });
+
+    it('never includes the private key in a thrown error message', async () => {
+      request.mockReturnValue(throwError(() => axiosError(401)));
+
+      try {
+        await client.refundPayment('FoPKKHqfQIKfBqhEj8M47A');
+      } catch (error) {
+        expect(JSON.stringify(error)).not.toContain('test-private-key');
+        expect((error as Error).message).not.toContain('test-private-key');
+      }
+    });
+  });
 });

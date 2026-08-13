@@ -15,7 +15,7 @@ describe('FlouciProvider', () => {
   };
 
   let client: jest.Mocked<
-    Pick<FlouciClient, 'generatePayment' | 'verifyPayment'>
+    Pick<FlouciClient, 'generatePayment' | 'verifyPayment' | 'refundPayment'>
   >;
   let provider: FlouciProvider;
 
@@ -23,6 +23,7 @@ describe('FlouciProvider', () => {
     client = {
       generatePayment: jest.fn(),
       verifyPayment: jest.fn(),
+      refundPayment: jest.fn(),
     };
     provider = new FlouciProvider(client as unknown as FlouciClient, config);
   });
@@ -194,6 +195,28 @@ describe('FlouciProvider', () => {
           amount: '25.500',
         }),
       ).rejects.toThrow(FlouciPaymentMismatchError);
+    });
+  });
+
+  describe('refundPayment', () => {
+    it('returns the provider refund ref and status', async () => {
+      client.refundPayment.mockResolvedValue({
+        refund_id: 'ref_a1b2c3d4',
+        payment_id: 'FoPKKHqfQIKfBqhEj8M47A',
+        amount: '25500',
+        status: 'success',
+        refunded_at: '2026-08-13T10:30:00Z',
+      });
+
+      const result = await provider.refundPayment('FoPKKHqfQIKfBqhEj8M47A');
+
+      expect(result).toEqual({
+        providerRefundRef: 'ref_a1b2c3d4',
+        providerStatus: 'success',
+      });
+      expect(client.refundPayment).toHaveBeenCalledWith(
+        'FoPKKHqfQIKfBqhEj8M47A',
+      );
     });
   });
 });

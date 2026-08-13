@@ -9,12 +9,15 @@ export interface WebhookPayload {
   eventId: string;
   paymentId: string;
   orderId: string;
-  status: 'PAID';
+  status:
+    'PAID' | 'REFUND_SUCCEEDED' | 'REFUND_FAILED' | 'REFUND_MANUAL_REVIEW';
   provider: string;
   providerRef: string;
   amount: string;
   currency: string;
   userId: string | null;
+  /** Only present for refund-related statuses. */
+  refundId?: string;
 }
 
 const REQUEST_TIMEOUT_MS = 5000;

@@ -19,6 +19,9 @@ import {
   FlouciGeneratePaymentRequest,
   FlouciGeneratePaymentResponse,
   FlouciGeneratePaymentResultData,
+  FlouciRefundPaymentRequest,
+  FlouciRefundPaymentResponse,
+  FlouciRefundPaymentResult,
   FlouciVerifyPaymentResponse,
 } from './flouci.types';
 
@@ -105,6 +108,45 @@ export class FlouciClient {
     }
 
     return data;
+  }
+
+  /**
+   * https://docs.flouci.com/api-reference/refund-payment — refunds the full
+   * amount of a completed payment; Flouci documents no partial-refund
+   * parameter, so a partial refund is not something this client can ask
+   * Flouci to do (see RefundService for how that's handled: only a
+   * full-amount refund is dispatched to Flouci automatically, anything
+   * partial goes to MANUAL_REVIEW same as Konnect/Paymee).
+   */
+  async refundPayment(paymentId: string): Promise<FlouciRefundPaymentResult> {
+    const data = await this.request<FlouciRefundPaymentResponse>(
+      {
+        method: 'POST',
+        url: '/api/v2/refund_payment',
+        data: { payment_id: paymentId } satisfies FlouciRefundPaymentRequest,
+      },
+      {
+        operation: 'refund-payment',
+        notFound: () => new FlouciPaymentNotFoundError(paymentId),
+      },
+    );
+
+    if (!data || data.status !== 'success' || !data.result) {
+      throw new FlouciBadRequestError(this.extractSafeMessage(data));
+    }
+
+    const { result } = data;
+    if (
+      typeof result.refund_id !== 'string' ||
+      typeof result.payment_id !== 'string' ||
+      typeof result.status !== 'string'
+    ) {
+      throw new FlouciInvalidResponseError(
+        'missing refund_id/payment_id/status in refund-payment response',
+      );
+    }
+
+    return result;
   }
 
   private async request<T>(

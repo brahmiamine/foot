@@ -11,6 +11,12 @@ import { computeNextRetryAt } from './retry-schedule';
 import { NotificationClientService } from '../notifications/notification-client.service';
 import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
 import type { PaymentPaidEvent } from '../payment/payment.service';
+import {
+  REFUND_FAILED_EVENT_TYPE,
+  REFUND_MANUAL_REVIEW_EVENT_TYPE,
+  REFUND_SUCCEEDED_EVENT_TYPE,
+  type RefundEvent,
+} from '../refund/refund.service';
 
 const POLL_INTERVAL_MS = 5000;
 const BATCH_SIZE = 20;
@@ -79,19 +85,39 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
 
   private async processOne(event: OutboxEvent): Promise<void> {
     try {
-      if (event.eventType === 'PAYMENT_PAID') {
-        await this.deliverPaymentPaid(
-          event.payload as unknown as PaymentPaidEvent,
-        );
-      } else {
-        this.logger.warn(
-          `Unknown outbox event type "${event.eventType}" (id=${event.id}), marking FAILED.`,
-        );
-        await this.repository.update(event.id, {
-          status: OutboxEventStatus.FAILED,
-          lastError: `Unknown event type: ${event.eventType}`,
-        });
-        return;
+      switch (event.eventType) {
+        case 'PAYMENT_PAID':
+          await this.deliverPaymentPaid(
+            event.payload as unknown as PaymentPaidEvent,
+          );
+          break;
+        case REFUND_SUCCEEDED_EVENT_TYPE:
+          await this.deliverRefundEvent(
+            event.payload as unknown as RefundEvent,
+            'REFUND_SUCCEEDED',
+          );
+          break;
+        case REFUND_FAILED_EVENT_TYPE:
+          await this.deliverRefundEvent(
+            event.payload as unknown as RefundEvent,
+            'REFUND_FAILED',
+          );
+          break;
+        case REFUND_MANUAL_REVIEW_EVENT_TYPE:
+          await this.deliverRefundEvent(
+            event.payload as unknown as RefundEvent,
+            'REFUND_MANUAL_REVIEW',
+          );
+          break;
+        default:
+          this.logger.warn(
+            `Unknown outbox event type "${event.eventType}" (id=${event.id}), marking FAILED.`,
+          );
+          await this.repository.update(event.id, {
+            status: OutboxEventStatus.FAILED,
+            lastError: `Unknown event type: ${event.eventType}`,
+          });
+          return;
       }
 
       await this.repository.update(event.id, {
@@ -162,6 +188,70 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
       amount: payload.amount,
       currency: payload.currency,
       userId: payload.userId,
+    });
+  }
+
+  /**
+   * TASK-P0-001 (todo.md): same split as deliverPaymentPaid — the
+   * application webhook is what other apps rely on to update their own
+   * state (e.g. release a ticket, close a return); the payer notification
+   * is best-effort only.
+   */
+  private async deliverRefundEvent(
+    payload: RefundEvent,
+    status: 'REFUND_SUCCEEDED' | 'REFUND_FAILED' | 'REFUND_MANUAL_REVIEW',
+  ): Promise<void> {
+    if (payload.userId) {
+      const notifications: Record<
+        typeof status,
+        { type: string; title: string; body: string }
+      > = {
+        REFUND_SUCCEEDED: {
+          type: 'REFUND_SUCCEEDED',
+          title: 'Remboursement effectué',
+          body: `Votre remboursement de ${payload.amount} ${payload.currency} a été effectué.`,
+        },
+        REFUND_FAILED: {
+          type: 'REFUND_FAILED',
+          title: 'Remboursement échoué',
+          body: `Votre demande de remboursement de ${payload.amount} ${payload.currency} n'a pas pu aboutir. Notre support va vous contacter.`,
+        },
+        REFUND_MANUAL_REVIEW: {
+          type: 'REFUND_PROCESSING',
+          title: 'Remboursement en cours de traitement',
+          body: `Votre demande de remboursement de ${payload.amount} ${payload.currency} est en cours de traitement manuel.`,
+        },
+      };
+      const notification = notifications[status];
+      await this.notificationClient.notify({
+        eventId: `${status.toLowerCase()}:${payload.refundId}`,
+        type: notification.type,
+        userId: payload.userId,
+        category: notification.type,
+        title: notification.title,
+        body: notification.body,
+        data: {
+          refundId: payload.refundId,
+          paymentId: payload.paymentId,
+          orderId: payload.orderId,
+          provider: payload.provider,
+          amount: payload.amount,
+          currency: payload.currency,
+        },
+      });
+    }
+
+    await this.webhookDispatch.dispatch(payload.callerApplication, {
+      eventId: `${status.toLowerCase()}:${payload.refundId}`,
+      paymentId: payload.paymentId,
+      orderId: payload.orderId,
+      status,
+      provider: payload.provider,
+      providerRef: '',
+      amount: payload.amount,
+      currency: payload.currency,
+      userId: payload.userId,
+      refundId: payload.refundId,
     });
   }
 }
