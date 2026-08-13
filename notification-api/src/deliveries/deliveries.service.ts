@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { EntityManager, MoreThanOrEqual, Repository } from 'typeorm';
 import { NotificationChannelType } from '../common/enums/channel.enum';
 import { DeliveryStatus } from '../common/enums/delivery-status.enum';
 import { NotificationDelivery } from './entities/notification-delivery.entity';
@@ -12,17 +12,26 @@ export class DeliveriesService {
     private readonly repository: Repository<NotificationDelivery>,
   ) {}
 
+  /** `manager`, si fourni, rattache l'écriture à la transaction en cours (§P0-017). */
+  private repo(manager?: EntityManager): Repository<NotificationDelivery> {
+    return manager
+      ? manager.getRepository(NotificationDelivery)
+      : this.repository;
+  }
+
   async createPending(
     notificationId: string,
     channel: NotificationChannelType,
+    manager?: EntityManager,
   ): Promise<NotificationDelivery> {
-    const delivery = this.repository.create({
+    const repo = this.repo(manager);
+    const delivery = repo.create({
       notificationId,
       channel,
       status: DeliveryStatus.PENDING,
       attempt: 0,
     });
-    return this.repository.save(delivery);
+    return repo.save(delivery);
   }
 
   async markAttempt(id: string, provider: string | null): Promise<void> {
@@ -30,16 +39,20 @@ export class DeliveriesService {
     if (provider) await this.repository.update(id, { provider });
   }
 
-  async markSent(id: string, provider?: string): Promise<void> {
-    await this.repository.update(id, {
+  async markSent(
+    id: string,
+    provider?: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    await this.repo(manager).update(id, {
       status: DeliveryStatus.SENT,
       sentAt: new Date(),
       ...(provider ? { provider } : {}),
     });
   }
 
-  async markDelivered(id: string): Promise<void> {
-    await this.repository.update(id, {
+  async markDelivered(id: string, manager?: EntityManager): Promise<void> {
+    await this.repo(manager).update(id, {
       status: DeliveryStatus.DELIVERED,
       deliveredAt: new Date(),
     });

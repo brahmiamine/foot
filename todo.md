@@ -16,10 +16,10 @@
 
 | Priorité | Nombre | Objectif |
 |---|---:|---|
-| P0 | 18 | Fermer les parcours argent, match officiel, accès et cohérence distribuée |
+| P0 | 17 | Fermer les parcours argent, match officiel, accès et cohérence distribuée |
 | P1 | 18 | Compléter les fonctionnalités métier indispensables |
 | P2 | 9 | Industrialiser, mesurer et maintenir la plateforme |
-| **Total restant** | **45** | |
+| **Total restant** | **44** | |
 
 ---
 
@@ -262,7 +262,7 @@ Construire le tunnel absent entre catalogue et commande.
 ### TASK-P0-017 — Idempotence transactionnelle de Notification API
 
 **Projets :** `notification-api`
-**Statut :** [ ]
+**Statut :** [x]
 
 Éliminer la fenêtre entre recherche d'un événement, création des notifications et enregistrement de l'idempotence.
 
@@ -273,6 +273,8 @@ Construire le tunnel absent entre catalogue et commande.
 - reprise déterministe après crash entre deux étapes ;
 - deux requêtes concurrentes créent exactement un lot logique ;
 - test d'échec après persistance partielle.
+
+> **Note d'implémentation** : `IdempotencyService.withIdempotency` (`notification-api/src/events/idempotency.service.ts`) remplace le couple `findExisting`/`record` séparé par une seule transaction `DataSource.transaction()` : la création des notifications (`NotificationsService.createMany`/`createOne`, via un `EntityManager` transactionnel) et l'insertion de la ligne `notification_events` se font ou échouent ensemble. La contrainte unique `(application, eventId)` déjà présente sert de verrou d'acquisition — si l'insertion échoue en clé dupliquée (course concurrente ou rejeu), la transaction est annulée (les notifications qui viennent d'être créées ne sont jamais commitées) et le résultat déjà enregistré par le gagnant est renvoyé (`deduplicated: true`). Il n'existe donc plus d'état intermédiaire persistant entre "notifications créées" et "événement enregistré" : soit les deux sont en base, soit aucun (reprise déterministe après crash — rien à réconcilier, le rejeu suivant repart de zéro). Les jobs de canaux asynchrones (email/push/sms) ne sont mis en file BullMQ qu'après le commit de la transaction, pour ne jamais référencer une notification finalement annulée. Tests : `idempotency.service.spec.ts` couvre première réception, rejeu, isolation par `application`, la course concurrente (deux appels `withIdempotency` en parallèle sur le même `eventId` → un seul lot persisté, l'autre dédupliqué sur le même résultat) et la propagation d'une erreur non liée à un conflit de clé.
 
 ### TASK-P0-018 — Tests E2E multi-applications critiques
 
