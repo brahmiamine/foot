@@ -195,6 +195,16 @@ Construire le tunnel absent entre catalogue et commande.
 - définir le niveau de preuve attendu et choisir signature forte, OTP ou confirmation SSO ;
 - invalider formellement une signature après modification ;
 - conserver l'historique append-only et fournir une vérification indépendante.
+> **Note d'audit** : teamManager a déjà une lib d'autorisation centralisée (`@/lib/access` : `getUserAccess`/`requirePermission`/`requireCategory`, `@/lib/team-context` : `requireTeamId`), largement appliquée sur les créations/mises à jour (ex: `PlayerService`, `MediaGalleryService.create/update/delete`) — la description du todo ("aucune borne, autorisation surtout server actions") ne reflétait plus l'état réel du code. Un audit statique (grep de toutes les méthodes `update`/`delete`/`remove` des 46 services de `src/services/`, recherche de signatures sans `teamId`) a trouvé un pattern répété : les actions de **création** vérifient systématiquement la propriété club de la ressource parente, mais plusieurs actions de **suppression/réordonnancement** de sous-ressources ne le faisaient pas — IDOR cross-club réelles et exploitables (ids numériques séquentiels devinables) :
+> - `MatchGalleryService.removeGalleryFromMatch`/`removeAllGalleriesFromMatch` — aucune vérification que le match implique le club appelant (alors que `addGalleryToMatch` la faisait déjà)
+> - `MediaGalleryService.removeItemFromGallery`/`updateItemOrder` — idem pour la galerie
+> - `NewsService.removeMediaFromNews`/`updateNewsMediaOrder` — idem pour l'actualité
+> - `TrainingInvitationService.updateResponse`/`remove` — aucune vérification que l'entraînement de l'invitation appartient au club appelant
+> - `TripService.toggleConfirmed`/`removeParticipant` — aucune vérification que le déplacement du participant appartient au club appelant
+>
+> Corrigé en ajoutant `teamId` à chaque signature et une vérification de propriété avant mutation (même pattern que les actions de création existantes), avec tests de régression par service (`*.test.ts` à côté de chaque service). **Non fait** : la matrice complète "20+ cas de test IDOR par ressource (Players/Staff/Matches/CMS/Boutique)" demandée par le todo — l'essentiel des chemins CRUD principaux (create/update/delete des entités elles-mêmes, pas leurs sous-ressources) était déjà correctement scopé lors du sondage ; une passe exhaustive sur les 41 fichiers `actions.ts` reste à faire pour une garantie complète.
+>
+> **Suite (passe `actions.ts`, partielle)** : première IDOR trouvée en traçant `admin/roles/actions.ts#assignRoleToUser` → `RoleService.assignRole` : `teamId` était bien dérivé de la session côté action, mais `assignRole` faisait confiance à l'`userId` fourni par le client sans vérifier qu'il appartient à ce club — un ADMIN d'un club pouvait attribuer un rôle de son club à un `userId` deviné d'un autre club (pollution de `cms_user_roles`, fuite du nom du compte visé). Corrigé (vérification `User.findOne({ id: userId, teamId })` avant assignation, `RoleService.ts`) + test de régression (`RoleService.test.ts`). **La passe exhaustive sur les ~39 fichiers `actions.ts` reste incomplète** (seul `admin/roles/actions.ts` a été tracé jusqu'au bout jusqu'ici) — à continuer avant de considérer TASK-P0-012 clos.
 
 ## Accès, données et cohérence distribuée
 
