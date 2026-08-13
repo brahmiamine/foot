@@ -18,20 +18,13 @@ import { MatchOfficial } from "@/entities/MatchOfficial";
 import { MatchOfficialAssignment } from "@/entities/MatchOfficialAssignment";
 import { PlayerControl } from "@/entities/PlayerControl";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
+import { TeamMembership } from "@/entities/TeamMembership";
 
-/**
- * Connexion TypeORM vers la base "foot", partagée avec superadmin,
- * teamManager et arbinote. matchsheet ne fait que lire les référentiels
- * (matches/teams/joueurs/motifs de carton/composition) et possède ses
- * propres tables additives ms_* (feuille de match, signatures, événements).
- */
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
 
 export async function getDataSource(): Promise<DataSource> {
-  if (dataSource && dataSource.isInitialized) {
-    return dataSource;
-  }
+  if (dataSource && dataSource.isInitialized) return dataSource;
 
   if (!initPromise) {
     const newDataSource = new DataSource({
@@ -44,24 +37,9 @@ export async function getDataSource(): Promise<DataSource> {
       synchronize: false,
       logging: process.env.NODE_ENV === "development",
       entities: [
-        Federation,
-        Team,
-        Matchday,
-        Match,
-        Player,
-        Card,
-        CardReason,
-        MatchLineup,
-        Sheet,
-        Signature,
-        Goal,
-        Injury,
-        Substitution,
-        Reservation,
-        MatchOfficial,
-        MatchOfficialAssignment,
-        PlayerControl,
-        MatchReopenLog,
+        Federation, Team, Matchday, Match, Player, Card, CardReason, MatchLineup,
+        Sheet, Signature, Goal, Injury, Substitution, Reservation, MatchOfficial,
+        MatchOfficialAssignment, PlayerControl, MatchReopenLog, TeamMembership,
       ],
       migrations: [],
       charset: "utf8mb4",
