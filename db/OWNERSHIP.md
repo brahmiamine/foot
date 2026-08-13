@@ -30,7 +30,9 @@ présence d'une entité.
 | Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `matchsheet` (`IN_PROGRESS`/`FINISHED`, seul à savoir avec certitude quand un match démarre/finit réellement) ; `superadmin` (`CANCELLED` uniquement, voir alerte ci-dessous) | `ob` (résultats, classement), `billetterie` (fenêtre de vente + refus d'achat sur `CANCELLED`), `teamManager` (formations) |
 | Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `arbinote` | `superadmin` (consultation) |
 | Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens`, `security_events`, `staff_invitations` | `sso` (authentification, `SUPERADMIN`/`MEMBER`) ; `superadmin` (provisioning des comptes club `ADMIN`/`OBSERVATEUR` uniquement — voir alerte ci-dessous) | `arbinote`, `teamManager` (lecture/jointures) |
-| Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `teamManager` | `matchsheet`, `ob` (lecture) ; `arbinote`, `superadmin` (lecture de `Player` uniquement — noms de joueurs dans le fil des faits de match) |
+| **Effectif (`Player`) — écriture partagée, voir alerte ci-dessous** | `Player` | `teamManager` **et** `superadmin` (`Player.teamId` uniquement, module transferts — voir `/admin/players`) | `matchsheet`, `ob` (lecture) ; `arbinote` (lecture, fil des faits de match) |
+| Discipline club | `CardReason`, `Suspension`, `Fine`, `Note` | `teamManager` | `matchsheet`, `ob` (lecture) |
+| Transferts de joueurs | `player_transfers` | `superadmin` (`/admin/players`) | — |
 | **Cartons (`Card`) — écriture partagée, voir alerte ci-dessous** | `Card` | `teamManager` **et** `matchsheet` | `ob` (lecture) ; `arbinote`, `superadmin` (lecture, fil des faits de match — teamManager la lit déjà en écrivain) |
 | Compositions d'équipe | `cms_match_lineups` | `teamManager` | `matchsheet` (lecture, verrouillage au coup d'envoi) |
 | Feuille de match électronique | `ms_sheets`, `ms_signatures`, `ms_goals`, `ms_injuries`, `ms_substitutions`, `ms_reservations`, `ms_match_officials`, `ms_player_controls` | `matchsheet` | `ob` (lecture : buts/cartons/blessures/remplacements pour le live) ; `arbinote`, `superadmin`, `teamManager` (lecture : `ms_goals`/`ms_injuries`/`ms_substitutions`, fil des faits de match affiché en timeline sur la fiche match / liste des matchs — voir MatchFactsService de chaque app) |
@@ -66,6 +68,26 @@ peu importe qui les saisit), mais ça veut dire concrètement :
   `teamManager` pendant qu'un match est en direct sur `matchsheet`) n'est
   géré par aucun verrou aujourd'hui — à surveiller si ce cas se produit en
   pratique.
+
+## Point d'attention : `Player` a deux écrivains (module transferts)
+
+Même situation que `Card`, en plus étroit : `teamManager` reste le seul
+propriétaire de la fiche joueur (nom, poste, licence, statut, photo...),
+mais `superadmin` écrit désormais `Player.teamId` depuis son module
+transferts (`/admin/players`, voir `lib/adminPlayerTransfers.ts`) — jamais
+une autre colonne. Un transfert est une opération administrative centrale
+(la fédération enregistre officiellement le changement de club d'un
+joueur), distincte de la gestion quotidienne de l'effectif qui reste dans
+teamManager. Chaque transfert est journalisé dans `player_transfers`
+(propriété `superadmin`, jamais touchée par `teamManager`) et notifie les
+deux clubs via `notification-api`. Conséquences concrètes :
+
+- toute évolution du schéma de `Player` doit rester validée côté
+  `teamManager` **et** `superadmin`, même si `superadmin` n'en écrit qu'une
+  seule colonne ;
+- un conflit d'écriture concurrente (édition de fiche joueur dans
+  teamManager pendant qu'un transfert est en cours côté superadmin) n'est
+  géré par aucun verrou aujourd'hui, même limitation que pour `Card`.
 
 ## Point d'attention : `matches.status` — la machine d'état commune du match
 

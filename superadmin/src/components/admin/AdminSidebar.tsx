@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Équipes', href: '/admin/teams', icon: 'bx bx-group' },
   { label: 'Clubs', href: '/admin/club', icon: 'bx bx-shield-quarter' },
   { label: 'Matchs', href: '/admin/matches', icon: 'bx bx-football' },
+  { label: 'Joueurs', href: '/admin/players', icon: 'bx bx-run' },
   { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },

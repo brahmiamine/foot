@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm'
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'moderate' | 'toggle' | 'import' | 'cancel' | 'reopen' | 'derogation'
+export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'moderate' | 'toggle' | 'import' | 'cancel' | 'reopen' | 'derogation' | 'transfer'
 
 @Entity({ name: 'audit_logs' })
 export class AuditLog {

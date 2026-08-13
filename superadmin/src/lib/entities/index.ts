@@ -20,5 +20,6 @@ export { Card, type CardType, type MatchPeriod } from './Card'
 export { Goal } from './Goal'
 export { Injury } from './Injury'
 export { Substitution } from './Substitution'
+export { PlayerTransfer } from './PlayerTransfer'
 
 
