@@ -215,21 +215,20 @@ Actuellement outbox persiste mais sans worker autonome robuste. Webhooks perdus.
 **Projets**: payment-api  
 **Estimation**: 3 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Audité — déjà conforme sur l'essentiel, 1 point non implémentable documenté
 
-**Description**:
-Fournisseur peut envoyer montant différent. payment-api doit vérifier serveur-side.
+> **Note d'audit** (aucun code changé — l'existant couvre déjà les critères, voir détail) : pour les 3 fournisseurs (Konnect, Paymee, Flouci), `payment.service.ts` ne fait JAMAIS confiance au corps du webhook pour le montant/statut final — `handle{Konnect,Paymee,Flouci}Webhook` appellent chacun un `verifyPayment()` dédié (`konnect.provider.ts:61`, `paymee.provider.ts:85`, `flouci.provider.ts:65`) qui compare le montant (converti en millimes, comparaison exacte, aucune tolérance) et l'orderId/trackingId contre l'enregistrement interne, et rejette (`KonnectPaymentMismatchError`/`PaymeePaymentMismatchError`/`FlouciPaymentMismatchError`) au moindre écart — testé explicitement (ex. `konnect.mapper.spec.ts:154` "throws on amount mismatch", `:164` "throws on currency mismatch"). Konnect vérifie aussi la devise explicitement (`konnect.mapper.ts:154`) ; Paymee/Flouci sont TND-only par construction (`InitPaymentDto` n'autorise que `TND`), donc pas de champ devise à falsifier. **Signature** : Paymee a un vrai HMAC (`verifyPaymeeChecksum`, MD5(token+status+apiKey) comparé en temps constant via `timingSafeEqual`, testé dans `paymee.checksum.spec.ts`) ; Konnect et Flouci n'ont pas de signature applicative mais **ne font jamais confiance au webhook lui-même** : chaque webhook ne sert que de déclencheur pour un appel serveur-à-serveur authentifié (`x-api-key`/`Bearer`) vers l'API réelle du fournisseur qui redonne le montant/statut vrai — un attaquant ne peut pas falsifier cette réponse sans compromettre la clé API stockée côté serveur, propriété équivalente (voire plus forte) qu'une signature sur des données côté client. **Anti-rejeu (timestamp < 1 min)** : non implémentable tel quel — aucun des 3 fournisseurs n'inclut de champ timestamp dans son payload webhook (vérifié sur les 3 DTOs). La sécurité contre le rejeu vient de la structure plutôt que d'un timestamp : un rejeu Konnect/Flouci déclenche juste une re-vérification fraîche (jamais de données périmées utilisées), et `transitionToPaid` est une transition exactement-une-fois (UPDATE conditionnel `WHERE status != PAID`, voir TASK-P0-005) donc un rejeu après PAID est un no-op. Option explorée et rejetée : court-circuiter aussi sur les statuts FAILED/EXPIRED comme sur PAID — risque réel de bloquer définitivement un paiement dont le fournisseur confirmerait un succès tardif (paiement complété après un timeout initial), donc non appliqué sans confirmation métier.
 
-- [ ] Montants en INTEGER (unité mineure: TND * 1000)
-- [ ] Vérifier signature fournisseur (RSA)
-- [ ] Vérifier devise (enum: TND, EUR)
-- [ ] Vérifier montant serveur ≠ client
-- [ ] Vérifier timestamp < 1 min (anti-rejeu)
+- [x] Montants en INTEGER (unité mineure: TND × 1000, `tndToMillimes`) — déjà en place pour les 3 fournisseurs
+- [ ] Vérifier signature fournisseur (RSA) — Paymee a un HMAC (pas RSA) ; Konnect/Flouci n'ont pas de signature mais une ré-authentification serveur-à-serveur équivalente (voir note)
+- [x] Vérifier devise — Konnect explicite, Paymee/Flouci TND-only par construction
+- [x] Vérifier montant serveur ≠ client — déjà en place et testé pour les 3
+- [ ] Vérifier timestamp < 1 min (anti-rejeu) — non implémentable (aucun fournisseur ne fournit de timestamp), sécurité obtenue structurellement (voir note)
 
-**Tests**:
-- [ ] Montant fournisseur +1 → rejection
-- [ ] Devise différente → rejection
-- [ ] Signature invalide → rejection
+**Tests** (déjà présents, aucun ajout nécessaire) :
+- [x] Montant fournisseur +1 → rejection (`konnect.mapper.spec.ts`, `paymee.provider.spec.ts:132`, `flouci.provider.spec.ts:163`)
+- [x] Devise différente → rejection (`konnect.mapper.spec.ts:164`)
+- [x] Signature invalide → rejection (`paymee.provider.spec.ts:75`, `paymee.checksum.spec.ts`)
 
 ---
 
