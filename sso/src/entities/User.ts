@@ -54,6 +54,9 @@ export class User {
       "PLATFORM_SUPERADMIN",
       "FEDERATION_ADMIN",
       "LEAGUE_ADMIN",
+      "REFEREE",
+      "MATCH_OFFICIAL",
+      "REFEREE_OBSERVER",
     ],
     default: "OBSERVATEUR",
   })
@@ -64,7 +67,10 @@ export class User {
     | "MEMBER"
     | "PLATFORM_SUPERADMIN"
     | "FEDERATION_ADMIN"
-    | "LEAGUE_ADMIN";
+    | "LEAGUE_ADMIN"
+    | "REFEREE"
+    | "MATCH_OFFICIAL"
+    | "REFEREE_OBSERVER";
 
   @Column({ type: "tinyint" })
   isActive!: boolean;

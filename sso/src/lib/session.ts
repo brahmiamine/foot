@@ -34,7 +34,10 @@ export interface SsoUser {
     | "MEMBER"
     | "PLATFORM_SUPERADMIN"
     | "FEDERATION_ADMIN"
-    | "LEAGUE_ADMIN";
+    | "LEAGUE_ADMIN"
+    | "REFEREE"
+    | "MATCH_OFFICIAL"
+    | "REFEREE_OBSERVER";
   teamId: string | null;
   /** Scope FEDERATION_ADMIN (migration.md §7-8) — optionnel pour ne pas casser les appelants existants qui construisent un SsoUser littéral sans ce champ ; traité comme `null` s'il est omis. */
   federationId?: string | null;

@@ -5,13 +5,24 @@ import { getSsoSessionFromRequest, redirectToLogin } from "@/lib/ssoSession";
  * Protège toutes les routes de feuille de match ([matchId]/*). La page
  * d'accueil ("/", simple écran "sélectionnez un match") reste publique.
  *
- * Seuls les comptes de club (ADMIN/OBSERVATEUR, avec teamId) sont acceptés
- * ici — SUPERADMIN n'a pas accès à matchsheet, même règle que teamManager
- * (voir teamManager/src/lib/auth.ts). PLATFORM_SUPERADMIN (migration.md
- * §7, alias cible de SUPERADMIN) est refusé pour la même raison — et pour
- * la même raison encore, FEDERATION_ADMIN/LEAGUE_ADMIN n'ont pas non plus
- * de compte club avec teamId, donc déjà exclus par la condition
- * `!session.teamId` qui suit.
+ * Deux populations acceptées ici :
+ * - comptes de club (ADMIN/OBSERVATEUR, avec teamId) — vérifiés ensuite par
+ *   [matchId]/layout.tsx (appartenance à l'une des deux équipes du match) ;
+ * - officiels de match (REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER,
+ *   migration.md §11, Phase 4), sans teamId — vérifiés ensuite par la même
+ *   layout.tsx via une affectation réelle (`match_official_assignments`),
+ *   jamais uniquement par la présence de ce rôle dans le JWT.
+ *
+ * SUPERADMIN/PLATFORM_SUPERADMIN restent refusés (aucun périmètre de match
+ * précis), même règle que teamManager (voir teamManager/src/lib/auth.ts).
+ * FEDERATION_ADMIN/LEAGUE_ADMIN restent également exclus : leur supervision
+ * passe par superadmin, pas par une session matchsheet directe.
+ *
+ * Ce middleware ne peut PAS lui-même vérifier l'affectation à un match
+ * précis (runtime Edge, pas d'accès MySQL/TypeORM ici — voir
+ * services/sheetGuard.ts pour l'équivalent runtime Node) : il ne fait
+ * qu'authentifier et laisser passer un rôle plausible, la vérification
+ * fine reste dans [matchId]/layout.tsx.
  *
  * L'utilisateur vérifié est transmis aux Server Components via des en-têtes
  * (x-sso-*) pour éviter de revérifier le JWT à chaque page.
@@ -26,19 +37,29 @@ export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
 
+const OFFICIAL_ROLES = new Set(["REFEREE", "MATCH_OFFICIAL", "REFEREE_OBSERVER"]);
+
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === "/" || request.nextUrl.pathname.startsWith("/api/internal/")) {
     return NextResponse.next();
   }
 
   const session = await getSsoSessionFromRequest(request);
-  if (!session || !session.teamId || session.role === "SUPERADMIN" || session.role === "PLATFORM_SUPERADMIN") {
+  if (!session || session.role === "SUPERADMIN" || session.role === "PLATFORM_SUPERADMIN") {
+    return redirectToLogin(request);
+  }
+
+  const isClubAccount = !!session.teamId;
+  const isOfficialAccount = !session.teamId && OFFICIAL_ROLES.has(session.role);
+  if (!isClubAccount && !isOfficialAccount) {
     return redirectToLogin(request);
   }
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-sso-user-id", session.id);
-  requestHeaders.set("x-sso-team-id", session.teamId);
+  if (session.teamId) {
+    requestHeaders.set("x-sso-team-id", session.teamId);
+  }
   requestHeaders.set("x-sso-role", session.role);
   requestHeaders.set("x-sso-name", session.name);
 

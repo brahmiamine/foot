@@ -15,6 +15,7 @@ import { Injury } from "@/entities/Injury";
 import { Substitution } from "@/entities/Substitution";
 import { Reservation } from "@/entities/Reservation";
 import { MatchOfficial } from "@/entities/MatchOfficial";
+import { MatchOfficialAssignment } from "@/entities/MatchOfficialAssignment";
 import { PlayerControl } from "@/entities/PlayerControl";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 
@@ -58,6 +59,7 @@ export async function getDataSource(): Promise<DataSource> {
         Substitution,
         Reservation,
         MatchOfficial,
+        MatchOfficialAssignment,
         PlayerControl,
         MatchReopenLog,
       ],

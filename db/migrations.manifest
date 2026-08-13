@@ -52,6 +52,8 @@ sso/sql/migration_add_mfa_enrollment_challenges.sql
 # Rôles cibles PLATFORM_SUPERADMIN/FEDERATION_ADMIN/LEAGUE_ADMIN + scope
 # federation_id/league_id sur `User` (migration.md §7-8, Phase 1).
 sso/sql/migration_add_federation_league_scope.sql
+# Rôles REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §7/§11, Phase 4).
+sso/sql/migration_add_match_official_roles.sql
 
 # --- superadmin (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
 superadmin/mysql/migration_add_audit_logs.sql
@@ -113,6 +115,9 @@ matchsheet/sql/migration_add_signature_integrity.sql
 # Colonnes propres à ms_goals/ms_injuries/ms_substitutions + nouvelle table
 # ms_event_corrections, aucune dépendance (TASK-P0-009, todo.md).
 matchsheet/sql/migration_add_event_corrections.sql
+# Identité officielle de match (migration.md §11, Phase 4). Dépend de
+# matches (déjà en base).
+matchsheet/sql/migration_add_match_official_assignments.sql
 
 # --- billetterie (tk_*, dépend de teams/matches) ---
 billetterie/sql/schema.sql
