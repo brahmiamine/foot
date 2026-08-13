@@ -14,7 +14,7 @@ Ce document sert de source de vérité pour le suivi de ce chantier. Les travaux
 | Phase 4 | Officiels de match (`match_official_assignments`, contrôle serveur `matchsheet`) | `[~]` |
 | Phase 5 | ArbiNote officiel (évaluation fédérale séparée du score public) | `[~]` |
 
-**État global (14 août 2026 — Draft PR #65) :** les cinq phases disposent d'une base fonctionnelle. Cette PR ajoute le backfill des affiliations historiques, la pagination réelle des joueurs, le workflow de transfert multi-acteurs avec homologation et notifications, la vérification temporelle des joueurs dans `matchsheet`, les primitives de scope match/ligue et les analytics officielles ArbiNote. Les deux nouvelles migrations sont désormais enregistrées dans `db/migrations.manifest`.
+**État global (14 août 2026 — Draft PR #65) :** les cinq phases disposent d'une base fonctionnelle. Cette PR ajoute le backfill des affiliations historiques, la pagination réelle des joueurs, le workflow de transfert multi-acteurs avec homologation et notifications, la vérification temporelle des joueurs dans `matchsheet`, les primitives de scope match/ligue et les analytics officielles ArbiNote. Les nouvelles migrations de la PR ainsi que les migrations historiques signalées par la CI sont désormais enregistrées dans `db/migrations.manifest`.
 
 La migration n'est pas encore considérée comme terminée : `LEAGUE_ADMIN` doit encore être branché sur l'ensemble des routes journées/matchs/affectations d'officiels, l'UI des anciens joueurs reste à créer, l'audit IP/User-Agent des affectations/révocations doit être enrichi, et les analytics officielles doivent être exposées par `/stats` avec pagination/recherche des sélecteurs. Les échecs CI qui surviennent dans `actions/setup-node@v4` avant le build doivent être suivis séparément des erreurs de code.
 
@@ -26,11 +26,11 @@ La migration n'est pas encore considérée comme terminée : `LEAGUE_ADMIN` doit
 3. Workflow `PENDING → APPROVED → COMPLETED` avec approbation/rejet du club destination et homologation fédérale.
 4. Transaction atomique sur `cms_team_members` et `Player.teamId`, champs d'audit et notifications `PLAYER_TRANSFER_*`.
 5. Vérification temporelle de l'appartenance joueur dans `matchsheet`.
-6. Primitives `getMatchLeagueId()` et `listMatchesForLeague()`.
+6. Scope `LEAGUE_ADMIN` actif sur les matchs et les affectations/révocations d'officiels, avec résolution serveur `match → journée → saison → ligue → fédération`.
 7. Calcul des analytics officielles ArbiNote : évolution chronologique et comparaison par observateur.
 
 **P0 — écarts fonctionnels ou de sécurité restant à fermer**
-1. Rendre `LEAGUE_ADMIN` réellement opérationnel sur les journées, matchs et affectations/révocations des officiels, avec tests négatifs cross-ligue.
+1. Finaliser `LEAGUE_ADMIN` sur le CRUD des journées et ajouter les tests négatifs cross-ligue. Le scope est désormais actif sur la liste/création/modification/suppression des matchs et sur la lecture/affectation/révocation des officiels.
 2. Exposer les analytics officielles ArbiNote sur l'endpoint `/stats` sans mélanger note publique et note officielle.
 3. Enrichir l'audit des affectations/révocations d'officiels avec IP et User-Agent.
 
