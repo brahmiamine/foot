@@ -25,6 +25,9 @@ export class AuditLog {
   @Column({ type: 'varchar', length: 45, nullable: true })
   ip_address?: string | null
 
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  user_agent?: string | null
+
   @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date
 }
