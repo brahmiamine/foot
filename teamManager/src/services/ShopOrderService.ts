@@ -7,6 +7,7 @@ import { ShopOrderItem } from "@/entities/ShopOrderItem";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { getPaymentProvider, getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
 import { fetchMemberProfile } from "@/lib/ssoProfileClient";
+import { openStockUnavailableRefundCase } from "@/lib/stockUnavailableRefunds";
 
 export interface ProductSummary {
   id: number;
@@ -266,10 +267,14 @@ export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED" | "PAID_STOCK_UNA
  * payé sans repartir avec sa commande, et sans que personne ne le sache. On
  * vérifie donc explicitement le statut réel du paiement dans ce cas précis
  * (jamais fait auparavant : le code retournait juste "CANCELLED" sans
- * revérifier). Pas de remboursement automatique : payment-api n'expose
- * encore aucune primitive de remboursement (voir TASK-P1-007) — on
- * journalise donc un signal fort pour réconciliation manuelle par les ops,
- * plutôt que de perdre silencieusement l'information.
+ * revérifier).
+ *
+ * TASK-P0-002 : ouvre automatiquement un dossier de remboursement auprès de
+ * payment-api (TASK-P0-001) plutôt que de se limiter à journaliser un
+ * signal pour traitement manuel — voir
+ * src/lib/stockUnavailableRefunds.ts#openStockUnavailableRefundCase,
+ * idempotent (rejouer reconcileOrderPayment plusieurs fois pour ce paiement
+ * n'ouvre jamais un second dossier ni ne redemande un second remboursement).
  */
 export async function reconcileOrderPayment(paymentId: string): Promise<ReconcileResult> {
   const ds = await getDataSource();
@@ -291,6 +296,7 @@ export async function reconcileOrderPayment(paymentId: string): Promise<Reconcil
           timestamp: new Date().toISOString(),
         }),
       );
+      await openStockUnavailableRefundCase(paymentId);
       return "PAID_STOCK_UNAVAILABLE";
     }
     return "CANCELLED";

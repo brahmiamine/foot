@@ -8,6 +8,7 @@ import { ProductCategory } from "@/entities/ProductCategory";
 import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
 import { ShopOrder } from "@/entities/ShopOrder";
 import { ShopOrderItem } from "@/entities/ShopOrderItem";
+import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
 import { Team } from "@/entities/Team";
 
 /**
@@ -24,7 +25,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Federation, News, NotificationOutboxEvent, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Team],
+    entities: [Federation, News, NotificationOutboxEvent, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, StockUnavailableRefund, Team],
   });
 
   await dataSource.initialize();

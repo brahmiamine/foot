@@ -30,7 +30,7 @@
 ### TASK-P0-001 — API de remboursement multi-fournisseur
 
 **Projets :** `payment-api`
-**Statut :** [~] Implémenté et testé ; compensation automatique (TASK-P0-002/003/006) toujours bloquée par une brique manquante
+**Statut :** [~] Implémenté et testé ; TASK-P0-002 branchée dessus, TASK-P0-003/006 toujours bloquées par une brique manquante
 
 Implémenter les remboursements Konnect, Paymee et Flouci, sans simuler un succès lorsqu'un fournisseur ne les supporte pas.
 
@@ -46,26 +46,28 @@ Implémenter les remboursements Konnect, Paymee et Flouci, sans simuler un succ�
 
 > **Note d'audit (vérifiée contre la documentation officielle des 3 fournisseurs, pas supposée)** : `docs.konnect.network` ne documente que 3 endpoints (Initiate Payment, Get Payment Details, Webhook) — aucun remboursement. `paymee.tn` (le Paymee tunisien utilisé ici — à ne pas confondre avec le PayMee brésilien `paymee.com.br`, sans rapport) ne documente pas non plus de remboursement public ; cohérent avec `payment-reconciliation.service.ts` qui note déjà que Paymee n'expose aucun endpoint de statut serveur-à-serveur. `docs.flouci.com/api-reference/refund-payment` documente `POST /api/v2/refund_payment` (`payment_id` uniquement, pas de paramètre de montant partiel — il rembourse le total). Conséquence directe sur l'implémentation : **seul un remboursement Flouci portant sur le montant total, et unique (aucun autre remboursement déjà réservé), est automatisé** ; Konnect, Paymee, et tout remboursement partiel — y compris chez Flouci — passent par `MANUAL_REVIEW` plutôt que d'appeler un endpoint inexistant ou de rembourser plus que demandé. Voir `payment-api/README.md` § Remboursements et § Limites connues.
 >
-> **Reste ouvert** : TASK-P0-002 (compensation automatique paiement tardif), TASK-P0-003 (saga annulation match) et TASK-P0-006 (retours marketplace) dépendaient de « TASK-P0-001 » au sens large ; l'API de remboursement existe désormais mais ces sagas doivent encore être écrites pour l'appeler (elles ne le font pas aujourd'hui). Pas de tableau de bord/alerte sur la profondeur de la file `MANUAL_REVIEW` (TASK-P2-002).
+> **Reste ouvert** : TASK-P0-002 (compensation automatique paiement tardif) est maintenant branchée sur cette API — voir sa propre section. TASK-P0-003 (saga annulation match) et TASK-P0-006 (retours marketplace) dépendaient elles aussi de « TASK-P0-001 » au sens large ; l'API de remboursement existe désormais mais ces deux sagas doivent encore être écrites pour l'appeler (elles ne le font pas aujourd'hui). Pas de tableau de bord/alerte centralisé sur la profondeur de la file `MANUAL_REVIEW` de payment-api (TASK-P2-002) — seul le SLA par dossier de TASK-P0-002 est couvert.
 
 ### TASK-P0-002 — Compensation automatique des paiements tardifs sans stock
 
 **Projets :** `billetterie`, `teamManager`, `payment-api`, `notification-api`
-**Statut :** [!] Bloqué par TASK-P0-001
+**Statut :** [~] Implémenté et testé pour billetterie et teamManager (boutique) ; pas de saga distincte pour marketplace-api (TASK-P0-004/005 non livrées)
 
-Remplacer le traitement manuel de `PAID_STOCK_UNAVAILABLE` par une saga durable.
+Remplace le traitement manuel de `PAID_STOCK_UNAVAILABLE` (simple log pour ops) par une ouverture automatique de dossier de remboursement.
 
 **Critères d'acceptation :**
-- créer automatiquement une demande de remboursement idempotente ;
-- conserver billet/commande, paiement et remboursement dans un dossier de réconciliation corrélé ;
-- notifier le client à chaque changement d'état ;
-- alerter les opérations après dépassement du SLA ;
-- tester paiement confirmé après expiration et réallocation du dernier stock.
+- [x] créer automatiquement une demande de remboursement idempotente (`openStockUnavailableRefundCase`, clé d'idempotence `stock-unavailable:<paymentId>` — un même paiement ne peut jamais générer deux demandes) ;
+- [x] conserver billet/commande, paiement et remboursement dans un dossier de réconciliation corrélé (`tk_stock_unavailable_refunds` / `shop_stock_unavailable_refunds`, une ligne par `payment_id`, billets/commande retrouvables via ce même `payment_id`) ;
+- [x] notifier le client à chaque changement d'état : délégué à payment-api (TASK-P0-001), qui notifie déjà le payeur (`Payment.userId`) sur `REFUND_SUCCEEDED`/`REFUND_FAILED`/`REFUND_MANUAL_REVIEW` — pas dupliqué ici, voir `payment-api/src/outbox/outbox-worker.service.ts`.
+- [x] alerter les opérations après dépassement du SLA (24h, log structuré `stock_unavailable_refund_sla_breach`, une seule fois par dossier — voir `processStockUnavailableRefunds`) ;
+- [x] tester paiement confirmé après expiration et réallocation du dernier stock (tests existants TASK-P0-016 étendus) + rejeu après indisponibilité fournisseur, succès tardif après résolution opérateur, idempotence.
+
+Scheduler périodique (10 min, `instrumentation.ts`) : reprend les demandes en échec (payment-api indisponible au moment de la détection) et rafraîchit les dossiers `MANUAL_REVIEW`/en cours en relisant payment-api — jamais fait confiance au seul état local. billetterie expose en plus `POST /api/cron/reconcile-stock-unavailable-refunds` pour un ordonnanceur externe, comme pour la purge des réservations.
 
 ### TASK-P0-003 — Saga d'annulation ou de report d'un match
 
 **Projets :** `superadmin`, `matchsheet`, `billetterie`, `payment-api`, `teamManager`, `ob`, `notification-api`, `arbinote`
-**Statut :** [!] Bloqué par TASK-P0-001
+**Statut :** [ ] TASK-P0-001 n'est plus bloquante (API de remboursement disponible) ; saga encore à écrire
 
 **Critères d'acceptation :**
 - événement versionné et idempotent `MATCH_CANCELLED`/`MATCH_RESCHEDULED` ;

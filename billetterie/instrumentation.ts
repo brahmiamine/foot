@@ -35,4 +35,29 @@ export async function register() {
 
   globalForScheduler.__ticketPurgeScheduler = setInterval(runPurge, intervalMs);
   void runPurge();
+
+  // TASK-P0-002 : reprend les demandes de remboursement en échec et
+  // rafraîchit/alerte les dossiers PAID_STOCK_UNAVAILABLE ouverts — même
+  // pattern que le scheduler de purge ci-dessus. POST
+  // /api/cron/reconcile-stock-unavailable-refunds reste disponible pour un
+  // ordonnanceur externe.
+  const globalForRefundScheduler = globalThis as unknown as { __stockUnavailableRefundScheduler?: NodeJS.Timeout };
+  if (!globalForRefundScheduler.__stockUnavailableRefundScheduler) {
+    const { processStockUnavailableRefunds } = await import("@/lib/stockUnavailableRefunds");
+    const refundIntervalMs = 10 * 60 * 1000;
+
+    const runRefundReconciliation = async () => {
+      try {
+        const report = await processStockUnavailableRefunds();
+        if (report.retriedRequests > 0 || report.refreshed > 0 || report.alerted > 0) {
+          console.log(`[stock-unavailable-refund-scheduler] ${JSON.stringify(report)}`);
+        }
+      } catch (error) {
+        console.error("[stock-unavailable-refund-scheduler] échec du passage périodique :", error);
+      }
+    };
+
+    globalForRefundScheduler.__stockUnavailableRefundScheduler = setInterval(runRefundReconciliation, refundIntervalMs);
+    void runRefundReconciliation();
+  }
 }
