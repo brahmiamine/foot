@@ -10,7 +10,7 @@ $sidebar-menu-item-color:                             #545a6d;
 $sidebar-menu-sub-item-color:                         #545a6d;
 $sidebar-menu-item-icon-color:                        #7f8387;
 $sidebar-menu-item-hover-color:                       #383c40;
-$sidebar-menu-item-active-color:                      #c42221;
+$sidebar-menu-item-active-color:                      #c8102e;
 $sidebar-width:                                       250px;
 $sidebar-collapsed-width:                             70px;
 $sidebar-width-sm:                                    160px;
@@ -106,11 +106,11 @@ $grays: (
 // fusv-enable
 
 // scss-docs-start color-variables
-// Club-branded palette (matches teamManager's public site tokens:
-// #031521 navy / #C42221 red) instead of the stock Skote indigo — $blue
+// Palette alignee sur ob (Olympique de Beja), source de verite de la marque
+// rouge partagee par sso/teamManager/billetterie/sellerPortal — $blue
 // drives $primary below, $red drives $danger, kept as two distinct but
 // harmonious reds so interactive elements stay distinguishable from alerts.
-$blue:    #c42221;
+$blue:    #c8102e;
 $indigo:  #564ab1;
 $purple:  #6f42c1;
 $pink:    #e83e8c;

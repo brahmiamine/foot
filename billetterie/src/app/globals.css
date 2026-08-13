@@ -7,9 +7,11 @@
   --tk-text-muted: #64748b;
   --tk-text-subtle: #94a3b8;
 
-  --tk-primary: #1d4ed8;
-  --tk-primary-dark: #1e3a8a;
-  --tk-primary-soft: #dbeafe;
+  /* Palette alignee sur ob (Olympique de Beja), meme rouge de marque que
+     sso/superadmin/teamManager/sellerPortal. */
+  --tk-primary: #c8102e;
+  --tk-primary-dark: #a10d25;
+  --tk-primary-soft: #ffd9de;
 
   --tk-danger: #dc2626;
   --tk-danger-soft: #fee2e2;

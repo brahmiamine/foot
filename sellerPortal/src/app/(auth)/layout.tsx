@@ -9,7 +9,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(160deg, #0b1f18 0%, #0d6e4f 55%, #0b1f18 100%)",
+        background: "linear-gradient(160deg, #0d0d0d 0%, #c8102e 55%, #0d0d0d 100%)",
         padding: "1.5rem",
       }}
     >
@@ -26,7 +26,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
               alignItems: "center",
               justifyContent: "center",
               fontWeight: 800,
-              color: "#0d6e4f",
+              color: "#c8102e",
               fontSize: "1.1rem",
             }}
           >
