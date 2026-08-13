@@ -31,12 +31,12 @@ La migration n'est pas encore considérée comme terminée : `LEAGUE_ADMIN` doit
 
 **P0 — écarts fonctionnels ou de sécurité restant à fermer**
 1. Étendre les tests d'intégration cross-ligue si nécessaire. Des tests négatifs de routes couvrent désormais les journées, matchs et officiels.
-2. Analytics officielles ArbiNote exposées sur `/stats`, séparées de la note publique ; compléter seulement les sélecteurs paginés/recherchables.
+2. Analytics officielles ArbiNote exposées sur `/stats`, séparées de la note publique ; sélecteurs match/arbitre paginés et recherchables.
 3. Audit des affectations/révocations enrichi avec IP et User-Agent via `audit_logs`.
 
 **P1 — compléments fonctionnels**
 4. Vue « Anciens joueurs » ajoutée dans `teamManager` avec historique `ENDED` en lecture seule.
-5. Terminer pagination et recherche des sélecteurs match/arbitre de l'écran officiel ArbiNote.
+5. Pagination et recherche des sélecteurs match/arbitre terminées dans l'écran officiel ArbiNote.
 6. Ajouter les tests d'intégration manquants pour les scopes `LEAGUE_ADMIN` et le contrôle temporel.
 
 **À valider comme choix d'architecture (pas des bugs, mais des décisions à confirmer)**
