@@ -189,7 +189,15 @@ export class MediaGalleryService {
   /**
    * Remove a media item from a gallery
    */
-  async removeItemFromGallery(galleryId: number, mediaItemId: number): Promise<boolean> {
+  async removeItemFromGallery(galleryId: number, mediaItemId: number, teamId: string): Promise<boolean> {
+    // Check if gallery exists (and belongs to the given team) — TASK-P0-012
+    // (todo.md): without this, any staff member of any club could remove
+    // items from another club's gallery just by guessing its numeric id.
+    const gallery = await this.findById(galleryId, teamId);
+    if (!gallery) {
+      throw new Error("Galerie non trouvée");
+    }
+
     const repository = await this.getGalleryItemRepository();
     const galleryItem = await repository.findOne({
       where: { galleryId, mediaItemId },
@@ -208,8 +216,15 @@ export class MediaGalleryService {
    */
   async updateItemOrder(
     galleryId: number,
-    items: Array<{ mediaItemId: number; displayOrder: number }>
+    items: Array<{ mediaItemId: number; displayOrder: number }>,
+    teamId: string
   ): Promise<MediaGalleryItem[]> {
+    // TASK-P0-012 (todo.md): same cross-club guard as removeItemFromGallery.
+    const gallery = await this.findById(galleryId, teamId);
+    if (!gallery) {
+      throw new Error("Galerie non trouvée");
+    }
+
     const repository = await this.getGalleryItemRepository();
 
     // Update each item's order

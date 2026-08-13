@@ -137,9 +137,30 @@ export class TripService {
     return repository.save(participant);
   }
 
-  async toggleConfirmed(participantId: number): Promise<TripParticipant> {
+  /**
+   * TASK-P0-012 (todo.md): `toggleConfirmed`/`removeParticipant` used to
+   * trust any numeric participant id regardless of which club's trip it
+   * belonged to — any staff member with "trips.manage" for their own club
+   * could toggle/remove another club's trip participants.
+   */
+  private async findParticipantForTeam(
+    participantId: number,
+    teamId: string
+  ): Promise<TripParticipant | null> {
     const repository = await this.getParticipantRepository();
-    const participant = await repository.findOne({ where: { id: participantId } });
+    const participant = await repository.findOne({
+      where: { id: participantId },
+      relations: ["trip"],
+    });
+    if (!participant || participant.trip?.teamId !== teamId) {
+      return null;
+    }
+    return participant;
+  }
+
+  async toggleConfirmed(participantId: number, teamId: string): Promise<TripParticipant> {
+    const repository = await this.getParticipantRepository();
+    const participant = await this.findParticipantForTeam(participantId, teamId);
     if (!participant) {
       throw new Error("Participant non trouvé");
     }
@@ -147,9 +168,9 @@ export class TripService {
     return repository.save(participant);
   }
 
-  async removeParticipant(participantId: number): Promise<boolean> {
+  async removeParticipant(participantId: number, teamId: string): Promise<boolean> {
     const repository = await this.getParticipantRepository();
-    const participant = await repository.findOne({ where: { id: participantId } });
+    const participant = await this.findParticipantForTeam(participantId, teamId);
     if (!participant) {
       throw new Error("Participant non trouvé");
     }

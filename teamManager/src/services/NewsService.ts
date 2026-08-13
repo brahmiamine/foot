@@ -193,7 +193,15 @@ export class NewsService {
   /**
    * Remove a media item from a news article
    */
-  async removeMediaFromNews(newsId: number, mediaItemId: number): Promise<boolean> {
+  async removeMediaFromNews(newsId: number, mediaItemId: number, teamId: string): Promise<boolean> {
+    // Check if news exists (and belongs to the given team) — TASK-P0-012
+    // (todo.md): without this, any staff member of any club could remove
+    // media from another club's news article just by guessing its numeric id.
+    const news = await this.findById(newsId, teamId);
+    if (!news) {
+      throw new Error("Actualité non trouvée");
+    }
+
     const repository = await this.getNewsMediaRepository();
     const newsMedia = await repository.findOne({
       where: { newsId, mediaItemId },
@@ -210,7 +218,17 @@ export class NewsService {
   /**
    * Update display order of media items in a news article
    */
-  async updateNewsMediaOrder(newsId: number, items: Array<{ mediaItemId: number; displayOrder: number }>): Promise<NewsMedia[]> {
+  async updateNewsMediaOrder(
+    newsId: number,
+    items: Array<{ mediaItemId: number; displayOrder: number }>,
+    teamId: string
+  ): Promise<NewsMedia[]> {
+    // TASK-P0-012 (todo.md): same cross-club guard as removeMediaFromNews.
+    const news = await this.findById(newsId, teamId);
+    if (!news) {
+      throw new Error("Actualité non trouvée");
+    }
+
     const repository = await this.getNewsMediaRepository();
 
     // Update each item's order

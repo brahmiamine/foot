@@ -183,8 +183,9 @@ export async function addMediaToNews(newsId: number, mediaItemId: number, displa
  */
 export async function removeMediaFromNews(newsId: number, mediaItemId: number) {
   try {
+    const teamId = await requireTeamId();
     const newsService = new NewsService();
-    await newsService.removeMediaFromNews(newsId, mediaItemId);
+    await newsService.removeMediaFromNews(newsId, mediaItemId, teamId);
 
     revalidatePath("/admin/news");
     revalidatePath(`/admin/news/${newsId}/edit`);
@@ -202,8 +203,9 @@ export async function removeMediaFromNews(newsId: number, mediaItemId: number) {
  */
 export async function updateNewsMediaOrder(newsId: number, items: Array<{ mediaItemId: number; displayOrder: number }>) {
   try {
+    const teamId = await requireTeamId();
     const newsService = new NewsService();
-    await newsService.updateNewsMediaOrder(newsId, items);
+    await newsService.updateNewsMediaOrder(newsId, items, teamId);
 
     revalidatePath("/admin/news");
     revalidatePath(`/admin/news/${newsId}/edit`);

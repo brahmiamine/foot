@@ -110,8 +110,9 @@ export async function addItemToGallery(galleryId: number, mediaItemId: number, d
  */
 export async function removeItemFromGallery(galleryId: number, mediaItemId: number) {
   try {
+    const teamId = await requireTeamId();
     const galleryService = new MediaGalleryService();
-    await galleryService.removeItemFromGallery(galleryId, mediaItemId);
+    await galleryService.removeItemFromGallery(galleryId, mediaItemId, teamId);
 
     revalidatePath("/admin/media/galleries");
     return { success: true, message: "Élément retiré de la galerie avec succès" };
@@ -128,8 +129,9 @@ export async function removeItemFromGallery(galleryId: number, mediaItemId: numb
  */
 export async function updateGalleryItemOrder(galleryId: number, items: Array<{ mediaItemId: number; displayOrder: number }>) {
   try {
+    const teamId = await requireTeamId();
     const galleryService = new MediaGalleryService();
-    await galleryService.updateItemOrder(galleryId, items);
+    await galleryService.updateItemOrder(galleryId, items, teamId);
 
     revalidatePath("/admin/media/galleries");
     return { success: true, message: "Ordre des éléments mis à jour avec succès" };

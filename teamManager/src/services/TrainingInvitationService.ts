@@ -33,9 +33,27 @@ export class TrainingInvitationService {
     return repository.save(toCreate);
   }
 
-  async updateResponse(id: number, response: TrainingInvitationResponse): Promise<TrainingInvitation> {
-    const repository = await this.getRepository();
+  /**
+   * TASK-P0-012 (todo.md): `findById` alone doesn't scope by team, so
+   * `updateResponse`/`remove` used to trust any numeric invitation id
+   * regardless of which club's training it belonged to — any staff member
+   * of any club could respond to or delete another club's invitations.
+   */
+  private async findByIdForTeam(id: number, teamId: string): Promise<TrainingInvitation | null> {
     const invitation = await this.findById(id);
+    if (!invitation || invitation.training?.teamId !== teamId) {
+      return null;
+    }
+    return invitation;
+  }
+
+  async updateResponse(
+    id: number,
+    teamId: string,
+    response: TrainingInvitationResponse
+  ): Promise<TrainingInvitation> {
+    const repository = await this.getRepository();
+    const invitation = await this.findByIdForTeam(id, teamId);
     if (!invitation) {
       throw new Error("Invitation non trouvée");
     }
@@ -44,9 +62,9 @@ export class TrainingInvitationService {
     return repository.save(invitation);
   }
 
-  async remove(id: number): Promise<boolean> {
+  async remove(id: number, teamId: string): Promise<boolean> {
     const repository = await this.getRepository();
-    const invitation = await this.findById(id);
+    const invitation = await this.findByIdForTeam(id, teamId);
     if (!invitation) {
       throw new Error("Invitation non trouvée");
     }

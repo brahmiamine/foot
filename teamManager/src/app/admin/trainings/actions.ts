@@ -168,7 +168,7 @@ export async function updateTrainingInvitationResponse(id: number, response: Tra
 
     const data = updateTrainingInvitationResponseSchema.parse({ response });
     const invitationService = new TrainingInvitationService();
-    await invitationService.updateResponse(id, data.response);
+    await invitationService.updateResponse(id, access.teamId, data.response);
 
     revalidatePath("/admin/trainings");
     return { success: true, message: "Réponse mise à jour" };
@@ -186,7 +186,7 @@ export async function removeTrainingInvitation(id: number) {
     requirePermission(access, "trainings.invite");
 
     const invitationService = new TrainingInvitationService();
-    await invitationService.remove(id);
+    await invitationService.remove(id, access.teamId);
 
     revalidatePath("/admin/trainings");
     return { success: true, message: "Invitation retirée" };

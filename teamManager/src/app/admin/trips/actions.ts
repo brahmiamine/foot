@@ -143,7 +143,7 @@ export async function toggleTripParticipantConfirmed(participantId: number) {
     requirePermission(access, "trips.manage");
 
     const service = new TripService();
-    await service.toggleConfirmed(participantId);
+    await service.toggleConfirmed(participantId, access.teamId);
 
     revalidatePath("/admin/trips");
     return { success: true };
@@ -158,7 +158,7 @@ export async function removeTripParticipant(participantId: number) {
     requirePermission(access, "trips.manage");
 
     const service = new TripService();
-    await service.removeParticipant(participantId);
+    await service.removeParticipant(participantId, access.teamId);
 
     revalidatePath("/admin/trips");
     return { success: true, message: "Participant retiré" };

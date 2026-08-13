@@ -50,8 +50,9 @@ export async function addGalleryToMatch(matchId: string, galleryId: number) {
 
 export async function removeGalleryFromMatch(matchId: string, galleryId: number) {
   try {
+    const teamId = await requireTeamId();
     const matchGalleryService = new MatchGalleryService();
-    await matchGalleryService.removeGalleryFromMatch(matchId, galleryId);
+    await matchGalleryService.removeGalleryFromMatch(matchId, galleryId, teamId);
 
     revalidatePath("/admin/matches");
     return { success: true, message: "Galerie retirée du match" };
