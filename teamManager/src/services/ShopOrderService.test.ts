@@ -154,6 +154,34 @@ describe("reconcileOrderPayment (SQLite réel)", () => {
     expect(await reconcileOrderPayment("pay_1")).toBe("PAID");
     expect(getPaymentStatus).not.toHaveBeenCalled();
   });
+
+  /** TASK-P0-016 : paiement confirmé tardivement après libération du stock. */
+  it("détecte un paiement confirmé tardivement après libération du stock (PAID_STOCK_UNAVAILABLE)", async () => {
+    const { createOrder, reconcileOrderPayment } = await import("./ShopOrderService");
+    const { team, product } = await seedTeamWithProduct(dataSource, { stock: 5 });
+    initPayment.mockResolvedValue({ paymentId: "pay_1", payUrl: "https://pay.example.com/pay_1" });
+    await createOrder({ purchaserId: "user-1", teamId: team.id, items: [{ productId: product.id, quantity: 2 }] });
+    getPaymentStatus.mockResolvedValue("FAILED");
+    await reconcileOrderPayment("pay_1"); // la commande passe CANCELLED, stock restocké
+
+    // Le fournisseur confirme finalement le paiement, après coup.
+    getPaymentStatus.mockResolvedValue("PAID");
+    const result = await reconcileOrderPayment("pay_1");
+
+    expect(result).toBe("PAID_STOCK_UNAVAILABLE");
+  });
+
+  it("une commande CANCELLED dont le paiement reste non confirmé reste CANCELLED", async () => {
+    const { createOrder, reconcileOrderPayment } = await import("./ShopOrderService");
+    const { team, product } = await seedTeamWithProduct(dataSource, { stock: 5 });
+    initPayment.mockResolvedValue({ paymentId: "pay_1", payUrl: "https://pay.example.com/pay_1" });
+    await createOrder({ purchaserId: "user-1", teamId: team.id, items: [{ productId: product.id, quantity: 1 }] });
+    getPaymentStatus.mockResolvedValue("FAILED");
+    await reconcileOrderPayment("pay_1");
+
+    getPaymentStatus.mockResolvedValue("EXPIRED");
+    expect(await reconcileOrderPayment("pay_1")).toBe("CANCELLED");
+  });
 });
 
 describe("purgeStaleOrders (SQLite réel)", () => {

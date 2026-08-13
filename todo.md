@@ -425,15 +425,14 @@ Aucune réconciliation paiement ↔ fournisseur. Paiements perdus silencieusemen
 **Projets**: teamManager, billetterie  
 **Estimation**: 2 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité — détection + information client ; remboursement auto non implémentable (voir note)
 
-**Description**:
-Paiement confirmé mais stock devenu indisponible → compensation auto (remboursement).
+> **Note d'audit** : les deux apps réservent déjà le stock/la capacité de façon atomique AVANT le paiement (verrou pessimiste à la création de commande/billet, voir TASK-P0-004) et le libèrent automatiquement si la commande reste PENDING >30min (`purgeStaleOrders`/`purgeStalePendingTickets`). Le scénario "paiement confirmé, stock devenu indisponible" décrit par la tâche ne peut donc arriver que dans une fenêtre étroite : la réservation expire et libère le stock/capacité AVANT qu'un paiement webhook très en retard (panne réseau prolongée, provider lent) ne confirme finalement le succès — jusqu'ici ce cas était silencieusement traité comme "CANCELLED" sans jamais revérifier le paiement réel, perdant l'information qu'un client avait payé sans repartir avec sa commande/son billet. **Corrigé** : `reconcileOrderPayment`/`reconcileTicketPayment` revérifient désormais explicitement le paiement dans ce cas précis et retournent `PAID_STOCK_UNAVAILABLE` (nouveau), avec un log structuré `error` pour alerte ops. Les pages de retour paiement affichent un message honnête ("paiement reçu, produit/billet indisponible, notre équipe vous contactera") au lieu d'un "échec" trompeur. **Remboursement automatique non implémenté** : `payment-api` n'expose aucune primitive de remboursement à ce jour (voir TASK-P1-007, backlog P1) — impossible d'appeler une API qui n'existe pas ; la compensation reste donc manuelle (ops) pour l'instant, mais n'est plus silencieusement perdue.
 
-- [ ] Webhook reçu: vérifier stock avant confirmer commande
-- [ ] Stock indisponible: appeler payment-api refund
-- [ ] Notifier client: "Commande remboursée, stock indisponible"
-- [ ] AuditLog compensation avec raison
+- [x] Vérifier le paiement avant de traiter un webhook/retour dont la commande n'est plus PENDING (au lieu de faire confiance à l'état local)
+- [ ] Stock indisponible: appeler payment-api refund — impossible, aucun endpoint de remboursement n'existe dans payment-api (TASK-P1-007)
+- [x] Notifier client: message dédié sur les pages de retour paiement (billetterie + teamManager)
+- [x] Log structuré (raison, paymentId, orderId/matchTicketCategoryId) pour réconciliation manuelle par les ops — pas d'AuditLog DB dans ces deux apps pour ce flux, log applicatif à la place (cohérent avec le reste du repo, pas d'infra de métriques)
 
 ---
 

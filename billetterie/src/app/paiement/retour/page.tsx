@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { reconcileTicketPayment } from "@/lib/tickets";
+import { reconcileTicketPayment, type ReconcileResult } from "@/lib/tickets";
 import { getTranslator } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export default async function PaymentReturnPage({
     );
   }
 
-  let result: "PAID" | "PENDING" | "CANCELLED";
+  let result: ReconcileResult;
   try {
     result = await reconcileTicketPayment(paymentId);
   } catch (error) {
@@ -44,6 +44,20 @@ export default async function PaymentReturnPage({
       <Main>
         <Status color="var(--tk-success)" title={t("payment.confirmed")} />
         <p style={{ color: "var(--tk-text-muted)" }}>{t("payment.available")}</p><TicketLink label={t("payment.viewTickets")} />
+      </Main>
+    );
+  }
+
+  // TASK-P0-016 : paiement confirmé par le fournisseur après que la
+  // réservation a expiré et libéré la capacité — jamais "payment.failed"
+  // (le paiement a bien eu lieu) ni "payment.confirmed" (aucun billet
+  // disponible). Pas de remboursement automatique (voir tickets.ts) : le
+  // client est informé qu'une équipe va le recontacter.
+  if (result === "PAID_STOCK_UNAVAILABLE") {
+    return (
+      <Main>
+        <Status color="var(--tk-danger)" title={t("payment.stockUnavailable")} />
+        <p style={{ color: "var(--tk-text-muted)" }}>{t("payment.stockUnavailableDetail")}</p>
       </Main>
     );
   }

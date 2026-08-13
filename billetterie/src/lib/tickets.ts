@@ -444,7 +444,7 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
   return { tickets, payUrl };
 }
 
-export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED";
+export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED" | "PAID_STOCK_UNAVAILABLE";
 
 /**
  * payment-api ne rappelle jamais billetterie : c'est à billetterie de
@@ -452,6 +452,17 @@ export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED";
  * le provider, ou consultation de "mes billets"). Idempotent : ne modifie
  * que les billets encore PENDING pour ce paiement, sûr à appeler plusieurs
  * fois ou en concurrence.
+ *
+ * TASK-P0-016 : des billets déjà CANCELLED (capacité libérée par
+ * purgeStalePendingTickets après PENDING_RESERVATION_TTL_MS) peuvent en
+ * théorie correspondre à un paiement que le fournisseur a malgré tout
+ * confirmé entre-temps (webhook très en retard, panne réseau prolongée) —
+ * le client aurait alors payé sans repartir avec son billet, sans que
+ * personne ne le sache. On vérifie donc explicitement le statut réel du
+ * paiement dans ce cas précis plutôt que de faire confiance à l'état local.
+ * Pas de remboursement automatique : payment-api n'expose encore aucune
+ * primitive de remboursement (voir TASK-P1-007) — on journalise donc un
+ * signal fort pour réconciliation manuelle par les ops.
  */
 export async function reconcileTicketPayment(paymentId: string): Promise<ReconcileResult> {
   const ds = await getDataSource();
@@ -461,7 +472,21 @@ export async function reconcileTicketPayment(paymentId: string): Promise<Reconci
   if (pendingTickets.length === 0) {
     const any = await ticketRepo.findOne({ where: { paymentId } });
     if (!any) return "CANCELLED";
-    return any.status === "PAID" ? "PAID" : "CANCELLED";
+    if (any.status === "PAID") return "PAID";
+
+    const lateStatus = await getPaymentStatus(paymentId);
+    if (lateStatus === "PAID") {
+      console.error(
+        JSON.stringify({
+          event: "ticket_paid_after_capacity_release",
+          paymentId,
+          matchTicketCategoryId: any.matchTicketCategoryId,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return "PAID_STOCK_UNAVAILABLE";
+    }
+    return "CANCELLED";
   }
 
   const status = await getPaymentStatus(paymentId);

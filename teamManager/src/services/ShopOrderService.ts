@@ -250,7 +250,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   return { order, payUrl };
 }
 
-export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED";
+export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED" | "PAID_STOCK_UNAVAILABLE";
 
 /**
  * payment-api ne rappelle jamais teamManager directement pour cette route :
@@ -258,6 +258,18 @@ export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED";
  * webhook applicatif signé, voir app/api/payments/webhook/route.ts).
  * Idempotent — sûr à appeler plusieurs fois ou en concurrence, même
  * stratégie que billetterie/src/lib/tickets.ts#reconcileTicketPayment.
+ *
+ * TASK-P0-016 : une commande déjà CANCELLED (stock libéré par
+ * purgeStaleOrders après PENDING_ORDER_TTL_MS) peut en théorie correspondre
+ * à un paiement que le fournisseur a malgré tout confirmé entre-temps
+ * (webhook très en retard, panne réseau prolongée) — le client aurait alors
+ * payé sans repartir avec sa commande, et sans que personne ne le sache. On
+ * vérifie donc explicitement le statut réel du paiement dans ce cas précis
+ * (jamais fait auparavant : le code retournait juste "CANCELLED" sans
+ * revérifier). Pas de remboursement automatique : payment-api n'expose
+ * encore aucune primitive de remboursement (voir TASK-P1-007) — on
+ * journalise donc un signal fort pour réconciliation manuelle par les ops,
+ * plutôt que de perdre silencieusement l'information.
  */
 export async function reconcileOrderPayment(paymentId: string): Promise<ReconcileResult> {
   const ds = await getDataSource();
@@ -266,7 +278,22 @@ export async function reconcileOrderPayment(paymentId: string): Promise<Reconcil
   const order = await orderRepo.findOne({ where: { paymentId } });
   if (!order) return "CANCELLED";
   if (order.status !== "PENDING") {
-    return order.status === "PAID" ? "PAID" : "CANCELLED";
+    if (order.status === "PAID") return "PAID";
+
+    const lateStatus = await getPaymentStatus(paymentId);
+    if (lateStatus === "PAID") {
+      console.error(
+        JSON.stringify({
+          event: "order_paid_after_stock_release",
+          orderId: order.id,
+          paymentId,
+          teamId: order.teamId,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return "PAID_STOCK_UNAVAILABLE";
+    }
+    return "CANCELLED";
   }
 
   const status = await getPaymentStatus(paymentId);

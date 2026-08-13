@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { reconcileOrderPayment } from "@/services/ShopOrderService";
+import { reconcileOrderPayment, type ReconcileResult } from "@/services/ShopOrderService";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function BoutiqueReturnPage({
     );
   }
 
-  let result: "PAID" | "PENDING" | "CANCELLED";
+  let result: ReconcileResult;
   try {
     result = await reconcileOrderPayment(paymentId);
   } catch (error) {
@@ -38,6 +38,23 @@ export default async function BoutiqueReturnPage({
       <Main>
         <Status color="var(--bs-success)" title="Paiement confirmé" />
         <p className="text-muted">Votre commande est disponible dans « Mes commandes ».</p>
+      </Main>
+    );
+  }
+
+  // TASK-P0-016 : paiement confirmé par le fournisseur après que la
+  // réservation a expiré et libéré le stock — jamais "annulé" (le paiement
+  // a bien eu lieu) ni "confirmé" (aucun stock disponible). Pas de
+  // remboursement automatique (voir ShopOrderService.ts) : le client est
+  // informé qu'une équipe va le recontacter.
+  if (result === "PAID_STOCK_UNAVAILABLE") {
+    return (
+      <Main>
+        <Status color="var(--bs-danger)" title="Paiement reçu, produit indisponible" />
+        <p className="text-muted">
+          Votre paiement a bien été reçu mais la réservation a expiré avant confirmation. Notre équipe a été alertée
+          et vous contactera pour un remboursement ou une solution.
+        </p>
       </Main>
     );
   }
