@@ -5,7 +5,7 @@ import { Product } from './entities/product.entity';
 import { ProductStatus } from './enums/product-status.enum';
 
 describe('ProductsService', () => {
-  let repository: jest.Mocked<Pick<Repository<Product>, 'findOne' | 'save'>>;
+  let repository: { findOne: jest.Mock; save: jest.Mock };
   let service: ProductsService;
 
   function buildProduct(overrides: Partial<Product> = {}): Product {
