@@ -89,17 +89,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: ${{ matrix.pm }}
-          cache-dependency-path: ${{ matrix.dir }}/${{ matrix.pm == 'pnpm' && 'pnpm-lock.yaml' || 'package-lock.json' }}
-
+      # setup-node's pnpm cache calls pnpm to locate its store, so pnpm must
+      # already be installed before setup-node restores that cache.
       - name: Setup pnpm
         if: matrix.pm == 'pnpm'
         uses: pnpm/action-setup@v4
         with:
           version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: ${{ matrix.pm }}
+          cache-dependency-path: ${{ matrix.dir }}/${{ matrix.pm == 'pnpm' && 'pnpm-lock.yaml' || 'package-lock.json' }}
 
       - name: Install dependencies
         working-directory: ${{ matrix.dir }}
