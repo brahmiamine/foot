@@ -362,7 +362,9 @@ Monolithe 50+ routes sans bornes. Autorisation surtout server actions, pas servi
 **Projets**: superadmin, sso  
 **Estimation**: 4 jours  
 **Dépendances**: TASK-P0-006  
-**Status**: [ ] À faire
+**Status**: [x] Traité — le risque décrit (saga 2 étapes divergentes) ne s'appliquait plus à l'architecture actuelle ; le vrai gap (retry non idempotent) est corrigé (voir note)
+
+> **Note d'audit** : la description ("Step 1: Créer User SSO, Step 2: Créer affiliation") ne correspond plus au code — `sso.createUser` (`POST /api/internal/users`) crée le `User` avec son `teamId` en **une seule** écriture atomique (pas de table `member_team_affiliations` séparée à synchroniser), donc pas de saga multi-étapes à proprement parler côté écriture. Le vrai risque résiduel : `superadmin/src/lib/staffInvitations.ts#acceptInvitation` fait 2 appels non transactionnels (créer le compte côté sso, puis marquer `invitation.acceptedAt` en local) — si le 2e échoue après succès du 1er, un rejeu (retry réseau, double clic) retombait sur `email_taken` alors que le compte de CET utilisateur venait d'être créé avec succès (utilisateur bloqué, aucune donnée corrompue). Corrigé sans saga/table de réconciliation : ajout de `GET /api/internal/users?email=` côté sso (`sso/src/lib/identityService.ts#getUserByEmail`) + `getIdentityUserByEmail` côté superadmin ; sur `email_taken`, on vérifie si le compte existant correspond exactement à l'invitation (email+rôle+teamId) — si oui on traite comme un succès idempotent, sinon comme un vrai conflit. Tests : `sso/src/app/api/internal/users/route.test.ts`, `superadmin/src/lib/staffInvitations.test.ts`.
 
 **Description**:
 Créer staff: superadmin appelle SSO (User créé), puis affiliation. Si réseau coupe entre, divergence.

@@ -79,6 +79,24 @@ export async function createIdentityUser(input: CreateIdentityUserInput): Promis
   }
 }
 
+/**
+ * TASK-P0-013 (todo.md) : utilisé par `staffInvitations.acceptInvitation`
+ * pour distinguer, après un `email_taken` sur `createIdentityUser`, un vrai
+ * conflit d'un retry idempotent (le compte a bien été créé côté sso, mais
+ * la confirmation locale — `invitation.acceptedAt` — n'a pas pu être
+ * persistée avant l'échec).
+ */
+export async function getIdentityUserByEmail(email: string): Promise<IdentityUser | null> {
+  try {
+    return await call<IdentityUser>(`/api/internal/users?email=${encodeURIComponent(email)}`)
+  } catch (error) {
+    if (error instanceof IdentityClientError && error.status === 404) {
+      return null
+    }
+    throw error
+  }
+}
+
 export interface UpdateIdentityUserInput {
   isActive?: boolean
   role?: 'ADMIN' | 'OBSERVATEUR'

@@ -16,14 +16,17 @@ vi.mock('./mailer', () => ({
 }))
 
 const createIdentityUser = vi.fn()
+const getIdentityUserByEmail = vi.fn()
 vi.mock('./identityClient', () => ({
   createIdentityUser: (...args: unknown[]) => createIdentityUser(...args),
+  getIdentityUserByEmail: (...args: unknown[]) => getIdentityUserByEmail(...args),
 }))
 
 beforeEach(async () => {
   dataSource = await createTestDataSource()
   sendEmail.mockReset()
   createIdentityUser.mockReset()
+  getIdentityUserByEmail.mockReset()
 })
 
 afterEach(async () => {
@@ -135,15 +138,58 @@ describe('acceptInvitation', () => {
     expect(result).toEqual({ ok: false, error: 'invalid_or_expired_token' })
   })
 
-  it('propagates email_taken from sso without touching the invitation', async () => {
+  it('propagates a real email_taken conflict (existing account belongs to someone else)', async () => {
     const { acceptInvitation } = await import('./staffInvitations')
     const invitation = await seedInvitation('raw-token-1')
     createIdentityUser.mockResolvedValue({ ok: false, error: 'email_taken' })
+    getIdentityUserByEmail.mockResolvedValue({
+      id: 'someone-else',
+      name: 'Quelqu\'un d\'autre',
+      email: 'amine@example.com',
+      role: 'OBSERVATEUR',
+      isActive: true,
+      teamId: 'other-team',
+      createdAt: new Date().toISOString(),
+    })
 
     const result = await acceptInvitation('raw-token-1', 'x')
 
     expect(result).toEqual({ ok: false, error: 'email_taken' })
     const reloaded = await dataSource.getRepository(StaffInvitation).findOne({ where: { id: invitation.id } })
     expect(reloaded?.acceptedAt).toBeNull()
+  })
+
+  it('propagates email_taken when no matching account can be found at all', async () => {
+    const { acceptInvitation } = await import('./staffInvitations')
+    await seedInvitation('raw-token-1')
+    createIdentityUser.mockResolvedValue({ ok: false, error: 'email_taken' })
+    getIdentityUserByEmail.mockResolvedValue(null)
+
+    const result = await acceptInvitation('raw-token-1', 'x')
+
+    expect(result).toEqual({ ok: false, error: 'email_taken' })
+  })
+
+  it('TASK-P0-013: treats email_taken as a success when the existing account matches this exact invitation (idempotent retry)', async () => {
+    const { acceptInvitation } = await import('./staffInvitations')
+    const invitation = await seedInvitation('raw-token-1')
+    // sso already created the account on a previous attempt; only the local
+    // `acceptedAt` write failed, so this retry hits email_taken.
+    createIdentityUser.mockResolvedValue({ ok: false, error: 'email_taken' })
+    getIdentityUserByEmail.mockResolvedValue({
+      id: 'user-1',
+      name: 'Amine',
+      email: 'amine@example.com',
+      role: 'ADMIN',
+      isActive: true,
+      teamId: invitation.teamId,
+      createdAt: new Date().toISOString(),
+    })
+
+    const result = await acceptInvitation('raw-token-1', 'x')
+
+    expect(result).toEqual({ ok: true, user: expect.objectContaining({ id: 'user-1', email: 'amine@example.com' }) })
+    const reloaded = await dataSource.getRepository(StaffInvitation).findOne({ where: { id: invitation.id } })
+    expect(reloaded?.acceptedAt).toBeInstanceOf(Date)
   })
 })

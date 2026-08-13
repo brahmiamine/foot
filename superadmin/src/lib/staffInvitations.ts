@@ -4,7 +4,7 @@ import { getDataSource } from './db'
 import { StaffInvitation, Team, User, type UserRole } from './entities'
 import { sendEmail } from './mailer'
 import { toPlain } from './serialization'
-import { createIdentityUser } from './identityClient'
+import { createIdentityUser, getIdentityUserByEmail, type IdentityUser } from './identityClient'
 import type { ClubUser } from './clubAccounts'
 
 /**
@@ -115,6 +115,16 @@ export type AcceptInvitationResult =
  * connu de `superadmin`. `sso.createUser` fait déjà l'unique vérification
  * d'email en doublon nécessaire (`email_taken`), inutile de la répéter ici
  * par une lecture directe de `User`.
+ *
+ * TASK-P0-013 (todo.md) : les deux écritures (compte sso, puis
+ * `invitation.acceptedAt` en local) ne sont pas transactionnelles — si la
+ * seconde échoue après le succès de la première, un rejeu (retry réseau,
+ * double clic) retomberait sur `email_taken` alors que LE compte de CET
+ * utilisateur vient d'être créé avec succès. Pour rester idempotent sans
+ * saga distribuée, on vérifie dans ce cas si le compte existant correspond
+ * exactement à cette invitation (même email, rôle, club) : si oui, c'est
+ * notre propre création, on la traite comme un succès ; sinon c'est un
+ * vrai conflit (email pris par un tiers).
  */
 export async function acceptInvitation(rawToken: string, password: string): Promise<AcceptInvitationResult> {
   const dataSource = await getDataSource()
@@ -126,15 +136,25 @@ export async function acceptInvitation(rawToken: string, password: string): Prom
     return { ok: false, error: 'invalid_or_expired_token' }
   }
 
-  const result = await createIdentityUser({
+  const createResult = await createIdentityUser({
     name: invitation.name,
     email: invitation.email,
     password,
     role: invitation.role,
     teamId: invitation.teamId,
   })
-  if (!result.ok) {
-    return { ok: false, error: 'email_taken' }
+
+  let identityUser: IdentityUser
+  if (createResult.ok) {
+    identityUser = createResult.user
+  } else {
+    const existing = await getIdentityUserByEmail(invitation.email)
+    const isOwnRetry =
+      existing !== null && existing.role === invitation.role && existing.teamId === invitation.teamId
+    if (!isOwnRetry) {
+      return { ok: false, error: 'email_taken' }
+    }
+    identityUser = existing
   }
 
   invitation.acceptedAt = new Date()
@@ -143,12 +163,12 @@ export async function acceptInvitation(rawToken: string, password: string): Prom
   return {
     ok: true,
     user: toPlain({
-      id: result.user.id,
-      name: result.user.name,
-      email: result.user.email,
-      role: result.user.role as 'ADMIN' | 'OBSERVATEUR',
-      isActive: result.user.isActive,
-      createdAt: new Date(result.user.createdAt),
+      id: identityUser.id,
+      name: identityUser.name,
+      email: identityUser.email,
+      role: identityUser.role as 'ADMIN' | 'OBSERVATEUR',
+      isActive: identityUser.isActive,
+      createdAt: new Date(identityUser.createdAt),
     }),
   }
 }
