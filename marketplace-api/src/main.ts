@@ -12,6 +12,11 @@ async function bootstrap() {
     logger: new StructuredLoggerService('marketplace-api', {
       logLevels: ['error', 'warn', 'log'],
     }),
+    // TASK-P0-004 : expose request.rawBody (Buffer), nécessaire pour
+    // vérifier la signature HMAC du webhook payment-api sur les octets
+    // exacts reçus (voir checkout.controller.ts) — n'affecte pas le
+    // parsing JSON normal des autres routes.
+    rawBody: true,
   });
 
   app.use(helmet());

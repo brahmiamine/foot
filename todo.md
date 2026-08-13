@@ -51,7 +51,7 @@ Implémenter les remboursements Konnect, Paymee et Flouci, sans simuler un succ�
 ### TASK-P0-002 — Compensation automatique des paiements tardifs sans stock
 
 **Projets :** `billetterie`, `teamManager`, `payment-api`, `notification-api`
-**Statut :** [~] Implémenté et testé pour billetterie et teamManager (boutique) ; pas de saga distincte pour marketplace-api (TASK-P0-004/005 non livrées)
+**Statut :** [~] Implémenté et testé pour billetterie et teamManager (boutique) ; pas de saga distincte pour marketplace-api — TASK-P0-004/005 existent désormais mais un paiement marketplace confirmé après expiration de la réservation n'est pas encore relié à un remboursement automatique (voir TASK-P0-006)
 
 Remplace le traitement manuel de `PAID_STOCK_UNAVAILABLE` (simple log pour ops) par une ouverture automatique de dossier de remboursement.
 
@@ -81,27 +81,30 @@ Scheduler périodique (10 min, `instrumentation.ts`) : reprend les demandes en �
 ### TASK-P0-004 — Checkout marketplace multi-vendeur
 
 **Projets :** `marketplace-api`, `ob`, `payment-api`, `notification-api`
-**Statut :** [ ]
+**Statut :** [~] Tunnel construit et testé côté `marketplace-api` ; aucune page `ob` ne l'appelle encore
 
-Construire le tunnel absent entre catalogue et commande.
+Construit le tunnel qui était absent entre catalogue et commande (`CartService` + `CheckoutService`, `src/cart/` et `src/checkout/`).
 
 **Critères d'acceptation :**
-- panier serveur rattaché au membre, avec quantité et variante ;
-- revalidation serveur du prix, du statut publié, du vendeur et du stock ;
-- snapshot immuable des prix et libellés au moment de la commande ;
-- création d'une `MarketOrder` et d'une `SellerOrder` par vendeur ;
-- adresse, frais de livraison, taxes, devise et total calculés côté serveur ;
-- paiement global idempotent ;
-- confirmation des sous-commandes seulement après paiement confirmé ;
-- libération du stock et annulation en cas d'échec ou d'expiration ;
-- notifications membre/vendeurs et tests E2E multi-vendeur.
+- [x] panier serveur rattaché au membre, avec quantité et variante (`Cart`/`CartItem`, `POST /internal/cart/items`) ;
+- [x] revalidation serveur du prix, du statut publié, du vendeur et du stock (`CheckoutService.revalidateLines` : relit Product/ProductVariant/InventoryItem depuis la base à l'instant du checkout, jamais le panier — rejette si statut ≠ `PUBLISHED`, produit/variante inactif, vendeur disparu ou stock insuffisant) ;
+- [x] snapshot immuable des prix et libellés au moment de la commande (`SellerOrderItem.productName/sku/unitPrice/totalPrice` copiés à la création, jamais relus depuis `Product` ensuite) ;
+- [x] création d'une `MarketOrder` et d'une `SellerOrder` par vendeur (regroupement par `product.sellerId`, une transaction couvrant commande + sous-commandes + réservations de stock — tout ou rien, y compris entre plusieurs vendeurs) ;
+- [~] adresse, frais de livraison, taxes, devise et total calculés côté serveur : adresse/devise/total oui (somme des sous-totaux, serveur) ; **frais de livraison et taxes non calculés dynamiquement** — pas de transporteur/zone configurable (voir TASK-P1-006), `Product.taxRate` existe mais n'est pas encore appliqué au total. Documenté dans `marketplace-api/README.md` § Limites connues plutôt que masqué ;
+- [x] paiement global idempotent (`MarketOrder.idempotencyKey`, unique par membre — un rejeu renvoie la commande déjà créée et relance l'initiation de paiement, elle-même idempotente côté payment-api par la même clé) ;
+- [x] confirmation des sous-commandes seulement après paiement confirmé (`confirmOrder` : `SellerOrder` reste `PENDING` et le stock reste `reserved` — jamais `sold` — tant que payment-api n'a pas confirmé `PAID`, via webhook signé ou scheduler de réconciliation) ;
+- [x] libération du stock et annulation en cas d'échec ou d'expiration (`cancelOrder` : appelé si l'initiation de paiement échoue, si payment-api rapporte `FAILED`/`EXPIRED`, ou si la commande reste `PENDING` au-delà du TTL — `CheckoutReconciliationService`, scheduler 5 min) ;
+- [x] notifications membre/vendeurs : vendeur via le `NotificationsService` local (`NEW_ORDER` à la confirmation) ; membre acheteur via un nouveau client `notification-api` best-effort (`NotificationApiClientService`, commande confirmée/annulée — le `NotificationsService` local ne notifie que les vendeurs) ;
+- [x] tests multi-vendeur : 13 tests `checkout.service.spec.ts` (split correct par vendeur avec snapshot, rollback complet — y compris la réservation déjà faite pour un premier vendeur — quand un second vendeur manque de stock, compensation sur échec de paiement, idempotence, paiement Konnect/Flouci vs Paymee) + 7 tests `cart.service.spec.ts`. Tests d'intégration au niveau service (mêmes garanties que des tests E2E sur la logique métier), pas de vrais tests E2E HTTP bout-en-bout (aucun framework e2e configuré dans ce projet au-delà du scaffolding Jest par défaut).
+
+> **Portée non couverte cette passe** : aucune page `ob` (panier, tunnel d'achat, retour de paiement) n'appelle ces endpoints — le tunnel existe uniquement côté `marketplace-api` (`POST /internal/cart`, `POST /internal/checkout`, `POST /payments/webhook`), prêt à être consommé. Construire les pages `ob` (UI panier/checkout/retour) est un travail frontend distinct, hors scope de cette implémentation backend. Frais de livraison et taxes non appliqués au total (voir critère ci-dessus) — nécessite TASK-P1-006 (transporteurs) pour un calcul réel.
 
 ### TASK-P0-005 — Réservation atomique du stock marketplace
 
 **Projets :** `marketplace-api`
-**Statut :** [~] Primitive implémentée et testée dans `InventoryService` ; sans appelant tant que TASK-P0-004 (tunnel de commande) n'existe pas
+**Statut :** [x] Implémentée, testée et désormais appelée en production par TASK-P0-004 (`CheckoutService`)
 
-Contrairement au statut précédent ("dépend de TASK-P0-004") : l'ordre a été inversé délibérément — le tunnel de commande a besoin de cette primitive pour réserver le stock de façon sûre, pas l'inverse. `InventoryService.reserveStock/confirmReservation/releaseReservation/expireStaleReservations` (voir `src/inventory/inventory.service.ts`) sont prêtes à être appelées par TASK-P0-004 dès qu'il sera construit ; aucune route HTTP ajoutée pour l'instant (aucun appelant réel, cf. "pas de code mort" — TASK-P0-004 décidera si l'appel se fait en process ou par HTTP interne).
+Contrairement au statut initial ("dépend de TASK-P0-004") : l'ordre a été inversé délibérément — le tunnel de commande avait besoin de cette primitive pour réserver le stock de façon sûre, pas l'inverse. `InventoryService.reserveStock/confirmReservation/releaseReservation/expireStaleReservations` (voir `src/inventory/inventory.service.ts`) sont appelées par `CheckoutService` (TASK-P0-004) — `reserveStockWithManager`/`confirmReservationWithManager`/`releaseReservationWithManager` ont été ajoutées pour participer à la transaction du checkout (un `dataSource.transaction()` imbriqué ne partage pas la même transaction SQL, donc pas le même rollback). Toujours aucune route HTTP dédiée à la réservation (le seul appelant, `CheckoutService`, est dans le même processus NestJS — pas de code mort, pas de HTTP superflu).
 
 **Critères d'acceptation :**
 - [x] quantités `available`, `reserved`, `sold` avec invariants en base : colonnes déjà présentes (`sp_inventory_items`), garantis par l'UPDATE conditionnel plutôt que par une contrainte CHECK SQL (MySQL/MariaDB ne les vérifie pas de façon fiable selon version) — voir `détecte l'oversell` ci-dessous pour la sonde défensive ;
@@ -116,7 +119,7 @@ Nouvelle table `sp_stock_reservations` (une ligne par réservation individuelle,
 ### TASK-P0-006 — Relier les retours marketplace aux remboursements et payouts
 
 **Projets :** `marketplace-api`, `payment-api`, `notification-api`
-**Statut :** [!] Bloqué par TASK-P0-001 et TASK-P0-004
+**Statut :** [ ] TASK-P0-001 et TASK-P0-004 ne sont plus bloquantes (API de remboursement et tunnel de commande disponibles) ; le lien retours ↔ remboursement/payout reste à écrire
 
 **Critères d'acceptation :**
 - `COMPLETED` déclenche un remboursement et ne signifie plus à lui seul « remboursé » ;

@@ -454,6 +454,137 @@ paths:
         "200": { description: OK }
         "404": { description: Introuvable }
 
+  /internal/cart:
+    get:
+      operationId: viewCart
+      summary: Panier d'un membre (TASK-P0-004)
+      description: >
+        `memberId` explicite en query (marketplace-api n'a pas de session
+        membre) — la confiance vient de ServiceAuthGuard, l'appelant (ex.
+        `ob`) a déjà authentifié le membre lui-même.
+      tags: [checkout]
+      security: [{ ServiceApiKey: [] }]
+      parameters:
+        - { name: memberId, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Lignes du panier. }
+
+  /internal/cart/items:
+    post:
+      operationId: addCartItem
+      summary: Ajoute une ligne au panier (incrémente si déjà présente)
+      tags: [checkout]
+      security: [{ ServiceApiKey: [] }]
+      parameters:
+        - { name: memberId, in: query, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, quantity]
+              properties:
+                productId: { type: string, format: uuid }
+                variantId: { type: string }
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        "201": { description: Ligne créée/mise à jour. }
+        "404": { description: Produit ou variante introuvable. }
+
+  /internal/cart/items/{itemId}:
+    patch:
+      operationId: updateCartItem
+      summary: Modifie la quantité d'une ligne (0 = retire la ligne)
+      tags: [checkout]
+      security: [{ ServiceApiKey: [] }]
+      parameters:
+        - { name: memberId, in: query, required: true, schema: { type: string } }
+        - { name: itemId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 0 }
+      responses:
+        "200": { description: OK }
+        "404": { description: Panier ou ligne introuvable. }
+    delete:
+      operationId: removeCartItem
+      summary: Retire une ligne du panier
+      tags: [checkout]
+      security: [{ ServiceApiKey: [] }]
+      parameters:
+        - { name: memberId, in: query, required: true, schema: { type: string } }
+        - { name: itemId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+        "404": { description: Panier ou ligne introuvable. }
+
+  /internal/checkout:
+    post:
+      operationId: checkout
+      summary: Revalide le panier, crée la commande multi-vendeur et initie le paiement (TASK-P0-004)
+      description: >
+        Revalide prix/statut publié/vendeur/stock depuis la base (jamais le
+        panier), crée un snapshot immuable par ligne, une MarketOrder + une
+        SellerOrder par vendeur, réserve le stock de chaque ligne
+        (TASK-P0-005) et initie un paiement idempotent auprès de
+        payment-api — tout dans une seule transaction pour la
+        création+réservation. `idempotency-key` (header, optionnel) : un
+        retry avec la même clé renvoie la commande déjà créée plutôt que
+        d'en créer une seconde.
+      tags: [checkout]
+      security: [{ ServiceApiKey: [] }]
+      parameters:
+        - { name: memberId, in: query, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CheckoutDto" }
+      responses:
+        "201":
+          description: Commande créée, paiement initié.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order: { type: object }
+                  payUrl: { type: string, format: uri, nullable: true }
+        "400": { description: "Panier vide, ou champs Paymee manquants." }
+        "409": { description: "Un produit/vendeur du panier n'est plus disponible, ou stock insuffisant." }
+
+  /payments/webhook:
+    post:
+      operationId: handlePaymentWebhook
+      summary: Webhook applicatif entrant de payment-api (appelé par payment-api, jamais par un navigateur)
+      description: >
+        Signature HMAC-SHA256 (header `X-Payment-Signature`,
+        `PAYMENT_WEBHOOK_SECRET`) vérifiée sur les octets bruts reçus — le
+        corps n'est jamais source de vérité, seul un GET /payments/:id frais
+        auprès de payment-api décide de confirmer ou annuler la commande.
+      tags: [checkout]
+      security: []
+      responses:
+        "200": { description: Notification acquittée. }
+        "401": { description: Signature manquante ou invalide. }
+
+  /health/checkout:
+    get:
+      operationId: getCheckoutHealth
+      summary: Dernier rapport de réconciliation du checkout (TASK-P0-004) — sonde ops
+      tags: [health]
+      security: []
+      responses:
+        "200": { description: Dernier rapport (peut être null si aucun cycle n'a encore tourné). }
+
   /seller-orders:
     get:
       operationId: listSellerOrders
@@ -797,8 +928,31 @@ components:
       name: limit
       in: query
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      name: idempotency-key
+      in: header
+      required: false
+      description: >
+        TASK-P0-004. Rejouer le même appel avec la même clé (scopée par
+        membre) renvoie la commande déjà créée plutôt que d'en créer une
+        seconde.
+      schema: { type: string, maxLength: 255 }
 
   schemas:
+    CheckoutDto:
+      type: object
+      required: [customerName, customerEmail, shippingAddress]
+      properties:
+        customerName: { type: string, maxLength: 191 }
+        customerEmail: { type: string, format: email }
+        customerPhone: { type: string, maxLength: 32 }
+        shippingAddress: { type: string, maxLength: 500 }
+        firstName:
+          type: string
+          maxLength: 120
+          description: Requis si PAYMENT_PROVIDER=paymee (avec lastName/customerPhone).
+        lastName: { type: string, maxLength: 120 }
+
     RegisterSellerDto:
       type: object
       required: [email, password, businessName]

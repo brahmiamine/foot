@@ -49,6 +49,34 @@ class EnvironmentVariables {
   @IsISO8601({}, { message: 'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date' })
   SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?: string;
 
+  // --- payment-api (TASK-P0-004) : optionnelles — sans elles, le service
+  // démarre mais le checkout échoue explicitement (ServiceUnavailableException,
+  // voir PaymentApiClientService), même dégradation que NOTIFICATION_API_URL
+  // ci-dessous plutôt qu'un crash au démarrage. ---
+  @IsOptional()
+  PAYMENT_API_URL?: string;
+
+  @IsOptional()
+  PAYMENT_API_KEY?: string;
+
+  @IsOptional()
+  @IsIn(['konnect', 'flouci', 'paymee'])
+  PAYMENT_PROVIDER?: string;
+
+  // Signe les webhooks entrants de payment-api (voir CheckoutController) —
+  // sans secret configuré, la route rejette tout webhook (fail-closed).
+  @IsOptional()
+  PAYMENT_WEBHOOK_SECRET?: string;
+
+  // --- notification-api (optionnelle) : si absente, une commande confirmée
+  // ne notifie simplement pas le membre (aucune erreur, voir
+  // NotificationApiClientService). ---
+  @IsOptional()
+  NOTIFICATION_API_URL?: string;
+
+  @IsOptional()
+  NOTIFICATION_API_KEY?: string;
+
   // --- Database (dédiée marketplace-api, jamais la base partagée `foot`) ---
   @IsNotEmpty()
   DB_HOST: string;

@@ -14,6 +14,8 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { VariantsModule } from './variants/variants.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { CartModule } from './cart/cart.module';
+import { CheckoutModule } from './checkout/checkout.module';
 import { OrdersModule } from './orders/orders.module';
 import { SellerOrdersModule } from './seller-orders/seller-orders.module';
 import { ReturnsModule } from './returns/returns.module';
@@ -40,6 +42,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     ProductsModule,
     VariantsModule,
     InventoryModule,
+    CartModule,
+    CheckoutModule,
     OrdersModule,
     SellerOrdersModule,
     ReturnsModule,

@@ -46,4 +46,14 @@ export class SellerOrderItem {
 
   @Column({ type: 'decimal', precision: 10, scale: 3 })
   totalPrice: string;
+
+  // StockReservation.id (inventory module, TASK-P0-005) couvrant cette
+  // ligne — sert de référence pour confirmReservation (paiement confirmé)
+  // / releaseReservation (paiement échoué/expiré). Nullable seulement pour
+  // une ligne dont le produit n'a pas de InventoryItem configuré (jamais le
+  // cas en pratique : CheckoutService refuse une ligne sans stock suivi,
+  // voir revalidateCartItem), jamais laissé null après une commande créée
+  // avec succès.
+  @Column({ type: 'varchar', length: 191, nullable: true })
+  reservationId: string | null;
 }
