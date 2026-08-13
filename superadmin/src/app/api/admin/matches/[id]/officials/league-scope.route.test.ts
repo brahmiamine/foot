@@ -50,7 +50,7 @@ describe('match officials LEAGUE_ADMIN isolation', () => {
       new NextRequest('http://localhost/api/admin/matches/match-b/officials'),
       { params: Promise.resolve({ id: 'match-b' }) },
     )
-    expect(response.status).toBe(403)
+    expect(response!.status).toBe(403)
     expect(mockList).not.toHaveBeenCalled()
   })
 
@@ -60,7 +60,7 @@ describe('match officials LEAGUE_ADMIN isolation', () => {
       body: JSON.stringify({ user_id: 'official-1', role: 'CENTER_REFEREE' }),
     })
     const response = await POST(request, { params: Promise.resolve({ id: 'match-b' }) })
-    expect(response.status).toBe(403)
+    expect(response!.status).toBe(403)
     expect(mockAssign).not.toHaveBeenCalled()
   })
 })
