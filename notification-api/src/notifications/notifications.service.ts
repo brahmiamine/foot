@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThanOrEqual, Repository } from 'typeorm';
+import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
 import { NotificationChannelType } from '../common/enums/channel.enum';
 import { NotificationPriority } from '../common/enums/priority.enum';
 import { isMandatoryNotificationType } from '../common/constants/mandatory-types';
@@ -24,6 +24,18 @@ export interface DispatchResult {
   deduplicated: boolean;
 }
 
+interface EnqueueTask {
+  channel: NotificationChannelType;
+  notificationId: string;
+  deliveryId: string;
+  delayMs: number;
+}
+
+interface CreatedNotification {
+  notification: Notification;
+  toEnqueue: EnqueueTask[];
+}
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -41,48 +53,88 @@ export class NotificationsService {
    * (§19), résolution de cible (§22), application des préférences (§11),
    * bypass des types obligatoires (§12), persistance et mise en file des
    * canaux asynchrones (§17).
+   *
+   * Idempotence (§P0-017) : quand `dto.eventId` est fourni, la création des
+   * notifications et l'enregistrement de la clé d'idempotence sont faits
+   * dans une seule transaction (`IdempotencyService.withIdempotency`) — pas
+   * de fenêtre où les notifications existent sans que l'événement soit
+   * marqué traité, ni l'inverse. Les jobs de canaux asynchrones (email/push/
+   * sms) ne sont mis en file qu'après le commit, pour ne jamais référencer
+   * une notification dont l'écriture a finalement été annulée (course
+   * perdue face à une requête concurrente portant le même eventId).
    */
   async dispatchEvent(
     application: string,
     dto: CreateInternalNotificationDto,
   ): Promise<DispatchResult> {
-    if (dto.eventId) {
-      const existing = await this.idempotency.findExisting(
-        application,
-        dto.eventId,
-      );
-      if (existing) {
-        return {
-          notificationIds: existing.notificationIds,
-          deduplicated: true,
-        };
-      }
-    }
-
     const { userIds, teamId } = await this.recipientResolver.resolve(dto);
     const uniqueUserIds = [...new Set(userIds)];
 
-    const notificationIds: string[] = [];
-    for (const userId of uniqueUserIds) {
-      const notification = await this.createOne(
+    if (!dto.eventId) {
+      const created = await this.createMany(
         application,
         dto,
-        userId,
+        uniqueUserIds,
         teamId,
       );
-      notificationIds.push(notification.id);
+      await this.enqueueAll(created);
+      return {
+        notificationIds: created.map((c) => c.notification.id),
+        deduplicated: false,
+      };
     }
 
-    if (dto.eventId) {
-      await this.idempotency.record(
-        application,
-        dto.eventId,
-        dto.type,
-        notificationIds,
+    let created: CreatedNotification[] = [];
+    const result = await this.idempotency.withIdempotency(
+      application,
+      dto.eventId,
+      dto.type,
+      async (manager) => {
+        created = await this.createMany(
+          application,
+          dto,
+          uniqueUserIds,
+          teamId,
+          manager,
+        );
+        return created.map((c) => c.notification.id);
+      },
+    );
+
+    if (!result.deduplicated) {
+      await this.enqueueAll(created);
+    }
+
+    return result;
+  }
+
+  private async createMany(
+    application: string,
+    dto: CreateInternalNotificationDto,
+    userIds: string[],
+    teamId: string | null,
+    manager?: EntityManager,
+  ): Promise<CreatedNotification[]> {
+    const created: CreatedNotification[] = [];
+    for (const userId of userIds) {
+      created.push(
+        await this.createOne(application, dto, userId, teamId, manager),
       );
     }
+    return created;
+  }
 
-    return { notificationIds, deduplicated: false };
+  private async enqueueAll(created: CreatedNotification[]): Promise<void> {
+    for (const { toEnqueue } of created) {
+      for (const task of toEnqueue) {
+        await this.dispatchProducer.enqueue(
+          task.channel,
+          task.notificationId,
+          task.deliveryId,
+          task.delayMs,
+        );
+      }
+    }
   }
 
   private async createOne(
@@ -90,7 +142,12 @@ export class NotificationsService {
     dto: CreateInternalNotificationDto,
     userId: string,
     teamId: string | null,
-  ): Promise<Notification> {
+    manager?: EntityManager,
+  ): Promise<CreatedNotification> {
+    const notificationRepo = manager
+      ? manager.getRepository(Notification)
+      : this.repository;
+
     const category = dto.category ?? dto.type;
     const mandatory = isMandatoryNotificationType(dto.type);
     const candidateChannels = dto.channels ?? DEFAULT_CANDIDATE_CHANNELS;
@@ -102,7 +159,7 @@ export class NotificationsService {
           candidateChannels,
         );
 
-    const notification = this.repository.create({
+    const notification = notificationRepo.create({
       userId,
       teamId,
       application,
@@ -119,29 +176,34 @@ export class NotificationsService {
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
     });
-    const saved = await this.repository.save(notification);
+    const saved = await notificationRepo.save(notification);
 
     const delayMs = saved.scheduledAt
       ? Math.max(0, saved.scheduledAt.getTime() - Date.now())
       : 0;
 
+    const toEnqueue: EnqueueTask[] = [];
     for (const channel of channels) {
-      const delivery = await this.deliveries.createPending(saved.id, channel);
+      const delivery = await this.deliveries.createPending(
+        saved.id,
+        channel,
+        manager,
+      );
       if (channel === NotificationChannelType.IN_APP) {
         // La ligne `notifications` est déjà la notification in-app (§10) : rien à mettre en file.
-        await this.deliveries.markSent(delivery.id, 'in-app');
-        await this.deliveries.markDelivered(delivery.id);
+        await this.deliveries.markSent(delivery.id, 'in-app', manager);
+        await this.deliveries.markDelivered(delivery.id, manager);
         continue;
       }
-      await this.dispatchProducer.enqueue(
+      toEnqueue.push({
         channel,
-        saved.id,
-        delivery.id,
+        notificationId: saved.id,
+        deliveryId: delivery.id,
         delayMs,
-      );
+      });
     }
 
-    return saved;
+    return { notification: saved, toEnqueue };
   }
 
   async findForUser(
