@@ -9,6 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
+import { AllowedApplicationsGuard } from '../auth/guards/allowed-applications.guard';
+import { AllowedApplications } from '../auth/decorators/allowed-applications.decorator';
 import { ModerationService } from './moderation.service';
 import { ModerationActionDto } from './dto/moderation-action.dto';
 import { RejectProductDto } from './dto/reject-product.dto';
@@ -19,9 +21,15 @@ import { Product } from '../products/entities/product.entity';
  * Modération club des produits marketplace (US-07 à US-11). Réservé aux
  * applications backend internes (teamManager) : jamais appelable
  * directement par un navigateur, jamais par le vendeur lui-même.
+ *
+ * TASK-P0-027 : ServiceAuthGuard authentifie n'importe quelle application
+ * possédant une clé de service valide (y compris sellerPortal, pour ses
+ * propres usages) — AllowedApplicationsGuard restreint explicitement ces
+ * routes de modération à teamManager/superadmin, jamais sellerPortal.
  */
 @Controller('moderation/products')
-@UseGuards(ServiceAuthGuard)
+@UseGuards(ServiceAuthGuard, AllowedApplicationsGuard)
+@AllowedApplications('teamManager', 'superadmin')
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService) {}
 

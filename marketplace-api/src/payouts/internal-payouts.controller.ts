@@ -8,6 +8,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
+import { AllowedApplicationsGuard } from '../auth/guards/allowed-applications.guard';
+import { AllowedApplications } from '../auth/decorators/allowed-applications.decorator';
 import { PayoutsService } from './payouts.service';
 import { FailPayoutDto } from './dto/fail-payout.dto';
 import { Payout } from './entities/payout.entity';
@@ -17,9 +19,15 @@ import { Payout } from './entities/payout.entity';
  * applications internes (club/plateforme) : un vendeur ne s'auto-déclenche
  * jamais un virement, même pattern que `moderation/products`
  * (ServiceAuthGuard, jamais appelable directement par un navigateur).
+ *
+ * TASK-P0-027 : restreint explicitement à teamManager/superadmin — un
+ * vendeur ne doit jamais pouvoir déclencher/valider son propre virement,
+ * même si sellerPortal possède sa propre clé de service pour d'autres
+ * usages (voir AllowedApplicationsGuard).
  */
 @Controller('internal/payouts')
-@UseGuards(ServiceAuthGuard)
+@UseGuards(ServiceAuthGuard, AllowedApplicationsGuard)
+@AllowedApplications('teamManager', 'superadmin')
 export class InternalPayoutsController {
   constructor(private readonly payoutsService: PayoutsService) {}
 

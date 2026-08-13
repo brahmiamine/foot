@@ -650,14 +650,17 @@ Après P0-010 (adminId fixé), implémenter protections accès.
 **Projets**: marketplace-api  
 **Estimation**: 2 jours  
 **Dépendances**: TASK-P0-003  
-**Status**: [ ] À faire
+**Status**: [x] Traité (sans attendre TASK-P0-003/vault, voir note)
 
 **Description**:
 Endpoints internes (modération, payouts) acceptent x-api-key. Vérifier SUPERADMIN uniquement.
 
-- [ ] PATCH /moderation/sellers/:id → SERVICE_AUTH + admin key
-- [ ] PATCH /moderation/products/:id → SERVICE_AUTH + admin key
-- [ ] Tests: clé invalide → 401; clé non-admin → 403
+> **Note d'audit** : `ServiceAuthGuard` authentifie (clé valide = une des applications de l'écosystème) mais n'autorisait pas (n'importe quelle app avec une clé de service — y compris `sellerPortal`, qui a la sienne pour son propre usage self-service — pouvait appeler `moderation/products/*`, `sellers/:id/status` et `internal/payouts/*`). Un vendeur n'aurait jamais dû pouvoir s'auto-approuver un produit ou s'auto-déclencher un virement même via un bug/compromission de sellerPortal. Ajouté `AllowedApplicationsGuard` + décorateur `@AllowedApplications(...)`, appliqué en plus de `ServiceAuthGuard` sur ces 3 contrôleurs, restreint à `teamManager`/`superadmin` (pas de vault requis pour ce fix — la restriction se fait sur l'identité d'application déjà résolue par `ServiceAuthGuard`, indépendant de TASK-P0-003).
+
+- [x] PATCH /sellers/:id/status → ServiceAuthGuard + AllowedApplicationsGuard(teamManager, superadmin)
+- [x] POST /moderation/products/:id/{review,approve,publish,reject} → idem (contrôleur entier)
+- [x] POST /internal/payouts/* → idem, en bonus (même risque, hors périmètre littéral de la tâche mais même classe de bug)
+- [x] Tests : clé invalide → 401 (déjà couvert par ServiceAuthGuard) ; application non-admin (sellerPortal) → 403 (nouveau, allowed-applications.guard.spec.ts)
 
 ---
 

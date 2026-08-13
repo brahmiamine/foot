@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { SellerJwtGuard } from '../auth/guards/seller-jwt.guard';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
+import { AllowedApplicationsGuard } from '../auth/guards/allowed-applications.guard';
+import { AllowedApplications } from '../auth/decorators/allowed-applications.decorator';
 import { CurrentSeller } from '../auth/decorators/current-seller.decorator';
 import type { AuthenticatedSeller } from '../auth/interfaces/authenticated-seller.interface';
 import { SellersService } from './sellers.service';
@@ -54,9 +56,16 @@ export class SellersController {
     return this.sellersService.findById(id);
   }
 
-  /** Décision du club sur le compte vendeur (approuver/suspendre/rejeter/fermer). */
+  /**
+   * Décision du club sur le compte vendeur (approuver/suspendre/rejeter/
+   * fermer). TASK-P0-027 : restreint explicitement à teamManager/
+   * superadmin — un vendeur ne doit jamais pouvoir s'auto-approuver/
+   * s'auto-réactiver, même si sellerPortal possède sa propre clé de
+   * service pour d'autres usages (voir AllowedApplicationsGuard).
+   */
   @Patch(':id/status')
-  @UseGuards(ServiceAuthGuard)
+  @UseGuards(ServiceAuthGuard, AllowedApplicationsGuard)
+  @AllowedApplications('teamManager', 'superadmin')
   async updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('clubId') clubId: string,
