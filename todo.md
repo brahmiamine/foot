@@ -156,7 +156,7 @@ WHERE categoryId = ? AND quantity > 0;
 **Projets**: payment-api, billetterie, teamManager  
 **Estimation**: 3 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité pour payment-api (voir payment-api/src/payment/payment.service.ts, entities/payment.entity.ts, payment.service.spec.ts) — l'idempotence côté webhook (providerRef + webhookReceivedCount + transition PAID conditionnelle) et l'outbox transactionnel existaient déjà ; le gap restant était la ré-initiation POST /payments/*/init côté client (retry réseau/double clic) créant un 2e Payment et un 2e paiement fournisseur. Ajout d'un header `Idempotency-Key` optionnel + contrainte UNIQUE(callerApplication, idempotencyKey) : un rejeu retourne le paiement existant sans rappeler le fournisseur, y compris en cas de course (duplicate key récupéré). billetterie a déjà `tk_processed_webhook_events` (voir billetterie/sql/migration_add_processed_webhook_events.sql) — teamManager non audité ici.
 
 **Description**:
 Fournisseur rejeu webhook → débits multiples. Garantir idempotence.

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Headers,
   HttpCode,
   HttpStatus,
   Logger,
@@ -33,11 +34,13 @@ export class FlouciController {
   async init(
     @Body() dto: InitPaymentDto,
     @CurrentService() service: AuthenticatedService,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
     try {
       return await this.paymentService.initiateFlouciPayment(
         dto,
         service.application,
+        idempotencyKey,
       );
     } catch (error) {
       if (error instanceof FlouciError) {

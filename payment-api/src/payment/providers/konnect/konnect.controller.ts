@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Logger,
@@ -34,11 +35,13 @@ export class KonnectController {
   async init(
     @Body() dto: InitPaymentDto,
     @CurrentService() service: AuthenticatedService,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
     try {
       return await this.paymentService.initiateKonnectPayment(
         dto,
         service.application,
+        idempotencyKey,
       );
     } catch (error) {
       if (error instanceof KonnectError) {

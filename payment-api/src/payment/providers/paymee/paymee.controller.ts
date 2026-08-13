@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Headers,
   HttpCode,
   HttpStatus,
   Logger,
@@ -32,11 +33,13 @@ export class PaymeeController {
   async init(
     @Body() dto: InitPaymeePaymentDto,
     @CurrentService() service: AuthenticatedService,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymeePaymentResultDto> {
     try {
       return await this.paymentService.initiatePaymeePayment(
         dto,
         service.application,
+        idempotencyKey,
       );
     } catch (error) {
       if (error instanceof PaymeeError) {

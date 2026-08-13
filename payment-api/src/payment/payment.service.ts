@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
 import { PaymentProviderName } from './enums/payment-provider.enum';
 import { PaymentStatus } from './enums/payment-status.enum';
@@ -53,6 +53,52 @@ export class PaymentService {
       throw new NotFoundException('Payment not found');
     }
     return payment;
+  }
+
+  /**
+   * TASK-P0-005 (todo.md): looks up a payment already created for this
+   * exact (caller, idempotency key) pair, so a retried init call (network
+   * timeout, double click) returns the original payment instead of
+   * charging the payer twice.
+   */
+  private async findByIdempotencyKey(
+    callerApplication: string,
+    idempotencyKey: string | undefined,
+  ): Promise<Payment | null> {
+    if (!idempotencyKey) return null;
+    return this.paymentRepository.findOne({
+      where: { callerApplication, idempotencyKey },
+    });
+  }
+
+  private isDuplicateIdempotencyKeyError(error: unknown): boolean {
+    return (
+      error instanceof QueryFailedError &&
+      (error as unknown as { code?: string }).code === 'ER_DUP_ENTRY'
+    );
+  }
+
+  /**
+   * Two concurrent retries of the same init call can both pass the
+   * `findByIdempotencyKey` check before either commits; the unique index
+   * on (callerApplication, idempotencyKey) then rejects the loser's
+   * INSERT. Rather than surface that as a 500, treat it the same as a
+   * sequential replay: fetch and return the payment the winner created.
+   * Any other error is a real failure and propagates as-is.
+   */
+  private async recoverFromRaceOrThrow(
+    error: unknown,
+    callerApplication: string,
+    idempotencyKey: string | undefined,
+  ): Promise<Payment> {
+    if (this.isDuplicateIdempotencyKeyError(error)) {
+      const existing = await this.findByIdempotencyKey(
+        callerApplication,
+        idempotencyKey,
+      );
+      if (existing) return existing;
+    }
+    throw error;
   }
 
   /**
@@ -111,17 +157,47 @@ export class PaymentService {
   async initiateKonnectPayment(
     dto: InitPaymentDto,
     callerApplication: string,
+    idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
+    const existing = await this.findByIdempotencyKey(
+      callerApplication,
+      idempotencyKey,
+    );
+    if (existing) {
+      this.logger.log(
+        `Idempotent replay of Konnect init for payment ${existing.id} (order ${existing.orderId}), skipping re-initiation.`,
+      );
+      return {
+        paymentId: existing.id,
+        payUrl: existing.payUrl ?? '',
+        providerRef: existing.providerRef ?? '',
+      };
+    }
+
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
       userId: dto.userId ?? null,
       callerApplication,
+      idempotencyKey: idempotencyKey ?? null,
       provider: PaymentProviderName.KONNECT,
       amount: dto.amount.toFixed(3),
       currency: dto.currency ?? 'TND',
       status: PaymentStatus.PENDING,
     });
-    await this.paymentRepository.save(payment);
+    try {
+      await this.paymentRepository.save(payment);
+    } catch (error) {
+      const raced = await this.recoverFromRaceOrThrow(
+        error,
+        callerApplication,
+        idempotencyKey,
+      );
+      return {
+        paymentId: raced.id,
+        payUrl: raced.payUrl ?? '',
+        providerRef: raced.providerRef ?? '',
+      };
+    }
 
     const initiated = await this.konnectProvider.initiatePayment({
       orderId: dto.orderId,
@@ -203,19 +279,55 @@ export class PaymentService {
   async initiatePaymeePayment(
     dto: InitPaymeePaymentDto,
     callerApplication: string,
+    idempotencyKey?: string,
   ): Promise<InitPaymeePaymentResultDto> {
     const mode = dto.mode ?? PaymeeIntegrationMode.REDIRECT;
+
+    const existing = await this.findByIdempotencyKey(
+      callerApplication,
+      idempotencyKey,
+    );
+    if (existing) {
+      this.logger.log(
+        `Idempotent replay of Paymee init for payment ${existing.id} (order ${existing.orderId}), skipping re-initiation.`,
+      );
+      return {
+        paymentId: existing.id,
+        token: existing.providerRef ?? '',
+        payUrl:
+          mode === PaymeeIntegrationMode.REDIRECT
+            ? (existing.payUrl ?? undefined)
+            : undefined,
+      };
+    }
 
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
       userId: dto.userId ?? null,
       callerApplication,
+      idempotencyKey: idempotencyKey ?? null,
       provider: PaymentProviderName.PAYMEE,
       amount: formatPaymeeAmount(dto.amount),
       currency: 'TND',
       status: PaymentStatus.PENDING,
     });
-    await this.paymentRepository.save(payment);
+    try {
+      await this.paymentRepository.save(payment);
+    } catch (error) {
+      const raced = await this.recoverFromRaceOrThrow(
+        error,
+        callerApplication,
+        idempotencyKey,
+      );
+      return {
+        paymentId: raced.id,
+        token: raced.providerRef ?? '',
+        payUrl:
+          mode === PaymeeIntegrationMode.REDIRECT
+            ? (raced.payUrl ?? undefined)
+            : undefined,
+      };
+    }
 
     const initiated = await this.paymeeProvider.initiatePayment({
       orderId: dto.orderId,
@@ -307,17 +419,47 @@ export class PaymentService {
   async initiateFlouciPayment(
     dto: InitPaymentDto,
     callerApplication: string,
+    idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
+    const existing = await this.findByIdempotencyKey(
+      callerApplication,
+      idempotencyKey,
+    );
+    if (existing) {
+      this.logger.log(
+        `Idempotent replay of Flouci init for payment ${existing.id} (order ${existing.orderId}), skipping re-initiation.`,
+      );
+      return {
+        paymentId: existing.id,
+        payUrl: existing.payUrl ?? '',
+        providerRef: existing.providerRef ?? '',
+      };
+    }
+
     const payment = this.paymentRepository.create({
       orderId: dto.orderId,
       userId: dto.userId ?? null,
       callerApplication,
+      idempotencyKey: idempotencyKey ?? null,
       provider: PaymentProviderName.FLOUCI,
       amount: dto.amount.toFixed(3),
       currency: dto.currency ?? 'TND',
       status: PaymentStatus.PENDING,
     });
-    await this.paymentRepository.save(payment);
+    try {
+      await this.paymentRepository.save(payment);
+    } catch (error) {
+      const raced = await this.recoverFromRaceOrThrow(
+        error,
+        callerApplication,
+        idempotencyKey,
+      );
+      return {
+        paymentId: raced.id,
+        payUrl: raced.payUrl ?? '',
+        providerRef: raced.providerRef ?? '',
+      };
+    }
 
     // Flouci's developer_tracking_id is an opaque, unvalidated field — use
     // our own internal payment id (not orderId) so it stays correlated to

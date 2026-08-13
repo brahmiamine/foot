@@ -1,5 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  QueryFailedError,
+  Repository,
+} from 'typeorm';
 import { Payment } from './entities/payment.entity';
 import { PaymentProviderName } from './enums/payment-provider.enum';
 import { PaymentStatus } from './enums/payment-status.enum';
@@ -49,6 +54,7 @@ describe('PaymentService', () => {
       orderId: 'ORDER-1',
       userId: null,
       callerApplication: 'billetterie',
+      idempotencyKey: null,
       provider: PaymentProviderName.KONNECT,
       amount: '25.500',
       currency: 'TND',
@@ -157,6 +163,63 @@ describe('PaymentService', () => {
         }),
       );
       expect(repository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('replays the existing payment instead of re-initiating when the idempotency key is already known (TASK-P0-005)', async () => {
+      const existing = buildPayment({
+        id: 'payment-existing',
+        payUrl: 'https://gateway.konnect.network/pay/existing',
+        providerRef: 'ref-existing',
+      });
+      repository.findOne.mockResolvedValue(existing);
+
+      const result = await service.initiateKonnectPayment(
+        { orderId: 'ORDER-1', amount: 25.5, currency: 'TND' },
+        'billetterie',
+        'retry-key-1',
+      );
+
+      expect(result).toEqual({
+        paymentId: 'payment-existing',
+        payUrl: 'https://gateway.konnect.network/pay/existing',
+        providerRef: 'ref-existing',
+      });
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: {
+          callerApplication: 'billetterie',
+          idempotencyKey: 'retry-key-1',
+        },
+      });
+      expect(konnectProvider.initiatePayment).not.toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('recovers from a concurrent duplicate-key insert by returning the winner instead of failing (TASK-P0-005)', async () => {
+      repository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(
+        buildPayment({
+          id: 'payment-winner',
+          payUrl: 'https://gateway.konnect.network/pay/winner',
+          providerRef: 'ref-winner',
+        }),
+      );
+      const duplicateError = Object.assign(new Error('Duplicate entry'), {
+        code: 'ER_DUP_ENTRY',
+      });
+      Object.setPrototypeOf(duplicateError, QueryFailedError.prototype);
+      repository.save.mockRejectedValueOnce(duplicateError);
+
+      const result = await service.initiateKonnectPayment(
+        { orderId: 'ORDER-1', amount: 25.5, currency: 'TND' },
+        'billetterie',
+        'retry-key-1',
+      );
+
+      expect(result).toEqual({
+        paymentId: 'payment-winner',
+        payUrl: 'https://gateway.konnect.network/pay/winner',
+        providerRef: 'ref-winner',
+      });
+      expect(konnectProvider.initiatePayment).not.toHaveBeenCalled();
     });
   });
 
@@ -359,6 +422,38 @@ describe('PaymentService', () => {
       expect(result.token).toBe('paymee-token-2');
       expect(result.payUrl).toBeUndefined();
     });
+
+    it('replays the existing payment instead of re-initiating when the idempotency key is already known (TASK-P0-005)', async () => {
+      const existing = buildPayment({
+        id: 'payment-existing',
+        provider: PaymentProviderName.PAYMEE,
+        providerRef: 'paymee-token-existing',
+        payUrl: 'https://sandbox.paymee.tn/gateway/paymee-token-existing',
+      });
+      repository.findOne.mockResolvedValue(existing);
+
+      const result = await service.initiatePaymeePayment(
+        {
+          orderId: 'ORDER-1',
+          amount: 220.25,
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'test@paymee.tn',
+          phoneNumber: '+21611222333',
+          mode: PaymeeIntegrationMode.REDIRECT,
+        },
+        'billetterie',
+        'retry-key-1',
+      );
+
+      expect(result).toEqual({
+        paymentId: 'payment-existing',
+        token: 'paymee-token-existing',
+        payUrl: 'https://sandbox.paymee.tn/gateway/paymee-token-existing',
+      });
+      expect(paymeeProvider.initiatePayment).not.toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('handlePaymeeWebhook', () => {
@@ -538,6 +633,30 @@ describe('PaymentService', () => {
         }),
       );
       expect(repository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('replays the existing payment instead of re-initiating when the idempotency key is already known (TASK-P0-005)', async () => {
+      const existing = buildPayment({
+        id: 'payment-existing',
+        provider: PaymentProviderName.FLOUCI,
+        providerRef: 'FoPKKHqfQIKfBqhEj8M47A',
+        payUrl: 'https://flouci.com/pay/FoPKKHqfQIKfBqhEj8M47A',
+      });
+      repository.findOne.mockResolvedValue(existing);
+
+      const result = await service.initiateFlouciPayment(
+        { orderId: 'ORDER-1', amount: 25.5, currency: 'TND' },
+        'billetterie',
+        'retry-key-1',
+      );
+
+      expect(result).toEqual({
+        paymentId: 'payment-existing',
+        payUrl: 'https://flouci.com/pay/FoPKKHqfQIKfBqhEj8M47A',
+        providerRef: 'FoPKKHqfQIKfBqhEj8M47A',
+      });
+      expect(flouciProvider.initiatePayment).not.toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
     });
   });
 

@@ -4,6 +4,7 @@ import {
   Entity,
   Index,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { PaymentStatus } from '../enums/payment-status.enum';
@@ -15,6 +16,14 @@ import { PaymentProviderName } from '../enums/payment-provider.enum';
  * (e.g. Konnect's `paymentRef`) and is the join key used by webhooks.
  */
 @Entity('payments')
+// TASK-P0-005 (todo.md): guards a caller retrying POST /payments/*/init
+// (network timeout, double click) from creating a second Payment — and a
+// second provider-side charge — for the same logical request. Scoped by
+// callerApplication rather than globally unique because idempotency keys
+// are only meaningful within the app that generated them. NULLs (callers
+// that don't send the header) don't collide: MySQL treats each NULL as
+// distinct in a unique index, same as `providerRef` below.
+@Unique(['callerApplication', 'idempotencyKey'])
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -37,6 +46,11 @@ export class Payment {
   // request body: always derived server-side from the authenticated caller.
   @Column({ type: 'varchar', length: 100, nullable: true })
   callerApplication: string | null;
+
+  // Value of the caller-supplied `Idempotency-Key` header on the init
+  // request, if any. See the @Unique index above.
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  idempotencyKey: string | null;
 
   @Column({
     type: 'enum',
