@@ -19,8 +19,12 @@ export interface SsoUser {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN";
+  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "PLATFORM_SUPERADMIN" | "FEDERATION_ADMIN" | "LEAGUE_ADMIN";
   teamId: string | null;
+  /** Scope FEDERATION_ADMIN (migration.md §7-8), `null` pour tout autre rôle. */
+  federationId: string | null;
+  /** Scope LEAGUE_ADMIN (migration.md §7-8), `null` pour tout autre rôle. */
+  leagueId: string | null;
 }
 
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {

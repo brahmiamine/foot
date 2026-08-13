@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
     name: user.name,
     role: user.role,
     teamId: user.teamId ?? null,
+    federationId: user.federationId ?? null,
+    leagueId: user.leagueId ?? null,
     tokenVersion: user.tokenVersion,
   });
   return response;

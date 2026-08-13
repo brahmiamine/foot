@@ -8,7 +8,8 @@ import { getSsoSession, getSsoSessionFromRequest } from "./ssoSession";
  * l'instant que des actions de modération (voir /admin/audience-mismatch).
  */
 
-const ADMIN_ROLES = new Set(["ADMIN", "SUPERADMIN"]);
+/** migration.md §7 : PLATFORM_SUPERADMIN est l'alias cible de SUPERADMIN, accès plateforme complet équivalent. */
+const ADMIN_ROLES = new Set(["ADMIN", "SUPERADMIN", "PLATFORM_SUPERADMIN"]);
 
 async function isAdmin(request: NextRequest): Promise<boolean> {
   const session = await getSsoSessionFromRequest(request);

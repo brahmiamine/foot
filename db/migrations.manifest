@@ -49,6 +49,9 @@ sso/sql/migration_add_member_profile_fields.sql
 sso/sql/migration_add_member_role.sql
 sso/sql/migration_add_member_team_affiliations.sql
 sso/sql/migration_add_mfa_enrollment_challenges.sql
+# Rôles cibles PLATFORM_SUPERADMIN/FEDERATION_ADMIN/LEAGUE_ADMIN + scope
+# federation_id/league_id sur `User` (migration.md §7-8, Phase 1).
+sso/sql/migration_add_federation_league_scope.sql
 
 # --- superadmin (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
 superadmin/mysql/migration_add_audit_logs.sql

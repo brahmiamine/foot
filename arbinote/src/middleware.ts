@@ -33,7 +33,7 @@ export async function middleware(request: NextRequest) {
   const token = getSsoTokenFromRequest(request);
   const session = token ? await verifySsoTokenWithRevocation(token) : null;
 
-  if (session?.role === "SUPERADMIN") {
+  if (session?.role === "SUPERADMIN" || session?.role === "PLATFORM_SUPERADMIN") {
     return NextResponse.next();
   }
 

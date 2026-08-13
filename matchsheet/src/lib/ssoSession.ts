@@ -22,7 +22,7 @@ export interface SsoUser {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN";
+  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "PLATFORM_SUPERADMIN" | "FEDERATION_ADMIN" | "LEAGUE_ADMIN";
   teamId: string | null;
 }
 

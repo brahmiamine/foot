@@ -34,6 +34,14 @@ export interface SsoTokenPayload {
   name: string;
   role: string;
   teamId: string | null;
+  /**
+   * Scope fédéral/ligue (migration.md §7-8) — présents uniquement pour les
+   * rôles FEDERATION_ADMIN/LEAGUE_ADMIN, `null` sinon. Un jeton signé avant
+   * TS-28-bis n'a pas ces claims : traités comme `null`, comme pour
+   * `teamId` avant lui — aucun compte existant n'est cassé par cet ajout.
+   */
+  federationId: string | null;
+  leagueId: string | null;
 }
 
 const ISSUER = "foot-sso";
@@ -118,6 +126,8 @@ export async function verifySsoToken(token: string): Promise<SsoTokenPayload | n
       name: typeof payload.name === "string" ? payload.name : payload.email,
       role: payload.role,
       teamId: typeof payload.teamId === "string" ? payload.teamId : null,
+      federationId: typeof payload.federationId === "string" ? payload.federationId : null,
+      leagueId: typeof payload.leagueId === "string" ? payload.leagueId : null,
     };
   } catch {
     return null;

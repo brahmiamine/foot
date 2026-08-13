@@ -7,7 +7,11 @@ import { getSsoSessionFromRequest, redirectToLogin } from "@/lib/ssoSession";
  *
  * Seuls les comptes de club (ADMIN/OBSERVATEUR, avec teamId) sont acceptés
  * ici — SUPERADMIN n'a pas accès à matchsheet, même règle que teamManager
- * (voir teamManager/src/lib/auth.ts).
+ * (voir teamManager/src/lib/auth.ts). PLATFORM_SUPERADMIN (migration.md
+ * §7, alias cible de SUPERADMIN) est refusé pour la même raison — et pour
+ * la même raison encore, FEDERATION_ADMIN/LEAGUE_ADMIN n'ont pas non plus
+ * de compte club avec teamId, donc déjà exclus par la condition
+ * `!session.teamId` qui suit.
  *
  * L'utilisateur vérifié est transmis aux Server Components via des en-têtes
  * (x-sso-*) pour éviter de revérifier le JWT à chaque page.
@@ -28,7 +32,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const session = await getSsoSessionFromRequest(request);
-  if (!session || !session.teamId || session.role === "SUPERADMIN") {
+  if (!session || !session.teamId || session.role === "SUPERADMIN" || session.role === "PLATFORM_SUPERADMIN") {
     return redirectToLogin(request);
   }
 
