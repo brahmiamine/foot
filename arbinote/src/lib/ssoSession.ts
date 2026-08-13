@@ -11,15 +11,16 @@ import {
 /**
  * Wrapper local au-dessus de la vérification JWT partagée (voir
  * packages/auth-shared/README.md) : type `SsoUser` propre à arbinote
- * (rôles staff uniquement) et helpers Server Components (`cookies()`, non
- * disponibles dans packages/auth-shared car incompatibles Edge Runtime).
+ * (rôles staff + `MEMBER`, voir TASK-P0-022) et helpers Server Components
+ * (`cookies()`, non disponibles dans packages/auth-shared car incompatibles
+ * Edge Runtime).
  */
 
 export interface SsoUser {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN";
+  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER";
   teamId: string | null;
 }
 
@@ -56,6 +57,15 @@ export function buildLoginUrl(currentUrl: string): string {
 
 export function redirectToLogin(request: NextRequest): NextResponse {
   return NextResponse.redirect(buildLoginUrl(request.url));
+}
+
+/**
+ * TASK-P0-022 : login espace membre (distinct du login staff ci-dessus) —
+ * un visiteur public souhaitant voter avec une identité vérifiée plutôt
+ * qu'anonymement. Même pattern que billetterie/ob (buildMemberLoginUrl).
+ */
+export function buildMemberLoginUrl(currentUrl: string): string {
+  return buildSsoRedirectUrl(currentUrl, "/membre/login");
 }
 
 export function clearSsoCookie(response: NextResponse) {

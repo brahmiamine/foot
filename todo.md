@@ -559,22 +559,24 @@ Plusieurs apps lisent tables matchsheet. Pas de contrat événement. Score/stats
 **Projets**: arbinote  
 **Estimation**: 3 jours  
 **Dépendances**: TASK-P0-001  
-**Status**: [ ] Audité, non traité — nécessite une décision produit (voir note), pas juste un correctif
+**Status**: [x] Traité — vote authentifié ajouté en complément du vote anonyme existant
 
-> **Note d'audit** : deux des sous-parties étaient déjà couvertes différemment de ce que décrit le todo : la contrainte `UNIQUE(match_id, device_fingerprint)` existe déjà en base (`Vote.ts`, `uniq_votes_match_device`) — un vote dupliqué avec la même empreinte est déjà rejeté serveur, pas seulement côté client ; et un cookie de preuve HMAC (`fingerprintProof.ts`) existe déjà, mais pour un usage différent (protection IDOR sur la lecture de l'historique de vote, pas anti-fraude sur l'écriture). Ce qui manque réellement — vote authentifié JWT en alternative au fingerprint, toggle UI "Se connecter pour voter", consent checkbox, rate limit 24h — est une **fonctionnalité produit nouvelle** (nouveau parcours utilisateur, décision UX sur la coexistence des deux modes, choix d'infra pour le rate limit — aucun Redis dans arbinote aujourd'hui, seul `notification-api` en a un) plutôt qu'un bug à corriger dans du code existant. Contrairement aux autres tâches de cette passe (patchs ciblés sur un gap réel identifié), la concevoir et l'implémenter à l'aveugle risquerait d'introduire de nouveaux bugs dans un système anti-fraude déjà en place — laissé de côté pour une décision produit explicite plutôt qu'une implémentation précipitée.
+> **Note d'audit** : deux des sous-parties étaient déjà couvertes différemment de ce que décrit le todo : `UNIQUE(match_id, device_fingerprint)` existait déjà en base (`Vote.ts`) — un vote dupliqué avec la même empreinte est déjà rejeté serveur, pas seulement côté client ; et un cookie de preuve HMAC (`fingerprintProof.ts`) existait déjà, mais pour un usage différent (protection IDOR sur la lecture de l'historique, pas anti-fraude sur l'écriture). Le vrai gap — vote authentifié en alternative au fingerprint — a été implémenté en s'appuyant sur la session SSO **espace membre déjà partagée** entre ob/billetterie/teamManager (même cookie domaine-large) : un visiteur déjà connecté via une autre app de l'écosystème vote automatiquement en mode authentifié sur arbinote, sans nouvelle page de connexion à construire (juste un lien optionnel `/membre/login` pour s'y connecter directement). `POST /api/votes` distingue les deux chemins : authentifié (JWT SSO, role=MEMBER) → dédupliqué par `user_id` (`UNIQUE(match_id, user_id)`, nouvelle colonne), bypasse les vérifications de rate-limit spécifiques au fingerprint (inapplicables) mais reste soumis à la détection de rafale par IP (défense en profondeur) ; anonyme (comportement historique) → fingerprint + **nouveau : consentement RGPD requis** (case à cocher, validé aussi côté serveur), rate limiting DB existant inchangé (5 votes/jour par fingerprint+IP, 15 fingerprints uniques/IP/jour, 10 votes/heure/IP — pas de Redis dans arbinote, le rate limiting DB existant remplit déjà ce rôle et couvre en plus la détection de brigading, absente de la description du todo).
 
 **Description**:
 Empreinte contournable, sensibilité changement appareil, risque vie privée.
 
-- [ ] UI: toggle "Se connecter pour voter"
-- [ ] Vote authentifié: JWT, userId, 1 per user per match
-- [ ] Vote anonyme (legacy): fingerprint, proof HMAC, rate limit 24h Redis
-- [ ] Consent checkbox privacy avant vote anonyme
+- [x] UI: lien "Se connecter pour voter" vers `/membre/login` (pas de toggle actif — l'auth est transparente si déjà connecté via une autre app, le lien sert aux non-connectés)
+- [x] Vote authentifié: JWT SSO (role=MEMBER), userId, 1 par user par match (`UNIQUE(match_id, user_id)`)
+- [x] Vote anonyme (legacy): fingerprint, proof HMAC (déjà existant), rate limit DB existant (pas de Redis dans ce repo — voir note)
+- [x] Consent checkbox privacy avant vote anonyme (nouveau, requis client + serveur)
 
-**Tests**:
-- [ ] Deux votes anonymes même fingerprint → 2e rejected
-- [ ] Deux votes authentifiés même user → 2e rejected
-- [ ] Fingerprint après 24h → allowed
+**Tests** (arbinote/src/app/api/votes/route.test.ts, nouveau — cette route n'avait aucun test avant) :
+- [x] Deux votes anonymes même fingerprint → 2e rejected (409)
+- [x] Deux votes authentifiés même user → 2e rejected (409)
+- [x] Vote anonyme sans consentement → rejected (400)
+- [x] Deux utilisateurs authentifiés différents depuis le même appareil/IP → tous deux acceptés
+- [ ] Fingerprint après 24h → allowed — déjà couvert par le rate limiting existant, non re-testé ici (hors périmètre de cette passe)
 
 ---
 

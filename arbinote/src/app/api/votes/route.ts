@@ -4,10 +4,35 @@ import { Match, Vote as VoteEntity } from '@/lib/entities'
 import { canVoteMatch, getClientIP, roundNote } from '@/lib/utils'
 import { detectVoteAnomalies } from '@/lib/voteAnomalyDetection'
 import { issueFingerprintProofCookie } from '@/lib/fingerprintProof'
+import {
+  getSsoCookieName,
+  verifySsoTokenWithRevocation,
+} from '../../../../../packages/auth-shared/src/session'
 import { MoreThan } from 'typeorm'
 
 const CRITERE_MIN = 1
 const CRITERE_MAX = 5
+
+/**
+ * TASK-P0-022 : lit la session SSO (espace membre) depuis le header Cookie
+ * brut — cette route utilise le type `Request` standard (pas `NextRequest`),
+ * qui n'a pas d'API `.cookies.get()` structurée comme `packages/auth-shared`
+ * l'attend habituellement (voir ssoSession.ts des autres apps). Un vote
+ * authentifié n'est jamais requis : un visiteur non connecté (ou dont le
+ * jeton est invalide/expiré) retombe simplement sur le flux anonyme
+ * existant (fingerprint + consentement), jamais bloqué.
+ */
+async function getAuthenticatedMemberId(request: Request): Promise<string | null> {
+  const cookieHeader = request.headers.get('cookie') ?? ''
+  const cookieName = getSsoCookieName()
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`))
+  if (!match) return null
+
+  const token = decodeURIComponent(match[1])
+  const payload = await verifySsoTokenWithRevocation(token)
+  if (!payload || payload.role !== 'MEMBER') return null
+  return payload.id
+}
 
 // Recalcule note_globale côté serveur à partir des critères plutôt que de faire confiance
 // à la valeur envoyée par le client : sinon un appel API direct (hors formulaire) pourrait
@@ -31,14 +56,36 @@ function computeServerNoteGlobale(criteres: unknown): number | null {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { match_id, arbitre_id, criteres, device_fingerprint } = body
+    const { match_id, arbitre_id, criteres, device_fingerprint, consent } = body
 
-    // Validation
-    if (!match_id || !arbitre_id || !criteres || !device_fingerprint) {
+    // TASK-P0-022 : un visiteur connecté à l'espace membre (session SSO
+    // partagée, même cookie que ob/billetterie/teamManager) vote avec son
+    // identité réelle plutôt qu'anonymement — jamais requis, juste une
+    // alternative plus forte quand disponible (voir getAuthenticatedMemberId).
+    const authenticatedUserId = await getAuthenticatedMemberId(request)
+
+    // Validation — le fingerprint et le consentement RGPD ne sont exigés
+    // que pour un vote anonyme : un vote authentifié s'appuie sur une
+    // identité déjà vérifiée par sso, pas sur ces deux signaux de repli.
+    if (!match_id || !arbitre_id || !criteres) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       )
+    }
+    if (!authenticatedUserId) {
+      if (!device_fingerprint) {
+        return NextResponse.json(
+          { error: 'Missing required fields' },
+          { status: 400 }
+        )
+      }
+      if (consent !== true) {
+        return NextResponse.json(
+          { error: 'Vous devez accepter le traitement de vos données pour voter anonymement.' },
+          { status: 400 }
+        )
+      }
     }
 
     const note_globale = computeServerNoteGlobale(criteres)
@@ -91,46 +138,53 @@ export async function POST(request: Request) {
       )
     }
 
-    // Rate limiting intelligent : combinaison fingerprint + IP
+    // Rate limiting intelligent : combinaison fingerprint + IP. Les
+    // vérifications spécifiques au fingerprint (1, 2) n'ont pas de sens pour
+    // un vote authentifié : uniq_votes_match_user garantit déjà un vote par
+    // personne réelle par match, une garantie plus forte que le fingerprint.
+    // La détection de rafale par IP (3) reste appliquée dans tous les cas
+    // (défense en profondeur contre un compte compromis/scripté).
     if (clientIP !== 'unknown') {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
 
-      // 1. Vérifier les votes de ce fingerprint depuis cette IP (détection de multi-votes)
-      // Limite : 5 votes maximum par fingerprint+IP par jour
-      // Permet à une personne de voter pour plusieurs matchs, mais pas abusivement
-      const votesFromSameFingerprintAndIP = await voteRepo.count({
-        where: {
-          ip_address: clientIP,
-          device_fingerprint: device_fingerprint,
-          created_at: MoreThan(oneDayAgo),
-        },
-      })
+      if (!authenticatedUserId) {
+        // 1. Vérifier les votes de ce fingerprint depuis cette IP (détection de multi-votes)
+        // Limite : 5 votes maximum par fingerprint+IP par jour
+        // Permet à une personne de voter pour plusieurs matchs, mais pas abusivement
+        const votesFromSameFingerprintAndIP = await voteRepo.count({
+          where: {
+            ip_address: clientIP,
+            device_fingerprint: device_fingerprint,
+            created_at: MoreThan(oneDayAgo),
+          },
+        })
 
-      if (votesFromSameFingerprintAndIP >= 5) {
-        return NextResponse.json(
-          { error: 'Trop de votes depuis cet appareil. Limite: 5 votes par jour.' },
-          { status: 429 }
-        )
-      }
+        if (votesFromSameFingerprintAndIP >= 5) {
+          return NextResponse.json(
+            { error: 'Trop de votes depuis cet appareil. Limite: 5 votes par jour.' },
+            { status: 429 }
+          )
+        }
 
-      // 2. Vérifier le nombre de fingerprints UNIQUES depuis cette IP (détection de brigading)
-      // Limite : 15 fingerprints uniques par IP par jour
-      // Permet plusieurs personnes sur le même WiFi de voter, mais détecte le brigading coordonné
-      const uniqueFingerprintsFromIP = await voteRepo
-        .createQueryBuilder('vote')
-        .select('COUNT(DISTINCT vote.device_fingerprint)', 'count')
-        .where('vote.ip_address = :ip', { ip: clientIP })
-        .andWhere('vote.created_at > :oneDayAgo', { oneDayAgo: oneDayAgo })
-        .getRawOne()
+        // 2. Vérifier le nombre de fingerprints UNIQUES depuis cette IP (détection de brigading)
+        // Limite : 15 fingerprints uniques par IP par jour
+        // Permet plusieurs personnes sur le même WiFi de voter, mais détecte le brigading coordonné
+        const uniqueFingerprintsFromIP = await voteRepo
+          .createQueryBuilder('vote')
+          .select('COUNT(DISTINCT vote.device_fingerprint)', 'count')
+          .where('vote.ip_address = :ip', { ip: clientIP })
+          .andWhere('vote.created_at > :oneDayAgo', { oneDayAgo: oneDayAgo })
+          .getRawOne()
 
-      const uniqueFingerprintCount = parseInt(uniqueFingerprintsFromIP?.count || '0', 10)
+        const uniqueFingerprintCount = parseInt(uniqueFingerprintsFromIP?.count || '0', 10)
 
-      if (uniqueFingerprintCount >= 15) {
-        return NextResponse.json(
-          { error: 'Trop de votes depuis cette adresse réseau. Limite: 15 votes par jour.' },
-          { status: 429 }
-        )
+        if (uniqueFingerprintCount >= 15) {
+          return NextResponse.json(
+            { error: 'Trop de votes depuis cette adresse réseau. Limite: 15 votes par jour.' },
+            { status: 429 }
+          )
+        }
       }
 
       // 3. Détection de pattern suspect : même IP, beaucoup de votes en peu de temps
@@ -150,12 +204,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Vérifier si l'utilisateur a déjà voté pour ce match (par fingerprint)
+    // Vérifier si l'utilisateur a déjà voté pour ce match — par user_id si
+    // authentifié (garantie forte), sinon par fingerprint (comportement
+    // historique).
     const existingVote = await voteRepo.findOne({
-      where: {
-        match_id,
-        device_fingerprint,
-      },
+      where: authenticatedUserId
+        ? { match_id, user_id: authenticatedUserId }
+        : { match_id, device_fingerprint },
     })
 
     if (existingVote) {
@@ -165,20 +220,24 @@ export async function POST(request: Request) {
       )
     }
 
-    // Insérer le vote avec l'adresse IP
+    // Insérer le vote avec l'adresse IP — device_fingerprint reste enregistré
+    // même pour un vote authentifié (utile à detectVoteAnomalies), mais
+    // n'est alors jamais la source de vérité pour la déduplication.
     const vote = voteRepo.create({
       match_id,
       arbitre_id,
       criteres,
       note_globale,
-      device_fingerprint,
+      device_fingerprint: device_fingerprint ?? null,
+      user_id: authenticatedUserId,
       ip_address: clientIP !== 'unknown' ? clientIP : null,
     })
 
     // La vérification existingVote ci-dessus est vulnérable à une race condition
     // (deux requêtes concurrentes peuvent toutes deux la passer avant que l'une d'elles
-    // n'insère). La contrainte UNIQUE (match_id, device_fingerprint) en base est le
-    // garde-fou réel ; on transforme ici son échec en réponse 409 propre.
+    // n'insère). Les contraintes UNIQUE (match_id, device_fingerprint) et
+    // (match_id, user_id) en base sont le garde-fou réel ; on transforme ici
+    // leur échec en réponse 409 propre.
     let saved: VoteEntity
     try {
       saved = await voteRepo.save(vote)
@@ -249,7 +308,9 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json(saved, { status: 201 })
-    issueFingerprintProofCookie(response, device_fingerprint)
+    if (device_fingerprint) {
+      issueFingerprintProofCookie(response, device_fingerprint)
+    }
     return response
   } catch (error) {
     console.error('Unexpected error:', error)

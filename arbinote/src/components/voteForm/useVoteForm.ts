@@ -42,6 +42,11 @@ export function useVoteForm({ matchId, arbitreId, criteresDefs, matchStatus, act
   const [fingerprint, setFingerprint] = useState<string | null>(null);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
   const [checkingVote, setCheckingVote] = useState(true);
+  // TASK-P0-022 : consentement RGPD requis pour un vote anonyme (le vote
+  // authentifié, s'il est disponible, s'appuie sur l'identité déjà vérifiée
+  // par sso — voir POST /api/votes). Vérifié aussi côté serveur, ceci n'est
+  // qu'un garde-fou UX pour éviter un aller-retour réseau inutile.
+  const [consent, setConsent] = useState(false);
 
   useEffect(() => {
     setCriteres(emptyState);
@@ -138,6 +143,11 @@ export function useVoteForm({ matchId, arbitreId, criteresDefs, matchStatus, act
       return;
     }
 
+    if (!consent) {
+      setError(t("voteForm.errorConsentRequired"));
+      return;
+    }
+
     // Vérifier à nouveau si déjà voté (double vérification)
     const hasVotedNow = await hasVotedAsync(matchId, fingerprint);
     if (hasVotedNow) {
@@ -163,6 +173,7 @@ export function useVoteForm({ matchId, arbitreId, criteresDefs, matchStatus, act
           criteres,
           note_globale: noteGlobale,
           device_fingerprint: fingerprint,
+          consent,
         }),
       });
 
@@ -194,6 +205,22 @@ export function useVoteForm({ matchId, arbitreId, criteresDefs, matchStatus, act
     }
   }, [router, onSuccess]);
 
+  // TASK-P0-022 : lien vers l'espace membre sso, pour un vote authentifié
+  // plutôt qu'anonyme (session partagée avec ob/billetterie/teamManager —
+  // si déjà connecté ailleurs, le vote passe automatiquement en mode
+  // authentifié côté serveur, voir POST /api/votes).
+  const memberLoginUrl = useMemo(() => {
+    const ssoUrl = process.env.NEXT_PUBLIC_SSO_URL;
+    if (!ssoUrl || typeof window === "undefined") return null;
+    try {
+      const url = new URL("/membre/login", ssoUrl);
+      url.searchParams.set("redirect", window.location.href);
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }, []);
+
   return {
     t,
     locale,
@@ -209,6 +236,9 @@ export function useVoteForm({ matchId, arbitreId, criteresDefs, matchStatus, act
     alreadyVoted,
     checkingVote,
     timeUntilCanVote,
+    consent,
+    setConsent,
+    memberLoginUrl,
     noteGlobale,
     handleSubmit,
     handleCloseSuccessModal,

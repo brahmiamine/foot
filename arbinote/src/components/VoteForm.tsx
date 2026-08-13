@@ -24,6 +24,9 @@ export default function VoteForm({ matchId, arbitreId, arbitreNom, criteresDefs,
     checkingVote,
     timeUntilCanVote,
     noteGlobale,
+    consent,
+    setConsent,
+    memberLoginUrl,
     handleSubmit,
     handleCloseSuccessModal,
   } = useVoteForm({ matchId, arbitreId, arbitreNom, criteresDefs, matchStatus, actualStartedAt, onSuccess });
@@ -98,9 +101,28 @@ export default function VoteForm({ matchId, arbitreId, arbitreNom, criteresDefs,
           </div>
         )}
 
+        {memberLoginUrl && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t("voteForm.authPrompt")}{" "}
+            <a href={memberLoginUrl} className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+              {t("voteForm.authLink")}
+            </a>
+          </p>
+        )}
+
+        <label className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            className="mt-1"
+          />
+          <span>{t("voteForm.consentLabel")}</span>
+        </label>
+
         <button
           type="submit"
-          disabled={isSubmitting || noteGlobale === 0 || !canVote}
+          disabled={isSubmitting || noteGlobale === 0 || !canVote || !consent}
           className="btn-primary w-full py-3 px-6"
         >
           {isSubmitting ? t("voteForm.submitting") : t("voteForm.submit")}
