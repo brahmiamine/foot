@@ -20,7 +20,7 @@ import {
 
 export interface RecentScanRow {
   id: string;
-  result: "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID";
+  result: "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED";
   scannedBy: string;
   scannedAtLabel: string;
   reference: string | null;
@@ -45,6 +45,7 @@ const OUTCOME_KEYS: Record<RecentScanRow["result"], TranslationKey> = {
   NOT_PAID: "scanner.result.notPaid",
   MATCH_CANCELLED: "scanner.result.matchCancelled",
   INVALID: "scanner.result.invalid",
+  REVOKED: "scanner.result.revoked",
 };
 
 const OUTCOME_COLORS: Record<RecentScanRow["result"], string> = {
@@ -53,6 +54,7 @@ const OUTCOME_COLORS: Record<RecentScanRow["result"], string> = {
   NOT_PAID: "var(--tk-danger)",
   MATCH_CANCELLED: "var(--tk-danger)",
   INVALID: "var(--tk-danger)",
+  REVOKED: "var(--tk-danger)",
 };
 
 export function TicketScanner({

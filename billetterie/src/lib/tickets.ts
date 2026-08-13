@@ -675,7 +675,40 @@ export async function dismissAudienceMismatch(ticketId: string): Promise<void> {
   await ticketRepo.update({ id: ticketId }, { audienceMismatch: false });
 }
 
-export type ScanOutcome = "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID";
+/**
+ * Révocation ciblée (TASK-P0-009) : invalide un billet précis avant sa
+ * fin de vie naturelle (fraude détectée, litige, remboursement hors
+ * flux...) sans attendre l'expiration du jeton QR (1 an, voir
+ * src/lib/ticketQr.ts) ni toucher au statut du paiement. scanTicket()
+ * rejette tout scan de ce billet avec l'outcome REVOKED tant que le champ
+ * n'est pas remis à false. Idempotent : révoquer un billet déjà révoqué
+ * ne fait que rafraîchir le motif/l'horodatage.
+ */
+export async function revokeTicket(ticketId: string, revokedBy: string, reason?: string): Promise<void> {
+  const ds = await getDataSource();
+  const ticketRepo = ds.getRepository(Ticket);
+  const ticket = await ticketRepo.findOne({ where: { id: ticketId } });
+  if (!ticket) {
+    throw new NotFoundError("Billet introuvable.");
+  }
+  await ticketRepo.update(
+    { id: ticketId },
+    { revoked: true, revokedAt: new Date(), revokedReason: reason ?? null, revokedBy },
+  );
+}
+
+/** Annule une révocation (erreur d'admin, litige résolu en faveur du porteur). */
+export async function unrevokeTicket(ticketId: string): Promise<void> {
+  const ds = await getDataSource();
+  const ticketRepo = ds.getRepository(Ticket);
+  const ticket = await ticketRepo.findOne({ where: { id: ticketId } });
+  if (!ticket) {
+    throw new NotFoundError("Billet introuvable.");
+  }
+  await ticketRepo.update({ id: ticketId }, { revoked: false, revokedAt: null, revokedReason: null, revokedBy: null });
+}
+
+export type ScanOutcome = "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED";
 
 export interface ScanResult {
   outcome: ScanOutcome;
@@ -718,6 +751,11 @@ export async function scanTicket(token: string, scannedBy: string): Promise<Scan
   const category = mtc ? await ds.getRepository(TicketCategory).findOne({ where: { id: mtc.categoryId } }) : null;
 
   const base = { reference: ticket.reference, matchLabel, categoryName: category?.name };
+
+  if (ticket.revoked) {
+    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "REVOKED", scannedBy }));
+    return { outcome: "REVOKED", ...base };
+  }
 
   if (match?.status === "CANCELLED") {
     await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "MATCH_CANCELLED", scannedBy }));
@@ -818,11 +856,20 @@ export async function getOfflineScanManifest(matchId: string): Promise<OfflineSc
     matchLabel: `${match.homeTeam?.nom ?? "?"} - ${match.awayTeam?.nom ?? "?"}`,
     matchCancelled: match.status === "CANCELLED",
     generatedAt: new Date().toISOString(),
-    tickets: tickets.map((t) => ({
-      ticketId: t.id,
-      reference: t.reference,
-      status: t.status as "PAID" | "USED",
-      categoryName: categoryNameByMtcId.get(t.matchTicketCategoryId) ?? "Catégorie",
-    })),
+    // Un billet révoqué (TASK-P0-009) est exclu du manifeste plutôt que
+    // marqué d'un statut dédié : evaluateOfflineScan (src/lib/offlineScan.ts)
+    // rejette alors le scan en INVALID (entrée introuvable), un refus sûr
+    // par défaut tant que la resynchronisation serveur (seule source
+    // faisant foi) n'a pas eu lieu — cohérent avec la révocation qui doit
+    // s'appliquer immédiatement, pas seulement au prochain téléchargement
+    // de manifeste.
+    tickets: tickets
+      .filter((t) => !t.revoked)
+      .map((t) => ({
+        ticketId: t.id,
+        reference: t.reference,
+        status: t.status as "PAID" | "USED",
+        categoryName: categoryNameByMtcId.get(t.matchTicketCategoryId) ?? "Catégorie",
+      })),
   };
 }

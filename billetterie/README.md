@@ -16,19 +16,19 @@ Scanner `/admin/scan`: téléchargement du manifeste hors ligne, validation en l
 
 ## API
 
-`/api/admin/tickets/audience-mismatch/[id]` (traiter un écart), `/api/admin/tickets/audience-mismatch`, `/api/admin/tickets/offline-manifest` (manifeste des QR admis), `/api/admin/tickets/scan` (contrôle et ingestion du journal hors ligne), `/api/cron/purge-pending-reservations` (libération des réservations `PENDING` expirées), `/api/health`, `/api/payments/webhook` (confirmation asynchrone signée), `/api/tickets`
+`/api/admin/tickets/audience-mismatch/[id]` (traiter un écart), `/api/admin/tickets/audience-mismatch`, `/api/admin/tickets/offline-manifest` (manifeste des QR admis, exclut les billets révoqués), `/api/admin/tickets/scan` (contrôle et ingestion du journal hors ligne), `/api/admin/tickets/[id]/revoke` (PATCH révoque un billet ciblé, DELETE annule la révocation — TASK-P0-009), `/api/cron/purge-pending-reservations` (libération des réservations `PENDING` expirées), `/api/health`, `/api/payments/webhook` (confirmation asynchrone signée), `/api/tickets`
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
 ## Authentification et autorisations
 
-Consultation publique; achat et billets exigent un membre SSO. Les routes admin utilisent le garde admin SSO. Le cron exige `CRON_SECRET`; le webhook vérifie `PAYMENT_WEBHOOK_SECRET`; les QR sont signés par `TICKET_QR_SECRET`.
+Consultation publique; achat et billets exigent un membre SSO. Les routes admin utilisent le garde admin SSO. Le cron exige `CRON_SECRET`; le webhook vérifie `PAYMENT_WEBHOOK_SECRET`; les QR sont signés par `TICKET_QR_SECRET` (rotation optionnelle par `kid` via `TICKET_QR_KID`/`TICKET_QR_SECRET_<KID>`, voir `.env.example` — TASK-P0-009). Un billet peut être révoqué individuellement (`PATCH /api/admin/tickets/[id]/revoke`) sans attendre l'expiration du jeton (1 an, volontairement non lié à la date du match) ni annuler le paiement.
 
 ## Données possédées
 
 Base `foot`: possède `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules`, `tk_tickets` et `tk_ticket_scan_logs`; référence les matchs/équipes partagés.
 
-**Migrations réellement présentes :** `sql/schema.sql`; ajout de la déclaration d'audience, de l'identifiant payment-api et du journal de scan.
+**Migrations réellement présentes :** `sql/schema.sql`; ajout de la déclaration d'audience, de l'identifiant payment-api, du journal de scan et de la révocation ciblée (`sql/migration_add_ticket_revocation.sql`).
 
 ## Intégrations
 

@@ -83,4 +83,23 @@ export class Ticket {
    */
   @Column({ type: "tinyint", name: "audience_mismatch", default: 0 })
   audienceMismatch!: boolean;
+
+  /**
+   * Révocation ciblée (TASK-P0-009) : distincte du cycle de vie normal
+   * (`status`) — un billet PAID peut être révoqué (fraude détectée,
+   * remboursement hors flux, litige...) sans que ça se confonde avec
+   * CANCELLED (annulation avant paiement) ni USED. scanTicket() vérifie ce
+   * champ en plus de `status` et rejette tout scan avec un motif dédié.
+   */
+  @Column({ type: "tinyint", name: "revoked", default: 0 })
+  revoked!: boolean;
+
+  @Column({ type: "datetime", name: "revoked_at", nullable: true })
+  revokedAt!: Date | null;
+
+  @Column({ type: "varchar", length: 255, name: "revoked_reason", nullable: true })
+  revokedReason!: string | null;
+
+  @Column({ type: "varchar", length: 191, name: "revoked_by", nullable: true })
+  revokedBy!: string | null;
 }

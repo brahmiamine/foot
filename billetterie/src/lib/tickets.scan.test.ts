@@ -98,6 +98,52 @@ describe("scanTicket (SQLite réel)", () => {
     expect(reloaded.status).toBe("PAID");
   });
 
+  it("un billet révoqué renvoie REVOKED même s'il est PAID, sans le marquer USED (TASK-P0-009)", async () => {
+    const { scanTicket, revokeTicket } = await import("./tickets");
+    const { signTicketToken } = await import("./ticketQr");
+    const { matchTicketCategory } = await seedMatchWithCategory(dataSource);
+    const ticket = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    const token = await signTicketToken(ticket.id);
+
+    await revokeTicket(ticket.id, "admin-1", "fraude suspectée");
+    const result = await scanTicket(token, "admin-2");
+
+    expect(result.outcome).toBe("REVOKED");
+    const { Ticket } = await import("@/entities/Ticket");
+    const reloaded = await dataSource.getRepository(Ticket).findOneOrFail({ where: { id: ticket.id } });
+    expect(reloaded.status).toBe("PAID");
+    expect(reloaded.revokedReason).toBe("fraude suspectée");
+    expect(reloaded.revokedBy).toBe("admin-1");
+  });
+
+  it("annuler une révocation (unrevokeTicket) rend le billet de nouveau scannable", async () => {
+    const { scanTicket, revokeTicket, unrevokeTicket } = await import("./tickets");
+    const { signTicketToken } = await import("./ticketQr");
+    const { matchTicketCategory } = await seedMatchWithCategory(dataSource);
+    const ticket = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    const token = await signTicketToken(ticket.id);
+
+    await revokeTicket(ticket.id, "admin-1");
+    await unrevokeTicket(ticket.id);
+    const result = await scanTicket(token, "admin-2");
+
+    expect(result.outcome).toBe("SUCCESS");
+  });
+
+  it("getOfflineScanManifest exclut les billets révoqués (TASK-P0-009)", async () => {
+    const { revokeTicket, getOfflineScanManifest } = await import("./tickets");
+    const { matchTicketCategory, match } = await seedMatchWithCategory(dataSource);
+    const paidTicket = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    const revokedTicket = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    await revokeTicket(revokedTicket.id, "admin-1");
+
+    const manifest = await getOfflineScanManifest(match.id);
+
+    const ids = manifest.tickets.map((t) => t.ticketId);
+    expect(ids).toContain(paidTicket.id);
+    expect(ids).not.toContain(revokedTicket.id);
+  });
+
   it("un jeton invalide renvoie INVALID et journalise sans ticketId", async () => {
     const { scanTicket } = await import("./tickets");
 

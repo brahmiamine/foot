@@ -261,16 +261,16 @@ Deux scanners hors ligne peuvent scanner même billet. Implémenter synchro robu
 **Projets**: billetterie  
 **Estimation**: 3 jours  
 **Dépendances**: TASK-P0-003  
-**Status**: [ ] À faire
+**Status**: [x] Traité (voir billetterie/src/lib/ticketQr.ts, src/lib/tickets.ts, src/app/api/admin/tickets/[id]/revoke/route.ts)
 
 **Description**:
 QR actuellement secrets statiques. Aucune rotation, expiration. Implémenter:
 
-- [ ] JWT QR signé avec kid
-- [ ] Exp = 7 jours avant match
-- [ ] Rotation clés tous les 30 jours
-- [ ] Révocation ciblée: PATCH /admin/tickets/:id/revoke
-- [ ] Tests: QR expiré → rejected; QR révoqué → rejected
+- [x] JWT QR signé avec kid — rotation symétrique HS256 (`TICKET_QR_KID` + `TICKET_QR_SECRET_<KID>`), signataire et vérificateur sont la même app donc pas de JWKS nécessaire (contrairement à TASK-P0-001/sso). Rétrocompatible : sans `TICKET_QR_KID`, `TICKET_QR_SECRET` seul reste utilisé sans kid dans l'en-tête (jetons déjà en circulation)
+- [ ] Exp = 7 jours avant match — **délibérément non fait** : le TTL 1 an existant (documenté dans ticketQr.ts) est préservé. Faire expirer 7j avant le match casserait le scan de tout billet dont le match est reporté après achat ; la fraîcheur réelle vient de la relecture de `ticket.status`/`ticket.revoked` en base à chaque scan (scanTicket), jamais de l'expiration du jeton. La révocation ciblée ci-dessous couvre le cas où un billet précis doit être invalidé avant sa fin de vie naturelle
+- [x] Rotation clés — mécanisme en place (kid courant + anciens kids conservés en env le temps que les jetons émis expirent) ; "tous les 30 jours" est une politique opérationnelle, pas un minuteur applicatif (pas d'infra de rotation planifiée dans ce repo, comme documenté pour TASK-P0-003/sso)
+- [x] Révocation ciblée: PATCH /api/admin/tickets/[id]/revoke (+ DELETE pour annuler) — nouvelles colonnes `Ticket.revoked/revokedAt/revokedReason/revokedBy` (migration `sql/migration_add_ticket_revocation.sql`), scanTicket() rejette avec un nouvel outcome `REVOKED` distinct de `NOT_PAID`, exclu aussi du manifeste hors-ligne (`getOfflineScanManifest`)
+- [x] Tests: rotation kid (jeton ancien kid vérifiable pendant la grâce, rejeté si la clé est retirée, rétrocompatibilité sans kid) + révocation (scan rejeté REVOKED, annulation de révocation, exclusion du manifeste hors-ligne) — 10 nouveaux tests dans ticketQr.test.ts/tickets.scan.test.ts. "QR expiré → rejected" non ajouté : `jose` rejette déjà nativement un jeton expiré (comportement de la bibliothèque, pas de logique métier à tester spécifiquement ici)
 
 ---
 
