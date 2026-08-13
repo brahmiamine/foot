@@ -24,6 +24,13 @@ export async function GET(request: NextRequest) {
     if (!canAccessPlatform(session) && !leagueId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+    if (journeeId && leagueId) {
+      const dataSource = await getDataSource()
+      const scope = await getJourneeScope(dataSource, journeeId)
+      if (!scope || scope.leagueId !== leagueId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
     const matches = await listMatchesForAdmin(limit, leagueId, journeeId)
     return NextResponse.json(matches)
   } catch (error) {
