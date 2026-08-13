@@ -188,10 +188,25 @@ export function getSsoRevocationFailureMode(): SsoRevocationFailureMode {
  * révocation ne peut pas être confirmée (SSO injoignable, timeout, `SSO_URL`
  * non configuré), le comportement dépend de `SSO_REVOCATION_FAILURE_MODE`
  * — voir getSsoRevocationFailureMode() (TS-29).
+ *
+ * TASK-P0-002 : `failMode` (paramètre explicite, optionnel) permet à un
+ * appelant de forcer "closed" pour une route précise, indépendamment du
+ * réglage global de l'app (ex: une route de paiement dans une app par
+ * ailleurs "open" pour son trafic public) — sans ce paramètre, le
+ * comportement historique s'applique : `getSsoRevocationFailureMode()` lit
+ * `SSO_REVOCATION_FAILURE_MODE` depuis l'environnement de CETTE app (déjà,
+ * par construction, un "default failMode par app" : chaque app a son
+ * propre .env, voir packages/auth-shared/README.md pour la matrice
+ * recommandée).
  */
-export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTokenPayload | null> {
+export async function verifySsoTokenWithRevocation(
+  token: string,
+  failMode?: SsoRevocationFailureMode,
+): Promise<SsoTokenPayload | null> {
   const payload = await verifySsoToken(token);
   if (!payload) return null;
+
+  const effectiveFailMode = failMode ?? getSsoRevocationFailureMode();
 
   const now = Date.now();
   const cached = revocationCache.get(token);
@@ -199,11 +214,25 @@ export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTo
     return cached.active ? payload : null;
   }
 
-  const onUnconfirmedRevocation = (): SsoTokenPayload | null =>
-    getSsoRevocationFailureMode() === "closed" ? null : payload;
+  const logIntrospection = (outcome: string, extra: Record<string, unknown> = {}): void => {
+    console.warn(
+      JSON.stringify({
+        event: "sso_introspection",
+        outcome,
+        failMode: effectiveFailMode,
+        timestamp: new Date().toISOString(),
+        ...extra,
+      }),
+    );
+  };
+
+  const onUnconfirmedRevocation = (reason: string): SsoTokenPayload | null => {
+    logIntrospection("unconfirmed", { reason });
+    return effectiveFailMode === "closed" ? null : payload;
+  };
 
   const ssoUrl = process.env.SSO_URL;
-  if (!ssoUrl) return onUnconfirmedRevocation();
+  if (!ssoUrl) return onUnconfirmedRevocation("sso_url_missing");
 
   try {
     const res = await fetch(`${ssoUrl.replace(/\/$/, "")}/api/session/introspect`, {
@@ -211,7 +240,7 @@ export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTo
       cache: "no-store",
       signal: AbortSignal.timeout(REVOCATION_FETCH_TIMEOUT_MS),
     });
-    if (!res.ok) return onUnconfirmedRevocation();
+    if (!res.ok) return onUnconfirmedRevocation(`http_${res.status}`);
 
     const body = (await res.json()) as { active?: boolean };
     const active = body.active === true;
@@ -219,9 +248,10 @@ export async function verifySsoTokenWithRevocation(token: string): Promise<SsoTo
     pruneRevocationCacheIfNeeded(now);
     revocationCache.set(token, { active, expiresAt: now + REVOCATION_CACHE_TTL_MS });
 
+    logIntrospection(active ? "active" : "revoked");
     return active ? payload : null;
-  } catch {
-    return onUnconfirmedRevocation();
+  } catch (error) {
+    return onUnconfirmedRevocation(error instanceof Error ? error.name : "unknown_error");
   }
 }
 

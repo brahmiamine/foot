@@ -16,7 +16,7 @@ Le seul point d'entrée est [`src/session.ts`](./src/session.ts). Il exporte :
 | `SsoTokenPayload` | Forme normalisée de la session rendue aux applications. |
 | `getSsoCookieName()` | Lit `SSO_COOKIE_NAME`, avec `foot_sso_session` par défaut. |
 | `verifySsoToken(token)` | Vérifie signature, expiration, issuer et claims obligatoires ; renvoie `null` si le jeton est invalide. |
-| `verifySsoTokenWithRevocation(token)` | Ajoute l'introspection auprès de `sso` et un cache de 30 s ; c'est le validateur recommandé. Le comportement en cas d'indisponibilité de l'introspection dépend de `getSsoRevocationFailureMode()` (TS-29). |
+| `verifySsoTokenWithRevocation(token, failMode?)` | Ajoute l'introspection auprès de `sso` et un cache de 30 s ; c'est le validateur recommandé. Le comportement en cas d'indisponibilité de l'introspection dépend de `failMode` si fourni, sinon de `getSsoRevocationFailureMode()` (TS-29 / TASK-P0-002). Chaque appel d'introspection est journalisé (`console.warn`, événement `sso_introspection`). |
 | `getSsoRevocationFailureMode()` | Lit `SSO_REVOCATION_FAILURE_MODE` (`"open"` par défaut, ou `"closed"`) — voir ci-dessous. |
 | `getSsoTokenFromRequest(request)` | Extrait le jeton du cookie partagé sans le valider. |
 | `buildSsoRedirectUrl(currentUrl, loginPath?)` | Construit une URL sous `SSO_URL` et ajoute le retour dans `redirect` (`/login` par défaut). |
@@ -80,12 +80,22 @@ Configurer `SSO_JWT_SECRET` et, pour l'introspection, `SSO_URL` dans le secret
 manager ou le fichier d'environnement local de l'application. Ne jamais mettre
 leur valeur dans le code, un exemple ou Git.
 
-## Mode d'échec de la révocation (TS-29)
+## Mode d'échec de la révocation (TS-29 / TASK-P0-002)
 
 `verifySsoTokenWithRevocation()` ne peut pas toujours confirmer qu'une
 session n'a pas été révoquée (`SSO_URL` non configuré, `sso` injoignable,
-timeout, réponse non-200). `SSO_REVOCATION_FAILURE_MODE` décide quoi faire
-dans ce cas :
+timeout, réponse non-200). Le mode appliqué dans ce cas est déterminé par,
+dans l'ordre de priorité :
+
+1. Le paramètre `failMode` explicite passé à l'appel (permet à une route
+   précise — ex: une confirmation de paiement — de forcer `closed`
+   indépendamment du réglage global de l'app).
+2. Sinon, `SSO_REVOCATION_FAILURE_MODE` lu dans l'environnement de l'app
+   appelante (`getSsoRevocationFailureMode()`) — c'est le "default failMode
+   par app depuis .env" : chaque app définit sa propre valeur dans son
+   `.env`, aucune configuration centralisée.
+
+Valeurs possibles :
 
 - `open` (par défaut si absent, comportement historique) : on retombe sur le
   résultat cryptographique local (signature/expiration/`tokenVersion`
@@ -94,20 +104,39 @@ dans ce cas :
 - `closed` : on refuse l'accès tant que `sso` n'a pas confirmé explicitement
   que la session est active.
 
-Recommandation par app (voir avancement.md, Epic E08) :
+Matrice de sensibilité et mode recommandé par app :
 
-| App | Mode recommandé |
-|---|---|
-| `ob` (public/espace membre) | `open` |
-| `billetterie` | `open` |
-| `arbinote` | `open` |
-| `teamManager` | `closed` |
-| `matchsheet` | `closed` |
-| `superadmin` | `closed` |
+| App | Sensibilité | Mode recommandé | Raison |
+|---|---|---|---|
+| `ob` (public/espace membre) | Basse | `open` | Site public, dégrader plutôt que bloquer une panne SSO transitoire |
+| `arbinote` (vote public) | Basse | `open` | Même raisonnement — la modération admin reste, elle, `closed` (voir ci-dessous) |
+| `billetterie` | Élevée | `closed` | Argent — un incident réseau transitoire sur `sso` ne doit jamais laisser passer une session révoquée sur un parcours de paiement |
+| `teamManager` | Élevée | `closed` | Données métier club |
+| `matchsheet` | Élevée | `closed` | Match en direct, feuille de match officielle |
+| `superadmin` | Élevée | `closed` | Gestion critique de la plateforme |
 
 Chaque app définit sa propre valeur dans son `.env` — voir
-`matchsheet/.env.example`, `superadmin/.env.example` et
-`teamManager/.env.example` pour l'exemple `closed`.
+`matchsheet/.env.example`, `superadmin/.env.example`,
+`teamManager/.env.example` et `billetterie/.env.example` pour l'exemple
+`closed`. `billetterie` est fail-**closed** par défaut malgré son trafic
+public (contrairement à `ob`/`arbinote`) : c'est la seule des 3 apps
+"publiques" à manipuler de l'argent directement, ce qui change l'arbitrage
+disponibilité/sécurité.
+
+### SLA `sso`
+
+`sso` est une dépendance critique pour toutes les apps en mode `closed` : une
+indisponibilité de `sso` bloque alors l'accès aux apps concernées, pas
+seulement l'introspection de révocation (l'ensemble du flux d'authentification
+transite par `sso` — connexion, JWKS pour la vérification des jetons, voir
+TASK-P0-001). Il n'existe pas d'infrastructure de monitoring/SLA formalisée
+dans ce repo à ce jour (pas de dashboard, pas d'alerting) — un SLA chiffré ne
+peut donc pas être documenté honnêtement ici tant que cette instrumentation
+n'existe pas (voir TASK-P1-002, observabilité). Recommandation opérationnelle
+en attendant : `sso` doit être déployé avec une disponibilité au moins égale
+à celle de l'app la plus stricte qui en dépend (`superadmin`/`matchsheet`,
+`closed`), et son incident le plus courant (timeout d'introspection) est déjà
+borné à 2s côté client (`REVOCATION_FETCH_TIMEOUT_MS`, session.ts).
 
 ## Pourquoi un import relatif
 

@@ -131,4 +131,62 @@ describe("verifySsoTokenWithRevocation — unconfirmed revocation (TS-29)", () =
 
     expect(result).toBeNull();
   });
+
+  /** TASK-P0-002 : failMode explicite prime sur le réglage .env de l'app. */
+  describe("explicit failMode parameter overrides the app-wide env default", () => {
+    it('rejects even when SSO_REVOCATION_FAILURE_MODE="open", if called with failMode="closed"', async () => {
+      delete process.env.SSO_URL;
+      process.env.SSO_REVOCATION_FAILURE_MODE = "open";
+      const token = await signToken();
+
+      const result = await verifySsoTokenWithRevocation(token, "closed");
+
+      expect(result).toBeNull();
+    });
+
+    it('falls back to the cryptographic result even when SSO_REVOCATION_FAILURE_MODE="closed", if called with failMode="open"', async () => {
+      delete process.env.SSO_URL;
+      process.env.SSO_REVOCATION_FAILURE_MODE = "closed";
+      const token = await signToken();
+
+      const result = await verifySsoTokenWithRevocation(token, "open");
+
+      expect(result?.id).toBe("user-1");
+    });
+  });
+
+  /** TASK-P0-002 : chaque appel d'introspection logge son résultat. */
+  describe("introspection logging", () => {
+    it("logs a structured event when revocation cannot be confirmed", async () => {
+      delete process.env.SSO_URL;
+      process.env.SSO_REVOCATION_FAILURE_MODE = "open";
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const token = await signToken();
+
+      await verifySsoTokenWithRevocation(token);
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      const logged = JSON.parse(warnSpy.mock.calls[0][0] as string);
+      expect(logged.event).toBe("sso_introspection");
+      expect(logged.outcome).toBe("unconfirmed");
+      expect(logged.reason).toBe("sso_url_missing");
+      warnSpy.mockRestore();
+    });
+
+    it("logs the outcome of a successful introspection call", async () => {
+      process.env.SSO_URL = "http://sso.invalid";
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ active: true }) }),
+      );
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const token = await signToken();
+
+      await verifySsoTokenWithRevocation(token);
+
+      const logged = JSON.parse(warnSpy.mock.calls[0][0] as string);
+      expect(logged.outcome).toBe("active");
+      warnSpy.mockRestore();
+    });
+  });
 });

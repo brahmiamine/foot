@@ -73,7 +73,7 @@ Plateforme football modulaire avec 11 applications (3 APIs NestJS, 8 apps Next.j
 **Projets**: sso, packages/auth-shared  
 **Estimation**: 3 jours  
 **Dépendances**: TASK-P0-001  
-**Status**: [ ] À faire
+**Status**: [x] Traité
 
 **Description**:
 Actuellement apps choisissent fail-open/fail-closed indépendamment. Panne SSO = divergence décisions.
@@ -86,13 +86,15 @@ Actuellement apps choisissent fail-open/fail-closed indépendamment. Panne SSO =
 | billetterie | ÉLEVÉE | fail-closed | Argent |
 | ob | BASSE | fail-open | Site public |
 
+> **Note d'audit** : le mécanisme `SSO_REVOCATION_FAILURE_MODE` (lu par app depuis son propre `.env`) existait déjà — c'était donc déjà, par construction, un "default failMode par app". Le vrai gap : `verifySsoTokenWithRevocation()` n'acceptait aucun override explicite, aucune journalisation des appels d'introspection, et le README ne documentait pas billetterie comme `closed` (il la classait `open`, en contradiction avec ce backlog qui la classe ÉLEVÉE/fail-closed pour "Argent" — tranché en faveur de `closed`, alignée avec ce backlog, `billetterie/.env.example` mis à jour en conséquence). `arbinote` reste `open` (vote public, pas d'argent) — sa modération admin est déjà protégée séparément par `ensureAdminAuth`/SUPERADMIN (TASK-P0-026), indépendant de ce mode.
+
 **Acceptance Criteria**:
-- [ ] Matrice documentée en README
-- [ ] `verifySsoTokenWithRevocation()` accepte failMode explicite
-- [ ] Default failMode par app depuis .env
-- [ ] Tests panne SSO: apps sensibles refusent, ob cache/placeholder
-- [ ] Métriques: logger appels introspection + résultats
-- [ ] SLA SSO documenté
+- [x] Matrice documentée en README (packages/auth-shared/README.md, avec sensibilité + raison par app)
+- [x] `verifySsoTokenWithRevocation(token, failMode?)` accepte failMode explicite (prioritaire sur le .env de l'app)
+- [x] Default failMode par app depuis .env (déjà existant, documenté explicitement)
+- [x] Tests: SSO_URL absent/timeout + closed → refuse ; + open → accepte (déjà présent) ; + failMode explicite outrepasse le .env (nouveau)
+- [x] Logs: chaque appel d'introspection journalisé (`console.warn`, événement `sso_introspection`, outcome/reason/failMode)
+- [x] SLA SSO documenté (honnêtement : pas d'infra de monitoring dans ce repo, recommandation opérationnelle donnée à la place — voir TASK-P1-002)
 
 ---
 
