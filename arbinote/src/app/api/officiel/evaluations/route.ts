@@ -1,8 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOfficialEvalSession } from '@/lib/adminAuth'
-import { createEvaluation, RefereeOfficialEvaluationError } from '@/lib/refereeOfficialEvaluations'
+import { getOfficialEvalSession, canAccessPlatform } from '@/lib/adminAuth'
+import {
+  createEvaluation,
+  listEvaluationsForObserver,
+  listEvaluationsPendingReview,
+  RefereeOfficialEvaluationError,
+} from '@/lib/refereeOfficialEvaluations'
 
 export const runtime = 'nodejs'
+
+/**
+ * GET /api/officiel/evaluations — écran officiel (migration.md §12,
+ * Phase 5) : deux vues selon le rôle, jamais un identifiant/scope fourni
+ * par le client. `REFEREE_OBSERVER` voit ses propres rapports (tous
+ * statuts, y compris DRAFT à finaliser). `FEDERATION_ADMIN` voit la file
+ * d'homologation (SUBMITTED) des matchs RÉELLEMENT gouvernés par sa
+ * fédération (`session.federationId`, relu du JWT, jamais un paramètre de
+ * requête). `PLATFORM_SUPERADMIN`/`SUPERADMIN` voient toute la file, sans
+ * filtre de fédération.
+ */
+export async function GET(request: NextRequest) {
+  const session = await getOfficialEvalSession(request)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    if (session.role === 'REFEREE_OBSERVER') {
+      const evaluations = await listEvaluationsForObserver(session.id)
+      return NextResponse.json(evaluations)
+    }
+    const federationId = canAccessPlatform(session) ? null : session.federationId ?? null
+    const evaluations = await listEvaluationsPendingReview(federationId)
+    return NextResponse.json(evaluations)
+  } catch (error) {
+    console.error('Error listing referee official evaluations:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
 
 /**
  * POST /api/officiel/evaluations — migration.md §12 (Phase 5). Réservé à
