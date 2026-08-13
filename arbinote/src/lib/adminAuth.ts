@@ -74,4 +74,20 @@ export async function getOfficialEvalSession(request: NextRequest): Promise<SsoU
   return session;
 }
 
+/**
+ * Équivalent de `getOfficialEvalSession` pour les Server Components (pas de
+ * `NextRequest` disponible, lecture du cookie via `next/headers` comme
+ * `hasAdminSession`) — utilisé par la page `/admin/officiel` (migration.md
+ * §12, Phase 5) pour savoir qui se connecte (REFEREE_OBSERVER rédige,
+ * FEDERATION_ADMIN homologue, PLATFORM_SUPERADMIN les deux) avant de
+ * choisir quoi afficher.
+ */
+export async function getOfficialEvalPageSession(): Promise<SsoUser | null> {
+  const session = await getSsoSession();
+  if (!session || !OFFICIAL_EVAL_ROLES.has(session.role)) {
+    return null;
+  }
+  return session;
+}
+
 export { redirectToLogin };

@@ -7,6 +7,7 @@ import { useAdminSidebar } from './AdminSidebarContext'
 
 const navItems = [
   { label: 'Votes', href: '/admin/votes', icon: '🗳️' },
+  { label: 'Officiel', href: '/admin/officiel', icon: '🎖️' },
   { label: 'Critères', href: '/admin/criteres', icon: '📋' },
   { label: 'Anomalies', href: '/admin/anomalies', icon: '⚠️' },
   { label: 'Alertes', href: '/admin/alerts', icon: '🔔' },

@@ -1,5 +1,5 @@
 import { getDataSource } from './db'
-import { RefereeOfficialEvaluation, type RefereeOfficialEvaluationStatus } from './entities'
+import { Journee, League, Match, RefereeOfficialEvaluation, Saison, type RefereeOfficialEvaluationStatus } from './entities'
 
 /**
  * migration.md §12 (Phase 5) : évaluation fédérale OFFICIELLE d'un arbitre.
@@ -117,6 +117,41 @@ export async function listEvaluationsForArbitre(arbitreId: string): Promise<Refe
   return dataSource
     .getRepository(RefereeOfficialEvaluation)
     .find({ where: { arbitre_id: arbitreId }, order: { created_at: 'DESC' } })
+}
+
+/** Rapports rédigés par un observateur (tous statuts, y compris DRAFT à finaliser) — écran officiel §12. */
+export async function listEvaluationsForObserver(observerUserId: string): Promise<RefereeOfficialEvaluation[]> {
+  const dataSource = await getDataSource()
+  return dataSource
+    .getRepository(RefereeOfficialEvaluation)
+    .find({ where: { observer_user_id: observerUserId }, order: { created_at: 'DESC' } })
+}
+
+/**
+ * File d'homologation (rapports SUBMITTED) pour un `FEDERATION_ADMIN` —
+ * jointure match → journée → saison → ligue pour ne retourner que les
+ * rapports dont le match est RÉELLEMENT gouverné par cette fédération
+ * (même logique que `getMatchFederationId`, appliquée en filtre de
+ * liste). `federationId` nul (PLATFORM_SUPERADMIN) retourne tous les
+ * rapports SUBMITTED, sans filtre de fédération.
+ */
+export async function listEvaluationsPendingReview(federationId: string | null): Promise<RefereeOfficialEvaluation[]> {
+  const dataSource = await getDataSource()
+  const qb = dataSource
+    .getRepository(RefereeOfficialEvaluation)
+    .createQueryBuilder('evaluation')
+    .where('evaluation.status = :status', { status: 'SUBMITTED' })
+    .orderBy('evaluation.submitted_at', 'ASC')
+
+  if (federationId) {
+    qb.innerJoin(Match, 'match', 'match.id = evaluation.match_id')
+      .innerJoin(Journee, 'journee', 'journee.id = match.journee_id')
+      .innerJoin(Saison, 'saison', 'saison.id = journee.saison_id')
+      .innerJoin(League, 'league', 'league.id = saison.league_id')
+      .andWhere('league.federation_id = :federationId', { federationId })
+  }
+
+  return qb.getMany()
 }
 
 export interface RefereeOfficialStats {
