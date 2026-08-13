@@ -67,7 +67,7 @@ Scheduler périodique (10 min, `instrumentation.ts`) : reprend les demandes en �
 ### TASK-P0-003 — Saga d'annulation ou de report d'un match
 
 **Projets :** `superadmin`, `matchsheet`, `billetterie`, `payment-api`, `teamManager`, `ob`, `notification-api`, `arbinote`
-**Statut :** [!] Bloqué par TASK-P0-001
+**Statut :** [ ] TASK-P0-001 n'est plus bloquante (API de remboursement disponible) ; saga encore à écrire
 
 **Critères d'acceptation :**
 - événement versionné et idempotent `MATCH_CANCELLED`/`MATCH_RESCHEDULED` ;
