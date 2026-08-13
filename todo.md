@@ -623,14 +623,16 @@ Stades mauvaise connectivité. matchsheet crash offline. Implémenter:
 **Projets**: arbinote  
 **Estimation**: 2 jours  
 **Dépendances**: TASK-P0-010  
-**Status**: [ ] À faire
+**Status**: [x] Traité
 
 **Description**:
 Après P0-010 (adminId fixé), implémenter protections accès.
 
-- [ ] GET /api/admin/votes → require SUPERADMIN ou ARBINOTE_ADMIN
-- [ ] POST /api/admin/votes/moderate → require rôle + adminId de JWT
-- [ ] Logs: chaque accès unauthorized
+> **Note d'audit** : les 7 routes `/api/admin/votes*` (list, delete, moderate, anomalies, details, export, single/[id]) appelaient déjà `ensureAdminAuth` (require SUPERADMIN — pas de rôle `ARBINOTE_ADMIN` distinct dans le schéma actuel, seul SUPERADMIN existe pour ce back-office). Le seul gap réel : aucun log des accès refusés. Ajouté `logUnauthorizedAdminAccess` dans `adminAuth.ts` — log structuré (path, method, raison "no_session" vs "role=X", IP, timestamp) à chaque 401.
+
+- [x] GET /api/admin/votes (et les 6 autres routes admin/votes) → require SUPERADMIN (déjà en place)
+- [x] POST /api/admin/votes/moderate → require rôle + adminId de JWT (voir TASK-P0-010)
+- [x] Logs: chaque accès unauthorized (adminAuth.ts, testé dans adminAuth.test.ts)
 
 ---
 
