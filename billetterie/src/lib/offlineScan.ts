@@ -46,6 +46,26 @@ export interface OfflineEvaluation {
 const MANIFEST_KEY = "billetterie:offline-scan:manifest";
 const QUEUE_KEY = "billetterie:offline-scan:queue";
 const LOCAL_USED_KEY = "billetterie:offline-scan:locally-used";
+const TERMINAL_ID_KEY = "billetterie:offline-scan:terminal-id";
+
+/**
+ * Identifiant d'appareil (TASK-P0-008) : généré une fois par navigateur et
+ * persisté en localStorage, jamais rattaché à un compte SSO — sert
+ * uniquement à distinguer deux terminaux qui synchronisent des scans
+ * hors-ligne du même billet (voir src/lib/tickets.ts, syncScans), pour
+ * afficher "billet déjà scanné par le terminal X à telle heure".
+ */
+export function getOrCreateTerminalId(): string {
+  if (typeof window === "undefined") return "server";
+  const existing = window.localStorage.getItem(TERMINAL_ID_KEY);
+  if (existing) return existing;
+  const generated =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `term-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  window.localStorage.setItem(TERMINAL_ID_KEY, generated);
+  return generated;
+}
 
 /**
  * Lit `ticketId` depuis la charge utile d'un JWT sans vérifier la

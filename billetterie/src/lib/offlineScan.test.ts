@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SignJWT } from "jose";
-import { decodeUnverifiedTicketId, evaluateOfflineScan, type OfflineScanManifest } from "./offlineScan";
+import { decodeUnverifiedTicketId, evaluateOfflineScan, getOrCreateTerminalId, type OfflineScanManifest } from "./offlineScan";
 
 async function makeToken(ticketId: string, secret = "any-secret-offline-cannot-check-this") {
   return new SignJWT({ ticketId })
@@ -73,5 +73,12 @@ describe("evaluateOfflineScan", () => {
   it("INVALID pour un jeton qui n'est pas un JWT exploitable", () => {
     const result = evaluateOfflineScan("garbage", manifest(), new Set());
     expect(result.outcome).toBe("INVALID");
+  });
+});
+
+/** TASK-P0-008 : identifiant de terminal, base de la détection de conflit multi-scanner. */
+describe("getOrCreateTerminalId", () => {
+  it("retourne une valeur stable même hors navigateur (environnement de test sans window)", () => {
+    expect(getOrCreateTerminalId()).toBe(getOrCreateTerminalId());
   });
 });

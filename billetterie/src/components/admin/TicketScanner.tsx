@@ -9,6 +9,7 @@ import {
   enqueuePendingScan,
   evaluateOfflineScan,
   getLocallyUsedTicketIds,
+  getOrCreateTerminalId,
   getPendingScans,
   loadManifest,
   markLocallyUsed,
@@ -36,6 +37,14 @@ interface ScanResponse {
   reference?: string;
   matchLabel?: string;
   categoryName?: string;
+  usedAt?: string | null;
+}
+
+interface SyncConflict {
+  outcome: Exclude<RecentScanRow["result"], "SUCCESS">;
+  token: string;
+  reference?: string;
+  usedByTerminalId?: string | null;
   usedAt?: string | null;
 }
 
@@ -88,6 +97,7 @@ export function TicketScanner({
   const [pending, setPending] = useState<PendingScan[]>(() => getPendingScans());
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -124,35 +134,45 @@ export function TicketScanner({
     setManifest(null);
   }
 
+  // TASK-P0-008 : synchronisation en un seul lot (plutôt qu'un fetch par
+  // scan) — le serveur rejoue chaque scan et distingue accepted[] (premier
+  // à réclamer le billet) de conflicts[] (billet déjà scanné par ce lot ou
+  // par un autre terminal). Un échec réseau global (le lot entier
+  // n'atteint pas le serveur) laisse la file intacte pour réessai ; un lot
+  // traité avec des conflits est définitif — ces scans sont retirés de la
+  // file (le serveur a déjà tranché), pas laissés pour un nouvel essai.
   async function syncPending() {
     const queue = getPendingScans();
     if (queue.length === 0) return;
     setSyncing(true);
     setSyncMessage(null);
-    let synced = 0;
-    let failed = 0;
-    for (const item of queue) {
-      try {
-        const res = await fetch("/api/admin/tickets/scan", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: item.token }),
-        });
-        if (!res.ok) throw new Error();
-        removePendingScan(item.id);
-        synced += 1;
-      } catch {
-        failed += 1;
-      }
+    setConflicts([]);
+    try {
+      const terminalId = getOrCreateTerminalId();
+      const res = await fetch("/api/admin/tickets/sync-scans", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scans: queue.map((item) => ({ token: item.token, terminalId, scannedAt: item.scannedAt })),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const body = (await res.json()) as { accepted: { token: string }[]; conflicts: SyncConflict[] };
+
+      for (const item of queue) removePendingScan(item.id);
+      setPending(getPendingScans());
+      setConflicts(body.conflicts);
+      setSyncMessage(
+        body.conflicts.length === 0
+          ? t("scanner.sync.success", { count: body.accepted.length })
+          : t("scanner.sync.partial", { accepted: body.accepted.length, conflicts: body.conflicts.length }),
+      );
+    } catch {
+      setSyncMessage(t("scanner.sync.failed", { synced: 0, failed: queue.length }));
+    } finally {
+      setSyncing(false);
     }
-    setPending(getPendingScans());
-    setSyncMessage(
-      failed === 0
-        ? t("scanner.sync.success", { count: synced })
-        : t("scanner.sync.failed", { synced, failed }),
-    );
-    setSyncing(false);
   }
 
   function processOnlineResult(body: ScanResponse) {
@@ -348,6 +368,22 @@ export function TicketScanner({
             </div>
           )}
           {syncMessage && <p style={{ color: "var(--tk-text-muted)", marginTop: "0.5rem", marginBottom: 0 }}>{syncMessage}</p>}
+          {conflicts.length > 0 && (
+            <div style={{ marginTop: "0.75rem" }}>
+              <strong style={{ fontSize: "0.82rem", color: "var(--tk-danger)" }}>{t("scanner.conflicts.title")}</strong>
+              <div style={{ display: "grid", gap: "0.3rem", marginTop: "0.4rem" }}>
+                {conflicts.map((c, i) => (
+                  <div key={`${c.token}-${i}`} style={{ fontSize: "0.78rem", color: "var(--tk-text-muted)" }}>
+                    {t("scanner.conflicts.item", {
+                      reference: c.reference ?? "—",
+                      terminal: c.usedByTerminalId ?? t("scanner.conflicts.unknownTerminal"),
+                      date: c.usedAt ? new Date(c.usedAt).toLocaleString(dateLocale) : "—",
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

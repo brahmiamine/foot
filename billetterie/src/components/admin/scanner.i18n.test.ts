@@ -43,4 +43,20 @@ describe("états arabes du scanner", () => {
     expect(markup).toContain("تمت مزامنة 2");
     expect(markup).toContain("وفشلت 1");
   });
+
+  it("rend une synchronisation partielle (TASK-P0-008) avec les compteurs interpolés", () => {
+    const markup = renderArabic("scanner.sync.partial", { accepted: 3, conflicts: 2 });
+    expect(markup).toContain("تم قبول 3");
+    expect(markup).toContain("اكتُشف 2");
+  });
+
+  it("rend un conflit de synchronisation avec référence/terminal/date interpolés (TASK-P0-008)", () => {
+    const markup = renderArabic("scanner.conflicts.item", { reference: "REF-1", terminal: "terminal-A", date: "12/08/2026" });
+    expect(markup).toContain("REF-1");
+    expect(markup).toContain("terminal-A");
+  });
+
+  it("rend un billet révoqué (TASK-P0-009)", () => {
+    expect(renderArabic("scanner.result.revoked")).toContain("ملغاة");
+  });
 });

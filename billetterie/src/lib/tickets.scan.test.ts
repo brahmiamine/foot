@@ -175,3 +175,79 @@ describe("scanTicket (SQLite réel)", () => {
     expect(recent.every((r) => r.reference === ticket.reference)).toBe(true);
   });
 });
+
+/** TASK-P0-008 : synchro batch multi-scanner (deux terminaux, un seul billet physique). */
+describe("syncScans (SQLite réel)", () => {
+  it("deux terminaux synchronisent le même billet dans deux lots séparés : 1 accepted, puis 1 conflict avec le terminal gagnant", async () => {
+    const { syncScans } = await import("./tickets");
+    const { signTicketToken } = await import("./ticketQr");
+    const { matchTicketCategory } = await seedMatchWithCategory(dataSource);
+    const ticket = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    const token = await signTicketToken(ticket.id);
+
+    const first = await syncScans([{ token, terminalId: "terminal-A" }], "admin-1");
+    expect(first.accepted).toHaveLength(1);
+    expect(first.conflicts).toHaveLength(0);
+
+    const second = await syncScans([{ token, terminalId: "terminal-B" }], "admin-1");
+    expect(second.accepted).toHaveLength(0);
+    expect(second.conflicts).toHaveLength(1);
+    expect(second.conflicts[0].outcome).toBe("ALREADY_USED");
+    expect(second.conflicts[0].usedByTerminalId).toBe("terminal-A");
+  });
+
+  it("un même lot contenant deux fois le même billet (deux scans hors-ligne du même terminal) : 1 accepted, 1 conflict", async () => {
+    const { syncScans } = await import("./tickets");
+    const { signTicketToken } = await import("./ticketQr");
+    const { matchTicketCategory } = await seedMatchWithCategory(dataSource);
+    const ticket = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    const token = await signTicketToken(ticket.id);
+
+    const result = await syncScans(
+      [
+        { token, terminalId: "terminal-A" },
+        { token, terminalId: "terminal-A" },
+      ],
+      "admin-1",
+    );
+
+    expect(result.accepted).toHaveLength(1);
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0].usedByTerminalId).toBe("terminal-A");
+  });
+
+  it("un lot mixte (billets distincts) accepte chaque billet indépendamment", async () => {
+    const { syncScans } = await import("./tickets");
+    const { signTicketToken } = await import("./ticketQr");
+    const { matchTicketCategory } = await seedMatchWithCategory(dataSource);
+    const ticketA = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    const ticketB = await seedTicket(dataSource, matchTicketCategory, { status: "PAID" });
+    const tokenA = await signTicketToken(ticketA.id);
+    const tokenB = await signTicketToken(ticketB.id);
+
+    const result = await syncScans(
+      [
+        { token: tokenA, terminalId: "terminal-A" },
+        { token: tokenB, terminalId: "terminal-B" },
+      ],
+      "admin-1",
+    );
+
+    expect(result.accepted).toHaveLength(2);
+    expect(result.conflicts).toHaveLength(0);
+  });
+
+  it("un billet non payé dans le lot ressort en conflict avec l'outcome NOT_PAID", async () => {
+    const { syncScans } = await import("./tickets");
+    const { signTicketToken } = await import("./ticketQr");
+    const { matchTicketCategory } = await seedMatchWithCategory(dataSource);
+    const ticket = await seedTicket(dataSource, matchTicketCategory, { status: "PENDING" });
+    const token = await signTicketToken(ticket.id);
+
+    const result = await syncScans([{ token, terminalId: "terminal-A" }], "admin-1");
+
+    expect(result.accepted).toHaveLength(0);
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0].outcome).toBe("NOT_PAID");
+  });
+});

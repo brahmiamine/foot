@@ -239,20 +239,20 @@ Actuellement outbox persiste mais sans worker autonome robuste. Webhooks perdus.
 **Projets**: billetterie  
 **Estimation**: 5 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité (voir billetterie/src/lib/tickets.ts `syncScans`, src/app/api/admin/tickets/sync-scans/route.ts, src/lib/offlineScan.ts `getOrCreateTerminalId`)
 
 **Description**:
 Deux scanners hors ligne peuvent scanner même billet. Implémenter synchro robuste:
 
-- [ ] IndexedDB: local storage tickets + scanEvents
-- [ ] Scan offline: enregistrer localement, marquer ticket scanné
-- [ ] Synchro: POST /api/admin/tickets/sync-scans avec terminalId
-- [ ] Serveur: détecter doublons, retourner conflicts[]
-- [ ] Client: afficher conflicts (UI: "Billet scanné terminal X à 14:32")
+- [ ] IndexedDB: local storage tickets + scanEvents — **non fait, existant conservé** : le repo utilise déjà `localStorage` (pas IndexedDB) pour le manifeste/la file/les tickets marqués localement (`src/lib/offlineScan.ts`, en place avant cette tâche). Remplacer par IndexedDB serait un changement d'infra sans rapport avec le vrai problème (la détection de conflit), non fait pour rester dans le scope
+- [x] Scan offline: enregistrer localement, marquer ticket scanné — déjà en place (`enqueuePendingScan`, `markLocallyUsed`), inchangé
+- [x] Synchro: POST /api/admin/tickets/sync-scans avec terminalId — nouvelle route batch (remplace l'ancienne synchro scan-par-scan sur `/api/admin/tickets/scan`), `terminalId` généré une fois par navigateur et persisté (`getOrCreateTerminalId`, jamais rattaché à un compte)
+- [x] Serveur: détecter doublons, retourner conflicts[] — `syncScans()` rejoue chaque scan via `scanTicket()` (même relecture d'état que le scan en ligne, aucune logique dupliquée) ; nouvelle garde atomique `UPDATE tk_tickets SET status='USED' WHERE id=... AND status='PAID'` (`affected !== 1` ⇒ conflict) pour trancher même en cas de synchro quasi simultanée entre deux terminaux, pas seulement pour des scans séquentiels. `conflicts[]` inclut aussi les rejets non liés à un doublon (NOT_PAID, MATCH_CANCELLED, REVOKED, INVALID) — un lot traité produit toujours accepted.length + conflicts.length === scans.length
+- [x] Client: afficher conflicts (UI: "Billet scanné terminal X à 14:32") — `TicketScanner.tsx`, section "Conflits de synchronisation" sous le panneau hors-ligne, résout `usedByTerminalId` depuis le dernier `TicketScanLog` SUCCESS du billet (nouvelle colonne `terminal_id`, migration `sql/migration_add_ticket_scan_sync.sql`)
 
 **Tests**:
-- [ ] 2 terminaux scannent même QR hors ligne → sync → 1 accepted, 1 conflict
-- [ ] Scan après 24h → allowed
+- [x] 2 terminaux scannent même QR hors ligne → sync → 1 accepted, 1 conflict — `tickets.scan.test.ts` (2 lots séparés + 1 lot contenant le doublon), + cas lot mixte et billet non payé
+- [ ] Scan après 24h → allowed — **non fait, en désaccord avec l'invariant métier** : un billet est à usage unique (`status USED` définitif), aucune autre partie du code ne suggère qu'un billet redevienne scannable après 24h ; implémenter ça romprait le contrôle d'accès (un même billet réutilisable le lendemain). Probable erreur de rédaction du todo (peut-être visait la fraîcheur du manifeste hors-ligne, déjà couverte par la relecture d'état à la synchro) — laissé pour décision produit plutôt que fabriqué
 
 ---
 

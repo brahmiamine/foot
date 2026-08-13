@@ -27,6 +27,17 @@ export class TicketScanLog {
   @Column({ type: "varchar", length: 191, name: "scanned_by" })
   scannedBy!: string;
 
+  /**
+   * Identifiant d'appareil (TASK-P0-008), généré et persisté côté client
+   * (voir src/lib/offlineScan.ts, getOrCreateTerminalId) — distingue deux
+   * terminaux utilisés par le même admin/staff. NULL pour un scan en ligne
+   * sans contexte multi-terminal (route /api/admin/tickets/scan appelée
+   * directement) — seule la synchro batch (/sync-scans) le renseigne
+   * systématiquement.
+   */
+  @Column({ type: "varchar", length: 64, name: "terminal_id", nullable: true })
+  terminalId!: string | null;
+
   @CreateDateColumn({ type: "datetime", name: "scanned_at" })
   scannedAt!: Date;
 }

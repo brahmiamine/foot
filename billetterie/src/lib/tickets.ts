@@ -727,21 +727,26 @@ export interface ScanResult {
  * de match par le staff) : le nom des équipes et la catégorie sont
  * retournés pour que le staff les confronte visuellement à l'écran,
  * comme dans la plupart des scanners d'entrée en usage réel.
+ *
+ * `terminalId` (TASK-P0-008) identifie l'appareil qui a fait le scan —
+ * utile pour distinguer deux terminaux du même staff lors de la synchro
+ * hors-ligne (syncScans ci-dessous) : "billet déjà scanné par le terminal
+ * X à telle heure".
  */
-export async function scanTicket(token: string, scannedBy: string): Promise<ScanResult> {
+export async function scanTicket(token: string, scannedBy: string, terminalId?: string): Promise<ScanResult> {
   const ds = await getDataSource();
   const scanLogRepo = ds.getRepository(TicketScanLog);
 
   const ticketId = await verifyTicketToken(token);
   if (!ticketId) {
-    await scanLogRepo.save(scanLogRepo.create({ ticketId: null, result: "INVALID", scannedBy }));
+    await scanLogRepo.save(scanLogRepo.create({ ticketId: null, result: "INVALID", scannedBy, terminalId: terminalId ?? null }));
     return { outcome: "INVALID" };
   }
 
   const ticketRepo = ds.getRepository(Ticket);
   const ticket = await ticketRepo.findOne({ where: { id: ticketId } });
   if (!ticket) {
-    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "INVALID", scannedBy }));
+    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "INVALID", scannedBy, terminalId: terminalId ?? null }));
     return { outcome: "INVALID" };
   }
 
@@ -752,29 +757,123 @@ export async function scanTicket(token: string, scannedBy: string): Promise<Scan
 
   const base = { reference: ticket.reference, matchLabel, categoryName: category?.name };
 
+  async function log(result: ScanOutcome) {
+    await scanLogRepo.save(scanLogRepo.create({ ticketId, result, scannedBy, terminalId: terminalId ?? null }));
+  }
+
   if (ticket.revoked) {
-    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "REVOKED", scannedBy }));
+    await log("REVOKED");
     return { outcome: "REVOKED", ...base };
   }
 
   if (match?.status === "CANCELLED") {
-    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "MATCH_CANCELLED", scannedBy }));
+    await log("MATCH_CANCELLED");
     return { outcome: "MATCH_CANCELLED", ...base };
   }
 
   if (ticket.status === "USED") {
-    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "ALREADY_USED", scannedBy }));
+    await log("ALREADY_USED");
     return { outcome: "ALREADY_USED", ...base, usedAt: ticket.usedAt };
   }
 
   if (ticket.status !== "PAID") {
-    await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "NOT_PAID", scannedBy }));
+    await log("NOT_PAID");
     return { outcome: "NOT_PAID", ...base };
   }
 
-  await ticketRepo.update({ id: ticketId }, { status: "USED", usedAt: new Date() });
-  await scanLogRepo.save(scanLogRepo.create({ ticketId, result: "SUCCESS", scannedBy }));
+  // TASK-P0-008 : UPDATE conditionnel atomique — deux scans quasi simultanés
+  // du même billet (ex. deux terminaux qui synchronisent leur file
+  // hors-ligne en parallèle) pourraient sinon tous les deux lire status =
+  // PAID avant qu'aucun n'écrive USED. affected !== 1 signifie qu'un autre
+  // scan a gagné la course entre notre lecture et notre écriture : on
+  // relit alors l'état réel pour renvoyer un ALREADY_USED fidèle plutôt
+  // qu'un faux SUCCESS.
+  const usedAt = new Date();
+  const updateResult = await ticketRepo
+    .createQueryBuilder()
+    .update(Ticket)
+    .set({ status: "USED", usedAt })
+    .where("id = :id AND status = :expected", { id: ticketId, expected: "PAID" })
+    .execute();
+
+  if (updateResult.affected !== 1) {
+    const reloaded = await ticketRepo.findOne({ where: { id: ticketId } });
+    await log("ALREADY_USED");
+    return { outcome: "ALREADY_USED", ...base, usedAt: reloaded?.usedAt ?? null };
+  }
+
+  await log("SUCCESS");
   return { outcome: "SUCCESS", ...base };
+}
+
+export interface SyncScanInput {
+  token: string;
+  terminalId: string;
+  /** Horodatage du scan hors-ligne côté client — informatif, jamais source de vérité (voir scanTicket). */
+  scannedAt?: string;
+}
+
+export interface SyncScanAccepted {
+  outcome: "SUCCESS";
+  token: string;
+  reference?: string;
+}
+
+export interface SyncScanConflict {
+  outcome: Exclude<ScanOutcome, "SUCCESS">;
+  token: string;
+  reference?: string;
+  /** Terminal qui a le premier marqué ce billet USED (issu du dernier TicketScanLog SUCCESS), quand connu. */
+  usedByTerminalId?: string | null;
+  usedAt?: Date | null;
+}
+
+export interface SyncScansResult {
+  accepted: SyncScanAccepted[];
+  conflicts: SyncScanConflict[];
+}
+
+/**
+ * Synchronisation batch des scans accumulés hors-ligne par un terminal
+ * (TASK-P0-008). Rejoue chaque scan via scanTicket (même logique, même
+ * relecture d'état, même journalisation) — aucune règle dupliquée. Les
+ * scans sont traités séquentiellement (pas Promise.all) : ça évite qu'un
+ * batch synchronisé par un seul terminal se fasse concurrence à
+ * lui-même, la garde atomique dans scanTicket couvrant déjà la course
+ * entre deux terminaux différents synchronisant en parallèle.
+ */
+export async function syncScans(scans: SyncScanInput[], scannedBy: string): Promise<SyncScansResult> {
+  const ds = await getDataSource();
+  const scanLogRepo = ds.getRepository(TicketScanLog);
+  const accepted: SyncScanAccepted[] = [];
+  const conflicts: SyncScanConflict[] = [];
+
+  for (const scan of scans) {
+    const result = await scanTicket(scan.token, scannedBy, scan.terminalId);
+    if (result.outcome === "SUCCESS") {
+      accepted.push({ outcome: "SUCCESS", token: scan.token, reference: result.reference });
+      continue;
+    }
+
+    let usedByTerminalId: string | null = null;
+    if (result.outcome === "ALREADY_USED") {
+      const ticketId = await verifyTicketToken(scan.token);
+      const priorSuccess = ticketId
+        ? await scanLogRepo.findOne({ where: { ticketId, result: "SUCCESS" }, order: { scannedAt: "DESC" } })
+        : null;
+      usedByTerminalId = priorSuccess?.terminalId ?? null;
+    }
+
+    conflicts.push({
+      outcome: result.outcome,
+      token: scan.token,
+      reference: result.reference,
+      usedByTerminalId,
+      usedAt: result.usedAt ?? null,
+    });
+  }
+
+  return { accepted, conflicts };
 }
 
 export interface RecentScan {

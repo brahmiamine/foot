@@ -12,11 +12,11 @@ Liste des matchs, détail et catégories; achat membre; retour de paiement; espa
 
 ## Fonctionnalités administratives
 
-Scanner `/admin/scan`: téléchargement du manifeste hors ligne, validation en ligne ou locale et resynchronisation du journal de scan (`TicketScanLog`). Le rapprochement `/admin/audience-mismatch` liste les déclarations HOME/AWAY incohérentes et permet leur traitement. La configuration catégories/règles reste dans teamManager.
+Scanner `/admin/scan`: téléchargement du manifeste hors ligne, validation en ligne ou locale et resynchronisation batch du journal de scan (`TicketScanLog`) — deux terminaux qui scannent hors-ligne le même billet obtiennent un accepted et un conflict à la synchro (`POST /api/admin/tickets/sync-scans`, TASK-P0-008), grâce à une garde atomique (`UPDATE ... WHERE status = 'PAID'`) qui tranche même en cas de synchro quasi simultanée. Le rapprochement `/admin/audience-mismatch` liste les déclarations HOME/AWAY incohérentes et permet leur traitement. La configuration catégories/règles reste dans teamManager.
 
 ## API
 
-`/api/admin/tickets/audience-mismatch/[id]` (traiter un écart), `/api/admin/tickets/audience-mismatch`, `/api/admin/tickets/offline-manifest` (manifeste des QR admis, exclut les billets révoqués), `/api/admin/tickets/scan` (contrôle et ingestion du journal hors ligne), `/api/admin/tickets/[id]/revoke` (PATCH révoque un billet ciblé, DELETE annule la révocation — TASK-P0-009), `/api/cron/purge-pending-reservations` (libération des réservations `PENDING` expirées), `/api/health`, `/api/payments/webhook` (confirmation asynchrone signée), `/api/tickets`
+`/api/admin/tickets/audience-mismatch/[id]` (traiter un écart), `/api/admin/tickets/audience-mismatch`, `/api/admin/tickets/offline-manifest` (manifeste des QR admis, exclut les billets révoqués), `/api/admin/tickets/scan` (contrôle en ligne, scan unitaire), `/api/admin/tickets/sync-scans` (synchro batch des scans accumulés hors-ligne par un terminal, distingue accepted[]/conflicts[] — TASK-P0-008), `/api/admin/tickets/[id]/revoke` (PATCH révoque un billet ciblé, DELETE annule la révocation — TASK-P0-009), `/api/cron/purge-pending-reservations` (libération des réservations `PENDING` expirées), `/api/health`, `/api/payments/webhook` (confirmation asynchrone signée), `/api/tickets`
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
