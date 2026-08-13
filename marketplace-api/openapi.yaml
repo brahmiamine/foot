@@ -32,6 +32,29 @@ paths:
         "200": { description: OK }
         "503": { description: DB injoignable }
 
+  /health/inventory:
+    get:
+      operationId: getInventoryHealth
+      summary: Métrique d'oversell (TASK-P0-005) — sonde ops, cible zéro
+      description: >
+        Compte les InventoryItem dont `available` est négatif — ne devrait
+        jamais arriver en fonctionnement normal, l'UPDATE conditionnel de
+        InventoryService.reserveStock empêchant tout stock négatif. Sonde
+        défensive, pas un chemin attendu.
+      security: []
+      tags: [health]
+      responses:
+        "200":
+          description: Statistique d'oversell.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  violatingItemCount: { type: integer }
+                  timestamp: { type: string, format: date-time }
+
   /auth/register:
     post:
       operationId: registerSeller

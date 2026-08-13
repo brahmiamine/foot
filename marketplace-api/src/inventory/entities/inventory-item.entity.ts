@@ -14,9 +14,10 @@ import { ProductVariant } from '../../variants/entities/product-variant.entity';
 /**
  * Une ligne de stock par produit (sans variantes) ou par variante.
  * `available` est la seule quantité que le vendeur peut modifier
- * directement ; `reserved`/`sold` seront dérivés du traitement des
- * commandes une fois seller-orders/orders sortis du stade scaffolding
- * (E06/US-06).
+ * directement (voir InventoryService.setAvailable) ; `reserved`/`sold`
+ * sont dérivés exclusivement des réservations transactionnelles
+ * (TASK-P0-005, todo.md — voir InventoryService.reserveStock/
+ * confirmReservation/releaseReservation), jamais assignés directement.
  */
 @Entity('sp_inventory_items')
 @Index(['productId', 'variantId'], { unique: true })
