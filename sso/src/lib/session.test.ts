@@ -46,7 +46,7 @@ describe("verifySessionToken", () => {
       email: user.email,
       name: user.name,
       role: user.role,
-      teamId: user.teamId,
+      teamId: user.teamId ?? null,
       tokenVersion: 2,
     });
     const token = response.cookies.get("foot_sso_session")?.value;
@@ -171,7 +171,7 @@ describe("verifySessionToken", () => {
       email: user.email,
       name: user.name,
       role: user.role,
-      teamId: user.teamId,
+      teamId: user.teamId ?? null,
       tokenVersion: 0,
     });
     const oldToken = response.cookies.get("foot_sso_session")?.value!;
@@ -192,7 +192,7 @@ describe("verifySessionToken", () => {
       email: user.email,
       name: user.name,
       role: user.role,
-      teamId: user.teamId,
+      teamId: user.teamId ?? null,
       tokenVersion: 0,
     });
     const newToken = response2.cookies.get("foot_sso_session")?.value!;
