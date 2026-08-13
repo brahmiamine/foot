@@ -38,7 +38,7 @@ export async function getRefereeOfficialAnalytics(arbitreId: string): Promise<Re
   const trend = evaluations.map((evaluation) => ({
     evaluationId: evaluation.id,
     matchId: evaluation.match_id,
-    date: (evaluation.validated_at ?? evaluation.created_at).toISOString(),
+    date: evaluation.validated_at?.toISOString() ?? evaluation.created_at?.toISOString() ?? '',
     note: Number(evaluation.note_officielle),
     observerUserId: evaluation.observer_user_id,
   }))
