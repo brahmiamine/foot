@@ -10,6 +10,8 @@ import { PaymeeModule } from './providers/paymee/paymee.module';
 import { FlouciController } from './providers/flouci/flouci.controller';
 import { FlouciModule } from './providers/flouci/flouci.module';
 import { OutboxModule } from '../outbox/outbox.module';
+import { PaymentReconciliationService } from './payment-reconciliation.service';
+import { PaymentReconciliationHealthController } from './payment-reconciliation-health.controller';
 
 @Module({
   imports: [
@@ -24,8 +26,9 @@ import { OutboxModule } from '../outbox/outbox.module';
     KonnectController,
     PaymeeController,
     FlouciController,
+    PaymentReconciliationHealthController,
   ],
-  providers: [PaymentService],
+  providers: [PaymentService, PaymentReconciliationService],
   exports: [PaymentService],
 })
 export class PaymentModule {}

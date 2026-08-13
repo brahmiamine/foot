@@ -413,17 +413,16 @@ Réouverture match doit être idempotente (peut être rejouée sans double effet
 **Projets**: payment-api  
 **Estimation**: 4 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité pour Konnect/Flouci — Paymee non réconciliable (voir note)
 
-**Description**:
-Aucune réconciliation paiement ↔ fournisseur. Paiements perdus silencieusement.
+> **Note d'audit** : `PaymentReconciliationService` tourne toutes les heures (plus réactif qu'un job strictement quotidien, qui laisserait un paiement bloqué jusqu'à 24h) et réutilise directement `handleKonnectWebhook`/`handleFlouciWebhook` — même vérification serveur-à-serveur et transition PAID (avec enqueue outbox) qu'un webhook réel. **Paymee exclu** : son intégration (`PaymeeClient`) n'expose que `createPayment`, aucune méthode de consultation de statut server-à-server — la vérification Paymee dépend entièrement du webhook signé (checksum fournisseur), qui ne peut pas être simulé côté serveur sans le payload original. Un paiement Paymee dont le webhook s'est perdu ne peut donc être récupéré que manuellement par les ops tant que cette lacune de l'intégration Paymee (hors périmètre de cette tâche) n'est pas comblée.
 
-- [ ] Job daily: cherche payments stale (PENDING > 1h)
-- [ ] Polling fournisseur pour chaque
-- [ ] Mettre à jour payment.status si changé
-- [ ] Créer outbox event si COMPLETED (rejeu webhook)
-- [ ] Rapport daily: stale count, resolved count, still pending
-- [ ] Alerte ops si still pending > 10
+- [x] Job périodique (toutes les heures) : cherche payments stale (PENDING > 1h), Konnect/Flouci uniquement
+- [x] Polling fournisseur pour chaque (réutilise handleKonnectWebhook/handleFlouciWebhook)
+- [x] Mettre à jour payment.status si changé (via la même logique que le webhook réel)
+- [x] Créer outbox event si COMPLETED (déjà fait par transitionToPaid, réutilisé)
+- [x] Rapport : stale count, resolved count, still pending — loggé + exposé via `GET /health/reconciliation` (même pattern que TASK-P0-006)
+- [x] Alerte ops si still pending > 10 (log `error` dédié)
 
 ---
 
