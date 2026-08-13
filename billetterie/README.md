@@ -66,4 +66,6 @@ Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `su
 
 ## Limites connues
 
-`allowedAudience` repose encore sur une déclaration de l'acheteur: aucune preuve d'affiliation HOME/AWAY. Le mode hors ligne exporte un manifeste et journalise localement, mais la convergence dépend d'un retour réseau et les scans concurrents peuvent nécessiter un rapprochement. Pas de remboursement automatique.
+`allowedAudience` repose encore sur une déclaration de l'acheteur: aucune preuve d'affiliation HOME/AWAY. Le mode hors ligne exporte un manifeste et journalise localement, mais la convergence dépend d'un retour réseau et les scans concurrents peuvent nécessiter un rapprochement.
+
+**Remboursement automatique (TASK-P0-002)** : un paiement confirmé après libération de la capacité (`PAID_STOCK_UNAVAILABLE`) ouvre automatiquement un dossier de remboursement auprès de payment-api (voir `src/lib/stockUnavailableRefunds.ts`) au lieu de se limiter à un log pour traitement manuel. Le remboursement lui-même n'est automatisé que pour Flouci (voir `payment-api/README.md` § Remboursements) ; Konnect/Paymee passent par `MANUAL_REVIEW` côté payment-api, suivi jusqu'à résolution par le scheduler périodique (`instrumentation.ts`, alerte ops après 24h sans résolution).

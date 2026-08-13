@@ -13,16 +13,21 @@ vi.mock("@/lib/database", () => ({
 
 const initPayment = vi.fn();
 const getPaymentStatus = vi.fn();
+const requestRefund = vi.fn();
 vi.mock("@/lib/paymentApiClient", () => ({
   getPaymentProvider: () => "konnect",
   initPayment: (...args: unknown[]) => initPayment(...args),
   getPaymentStatus: (...args: unknown[]) => getPaymentStatus(...args),
+  requestRefund: (...args: unknown[]) => requestRefund(...args),
+  getRefundStatus: vi.fn(),
 }));
 
 beforeEach(async () => {
   dataSource = await createTestDataSource();
   initPayment.mockReset();
   getPaymentStatus.mockReset();
+  requestRefund.mockReset();
+  requestRefund.mockResolvedValue({ id: "refund-1", status: "MANUAL_REVIEW" });
 });
 
 afterEach(async () => {
@@ -169,6 +174,11 @@ describe("reconcileOrderPayment (SQLite réel)", () => {
     const result = await reconcileOrderPayment("pay_1");
 
     expect(result).toBe("PAID_STOCK_UNAVAILABLE");
+    // TASK-P0-002 : une demande de remboursement est déclenchée
+    // automatiquement plutôt que de laisser un simple signal pour ops.
+    expect(requestRefund).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentId: "pay_1", idempotencyKey: "stock-unavailable:pay_1" }),
+    );
   });
 
   it("une commande CANCELLED dont le paiement reste non confirmé reste CANCELLED", async () => {

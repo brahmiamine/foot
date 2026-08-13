@@ -120,3 +120,75 @@ export async function getPaymentStatus(paymentId: string): Promise<PaymentApiSta
   }
   return "UNKNOWN";
 }
+
+export type RefundStatus = "REQUESTED" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "MANUAL_REVIEW";
+
+export interface RequestRefundInput {
+  paymentId: string;
+  reason: string;
+  /** Scopée par paiement côté payment-api (Refund.paymentId + idempotencyKey) — un même appel rejoué ne crée jamais un second remboursement. */
+  idempotencyKey: string;
+}
+
+export interface RefundResult {
+  id: string;
+  status: RefundStatus;
+}
+
+/**
+ * TASK-P0-002 (todo.md) : demande un remboursement auprès de payment-api
+ * (TASK-P0-001) pour un paiement confirmé après restockage — voir
+ * src/lib/stockUnavailableRefunds.ts, seul appelant. `status` reflète
+ * toujours l'issue réelle : SUCCEEDED/FAILED (Flouci automatisé) ou
+ * MANUAL_REVIEW (Konnect/Paymee, ou remboursement partiel Flouci) — jamais
+ * un succès simulé. Même client que billetterie/src/lib/paymentApiClient.ts.
+ */
+export async function requestRefund(input: RequestRefundInput): Promise<RefundResult> {
+  const { baseUrl, apiKey } = getConfig();
+
+  const response = await fetch(`${baseUrl}/payments/${input.paymentId}/refunds`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "idempotency-key": input.idempotencyKey },
+    body: JSON.stringify({ reason: input.reason }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Échec de la demande de remboursement (payment-api ${response.status}): ${body}`);
+  }
+
+  const data = (await response.json()) as { id?: string; status?: string };
+  if (!data.id || !data.status) {
+    throw new Error("Réponse inattendue de payment-api : id ou status de remboursement manquant.");
+  }
+
+  return { id: data.id, status: data.status as RefundStatus };
+}
+
+/** Relit le statut courant d'un remboursement déjà demandé (voir requestRefund). */
+export async function getRefundStatus(refundId: string): Promise<RefundStatus | "UNKNOWN"> {
+  const { baseUrl, apiKey } = getConfig();
+
+  const response = await fetch(`${baseUrl}/refunds/${refundId}`, {
+    headers: { "x-api-key": apiKey },
+    cache: "no-store",
+  });
+
+  if (response.status === 404) return "UNKNOWN";
+  if (!response.ok) {
+    throw new Error(`Échec de la lecture du statut de remboursement (payment-api ${response.status}).`);
+  }
+
+  const data = (await response.json()) as { refund?: { status?: string } };
+  const status = data.refund?.status;
+  if (
+    status === "REQUESTED" ||
+    status === "PROCESSING" ||
+    status === "SUCCEEDED" ||
+    status === "FAILED" ||
+    status === "MANUAL_REVIEW"
+  ) {
+    return status;
+  }
+  return "UNKNOWN";
+}

@@ -11,6 +11,7 @@ import { generateTicketReference } from "@/lib/reference";
 import { getPaymentProvider, getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
 import { fetchMemberAffiliatedTeamIds, fetchMemberProfile } from "@/lib/ssoProfileClient";
 import { verifyTicketToken } from "@/lib/ticketQr";
+import { openStockUnavailableRefundCase } from "@/lib/stockUnavailableRefunds";
 
 export interface OpenMatchSummary {
   id: string;
@@ -460,9 +461,14 @@ export type ReconcileResult = "PAID" | "PENDING" | "CANCELLED" | "PAID_STOCK_UNA
  * le client aurait alors payé sans repartir avec son billet, sans que
  * personne ne le sache. On vérifie donc explicitement le statut réel du
  * paiement dans ce cas précis plutôt que de faire confiance à l'état local.
- * Pas de remboursement automatique : payment-api n'expose encore aucune
- * primitive de remboursement (voir TASK-P1-007) — on journalise donc un
- * signal fort pour réconciliation manuelle par les ops.
+ *
+ * TASK-P0-002 : ouvre automatiquement un dossier de remboursement auprès de
+ * payment-api (TASK-P0-001) plutôt que de se limiter à journaliser un
+ * signal pour traitement manuel — voir
+ * src/lib/stockUnavailableRefunds.ts#openStockUnavailableRefundCase,
+ * idempotent (rejouer reconcileTicketPayment plusieurs fois pour ce
+ * paiement n'ouvre jamais un second dossier ni ne redemande un second
+ * remboursement).
  */
 export async function reconcileTicketPayment(paymentId: string): Promise<ReconcileResult> {
   const ds = await getDataSource();
@@ -484,6 +490,7 @@ export async function reconcileTicketPayment(paymentId: string): Promise<Reconci
           timestamp: new Date().toISOString(),
         }),
       );
+      await openStockUnavailableRefundCase(paymentId);
       return "PAID_STOCK_UNAVAILABLE";
     }
     return "CANCELLED";
