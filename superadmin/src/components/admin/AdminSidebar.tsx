@@ -11,6 +11,7 @@ const navItems = [
   { label: 'Saisons', href: '/admin/saisons', icon: 'bx bx-calendar-event' },
   { label: 'Journées', href: '/admin/journees', icon: 'bx bx-calendar' },
   { label: 'Équipes', href: '/admin/teams', icon: 'bx bx-group' },
+  { label: 'Joueurs', href: '/admin/joueurs', icon: 'bx bx-run' },
   { label: 'Clubs', href: '/admin/club', icon: 'bx bx-shield-quarter' },
   { label: 'Matchs', href: '/admin/matches', icon: 'bx bx-football' },
   { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },

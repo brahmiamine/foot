@@ -1,8 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureServiceAuth } from "@/lib/serviceAuth";
-import { createTransfer, PlayerTransferError } from "@/services/PlayerTransferService";
+import { createTransfer, listTransfers, PlayerTransferError } from "@/services/PlayerTransferService";
+import type { PlayerTransferStatus } from "@/entities/PlayerTransfer";
 
 export const runtime = "nodejs";
+
+const VALID_STATUSES = new Set<PlayerTransferStatus>(["DRAFT", "PENDING", "APPROVED", "COMPLETED", "CANCELLED", "REJECTED"]);
+
+/**
+ * GET /api/internal/player-transfers — migration.md §23, service-à-service
+ * uniquement. Appelée par `superadmin` pour le tableau de bord Transferts
+ * — pas de filtre par fédération ici (voir `listTransfers`), `superadmin`
+ * filtre le résultat après coup avec sa propre connaissance des
+ * affiliations (`team_affiliations`, absente de cette base).
+ */
+export async function GET(request: NextRequest) {
+  const unauthorized = ensureServiceAuth(request);
+  if (unauthorized) return unauthorized;
+
+  const statusParam = request.nextUrl.searchParams.get("status");
+  const status = statusParam && VALID_STATUSES.has(statusParam as PlayerTransferStatus) ? (statusParam as PlayerTransferStatus) : undefined;
+
+  try {
+    const transfers = await listTransfers(status);
+    return NextResponse.json(transfers);
+  } catch (error) {
+    console.error("Error listing player transfers:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
 
 /**
  * POST /api/internal/player-transfers — migration.md §19, service-à-service
