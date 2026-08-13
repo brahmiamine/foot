@@ -3,6 +3,8 @@ import { Match, Journee, Sheet } from './entities'
 import { toPlain, toPlainArray } from './serialization'
 import { notify } from './notificationClient'
 import { reopenSheet } from './matchsheetClient'
+import { assertSeasonDateCoherence, findScheduleConflicts, ScheduleConflict, ScheduleConflictError } from './scheduleConflicts'
+import { withScheduleLock } from './scheduleLock'
 
 export interface MatchCreateInput {
   journee_id: string
@@ -12,6 +14,8 @@ export interface MatchCreateInput {
   score_home?: number | null
   score_away?: number | null
   arbitre_id?: string | null
+  /** Motif obligatoire pour passer outre un conflit de programmation détecté (§TASK-P0-008). */
+  derogation_reason?: string | null
 }
 
 export interface MatchUpdateInput {
@@ -22,6 +26,21 @@ export interface MatchUpdateInput {
   arbitre_id?: string | null
   equipe_home?: string | null
   equipe_away?: string | null
+  derogation_reason?: string | null
+}
+
+export interface MatchMutationResult {
+  match: ReturnType<typeof toPlain<Match>>
+  /** Conflits détectés et volontairement outrepassés via `derogation_reason` — à consigner à l'audit par l'appelant. */
+  overriddenConflicts: ScheduleConflict[]
+}
+
+const MIN_DEROGATION_REASON_LENGTH = 10
+
+function requireDerogationReason(reason: string | null | undefined, conflicts: ScheduleConflict[]): void {
+  if (!reason || reason.trim().length < MIN_DEROGATION_REASON_LENGTH) {
+    throw new ScheduleConflictError(conflicts)
+  }
 }
 
 function parseDate(value?: string | null) {
@@ -86,7 +105,11 @@ export async function fetchJourneesForAdmin(leagueId?: string | null) {
   return toPlainArray(rows)
 }
 
-export async function updateMatchAdmin(id: string, payload: MatchUpdateInput, leagueId?: string | null) {
+export async function updateMatchAdmin(
+  id: string,
+  payload: MatchUpdateInput,
+  leagueId?: string | null,
+): Promise<MatchMutationResult> {
   const dataSource = await getDataSource()
   const repo = dataSource.getRepository<Match>('matches')
   const match = await repo.findOne({
@@ -115,13 +138,41 @@ export async function updateMatchAdmin(id: string, payload: MatchUpdateInput, le
     }
   }
 
+  const newEquipeHomeId =
+    payload.equipe_home !== undefined && payload.equipe_home ? payload.equipe_home : match.equipe_home_id
+  const newEquipeAwayId =
+    payload.equipe_away !== undefined && payload.equipe_away ? payload.equipe_away : match.equipe_away_id
+  const teamsChanged = newEquipeHomeId !== match.equipe_home_id || newEquipeAwayId !== match.equipe_away_id
+
+  // Une fois la feuille de match préparée/signée, changer les équipes fausserait
+  // convocations/effectifs déjà engagés côté matchsheet — aucune procédure de
+  // correction outillée ici (voir TASK-P0-009), donc on bloque sans dérogation
+  // possible plutôt que de laisser un état incohérent entre superadmin et
+  // matchsheet (§TASK-P0-008).
+  if (teamsChanged) {
+    const sheetRepo = dataSource.getRepository(Sheet)
+    const sheet = await sheetRepo.findOne({ where: { matchId: id } })
+    if (sheet && sheet.status !== 'DRAFT') {
+      throw new Error(
+        `Impossible de modifier les équipes : la feuille de match est déjà préparée/signée (statut ${sheet.status}). Passez par une procédure de correction dédiée.`,
+      )
+    }
+  }
+
+  const scheduleRelevant =
+    payload.journee_id !== undefined ||
+    payload.date !== undefined ||
+    payload.arbitre_id !== undefined ||
+    payload.equipe_home !== undefined ||
+    payload.equipe_away !== undefined
+
   // Construire l'objet de mise à jour
   const updateData: Partial<Match> = {}
-  
+
   if (payload.journee_id !== undefined) {
     updateData.journee_id = payload.journee_id
   }
-  
+
   if (payload.score_home !== undefined) {
     updateData.score_home = normalizeScore(payload.score_home)
   }
@@ -144,8 +195,38 @@ export async function updateMatchAdmin(id: string, payload: MatchUpdateInput, le
     updateData.equipe_away_id = payload.equipe_away === null || payload.equipe_away === '' ? undefined : payload.equipe_away
   }
 
-  // Mettre à jour directement dans la base de données
-  if (Object.keys(updateData).length > 0) {
+  let overriddenConflicts: ScheduleConflict[] = []
+
+  // Vérification des conflits ET écriture sous le même verrou : sinon deux
+  // modifications concurrentes pourraient toutes deux passer la vérification
+  // avant que l'une n'écrive (§TASK-P0-008, "deux requêtes concurrentes").
+  if (scheduleRelevant) {
+    const newDate = payload.date !== undefined ? parseDate(payload.date) : (match.date ?? null)
+    const newArbitreId =
+      payload.arbitre_id !== undefined ? (payload.arbitre_id || null) : (match.arbitre_id ?? null)
+    const newJourneeId = payload.journee_id !== undefined ? payload.journee_id : match.journee_id
+
+    const lockKeys = [newEquipeHomeId, newEquipeAwayId, newArbitreId].filter((v): v is string => !!v)
+    overriddenConflicts = await withScheduleLock(lockKeys, async () => {
+      await assertSeasonDateCoherence(dataSource, newJourneeId, newDate)
+
+      const conflicts = await findScheduleConflicts(dataSource, {
+        date: newDate,
+        equipeHomeId: newEquipeHomeId,
+        equipeAwayId: newEquipeAwayId,
+        arbitreId: newArbitreId,
+        excludeMatchId: id,
+      })
+      if (conflicts.length > 0) {
+        requireDerogationReason(payload.derogation_reason, conflicts)
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await repo.update(id, updateData)
+      }
+      return conflicts
+    })
+  } else if (Object.keys(updateData).length > 0) {
     await repo.update(id, updateData)
   }
 
@@ -170,7 +251,7 @@ export async function updateMatchAdmin(id: string, payload: MatchUpdateInput, le
     await notifyMatchEvent(updated, 'MATCH_RESCHEDULED')
   }
 
-  return toPlain(updated)
+  return { match: toPlain(updated), overriddenConflicts }
 }
 
 /**
@@ -205,7 +286,10 @@ async function notifyMatchEvent(match: Match, type: 'MATCH_CREATED' | 'MATCH_RES
   }
 }
 
-export async function createMatchAdmin(payload: MatchCreateInput, leagueId?: string | null) {
+export async function createMatchAdmin(
+  payload: MatchCreateInput,
+  leagueId?: string | null,
+): Promise<MatchMutationResult> {
   const dataSource = await getDataSource()
   const repo = dataSource.getRepository<Match>('matches')
   const journeeRepo = dataSource.getRepository('journees')
@@ -247,18 +331,40 @@ export async function createMatchAdmin(payload: MatchCreateInput, leagueId?: str
     }
   }
 
-  // Créer le nouveau match
-  const newMatch = repo.create({
-    journee_id: payload.journee_id,
-    equipe_home_id: payload.equipe_home,
-    equipe_away_id: payload.equipe_away,
-    date: parseDate(payload.date),
-    score_home: normalizeScore(payload.score_home),
-    score_away: normalizeScore(payload.score_away),
-    arbitre_id: payload.arbitre_id || null,
-  })
+  const newDate = parseDate(payload.date)
+  const lockKeys = [payload.equipe_home, payload.equipe_away, payload.arbitre_id].filter(
+    (v): v is string => !!v,
+  )
 
-  const saved = await repo.save(newMatch)
+  // Vérification des conflits ET insertion sous le même verrou : sinon deux
+  // créations concurrentes pourraient toutes deux passer la vérification
+  // avant que l'une n'insère (§TASK-P0-008, "deux requêtes concurrentes").
+  const { saved, overriddenConflicts } = await withScheduleLock(lockKeys, async () => {
+    await assertSeasonDateCoherence(dataSource, payload.journee_id, newDate)
+
+    const conflicts = await findScheduleConflicts(dataSource, {
+      date: newDate,
+      equipeHomeId: payload.equipe_home,
+      equipeAwayId: payload.equipe_away,
+      arbitreId: payload.arbitre_id ?? null,
+    })
+    if (conflicts.length > 0) {
+      requireDerogationReason(payload.derogation_reason, conflicts)
+    }
+
+    // Créer le nouveau match
+    const newMatch = repo.create({
+      journee_id: payload.journee_id,
+      equipe_home_id: payload.equipe_home,
+      equipe_away_id: payload.equipe_away,
+      date: newDate,
+      score_home: normalizeScore(payload.score_home),
+      score_away: normalizeScore(payload.score_away),
+      arbitre_id: payload.arbitre_id || null,
+    })
+
+    return { saved: await repo.save(newMatch), overriddenConflicts: conflicts }
+  })
 
   // Recharger avec les relations
   const match = await repo.findOne({
@@ -277,7 +383,7 @@ export async function createMatchAdmin(payload: MatchCreateInput, leagueId?: str
 
   await notifyMatchEvent(match, 'MATCH_CREATED')
 
-  return toPlain(match)
+  return { match: toPlain(match), overriddenConflicts }
 }
 
 export async function deleteMatchAdmin(id: string, leagueId?: string | null) {
