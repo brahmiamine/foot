@@ -741,7 +741,10 @@ function ReviewQueue() {
 }
 
 function ArbitreHistory() {
-  const { arbitres, loading: loadingArbitres } = useMatchesAndArbitres()
+  const {
+    arbitres, loading: loadingArbitres,
+    arbitreQuery, setArbitreQuery, arbitrePage, setArbitrePage, arbitreTotal, pageSize,
+  } = useMatchesAndArbitres()
   const [arbitreId, setArbitreId] = useState('')
   const [evaluations, setEvaluations] = useState<Evaluation[]>([])
   const [stats, setStats] = useState<{ evaluationCount: number; averageNoteOfficielle: number | null } | null>(null)
@@ -770,6 +773,13 @@ function ArbitreHistory() {
     <div className="space-y-4">
       <div className="max-w-md">
         <label className="block text-sm font-medium mb-1">Arbitre</label>
+        <input
+          type="search"
+          value={arbitreQuery}
+          onChange={(e) => setArbitreQuery(e.target.value)}
+          placeholder="Rechercher un arbitre..."
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
+        />
         <select
           disabled={loadingArbitres}
           value={arbitreId}
@@ -783,6 +793,7 @@ function ArbitreHistory() {
             </option>
           ))}
         </select>
+        <SelectorPager page={arbitrePage} total={arbitreTotal} pageSize={pageSize} onPageChange={setArbitrePage} />
       </div>
 
       {loading && <p className="text-gray-500">Chargement...</p>}
