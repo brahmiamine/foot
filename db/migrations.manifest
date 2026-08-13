@@ -75,6 +75,11 @@ superadmin/migrations/add_unique_vote_per_match_device.sql
 superadmin/migrations/add_team_branding.sql
 superadmin/migrations/add_team_branding_icons.sql
 
+# --- arbinote (évaluation officielle d'arbitre, dépend de matches/arbitres) ---
+# migration.md §12, Phase 5 : évaluation fédérale, strictement séparée de
+# la notation publique (`votes`, déjà en base, inchangée).
+arbinote/mysql/migration_add_referee_official_evaluations.sql
+
 # --- teamManager (Player, discipline, cms_*) ---
 teamManager/sql/migration_unify_players.sql
 teamManager/sql/migration_add_match_lineups.sql

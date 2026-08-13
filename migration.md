@@ -12,7 +12,9 @@ Ce document sert de source de vérité pour le suivi de ce chantier. Chaque phas
 | Phase 2 | Affiliations historiques club ↔ fédération/ligue/saison | `[~]` |
 | Phase 3 | Joueurs & transferts (`player_transfers`, workflow, transaction) | `[~]` |
 | Phase 4 | Officiels de match (`match_official_assignments`, contrôle serveur `matchsheet`) | `[~]` |
-| Phase 5 | ArbiNote officiel (évaluation fédérale séparée du score public) | `[ ]` |
+| Phase 5 | ArbiNote officiel (évaluation fédérale séparée du score public) | `[~]` |
+
+**État global (13 août 2026) :** les 5 phases ont un premier passage backend complet (modèle de données, transactions, guards serveur, tests) — chacune marquée `[~]` plutôt que `[x]` parce qu'il leur manque systématiquement la même chose : **aucun écran UI ne consomme encore ces routes** (tout est API-only), et le **provisioning des nouveaux comptes** (`FEDERATION_ADMIN`, `LEAGUE_ADMIN`, `REFEREE`, `MATCH_OFFICIAL`, `REFEREE_OBSERVER`) n'existe pas encore côté `sso`/`superadmin` — un compte avec un de ces rôles ne peut aujourd'hui être créé qu'en écrivant directement en base. Le détail de ce qui reste par phase est dans chaque section ci-dessous ("Reste ouvert").
 
 Détail des sous-tâches par phase, mis à jour au fil de l'implémentation :
 
@@ -48,9 +50,12 @@ Détail des sous-tâches par phase, mis à jour au fil de l'implémentation :
 - [x] Tests : 8 cas `matchsheet` (`MatchOfficialAssignmentService.test.ts` — affectation/révocation idempotentes, deux officiels sur le même rôle, ré-affectation après révocation, aucune fuite entre deux matchs) + 3 cas `superadmin` (`matchFederationScope.test.ts`) + 4 cas de guard (`route.test.ts` — fédération A ne peut pas affecter un officiel sur un match de fédération B, match sans fédération résolvable réservé à `PLATFORM_SUPERADMIN`). `vitest run` + `tsc --noEmit` verts sur `sso`, `matchsheet` (70 tests), `superadmin` (105 tests), et re-vérifiés sans régression sur `teamManager`/`arbinote`/`billetterie`/`ob`.
 - [ ] **Reste ouvert** : écrans `superadmin` (aucune UI pour affecter/révoquer un officiel, API-only) ; provisioning des comptes `REFEREE`/`MATCH_OFFICIAL`/`REFEREE_OBSERVER` (aucun flux de création n'existe encore) ; vérification temporelle `player.teamId === match.teamId` dans `matchsheet` (§22, distincte des officiels — reste à câbler sur `cms_team_members`/`getAffiliationAt` équivalent côté joueurs) ; audit nominatif enrichi (terminal/IP) au-delà de `assignedBy`/`revokedBy`.
 
-### Phase 5 — ArbiNote officiel
-- [ ] Évaluation fédérale séparée (réservée `REFEREE_OBSERVER` / `FEDERATION_ADMIN`)
-- [ ] Historique par arbitre
+### Phase 5 — ArbiNote officiel `[~]`
+- [x] Évaluation fédérale séparée : `arbinote/src/lib/entities/RefereeOfficialEvaluation.ts` (table `referee_official_evaluations`, migration `arbinote/mysql/migration_add_referee_official_evaluations.sql`) — domaine et code strictement distincts de la notation publique (`votes`) : `refereeOfficialEvaluations.ts` n'importe jamais `adminVotes.ts`, aucune fonction ne calcule de score combiné entre `note_officielle` et `votes.note_globale`.
+- [x] Workflow `DRAFT → SUBMITTED → VALIDATED|REJECTED` : rédigé par `REFEREE_OBSERVER` (auteur, `observer_user_id` = sa propre session), homologué (`VALIDATED`) ou renvoyé (`REJECTED`, avec motif) par le `FEDERATION_ADMIN` de la fédération qui gouverne RÉELLEMENT le match évalué (résolu serveur via `match → journée → saison → ligue → fédération`, `lib/matchFederationScope.ts` — jamais un `federation_id` fourni par le client). Routes `/api/officiel/evaluations` (create/submit/validate/reject), distinctes de `/api/admin/*` (accès plateforme complet) et non couvertes par le middleware existant.
+- [x] Historique par arbitre (`GET /api/officiel/arbitres/:arbitreId/evaluations`, tous statuts) et statistiques de performance (`GET .../stats`, moyenne uniquement sur les évaluations `VALIDATED` — jamais `DRAFT`/`SUBMITTED`/`REJECTED`) — migration.md §12 "aide aux promotions/désignations/formations".
+- [x] Tests : 9 cas service (`refereeOfficialEvaluations.test.ts` — création, doublon refusé, deux observateurs sur le même match, workflow complet validation/rejet, transitions invalides refusées, moyenne excluant les statuts non validés) + 3 cas résolution fédération (`matchFederationScope.test.ts`) + 4 cas de garde (`validate/route.test.ts` — REFEREE_OBSERVER ne peut pas valider, fédération A ne peut pas valider un match de fédération B, PLATFORM_SUPERADMIN passe toujours). `vitest run` (140 tests) + `tsc --noEmit` verts sur `arbinote`.
+- [ ] **Reste ouvert** : écrans `arbinote`/`superadmin` (aucune UI, API-only) ; provisioning des comptes `REFEREE_OBSERVER` ; édition d'un rapport `DRAFT` déjà créé (seule la création initiale est couverte, pas de `PATCH`) ; agrégats plus riches (tendance dans le temps, comparaison entre observateurs) au-delà de la moyenne simple.
 
 ---
 

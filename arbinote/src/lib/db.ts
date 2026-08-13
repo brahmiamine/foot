@@ -13,6 +13,7 @@ import {
   League,
   Match,
   Player,
+  RefereeOfficialEvaluation,
   Saison,
   Substitution,
   Team,
@@ -52,7 +53,7 @@ function createDataSource() {
     // le schéma sur les seules entités TypeORM et pourrait supprimer les colonnes/
     // tables ajoutées pour ob.
     synchronize: false,
-    entities: [Arbitre, AuditLog, Card, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, Player, Saison, Substitution, Team, Vote, VoteAlert],
+    entities: [Arbitre, AuditLog, Card, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, Player, RefereeOfficialEvaluation, Saison, Substitution, Team, Vote, VoteAlert],
     extra: {
       decimalNumbers: true,
     },
