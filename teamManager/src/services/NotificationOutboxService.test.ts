@@ -158,4 +158,34 @@ describe("NotificationOutboxService", () => {
       expect(deliverNotification).not.toHaveBeenCalled();
     });
   });
+
+  describe("getStats", () => {
+    async function seedEvent(overrides: Partial<NotificationOutboxEvent> = {}) {
+      const repo = dataSource.getRepository(NotificationOutboxEvent);
+      return repo.save(
+        repo.create({
+          eventId: `event-${Math.random()}`,
+          payload: { type: "NEWS_PUBLISHED", title: "t", body: "b" },
+          status: "PENDING",
+          attempts: 0,
+          nextRetryAt: null,
+          processedAt: null,
+          lastError: null,
+          ...overrides,
+        }),
+      );
+    }
+
+    it("counts events by status (TASK-P0-006)", async () => {
+      const { NotificationOutboxService } = await import("./NotificationOutboxService");
+      await seedEvent({ status: "PENDING" });
+      await seedEvent({ status: "PENDING" });
+      await seedEvent({ status: "PROCESSED" });
+      await seedEvent({ status: "FAILED" });
+
+      const stats = await new NotificationOutboxService().getStats();
+
+      expect(stats).toEqual({ pending: 2, processed: 1, dlq: 1 });
+    });
+  });
 });

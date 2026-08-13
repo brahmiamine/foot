@@ -14,6 +14,13 @@ export interface ProcessOutboxResult {
   rescheduled: number;
 }
 
+export interface OutboxStats {
+  pending: number;
+  processed: number;
+  /** Events that exhausted the retry schedule (dead-letter queue). */
+  dlq: number;
+}
+
 /**
  * TS-25/TS-26 (avancement.md, Epic E07) : outbox transactionnel pour les
  * notifications déclenchées par teamManager — voir
@@ -89,5 +96,23 @@ export class NotificationOutboxService {
     }
 
     return result;
+  }
+
+  /**
+   * TASK-P0-006 (todo.md): backs GET /api/internal/outbox/status so ops
+   * can tell a stuck ordonnanceur (pending piling up because
+   * /process isn't being called) from notification-api outages (dlq
+   * piling up) without querying the DB directly. Same shape as
+   * payment-api's OutboxService.getStats() (payment-api/src/outbox).
+   */
+  async getStats(): Promise<OutboxStats> {
+    const dataSource = await getDataSource();
+    const repository = dataSource.getRepository(NotificationOutboxEvent);
+    const [pending, processed, dlq] = await Promise.all([
+      repository.count({ where: { status: "PENDING" } }),
+      repository.count({ where: { status: "PROCESSED" } }),
+      repository.count({ where: { status: "FAILED" } }),
+    ]);
+    return { pending, processed, dlq };
   }
 }

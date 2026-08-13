@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { OutboxEvent } from './entities/outbox-event.entity';
 import { OutboxService } from './outbox.service';
 import { OutboxWorkerService } from './outbox-worker.service';
+import { OutboxHealthController } from './outbox-health.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 
@@ -12,6 +13,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     NotificationsModule,
     WebhooksModule,
   ],
+  controllers: [OutboxHealthController],
   providers: [OutboxService, OutboxWorkerService],
   exports: [OutboxService],
 })

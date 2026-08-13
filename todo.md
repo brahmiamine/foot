@@ -188,7 +188,7 @@ ALTER TABLE processed_webhook_events ADD UNIQUE(paymentId, webhookId);
 **Projets**: payment-api, teamManager, notification-api  
 **Estimation**: 5 jours  
 **Dépendances**: TASK-P0-005  
-**Status**: [ ] À faire
+**Status**: [x] Largement déjà traité avant cette passe (voir payment-api/src/outbox/outbox-worker.service.ts : poll autonome au démarrage, retry durable 1/5/15/60/360min survivant à un redémarrage, DLQ, webhook signé HMAC-SHA256 — voir payment-api/src/webhooks/webhook-dispatch.service.ts ; teamManager a un outbox transactionnel équivalent, voir services/NotificationOutboxService.ts, traité via POST /api/internal/outbox/process par un ordonnanceur externe faute de process long-running Next.js). Ajouté dans cette passe : le seul acceptance criterion manquant, `/health/outbox → {pending, dlq}` (payment-api/src/outbox/outbox-health.controller.ts) et son équivalent GET /api/internal/outbox/status côté teamManager — status "degraded" dès que dlq > 0, à brancher sur un moniteur ops externe (aucune alerte push/Slack n'existe ailleurs dans ce dépôt).
 
 **Description**:
 Actuellement outbox persiste mais sans worker autonome robuste. Webhooks perdus. Implémenter BullMQ:

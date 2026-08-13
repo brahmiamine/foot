@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { OutboxEvent, OutboxEventStatus } from './entities/outbox-event.entity';
 
@@ -7,6 +8,13 @@ export interface EnqueueOutboxEventParams {
   eventType: string;
   aggregateId: string;
   payload: Record<string, unknown>;
+}
+
+export interface OutboxStats {
+  pending: number;
+  processed: number;
+  /** Events that exhausted RETRY_SCHEDULE_MINUTES (dead-letter queue). */
+  dlq: number;
 }
 
 /**
@@ -18,6 +26,11 @@ export interface EnqueueOutboxEventParams {
  */
 @Injectable()
 export class OutboxService {
+  constructor(
+    @InjectRepository(OutboxEvent)
+    private readonly repository: Repository<OutboxEvent>,
+  ) {}
+
   async enqueue(
     manager: EntityManager,
     params: EnqueueOutboxEventParams,
@@ -31,5 +44,22 @@ export class OutboxService {
       payload: params.payload,
       status: OutboxEventStatus.PENDING,
     } as QueryDeepPartialEntity<OutboxEvent>);
+  }
+
+  /**
+   * TASK-P0-006 (todo.md): backs `GET /health/outbox` so ops can see
+   * whether events are piling up (worker stuck/down) or dead-lettering
+   * (provider/webhook endpoint down past the full retry schedule) without
+   * querying the DB directly.
+   */
+  async getStats(): Promise<OutboxStats> {
+    const [pending, processed, dlq] = await Promise.all([
+      this.repository.count({ where: { status: OutboxEventStatus.PENDING } }),
+      this.repository.count({
+        where: { status: OutboxEventStatus.PROCESSED },
+      }),
+      this.repository.count({ where: { status: OutboxEventStatus.FAILED } }),
+    ]);
+    return { pending, processed, dlq };
   }
 }
