@@ -1,10 +1,13 @@
 'use client'
 
+import React, { useState } from 'react'
 import type { Arbitre, Match, Team } from '@/types'
 import { getJourneeDisplayName } from '@/lib/utils'
 import type { Locale } from '@/lib/i18n'
 import { buildEdit } from './utils'
 import type { MatchEdit } from './types'
+import MatchFactsTimeline from './MatchFactsTimeline'
+import type { MatchFact } from '@/lib/dataAccess/matchFacts'
 
 interface MatchesTableProps {
   loading: boolean
@@ -43,6 +46,32 @@ export default function MatchesTable({
   handleCancel,
   handleReopen,
 }: MatchesTableProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [factsByMatch, setFactsByMatch] = useState<Record<string, MatchFact[]>>({})
+  const [loadingFactsId, setLoadingFactsId] = useState<string | null>(null)
+  const [factsError, setFactsError] = useState<string | null>(null)
+
+  const toggleFacts = async (matchId: string) => {
+    if (expandedId === matchId) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(matchId)
+    setFactsError(null)
+    if (factsByMatch[matchId]) return
+    setLoadingFactsId(matchId)
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}/facts`)
+      if (!res.ok) throw new Error('Erreur de chargement des faits de match')
+      const data = await res.json()
+      setFactsByMatch((prev) => ({ ...prev, [matchId]: data.facts ?? [] }))
+    } catch {
+      setFactsError("Impossible de charger les faits de ce match.")
+    } finally {
+      setLoadingFactsId(null)
+    }
+  }
+
   if (loading) {
     return <p className="text-muted mb-0">Chargement...</p>
   }
@@ -65,8 +94,10 @@ export default function MatchesTable({
           {sortedMatches.map((match) => {
             const edit = edits[match.id] ?? buildEdit(match)
             const changed = hasChanges(match)
+            const isExpanded = expandedId === match.id
             return (
-              <tr key={match.id}>
+              <React.Fragment key={match.id}>
+              <tr>
                 <td>
                   <div className="d-flex flex-column gap-2">
                     <div className="d-flex align-items-center gap-2">
@@ -242,6 +273,12 @@ export default function MatchesTable({
                 <td className="text-end">
                   <div className="d-flex gap-2 justify-content-end">
                     <button
+                      className={`btn btn-sm ${isExpanded ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                      onClick={() => toggleFacts(match.id)}
+                    >
+                      Faits {isExpanded ? '▲' : '▼'}
+                    </button>
+                    <button
                       className="btn btn-sm btn-primary"
                       disabled={!changed || savingId === match.id || match.status === 'CANCELLED'}
                       onClick={() => handleSave(match)}
@@ -283,6 +320,20 @@ export default function MatchesTable({
                   </div>
                 </td>
               </tr>
+              {isExpanded && (
+                <tr>
+                  <td colSpan={7} className="bg-light">
+                    {loadingFactsId === match.id ? (
+                      <p className="text-muted small mb-0">Chargement des faits de match...</p>
+                    ) : factsError ? (
+                      <p className="text-danger small mb-0">{factsError}</p>
+                    ) : (
+                      <MatchFactsTimeline facts={factsByMatch[match.id] ?? []} />
+                    )}
+                  </td>
+                </tr>
+              )}
+              </React.Fragment>
             )
           })}
         </tbody>

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { ListSearchInput } from "@/components/admin/ListSearchInput";
 import { ListPagination } from "@/components/admin/ListPagination";
 import { useListFilter } from "@/hooks/useListFilter";
-import { toggleMatchVisibility } from "./actions";
+import { toggleMatchVisibility, fetchMatchFacts } from "./actions";
+import { MatchFactsTimeline } from "./MatchFactsTimeline";
+import type { MatchFact } from "@/services/MatchFactsService";
 
 interface MatchData {
   id: string;
@@ -36,6 +38,30 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
   const [matches, setMatches] = useState<MatchData[]>(initialMatches);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [factsByMatch, setFactsByMatch] = useState<Record<string, MatchFact[]>>({});
+  const [loadingFactsId, setLoadingFactsId] = useState<string | null>(null);
+  const [factsError, setFactsError] = useState<string | null>(null);
+
+  const toggleFacts = (matchId: string) => {
+    if (expandedId === matchId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(matchId);
+    setFactsError(null);
+    if (factsByMatch[matchId]) return;
+    setLoadingFactsId(matchId);
+    startTransition(async () => {
+      const result = await fetchMatchFacts(matchId);
+      setLoadingFactsId(null);
+      if (!result.success) {
+        setFactsError(result.error);
+        return;
+      }
+      setFactsByMatch((prev) => ({ ...prev, [matchId]: result.facts }));
+    });
+  };
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return "—";
@@ -104,8 +130,11 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
                 </tr>
               </thead>
               <tbody>
-                {visibleMatches.map((match) => (
-                  <tr key={match.id}>
+                {visibleMatches.map((match) => {
+                  const isExpanded = expandedId === match.id;
+                  return (
+                  <React.Fragment key={match.id}>
+                  <tr>
                     <td>{formatDate(match.date)}</td>
                     <td>
                       <strong>{match.homeTeam?.nom ?? "?"}</strong> vs <strong>{match.awayTeam?.nom ?? "?"}</strong>
@@ -134,13 +163,37 @@ export function MatchesList({ initialMatches }: { initialMatches: MatchData[] })
                       </div>
                     </td>
                     <td className="text-end">
-                      <Link href={`/admin/matches/${match.id}/lineup`} className="btn btn-sm btn-outline-primary">
-                        <i className="fas fa-users me-1" aria-hidden="true" />
-                        Composition
-                      </Link>
+                      <div className="d-flex gap-2 justify-content-end">
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${isExpanded ? "btn-secondary" : "btn-outline-secondary"}`}
+                          onClick={() => toggleFacts(match.id)}
+                        >
+                          Faits {isExpanded ? "▲" : "▼"}
+                        </button>
+                        <Link href={`/admin/matches/${match.id}/lineup`} className="btn btn-sm btn-outline-primary">
+                          <i className="fas fa-users me-1" aria-hidden="true" />
+                          Composition
+                        </Link>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={7} className="bg-light">
+                        {loadingFactsId === match.id ? (
+                          <p className="text-muted small mb-0">Chargement des faits de match...</p>
+                        ) : factsError ? (
+                          <p className="text-danger small mb-0">{factsError}</p>
+                        ) : (
+                          <MatchFactsTimeline facts={factsByMatch[match.id] ?? []} />
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
             <ListPagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={totalCount} />

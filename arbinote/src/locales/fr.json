@@ -100,6 +100,7 @@
   "matchCard.referee": "Arbitre",
   "matchCard.matchday": "Journée",
   "matchCard.alreadyVoted": "Déjà voté",
+  "matchDetail.matchFacts": "Faits de match",
   "matchDetail.voteTitle": "Voter pour l'arbitre",
   "matchDetail.noReferee": "Aucun arbitre assigné à ce match. Impossible de voter.",
   "matchDetail.cannotVote": "Vous ne pouvez pas voter pour ce match. Le match doit avoir un arbitre assigné et la date/heure du match doit être dans le passé.",

@@ -15,5 +15,10 @@ export { User, type UserRole } from './User'
 export { CardReason, type CardReasonType } from './CardReason'
 export { StaffInvitation } from './StaffInvitation'
 export { Sheet, type SheetStatus } from './Sheet'
+export { Player } from './Player'
+export { Card, type CardType, type MatchPeriod } from './Card'
+export { Goal } from './Goal'
+export { Injury } from './Injury'
+export { Substitution } from './Substitution'
 
 
