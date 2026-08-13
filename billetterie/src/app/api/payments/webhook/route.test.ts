@@ -2,9 +2,9 @@ import { createHmac } from "crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const reconcileTicketPayment = vi.fn();
-vi.mock("@/lib/tickets", () => ({
-  reconcileTicketPayment: (...args: unknown[]) => reconcileTicketPayment(...args),
+const reconcilePayment = vi.fn();
+vi.mock("@/lib/payments", () => ({
+  reconcilePayment: (...args: unknown[]) => reconcilePayment(...args),
 }));
 
 const claimWebhookEvent = vi.fn();
@@ -43,7 +43,7 @@ describe("POST /api/payments/webhook", () => {
     const response = await POST(buildRequest(body, sign("top-secret", body)));
 
     expect(response.status).toBe(401);
-    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(reconcilePayment).not.toHaveBeenCalled();
   });
 
   it("rejects a missing signature header", async () => {
@@ -53,7 +53,7 @@ describe("POST /api/payments/webhook", () => {
     const response = await POST(buildRequest(body));
 
     expect(response.status).toBe(401);
-    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(reconcilePayment).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid signature", async () => {
@@ -63,7 +63,7 @@ describe("POST /api/payments/webhook", () => {
     const response = await POST(buildRequest(body, "sha256=deadbeef"));
 
     expect(response.status).toBe(401);
-    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(reconcilePayment).not.toHaveBeenCalled();
   });
 
   it("rejects a signature computed with the wrong secret", async () => {
@@ -73,12 +73,12 @@ describe("POST /api/payments/webhook", () => {
     const response = await POST(buildRequest(body, sign("wrong-secret", body)));
 
     expect(response.status).toBe(401);
-    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(reconcilePayment).not.toHaveBeenCalled();
   });
 
   it("accepts a validly signed body and reconciles the payment", async () => {
     claimWebhookEvent.mockResolvedValue(true);
-    reconcileTicketPayment.mockResolvedValue("PAID");
+    reconcilePayment.mockResolvedValue({ kind: "TICKET", result: "PAID" });
     const { POST } = await import("./route");
     const body = JSON.stringify({ paymentId: "payment-1", eventId: "event-1", orderId: "ORDER-1" });
 
@@ -88,7 +88,7 @@ describe("POST /api/payments/webhook", () => {
     expect(response.status).toBe(200);
     expect(json).toEqual({ status: "PAID" });
     expect(claimWebhookEvent).toHaveBeenCalledWith("event-1", "payment-1");
-    expect(reconcileTicketPayment).toHaveBeenCalledWith("payment-1");
+    expect(reconcilePayment).toHaveBeenCalledWith("payment-1");
   });
 
   it("returns 422 when paymentId is missing from an otherwise validly signed body", async () => {
@@ -98,7 +98,7 @@ describe("POST /api/payments/webhook", () => {
     const response = await POST(buildRequest(body, sign("top-secret", body)));
 
     expect(response.status).toBe(422);
-    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(reconcilePayment).not.toHaveBeenCalled();
   });
 
   it("returns 422 when eventId is missing from an otherwise validly signed body", async () => {
@@ -108,7 +108,7 @@ describe("POST /api/payments/webhook", () => {
     const response = await POST(buildRequest(body, sign("top-secret", body)));
 
     expect(response.status).toBe(422);
-    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(reconcilePayment).not.toHaveBeenCalled();
     expect(claimWebhookEvent).not.toHaveBeenCalled();
   });
 
@@ -123,6 +123,6 @@ describe("POST /api/payments/webhook", () => {
     expect(response.status).toBe(200);
     expect(json).toEqual({ status: "ALREADY_PROCESSED" });
     expect(claimWebhookEvent).toHaveBeenCalledWith("event-1", "payment-1");
-    expect(reconcileTicketPayment).not.toHaveBeenCalled();
+    expect(reconcilePayment).not.toHaveBeenCalled();
   });
 });

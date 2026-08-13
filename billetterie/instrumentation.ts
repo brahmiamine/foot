@@ -18,6 +18,7 @@ export async function register() {
   if (globalForScheduler.__ticketPurgeScheduler) return;
 
   const { purgeStalePendingTickets } = await import("@/lib/tickets");
+  const { purgeStalePendingSubscriptions } = await import("@/lib/subscriptions");
   const intervalMs = 5 * 60 * 1000;
 
   const runPurge = async () => {
@@ -30,6 +31,16 @@ export async function register() {
       }
     } catch (error) {
       console.error("[ticket-purge-scheduler] échec de la purge périodique :", error);
+    }
+    try {
+      // Un abonnement n'a pas de capacité à libérer (voir lib/subscriptions.ts) :
+      // juste une réservation PENDING abandonnée à faire passer CANCELLED.
+      const result = await purgeStalePendingSubscriptions();
+      if (result.releasedSubscriptions > 0) {
+        console.log(`[ticket-purge-scheduler] ${result.releasedSubscriptions} abonnement(s) libéré(s).`);
+      }
+    } catch (error) {
+      console.error("[ticket-purge-scheduler] échec de la purge périodique des abonnements :", error);
     }
   };
 

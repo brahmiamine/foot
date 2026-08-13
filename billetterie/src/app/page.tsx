@@ -12,7 +12,12 @@ export default async function HomePage() {
 
   return (
     <main style={{ maxWidth: 880, margin: "0 auto", padding: "2rem 1.25rem" }}>
-      <h1 style={{ fontSize: "1.4rem", marginBottom: "0.25rem" }}>{t("site.title")}</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
+        <h1 style={{ fontSize: "1.4rem", marginBottom: "0.25rem" }}>{t("site.title")}</h1>
+        <Link href="/abonnements" style={{ fontSize: "0.82rem", color: "var(--tk-primary)", fontWeight: 600 }}>
+          {t("subscriptions.title")}
+        </Link>
+      </div>
       <p style={{ color: "var(--tk-text-muted)", marginTop: 0, marginBottom: "1.5rem" }}>
         {t("home.subtitle")}
       </p>

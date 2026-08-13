@@ -33,9 +33,14 @@ export default async function MesBilletsPage() {
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1.25rem" }}>
-      <Link href="/" style={{ fontSize: "0.82rem", color: "var(--tk-text-muted)" }}>
-        {t("common.allMatches")}
-      </Link>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
+        <Link href="/" style={{ fontSize: "0.82rem", color: "var(--tk-text-muted)" }}>
+          {t("common.allMatches")}
+        </Link>
+        <Link href="/mes-abonnements" style={{ fontSize: "0.82rem", color: "var(--tk-primary)", fontWeight: 600 }}>
+          {t("payment.viewSubscriptions")}
+        </Link>
+      </div>
       <h1 style={{ fontSize: "1.35rem", marginTop: 10, marginBottom: "1.25rem" }}>{t("tickets.title")}</h1>
 
       {tickets.length === 0 ? (

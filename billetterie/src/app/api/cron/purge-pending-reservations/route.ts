@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { purgeStalePendingTickets } from "@/lib/tickets";
+import { purgeStalePendingSubscriptions } from "@/lib/subscriptions";
 import { UnauthorizedError } from "@/lib/errors";
 import { handleApiError } from "@/lib/api";
 
@@ -26,8 +27,8 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError("Secret de purge manquant ou invalide.");
     }
 
-    const result = await purgeStalePendingTickets();
-    return NextResponse.json(result);
+    const [tickets, subscriptions] = await Promise.all([purgeStalePendingTickets(), purgeStalePendingSubscriptions()]);
+    return NextResponse.json({ ...tickets, ...subscriptions });
   } catch (error) {
     return handleApiError(error);
   }

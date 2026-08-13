@@ -11,6 +11,7 @@ const TABS: { href: string; key: TranslationKey }[] = [
   { href: "/espace-membre/notifications", key: "member.notifications" },
   { href: "/espace-membre/preferences", key: "member.preferences" },
   { href: "/espace-membre/billets", key: "member.tickets" },
+  { href: "/espace-membre/abonnement", key: "member.subscriptions" },
   { href: "/espace-membre/commandes", key: "member.orders" },
 ];
 

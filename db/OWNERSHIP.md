@@ -38,6 +38,8 @@ présence d'une entité.
 | Boutique / sponsors (legacy `teamManager`) | `cms_products`, `cms_sponsors`, `shop_*` | `teamManager` | `ob` (lecture) |
 | Billetterie — catégories et règles | `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules` | `teamManager` (`/admin/billetterie`) | `billetterie` (lecture) |
 | Billetterie — achats et contrôle | `tk_tickets`, `tk_ticket_scans` | `billetterie` | — |
+| Abonnements de saison — catégories | `tk_subscription_categories` | `teamManager` (`/admin/billetterie/subscriptions` — nom/prix/couleur/fenêtre de validité) | `billetterie` (lecture, vente) |
+| Abonnements de saison — achats et contrôle | `tk_subscriptions`, `tk_subscription_scans` | `billetterie` | `teamManager` (lecture de `tk_subscriptions` uniquement, roster des abonnés du club — jamais `tk_subscription_scans`) |
 | Marketplace vendeur | `sp_*` (préfixe `sp_`) | `sellerPortal` | — |
 | Audit | `audit_logs` (arbitrage), `AuditLog` (`teamManager`) | `arbinote`/`superadmin` et `teamManager` respectivement (deux journaux d'audit distincts, pas un seul) | — |
 

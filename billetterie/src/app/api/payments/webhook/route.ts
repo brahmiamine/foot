@@ -2,25 +2,25 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { UnauthorizedError } from "@/lib/errors";
 import { handleApiError } from "@/lib/api";
-import { reconcileTicketPayment } from "@/lib/tickets";
+import { reconcilePayment } from "@/lib/payments";
 import { claimWebhookEvent } from "@/lib/webhookIdempotency";
 
 /**
  * Reçoit le webhook applicatif signé émis par payment-api une fois un
  * paiement PAID (voir payment-api/src/webhooks). Le corps n'est jamais
  * traité comme source de vérité : on vérifie seulement la signature pour
- * authentifier l'appelant, puis on déclenche reconcileTicketPayment qui
- * relit GET /payments/:id auprès de payment-api avant de marquer les
- * billets PAID (même pattern que le retour payeur / "mes billets"). Sans
- * PAYMENT_WEBHOOK_SECRET configuré, la route répond 401 : billetterie
- * continue alors de se fier uniquement à sa reconciliation par polling
- * existante.
+ * authentifier l'appelant, puis on déclenche reconcilePayment (billet OU
+ * abonnement, voir lib/payments.ts) qui relit GET /payments/:id auprès de
+ * payment-api avant de marquer PAID (même pattern que le retour payeur /
+ * "mes billets"/"mes abonnements"). Sans PAYMENT_WEBHOOK_SECRET configuré,
+ * la route répond 401 : billetterie continue alors de se fier uniquement à
+ * sa reconciliation par polling existante.
  *
  * TS-14 (avancement.md) : payment-api retente la livraison en cas d'échec
  * réseau/timeout (voir webhook-dispatch.service.ts) — le même `eventId` peut
  * donc arriver plusieurs fois. claimWebhookEvent() garantit qu'un seul de
- * ces appels déclenche réellement reconcileTicketPayment ; les retries
- * reçoivent le même statut sans ré-exécuter le traitement métier.
+ * ces appels déclenche réellement reconcilePayment ; les retries reçoivent
+ * le même statut sans ré-exécuter le traitement métier.
  */
 function isValidSignature(rawBody: string, header: string | null): boolean {
   const secret = process.env.PAYMENT_WEBHOOK_SECRET;
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: "ALREADY_PROCESSED" });
     }
 
-    const result = await reconcileTicketPayment(payload.paymentId);
+    const { result } = await reconcilePayment(payload.paymentId);
     return NextResponse.json({ status: result });
   } catch (error) {
     return handleApiError(error);
