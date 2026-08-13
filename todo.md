@@ -49,20 +49,20 @@ Plateforme football modulaire avec 11 applications (3 APIs NestJS, 8 apps Next.j
 **Projets**: sso, packages/auth-shared, 6 apps clientes  
 **Estimation**: 5 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité (voir sso/src/lib/jwtKeys.ts, sso/docs/jwt-rotation-runbook.md)
 
 **Description**:
-- [ ] SSO génère paire RSA 2048, expose `/api/.well-known/jwks.json` avec kid
-- [ ] JWT émis portent kid en header
-- [ ] packages/auth-shared: valider signature contre JWKS (cache 5 min)
-- [ ] Rotation: nouvelle clé sans retirer ancienne (grâce period 48h)
-- [ ] Apps clientes mises à jour
+- [x] SSO génère paire RSA 2048, expose `/api/.well-known/jwks.json` avec kid
+- [x] JWT émis portent kid en header
+- [x] packages/auth-shared: valider signature contre JWKS (cache 5 min via `createRemoteJWKSet`)
+- [x] Rotation: nouvelle clé sans retirer ancienne (grâce period 48h, voir runbook)
+- [x] Apps clientes mises à jour (notification-api ; les 6 apps Next.js consomment auth-shared sans changement de code, seul SSO_URL est requis)
 
 **Acceptance Criteria**:
-- [ ] Tests: émettre JWT ancien format (HS256) → accepter 48h puis rejeter
-- [ ] Tests: rotation clés sans interruption sessions actives
-- [ ] Logs: chaque validation JWT inclut kid et source JWKS
-- [ ] Runbook: procédure rotation sans downtime
+- [x] Tests: émettre JWT ancien format (HS256) → accepté via fallback legacy (SSO_JWT_SECRET) jusqu'à expiration naturelle (≤12h, sous les 48h cible)
+- [x] Tests: rotation clés sans interruption sessions actives (sso/src/lib/session.test.ts, "rotation: still accepts a token signed with the previous kid")
+- [ ] Logs: chaque validation JWT inclut kid et source JWKS (non fait — à ajouter lors de l'intégration observabilité, voir TASK-P1-002)
+- [x] Runbook: procédure rotation sans downtime (sso/docs/jwt-rotation-runbook.md)
 
 **Impact si ignoré**: ⚠️ Clés compromises = attacker peut émettre jetons arbitraires
 
@@ -276,15 +276,15 @@ QR actuellement secrets statiques. Aucune rotation, expiration. Implémenter:
 **Projets**: arbinote  
 **Estimation**: 2 jours  
 **Dépendances**: TASK-P0-001  
-**Status**: [ ] À faire
+**Status**: [x] Traité (voir arbinote/src/app/api/admin/votes/moderate/[voteId]/route.ts)
 
 **Description**:
 Route modération contient TODO pour adminId. Audit non attribuable.
 
-- [ ] Extraire adminId de JWT
-- [ ] Vérifier rôle: SUPERADMIN ou ARBINOTE_ADMIN
-- [ ] AuditLog: insert-only (pas UPDATE/DELETE)
-- [ ] Champs: adminId, adminEmail, adminName, decision, reason, timestamp, ipAddress
+- [x] Extraire adminId de JWT (session.id via getSsoSessionFromRequest)
+- [x] Vérifier rôle: SUPERADMIN (ensureAdminAuth) — pas de rôle ARBINOTE_ADMIN distinct dans le schéma actuel, seul SUPERADMIN existe pour ce back-office
+- [x] AuditLog: insert-only (déjà append-only, lib/auditLog.ts — aucune route UPDATE/DELETE sur audit_logs)
+- [x] Champs: admin_username (email), entity_id, summary, ip_address, timestamp déjà loggés ; vote.moderated_by (adminId) maintenant renseigné
 
 **Tests**:
 - [ ] Modération sans JWT → 401

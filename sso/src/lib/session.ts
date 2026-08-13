@@ -1,8 +1,9 @@
-import { SignJWT, jwtVerify } from "jose";
+import { decodeProtectedHeader, jwtVerify, SignJWT, type KeyLike } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getDataSource } from "./db";
 import { User } from "@/entities/User";
+import { findVerificationKey, getLegacyHs256Secret, getSigningKey } from "./jwtKeys";
 
 /**
  * Émission et vérification du cookie de session partagé entre les 6 apps
@@ -37,14 +38,6 @@ export interface SsoUser {
   tokenVersion: number;
 }
 
-function getJwtSecret(): Uint8Array {
-  const secret = process.env.SSO_JWT_SECRET;
-  if (!secret) {
-    throw new Error("SSO_JWT_SECRET must be set");
-  }
-  return new TextEncoder().encode(secret);
-}
-
 /**
  * TS-28 : audience du JWT — identifie la plateforme cliente attendue. Une
  * seule audience partagée (pas une par app) : `sso` émet un unique cookie
@@ -55,6 +48,7 @@ function getJwtSecret(): Uint8Array {
 export const SSO_JWT_AUDIENCE = "foot-platform";
 
 async function signSession(user: SsoUser): Promise<string> {
+  const { privateKey, kid } = await getSigningKey();
   return new SignJWT({
     email: user.email,
     name: user.name,
@@ -62,13 +56,13 @@ async function signSession(user: SsoUser): Promise<string> {
     teamId: user.teamId,
     tokenVersion: user.tokenVersion,
   })
-    .setProtectedHeader({ alg: "HS256" })
+    .setProtectedHeader({ alg: "RS256", kid })
     .setSubject(user.id)
     .setIssuer("foot-sso")
     .setAudience(SSO_JWT_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS)
-    .sign(getJwtSecret());
+    .sign(privateKey);
 }
 
 /**
@@ -85,10 +79,30 @@ async function signSession(user: SsoUser): Promise<string> {
  * passée à `jwtVerify`, qui rejetterait ces jetons pré-migration) — mais un
  * jeton qui porte un `aud` doit correspondre à `SSO_JWT_AUDIENCE`, sans
  * quoi il est rejeté (jeton émis pour un autre usage/audience).
+ *
+ * TASK-P0-001 : jetons RS256 vérifiés contre la clé publique dont le `kid`
+ * (header) correspond (courante ou précédente, pendant la fenêtre de
+ * rotation). Jetons HS256 (pré-migration, encore en circulation jusqu'à
+ * leur expiration naturelle ≤12h) vérifiés contre SSO_JWT_SECRET si encore
+ * configuré — jamais utilisé pour signer de nouveaux jetons.
  */
 export async function verifySessionToken(token: string): Promise<SsoUser | null> {
   try {
-    const { payload } = await jwtVerify(token, getJwtSecret(), { issuer: "foot-sso" });
+    const header = decodeProtectedHeader(token);
+    let key: KeyLike | Uint8Array;
+    if (header.alg === "RS256") {
+      const publicKey = await findVerificationKey(header.kid);
+      if (!publicKey) return null;
+      key = publicKey;
+    } else if (header.alg === "HS256") {
+      const legacySecret = getLegacyHs256Secret();
+      if (!legacySecret) return null;
+      key = legacySecret;
+    } else {
+      return null;
+    }
+
+    const { payload } = await jwtVerify(token, key, { issuer: "foot-sso" });
     if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
       return null;
     }

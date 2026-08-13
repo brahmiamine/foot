@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { jwtVerify } from 'jose';
+import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from 'jose';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 
 const REVOCATION_CACHE_TTL_MS = 30_000;
@@ -12,11 +12,12 @@ interface RevocationCacheEntry {
 }
 
 /**
- * Vérifie le JWT émis par `sso` (HS256, `jose`, issuer `foot-sso`) — voir
- * sso/src/lib/session.ts et les copies en lecture seule
- * `<app>/src/lib/ssoSession.ts`. Le Notification API n'émet jamais de
- * session : il ne fait que vérifier, avec le même secret partagé
- * (SSO_JWT_SECRET). Aucun système d'authentification différent (§4).
+ * Vérifie le JWT émis par `sso` (RS256 + kid, JWKS, `jose`, issuer
+ * `foot-sso` — voir sso/src/lib/session.ts et TASK-P0-001) et les copies en
+ * lecture seule `<app>/src/lib/ssoSession.ts`. Le Notification API n'émet
+ * jamais de session : il ne fait que vérifier, contre le JWKS publié par
+ * `sso` (SSO_URL + /api/.well-known/jwks.json), avec fallback HS256 legacy
+ * (SSO_JWT_SECRET) pour les jetons émis juste avant cette migration.
  *
  * Si `SSO_URL` est configuré, vérifie aussi la révocation réelle
  * (tokenVersion) auprès de GET /api/session/introspect, avec un cache en
@@ -30,13 +31,26 @@ interface RevocationCacheEntry {
 @Injectable()
 export class SsoJwtService {
   private readonly revocationCache = new Map<string, RevocationCacheEntry>();
+  private remoteJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+  private remoteJwksUrl: string | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
-  private getSecret(): Uint8Array {
+  private getLegacySecret(): Uint8Array | null {
     const secret = this.config.get<string>('SSO_JWT_SECRET');
-    if (!secret) throw new Error('SSO_JWT_SECRET must be set');
+    if (!secret) return null;
     return new TextEncoder().encode(secret);
+  }
+
+  private getRemoteJwks(): ReturnType<typeof createRemoteJWKSet> {
+    const ssoUrl = this.config.get<string>('SSO_URL');
+    if (!ssoUrl) throw new Error('SSO_URL must be set to verify RS256 session tokens (JWKS)');
+    const jwksUrl = `${ssoUrl.replace(/\/$/, '')}/api/.well-known/jwks.json`;
+    if (!this.remoteJwks || this.remoteJwksUrl !== jwksUrl) {
+      this.remoteJwks = createRemoteJWKSet(new URL(jwksUrl), { cooldownDuration: 5 * 60 * 1000 });
+      this.remoteJwksUrl = jwksUrl;
+    }
+    return this.remoteJwks;
   }
 
   private async isRevoked(token: string): Promise<boolean> {
@@ -67,9 +81,16 @@ export class SsoJwtService {
 
   async verify(token: string): Promise<AuthenticatedUser | null> {
     try {
-      const { payload } = await jwtVerify(token, this.getSecret(), {
-        issuer: this.config.get<string>('SSO_JWT_ISSUER') ?? 'foot-sso',
-      });
+      const issuer = this.config.get<string>('SSO_JWT_ISSUER') ?? 'foot-sso';
+      const header = decodeProtectedHeader(token);
+      let payload: Awaited<ReturnType<typeof jwtVerify>>['payload'];
+      if (header.alg === 'HS256') {
+        const legacySecret = this.getLegacySecret();
+        if (!legacySecret) return null;
+        ({ payload } = await jwtVerify(token, legacySecret, { issuer }));
+      } else {
+        ({ payload } = await jwtVerify(token, this.getRemoteJwks(), { issuer }));
+      }
       if (
         !payload.sub ||
         typeof payload.email !== 'string' ||

@@ -4,6 +4,7 @@ import { getDataSource } from '@/lib/db'
 import { Vote } from '@/lib/entities'
 import { toPlain } from '@/lib/serialization'
 import { logAdminAction } from '@/lib/auditLog'
+import { getSsoSessionFromRequest } from '@/lib/ssoSession'
 
 export const runtime = 'nodejs'
 
@@ -18,6 +19,11 @@ export async function POST(
 ) {
   const unauthorized = await ensureAdminAuth(request)
   if (unauthorized) return unauthorized
+
+  const admin = await getSsoSessionFromRequest(request)
+  if (!admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   try {
     const { voteId } = await params
@@ -49,8 +55,7 @@ export async function POST(
     vote.moderation_status = action === 'validate' ? 'validated' : 'excluded'
     vote.moderated_at = new Date()
     vote.moderation_notes = notes || null
-    // TODO: Récupérer l'ID de l'admin depuis la session
-    // vote.moderated_by = adminId
+    vote.moderated_by = admin.id
 
     await voteRepo.save(vote)
 
@@ -59,7 +64,8 @@ export async function POST(
       action: 'moderate',
       entityType: 'vote',
       entityId: voteId,
-      summary: `Statut → ${vote.moderation_status}`,
+      summary: `Statut → ${vote.moderation_status} (par ${admin.email})`,
+      adminUsername: admin.email,
     })
 
     return NextResponse.json(toPlain(vote))

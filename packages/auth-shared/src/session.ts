@@ -1,4 +1,4 @@
-import { jwtVerify } from "jose";
+import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
 
 /**
  * Vérification bas niveau du JWT émis par l'app `sso` (voir
@@ -49,10 +49,37 @@ export function getSsoCookieName(): string {
   return process.env.SSO_COOKIE_NAME || "foot_sso_session";
 }
 
-function getJwtSecret(): Uint8Array {
+/**
+ * Legacy uniquement (vérification) : SSO_JWT_SECRET signait les jetons
+ * HS256 avant TASK-P0-001. `sso` ne signe plus jamais en HS256 — ce
+ * fallback ne sert qu'à accepter les jetons émis juste avant un déploiement
+ * de cette migration, jusqu'à leur expiration naturelle (≤12h).
+ */
+function getLegacyHs256Secret(): Uint8Array | null {
   const secret = process.env.SSO_JWT_SECRET;
-  if (!secret) throw new Error("SSO_JWT_SECRET must be set");
+  if (!secret) return null;
   return new TextEncoder().encode(secret);
+}
+
+/**
+ * TASK-P0-001 : JWKS distant de `sso` (RS256 + kid), avec cache mémoire —
+ * `createRemoteJWKSet` de `jose` gère lui-même le cache (rafraîchi au plus
+ * une fois toutes les `cooldownDuration`, ici 5 minutes, conformément aux
+ * critères d'acceptation). Un seul JWKS partagé par process (edge-safe :
+ * fetch uniquement, pas d'état au-delà du cache interne de `jose`).
+ */
+let remoteJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let remoteJwksUrl: string | null = null;
+
+function getRemoteJwks(): ReturnType<typeof createRemoteJWKSet> {
+  const ssoUrl = process.env.SSO_URL;
+  if (!ssoUrl) throw new Error("SSO_URL must be set to verify RS256 session tokens (JWKS)");
+  const jwksUrl = `${ssoUrl.replace(/\/$/, "")}/api/.well-known/jwks.json`;
+  if (!remoteJwks || remoteJwksUrl !== jwksUrl) {
+    remoteJwks = createRemoteJWKSet(new URL(jwksUrl), { cooldownDuration: 5 * 60 * 1000 });
+    remoteJwksUrl = jwksUrl;
+  }
+  return remoteJwks;
 }
 
 /**
@@ -60,10 +87,24 @@ function getJwtSecret(): Uint8Array {
  * `audience`, qui rejetterait les jetons pré-migration TS-28 sans ce
  * claim) : un jeton sans `aud` reste accepté (transitoire, voir
  * sso/src/lib/session.ts), un jeton avec un `aud` incorrect est rejeté.
+ *
+ * TASK-P0-001 : jetons RS256 (courants) vérifiés contre le JWKS de `sso` —
+ * `jwtVerify` sélectionne lui-même la bonne clé via le `kid` du header,
+ * parmi celles publiées (courante + précédente pendant une rotation).
+ * Jetons HS256 (legacy, pré-migration) vérifiés contre SSO_JWT_SECRET s'il
+ * est encore configuré, sinon rejetés.
  */
 export async function verifySsoToken(token: string): Promise<SsoTokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getJwtSecret(), { issuer: ISSUER });
+    const header = decodeProtectedHeader(token);
+    let payload: Awaited<ReturnType<typeof jwtVerify>>["payload"];
+    if (header.alg === "HS256") {
+      const legacySecret = getLegacyHs256Secret();
+      if (!legacySecret) return null;
+      ({ payload } = await jwtVerify(token, legacySecret, { issuer: ISSUER }));
+    } else {
+      ({ payload } = await jwtVerify(token, getRemoteJwks(), { issuer: ISSUER }));
+    }
     if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
       return null;
     }

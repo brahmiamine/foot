@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed:superadmin": "tsx scripts/seed-superadmin.ts",
+    "jwt:generate-keypair": "tsx scripts/generate-jwt-keypair.ts",
     "test": "node --test test/*.test.mjs && vitest run",
     "test:watch": "vitest",
     "test:i18n": "node --test test/*.test.mjs"
