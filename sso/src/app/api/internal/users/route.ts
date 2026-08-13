@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (unauthorized) return unauthorized;
 
   const body = await request.json();
-  const { name, email, password, role, teamId } = body ?? {};
+  const { name, email, password, role, teamId, federationId, leagueId } = body ?? {};
   if (
     typeof name !== "string" ||
     typeof email !== "string" ||
@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
     password,
     role: role as never,
     teamId: typeof teamId === "string" ? teamId : null,
+    federationId: typeof federationId === "string" ? federationId : null,
+    leagueId: typeof leagueId === "string" ? leagueId : null,
   });
 
   if (!result.ok) {

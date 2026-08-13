@@ -64,6 +64,23 @@ describe("POST /api/internal/users", () => {
     expect(body.isActive).toBe(true);
   });
 
+  it("creates a FEDERATION_ADMIN with federationId (migration.md §0, provisioning)", async () => {
+    const { POST } = await import("./route");
+
+    const response = await POST(
+      buildRequest(
+        { name: "Fatma", email: "fatma@example.com", password: "s3cret!", role: "FEDERATION_ADMIN", federationId: "fed-1" },
+        "test-service-key",
+      ),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.role).toBe("FEDERATION_ADMIN");
+    expect(body.federationId).toBe("fed-1");
+    expect(body.teamId).toBeNull();
+  });
+
   it("rejects a missing required field", async () => {
     const { POST } = await import("./route");
 

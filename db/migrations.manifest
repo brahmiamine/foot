@@ -65,6 +65,10 @@ superadmin/mysql/migration_add_vote_alerts.sql
 superadmin/mysql/migration_add_vote_moderation.sql
 superadmin/mysql/migration_add_staff_invitations.sql
 superadmin/mysql/migration_add_match_actual_times.sql
+# Élargit staff_invitations aux rôles FEDERATION_ADMIN/LEAGUE_ADMIN/REFEREE/
+# MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0, provisioning). Dépend de
+# migration_add_staff_invitations.sql (ci-dessus).
+superadmin/mysql/migration_widen_staff_invitations_scope.sql
 # Historique d'affiliation club <-> fédération/ligue/saison (migration.md
 # §6, Phase 2). Dépend de teams/federations/ligues/saisons (FK), donc
 # placée après leurs migrations respectives.

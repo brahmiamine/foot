@@ -18,6 +18,10 @@ export interface IdentityUser {
   role: User["role"];
   isActive: boolean;
   teamId: string | null;
+  /** Scope FEDERATION_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
+  federationId: string | null;
+  /** Scope LEAGUE_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
+  leagueId: string | null;
   createdAt: Date;
 }
 
@@ -29,6 +33,8 @@ function toIdentityUser(user: User): IdentityUser {
     role: user.role,
     isActive: user.isActive,
     teamId: user.teamId ?? null,
+    federationId: user.federationId ?? null,
+    leagueId: user.leagueId ?? null,
     createdAt: user.createdAt,
   };
 }
@@ -39,6 +45,8 @@ export interface CreateUserInput {
   password: string;
   role: User["role"];
   teamId: string | null;
+  federationId?: string | null;
+  leagueId?: string | null;
 }
 
 export type CreateUserResult =
@@ -64,6 +72,8 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
     role: input.role,
     isActive: true,
     teamId: input.teamId,
+    federationId: input.federationId ?? null,
+    leagueId: input.leagueId ?? null,
     tokenVersion: 0,
   });
   const saved = await repository.save(user);
