@@ -7,9 +7,11 @@
   --sp-text-muted: #64748b;
   --sp-text-subtle: #94a3b8;
 
-  --sp-primary: #0d6e4f;
-  --sp-primary-dark: #095a41;
-  --sp-primary-soft: #e4f5ee;
+  /* Palette alignee sur ob (Olympique de Beja), meme rouge de marque que
+     sso/superadmin/teamManager/billetterie. */
+  --sp-primary: #c8102e;
+  --sp-primary-dark: #a10d25;
+  --sp-primary-soft: #ffd9de;
 
   --sp-accent: #b8860b;
   --sp-danger: #dc2626;
@@ -22,10 +24,10 @@
   --sp-info-soft: #dbeafe;
   --sp-neutral-soft: #f1f5f9;
 
-  --sp-sidebar-bg: #0b1f18;
-  --sp-sidebar-text: #cbd8d0;
+  --sp-sidebar-bg: #0d0d0d;
+  --sp-sidebar-text: #c9c4bd;
   --sp-sidebar-text-active: #ffffff;
-  --sp-sidebar-active-bg: #10402d;
+  --sp-sidebar-active-bg: #2a0a0f;
 
   --sp-radius-sm: 6px;
   --sp-radius-md: 10px;

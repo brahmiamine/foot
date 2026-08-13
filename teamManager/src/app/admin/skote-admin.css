@@ -3,28 +3,29 @@
 @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 /* Club-branded admin theme for teamManager (/admin only) — palette taken from
- * the public site's own brand tokens (public/css/custom.css: --primary-color
- * #031521, --accent-color #C42221, "Bebas Neue" display face) instead of the
- * generic Skote indigo, so the admin panel reads as the same product. */
+ * ob (Olympique de Beja), la source de verite de la marque rouge partagee
+ * par sso/superadmin/teamManager/billetterie/sellerPortal, "Bebas Neue"
+ * display face) instead of the generic Skote indigo, so the admin panel
+ * reads as the same product. */
 
 :root {
   --skote-body-bg: #f4f6f8;
   --skote-body-color: #3d4650;
   --skote-font-ui: "Manrope", "Segoe UI", sans-serif;
   --skote-font-display: "Bebas Neue", "Manrope", sans-serif;
-  --skote-primary: #c42221;
-  --skote-primary-rgb: 196, 34, 33;
-  --skote-primary-dark: #9c1b1a;
+  --skote-primary: #c8102e;
+  --skote-primary-rgb: 200, 16, 46;
+  --skote-primary-dark: #a10d25;
   --skote-secondary: #64748b;
   --skote-success: #3fa772;
   --skote-info: #4a90a4;
   --skote-warning: #d99a3d;
   --skote-danger: #d6455a;
-  --skote-dark: #0b1f2e;
-  --skote-sidebar-bg: #0b1f2e;
-  --skote-sidebar-menu-item: #93a6b8;
+  --skote-dark: #0d0d0d;
+  --skote-sidebar-bg: #0d0d0d;
+  --skote-sidebar-menu-item: #c9c4bd;
   --skote-sidebar-menu-item-active: #ffffff;
-  --skote-sidebar-menu-item-active-bg: rgba(196, 34, 33, 0.16);
+  --skote-sidebar-menu-item-active-bg: rgba(200, 16, 46, 0.22);
   --skote-topbar-bg: #ffffff;
   --skote-topbar-height: 70px;
   --skote-border: #e7ebf0;

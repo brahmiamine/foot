@@ -44,12 +44,12 @@
 /************************************/	
 
 :root{
-	--primary-color				: #031521;
+	--primary-color				: #0d0d0d;
 	--secondary-color			: #FFFFFF1A;
 	--text-color				: #999999;
-	--accent-color				: #C42221;
+	--accent-color				: #c8102e;
 	--white-color				: #FFFFFF;
-	--divider-color				: #0315211A;
+	--divider-color				: #0d0d0d1A;
 	--dark-divider-color		: #FFFFFF1A;
 	--error-color				: rgb(230, 87, 87);
 	--default-font				: "Manrope", sans-serif;
@@ -530,7 +530,7 @@ header.main-header .header-sticky.active{
 	right: 0;
 	border-radius: 0;
     transform: translateY(0);
-	background: linear-gradient(315deg, var(--accent-color) -3%, #153752 58.57%, var(--primary-color) 91.58%);
+	background: linear-gradient(315deg, var(--accent-color) -3%, #2a0a0f 58.57%, var(--primary-color) 91.58%);
 	border-bottom: 1px solid var(--dark-divider-color);
 }
 
@@ -3918,7 +3918,7 @@ header.main-header .header-sticky.active{
 }
 
 .fueling-passion-content-box{
-	background: linear-gradient(315deg, var(--accent-color) -3%, #153752 58.57%, var(--primary-color) 91.58%);
+	background: linear-gradient(315deg, var(--accent-color) -3%, #2a0a0f 58.57%, var(--primary-color) 91.58%);
 	border-radius: 20px;
 	padding: 40px;
 	margin-top: 40px;
@@ -4286,7 +4286,7 @@ header.main-header .header-sticky.active{
 }
 
 .team-sidebar-category-box{
-	background: linear-gradient(315deg, var(--accent-color) -3%, #153752 58.57%, var(--primary-color) 91.58%);
+	background: linear-gradient(315deg, var(--accent-color) -3%, #2a0a0f 58.57%, var(--primary-color) 91.58%);
     border-radius: 20px;
 }
 
@@ -4509,7 +4509,7 @@ header.main-header .header-sticky.active{
 	right: 0;
 	bottom: 0;
 	left: 0;
-	background: linear-gradient(315deg, var(--accent-color) -3%, #153752 58.57%, var(--primary-color) 91.58%);
+	background: linear-gradient(315deg, var(--accent-color) -3%, #2a0a0f 58.57%, var(--primary-color) 91.58%);
 	border-radius: 999px 999px 0 0;
 	width: 100%;
 	height: 0;
@@ -4796,7 +4796,7 @@ header.main-header .header-sticky.active{
 
 .contact-form{
 	position: relative;
-	background: linear-gradient(315deg, var(--accent-color) -3%, #153752 58.57%, var(--primary-color) 91.58%);
+	background: linear-gradient(315deg, var(--accent-color) -3%, #2a0a0f 58.57%, var(--primary-color) 91.58%);
 	padding: 40px;
 }
 
@@ -6657,4 +6657,45 @@ header.main-header .header-sticky.active{
 	.google-map iframe{
         height: 350px;
     }
+}
+/************************************/
+/*** Bootstrap primary re-tint    ***/
+/************************************/
+/* /css/bootstrap.min.css is a vendored, pre-built stylesheet (Bootstrap's
+ * stock blue #0d6efd) loaded on every public "Footclub" page (boutique,
+ * contact, recrutement, accueil...). This file loads last and overrides it,
+ * but never retargeted .btn-primary/.text-primary/etc. to the club's own
+ * accent color above, so public CTAs stayed Bootstrap-blue while the rest of
+ * the site went red. Re-tint the primary utility classes to --accent-color
+ * (the same #c8102e used by sso/superadmin/billetterie/sellerPortal) so a
+ * button looks the same whichever app served the page. */
+.btn-primary {
+	background-color: var(--accent-color);
+	border-color: var(--accent-color);
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+	background-color: #a10d25;
+	border-color: #a10d25;
+}
+.btn-outline-primary {
+	color: var(--accent-color);
+	border-color: var(--accent-color);
+}
+.btn-outline-primary:hover {
+	background-color: var(--accent-color);
+	border-color: var(--accent-color);
+}
+.text-primary {
+	color: var(--accent-color) !important;
+}
+.bg-primary {
+	background-color: var(--accent-color) !important;
+}
+.border-primary {
+	border-color: var(--accent-color) !important;
+}
+a:not(.btn) {
+	color: var(--accent-color);
 }
