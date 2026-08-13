@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
-import { SheetService } from "@/services/SheetService";
+import { SheetService, SheetVersionConflictError } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
 import { MatchOfficialService } from "@/services/MatchOfficialService";
@@ -98,8 +98,14 @@ export async function deleteReservation(id: number, matchId: string): Promise<Ac
  * Confirme la phase avant-match : ne fait passer la feuille à
  * PRE_MATCH_SIGNED que si les 3 signatures sont réunies et que la feuille
  * est encore en DRAFT (idempotent si déjà confirmée).
+ *
+ * `expectedVersion` (TASK-P0-010) : version de la feuille telle que
+ * connue par l'écran appelant (chargée à l'affichage de la page). Si un
+ * autre officiel a déjà transitionné la feuille entre-temps,
+ * `updateStatus` lève `SheetVersionConflictError` plutôt que d'écraser ce
+ * changement concurrent — l'appelant doit recharger avant de réessayer.
  */
-export async function confirmPreMatch(sheetId: number, matchId: string): Promise<ActionResult> {
+export async function confirmPreMatch(sheetId: number, matchId: string, expectedVersion: number): Promise<ActionResult> {
   try {
     const sheetService = new SheetService();
     const signatureService = new SignatureService();
@@ -124,13 +130,16 @@ export async function confirmPreMatch(sheetId: number, matchId: string): Promise
 
     const sheet = await sheetService.findById(sheetId);
     if (sheet && sheet.status === "DRAFT") {
-      await sheetService.updateStatus(sheetId, "PRE_MATCH_SIGNED");
+      await sheetService.updateStatus(sheetId, "PRE_MATCH_SIGNED", expectedVersion);
     }
 
     revalidatePath(`/${matchId}/pre-match`);
     revalidatePath(`/${matchId}`);
     return { success: true, message: "actions.preMatch.messages.confirmed" };
-  } catch {
+  } catch (error) {
+    if (error instanceof SheetVersionConflictError) {
+      return { success: false, error: "actions.sheet.errors.conflict", conflict: true };
+    }
     return {
       success: false,
       error: "actions.preMatch.errors.confirm",

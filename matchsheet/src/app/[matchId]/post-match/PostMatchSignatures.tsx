@@ -29,6 +29,8 @@ interface PostMatchSignaturesProps {
   matchId: string;
   sheetId: number;
   sheetStatus: SheetStatus;
+  /** TASK-P0-010 : version de la feuille au chargement de l'écran, transportée jusqu'à confirmPostMatch. */
+  sheetVersion: number;
   homeTeamName: string;
   awayTeamName: string;
   signatures: SignatureInfo[];
@@ -51,6 +53,7 @@ export function PostMatchSignatures({
   matchId,
   sheetId,
   sheetStatus,
+  sheetVersion,
   homeTeamName,
   awayTeamName,
   signatures,
@@ -64,6 +67,7 @@ export function PostMatchSignatures({
   const [closing, setClosing] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [pageSuccess, setPageSuccess] = useState<string | null>(null);
+  const [versionConflict, setVersionConflict] = useState(false);
 
   const isClosed = sheetStatus === "CLOSED";
 
@@ -88,12 +92,14 @@ export function PostMatchSignatures({
     setClosing(true);
     setPageError(null);
     setPageSuccess(null);
+    setVersionConflict(false);
     try {
-      const result = await confirmPostMatch(sheetId, matchId);
+      const result = await confirmPostMatch(sheetId, matchId, sheetVersion);
       if (result.success) {
         router.push(`/${matchId}`);
       } else {
         setPageError(result.error ? t(result.error, result.errorParams) : t("signatures.errors.close"));
+        setVersionConflict(Boolean(result.conflict));
       }
     } finally {
       setClosing(false);
@@ -113,7 +119,14 @@ export function PostMatchSignatures({
 
       {pageError && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
-          <span>{pageError}</span>
+          <span>
+            {pageError}
+            {versionConflict && (
+              <button type="button" className="btn btn-sm btn-outline-danger ms-3" onClick={() => refresh()}>
+                {t("actions.sheet.reload")}
+              </button>
+            )}
+          </span>
           <button type="button" onClick={() => setPageError(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}

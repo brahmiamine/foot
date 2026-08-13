@@ -171,7 +171,7 @@ Construire le tunnel absent entre catalogue et commande.
 ### TASK-P0-010 — Activer l'optimistic locking jusqu'à l'interface Matchsheet
 
 **Projets :** `matchsheet`
-**Statut :** [~] Colonne/versionnement service présents, UI non branchée
+**Statut :** [~] Verrou branché sur les 3 transitions de statut in-app (avant-match, coup d'envoi, clôture) ; réouverture (superadmin↔matchsheet) non couverte
 
 **Critères d'acceptation :**
 - chaque écran transporte la version courante de la feuille ;
@@ -179,6 +179,8 @@ Construire le tunnel absent entre catalogue et commande.
 - conflit renvoyé en 409 et présenté sans écraser la saisie locale ;
 - action de rechargement/comparaison/réessai explicite ;
 - test avec deux officiels : un succès, un conflit.
+
+> **Note d'implémentation** : `sheet.version` (déjà chargé par `SheetService.getOrCreate`) est désormais transporté par les 3 `page.tsx` server components (`pre-match`, `live`, `post-match`) jusqu'à leurs composants client (`sheetVersion`, nouvelle prop) puis jusqu'aux Server Actions `confirmPreMatch`/`startMatch`/`confirmPostMatch`, qui appellent `SheetService.updateStatus(..., expectedVersion)` au lieu d'omettre ce paramètre (le verrou existait déjà côté service depuis TASK-P0-023 mais n'était jamais alimenté par l'UI, donc mort en pratique). `confirmPostMatch` fait deux écritures séquentielles (POST_MATCH_SIGNED puis CLOSED) : la seconde enchaîne sur la version renvoyée par la première plutôt que de réutiliser `expectedVersion`, pour ne détecter comme conflit que l'intervention d'un tiers, pas la propre écriture de l'action. `ActionResult` gagne un champ `conflict?: boolean` ; chaque action catch spécifiquement `SheetVersionConflictError` et renvoie `actions.sheet.errors.conflict` avec `conflict: true`, que les 3 composants affichent avec un bouton « Recharger la feuille » (réutilise le `refresh()`/`router.refresh()` déjà en place) au lieu d'un simple message d'erreur — jamais de nouvel essai automatique qui écraserait le travail concurrent. **Hors périmètre** : le flux de réouverture (`POST /api/internal/matches/[matchId]/reopen`, appelé par `superadmin.reopenMatchAdmin` via `matchsheetClient.ts`) supporte déjà `expectedVersion` côté service matchsheet mais n'est pas exposé par la route HTTP ni consommé par superadmin — superadmin n'a pas de colonne `version` dans son mapping local de `Sheet` (`superadmin/src/lib/entities/Sheet.ts`), il faudrait l'y ajouter avant de pouvoir threader un verrou cross-service ; laissé pour une passe ultérieure. Tests : `matchsheet/src/app/[matchId]/live/actions.version.test.ts` (deux officiels démarrant depuis la même version : succès puis conflit explicite sans écrasement, puis réessai réussi après rechargement) en complément des tests service déjà existants (`SheetService.test.ts`).
 
 ### TASK-P0-011 — Décider et implémenter le mode hors ligne Matchsheet
 
