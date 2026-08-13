@@ -360,8 +360,23 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
       throw new ConflictError(`Il ne reste que ${Math.max(0, remaining)} billet(s) disponible(s) pour cette catégorie.`);
     }
 
+    // TASK-P0-004 : UPDATE conditionnel atomique en défense en profondeur
+    // du verrou pessimistic_write ci-dessus — la condition SQL elle-même
+    // (et non plus seulement le check applicatif précédent) empêche tout
+    // dépassement de capacité, y compris si ce code venait un jour à
+    // s'exécuter hors du verrou. affected === 0 signifie que la capacité a
+    // été consommée entre la lecture et l'écriture (ne devrait jamais
+    // arriver sous le verrou, mais reste vérifié explicitement).
+    const updateResult = await manager
+      .createQueryBuilder()
+      .update(MatchTicketCategory)
+      .set({ soldCount: () => "sold_count + :qty" })
+      .where("id = :id AND sold_count + :qty <= capacity", { id: mtc.id, qty: input.quantity })
+      .execute();
+    if (updateResult.affected !== 1) {
+      throw new ConflictError("Il ne reste plus de billet disponible pour cette catégorie.");
+    }
     mtc.soldCount += input.quantity;
-    await manager.save(mtc);
 
     const tickets = Array.from({ length: input.quantity }, () =>
       manager.create(Ticket, {

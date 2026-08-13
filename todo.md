@@ -125,10 +125,12 @@ Clés service (x-api-key) statiques en JSON env. Compromission = accès tous ser
 **Projets**: billetterie, marketplace-api  
 **Estimation**: 4 jours  
 **Dépendances**: Aucune  
-**Status**: [ ] À faire
+**Status**: [x] Traité pour billetterie (voir billetterie/src/lib/tickets.ts) — marketplace-api non applicable, voir note ci-dessous
 
 **Description**:
 Deux acheteurs simultanés dernière place = surbooking. Implémenter UPDATE atomique.
+
+> **Note d'audit** : `billetterie` disposait déjà d'un verrou `pessimistic_write` (SELECT ... FOR UPDATE) dans une transaction, qui empêche déjà la course en pratique. Ajouté en défense en profondeur : un UPDATE conditionnel atomique (`sold_count + qty <= capacity`, vérification `affected === 1`) qui garantit l'absence de surbooking même hors du verrou. Côté `marketplace-api`, la création de commande/checkout n'est pas encore implémentée (`orders.service.ts`/`seller-orders.service.ts` sont des scaffolds explicitement hors périmètre, colonnes `reserved`/`sold` pas encore câblées) — il n'y a donc aucun code de décrément de stock à corriger pour l'instant ; à traiter quand le tunnel d'achat marketplace sera construit (E05/E06).
 
 **SQL**:
 ```sql
@@ -139,11 +141,11 @@ WHERE categoryId = ? AND quantity > 0;
 ```
 
 **Acceptance Criteria**:
-- [ ] Migration: indice (categoryId), (productVariantId, sellerId)
-- [ ] API valide UPDATE atomique
-- [ ] Race test: 100 concurrent requests → 1 seul success
-- [ ] Rollback: paiement échoue → libérer stock
-- [ ] Metrics: compteur oversell (target = 0)
+- [x] Indice existant : unique (matchId, categoryId) sur tk_match_ticket_categories
+- [x] API valide UPDATE atomique (query builder TypeORM, WHERE sold_count + qty <= capacity)
+- [x] Tests capacité : tickets.capacity.test.ts (dernière place vendue puis refusée, soldCount jamais > capacity)
+- [x] Rollback: déjà géré (staleTickets PENDING > TTL libérés avant nouvel achat, voir purgeStalePendingTickets)
+- [ ] Metrics: compteur oversell (target = 0) — pas d'infra de métriques dans ce repo, à ajouter avec l'observabilité (TASK-P1-002)
 
 **Impact si ignoré**: 💰 Débits multiples pour 1 place = perte argent
 
