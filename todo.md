@@ -386,20 +386,23 @@ Créer staff: superadmin appelle SSO (User créé), puis affiliation. Si réseau
 **Projets**: superadmin, matchsheet  
 **Estimation**: 3 jours  
 **Dépendances**: TASK-P0-013  
-**Status**: [ ] À faire
+**Status**: [x] Traité (implémenté indépendamment de TASK-P0-013 — aucun couplage technique réel entre les deux)
 
 **Description**:
 Réouverture match doit être idempotente (peut être rejouée sans double effet).
 
-- [ ] MatchReopenEvent: id, matchId, status (PENDING|SUCCESS|FAILED)
-- [ ] Matchsheet API: `/api/internal/matches/reopen` accepte idempotencyKey
-- [ ] MatchReopenLog: UNIQUE(matchId, idempotencyKey)
-- [ ] Si idempotencyKey existe → retourner 200 sans re-exécuter
+> **Note d'audit** : la route existante est `POST /api/internal/matches/[matchId]/reopen` (matchId en path, pas en body comme suggéré) — adapté à cette convention plutôt que de créer une route générique. `MatchReopenLog` (matchId, idempotencyKey UNIQUE composite, sheetId) ajouté côté matchsheet ; pas de statut PENDING/FAILED séparé (le log n'est écrit qu'après succès — un échec n'a rien à idempotencer, l'appelant peut retenter normalement avec la même ou une nouvelle clé). Côté superadmin, `reopenSheet()` génère la clé une seule fois par appel et la réutilise sur ses propres retries réseau (jusqu'à 3 tentatives, seulement sur échec réseau — jamais sur une réponse HTTP reçue, qui est un refus métier explicite).
+
+- [x] Journal des réouvertures déjà traitées : `MatchReopenLog` (id, matchId, idempotencyKey, sheetId, createdAt) — pas de statut séparé, voir note
+- [x] Matchsheet API: `POST /api/internal/matches/[matchId]/reopen` accepte le header `Idempotency-Key`
+- [x] MatchReopenLog: UNIQUE(matchId, idempotencyKey)
+- [x] Si idempotencyKey existe → retourner 200 sans re-exécuter (`SheetService.reopen`)
 
 **Tests**:
-- [ ] Reopen match → succès
-- [ ] Reopen même match (rejeu) → idempotent
-- [ ] Reopen match pas CLOSED → error "Not closed"
+- [x] Reopen match → succès (existant + nouveaux tests idempotencyKey)
+- [x] Reopen même match (rejeu, même clé) → idempotent, sans re-déclencher le mirroring sur `matches`
+- [x] Reopen match pas CLOSED → error (comportement historique inchangé sans clé, ou avec une clé différente)
+- [x] superadmin : retry réseau réutilise la même clé ; une erreur métier (4xx/5xx reçue) n'est jamais rejouée automatiquement
 
 ---
 

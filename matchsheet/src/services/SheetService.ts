@@ -1,7 +1,20 @@
 import { getDataSource } from "@/lib/db";
 import { Sheet, SheetStatus } from "@/entities/Sheet";
 import { Match } from "@/entities/Match";
+import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { Not, Repository } from "typeorm";
+
+function isDuplicateKeyError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const record = error as Record<string, unknown>;
+  const code =
+    typeof record.code === "string"
+      ? record.code
+      : typeof (record.driverError as Record<string, unknown> | undefined)?.code === "string"
+        ? ((record.driverError as Record<string, unknown>).code as string)
+        : undefined;
+  return code === "ER_DUP_ENTRY" || (code?.startsWith("SQLITE_CONSTRAINT") ?? false);
+}
 
 /**
  * TASK-P0-023 : levée quand `expectedVersion` (fourni par l'appelant) ne
@@ -103,21 +116,44 @@ export class SheetService {
    * et `actual_finished_at` (match, plus "terminé" une fois rouvert) —
    * jamais `actual_started_at`, qui reste la trace du tout premier
    * démarrage réel du match, quel que soit le nombre de réouvertures.
+   *
+   * TASK-P0-023 : `expectedVersion` (optionnel) transforme la réouverture en
+   * UPDATE conditionnel. La condition `status = 'CLOSED'` de l'UPDATE
+   * lui-même (pas seulement le check applicatif ci-dessous) garantit qu'une
+   * réouverture concurrente ne peut jamais s'exécuter deux fois : la
+   * seconde échoue sur `affected = 0` plutôt que de rejouer silencieusement
+   * l'effet de bord sur `matches`.
+   *
+   * TASK-P0-014 : `idempotencyKey` (optionnel, fourni par l'appelant — voir
+   * superadmin/src/lib/matchsheetClient.ts#reopenSheet) rend l'appel
+   * rejouable sans risque : un rejeu avec la même clé pour le même match
+   * renvoie l'état déjà obtenu (200, sans re-vérifier CLOSED ni re-déclencher
+   * le mirroring sur `matches`) au lieu d'échouer avec "feuille pas CLOSED"
+   * — utile après un retry réseau côté superadmin dont la première tentative
+   * avait en fait réussi côté matchsheet, seule la réponse ayant été perdue.
    */
-  /**
-   * TASK-P0-023 : même mécanisme que updateStatus — `expectedVersion`
-   * (optionnel) transforme la réouverture en UPDATE conditionnel. En plus,
-   * la condition `status = 'CLOSED'` de l'UPDATE lui-même (pas seulement le
-   * check applicatif ci-dessous) garantit qu'une réouverture concurrente ne
-   * peut jamais s'exécuter deux fois : la seconde échoue sur `affected = 0`
-   * plutôt que de rejouer silencieusement l'effet de bord sur `matches`.
-   */
-  async reopen(matchId: string, expectedVersion?: number): Promise<Sheet> {
+  async reopen(
+    matchId: string,
+    options?: { expectedVersion?: number; idempotencyKey?: string },
+  ): Promise<Sheet> {
     const repository = await this.getRepository();
     const sheet = await repository.findOne({ where: { matchId } });
     if (!sheet) {
       throw new Error("Feuille de match introuvable");
     }
+
+    const { expectedVersion, idempotencyKey } = options ?? {};
+    const dataSource = await getDataSource();
+
+    if (idempotencyKey) {
+      const existingLog = await dataSource
+        .getRepository(MatchReopenLog)
+        .findOne({ where: { matchId, idempotencyKey } });
+      if (existingLog) {
+        return sheet;
+      }
+    }
+
     if (sheet.status !== "CLOSED") {
       throw new Error(
         `Impossible de rouvrir une feuille au statut ${sheet.status} (seule une feuille CLOSED peut être rouverte)`
@@ -147,6 +183,18 @@ export class SheetService {
       { id: matchId, status: Not("CANCELLED") },
       { status: "IN_PROGRESS", actualFinishedAt: null }
     );
+
+    if (idempotencyKey) {
+      try {
+        await dataSource.getRepository(MatchReopenLog).insert({ matchId, idempotencyKey, sheetId: sheet.id });
+      } catch (error) {
+        if (!isDuplicateKeyError(error)) throw error;
+        // Course entre deux appels concurrents avec la même clé : la
+        // réouverture elle-même reste exactly-once (garantie par l'UPDATE
+        // conditionnel ci-dessus), seul l'enregistrement du journal a
+        // perdu la course — rien de plus à faire.
+      }
+    }
 
     return saved;
   }

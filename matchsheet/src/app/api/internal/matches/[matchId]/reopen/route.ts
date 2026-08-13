@@ -9,6 +9,10 @@ export const runtime = "nodejs";
  * Service-à-service uniquement (x-api-key, voir lib/serviceAuth.ts).
  * Appelée par superadmin (reopenMatchAdmin) — remplace l'écriture directe
  * qu'il faisait jusqu'ici dans `ms_sheets`/`matches` (TS-31, avancement.md).
+ *
+ * TASK-P0-014 : header `Idempotency-Key` optionnel — un rejeu avec la même
+ * clé pour ce match renvoie 200 avec l'état déjà obtenu au lieu d'échouer
+ * avec "feuille pas CLOSED" (voir SheetService.reopen).
  */
 export async function POST(
   request: NextRequest,
@@ -19,8 +23,9 @@ export async function POST(
 
   try {
     const { matchId } = await params;
+    const idempotencyKey = request.headers.get("idempotency-key") ?? undefined;
     const sheetService = new SheetService();
-    const sheet = await sheetService.reopen(matchId);
+    const sheet = await sheetService.reopen(matchId, { idempotencyKey });
     return NextResponse.json({ id: sheet.id, matchId: sheet.matchId, status: sheet.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue";

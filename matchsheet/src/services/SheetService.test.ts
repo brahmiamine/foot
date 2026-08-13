@@ -212,7 +212,7 @@ describe("SheetService — verrou optimiste (version)", () => {
     await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date(), version: 4 });
 
     const service = new SheetService();
-    await expect(service.reopen(match.id, 2)).rejects.toThrow(SheetVersionConflictError);
+    await expect(service.reopen(match.id, { expectedVersion: 2 })).rejects.toThrow(SheetVersionConflictError);
 
     const reloaded = await dataSource.getRepository(Sheet).findOneOrFail({ where: { id: sheet.id } });
     expect(reloaded.status).toBe("CLOSED");
@@ -224,9 +224,73 @@ describe("SheetService — verrou optimiste (version)", () => {
     await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date(), version: 4 });
 
     const service = new SheetService();
-    const result = await service.reopen(match.id, 4);
+    const result = await service.reopen(match.id, { expectedVersion: 4 });
 
     expect(result.status).toBe("IN_PROGRESS");
     expect(result.version).toBe(5);
+  });
+});
+
+/**
+ * TASK-P0-014 : réouverture idempotente — un appelant qui rejoue la même
+ * requête (retry réseau après timeout) ne doit jamais échouer ni re-déclencher
+ * les effets de bord d'une réouverture déjà traitée.
+ */
+describe("SheetService.reopen — idempotencyKey", () => {
+  it("une clé rejouée renvoie l'état déjà obtenu sans re-vérifier CLOSED", async () => {
+    const { SheetService } = await import("./SheetService");
+    const { match, sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date() });
+
+    const service = new SheetService();
+    const first = await service.reopen(match.id, { idempotencyKey: "retry-1" });
+    expect(first.status).toBe("IN_PROGRESS");
+
+    // La feuille n'est plus CLOSED — un appel normal échouerait ici — mais
+    // le rejeu avec la MÊME clé doit réussir et renvoyer le même résultat.
+    const replay = await service.reopen(match.id, { idempotencyKey: "retry-1" });
+    expect(replay.status).toBe("IN_PROGRESS");
+    expect(replay.id).toBe(first.id);
+  });
+
+  it("ne mirror pas une seconde fois matches.status sur un rejeu", async () => {
+    const { SheetService } = await import("./SheetService");
+    const { match, sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Match).update(match.id, { status: "FINISHED", actualFinishedAt: new Date() });
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date() });
+
+    const service = new SheetService();
+    await service.reopen(match.id, { idempotencyKey: "retry-2" });
+    await dataSource.getRepository(Match).update(match.id, { actualFinishedAt: new Date("2026-01-01T00:00:00Z") });
+
+    // Si le rejeu ré-exécutait le mirroring, actualFinishedAt serait effacé (null) à nouveau.
+    await service.reopen(match.id, { idempotencyKey: "retry-2" });
+
+    const reloadedMatch = await dataSource.getRepository(Match).findOneOrFail({ where: { id: match.id } });
+    expect(reloadedMatch.actualFinishedAt).not.toBeNull();
+  });
+
+  it("une clé différente sur une feuille déjà réouverte échoue normalement (pas un rejeu)", async () => {
+    const { SheetService } = await import("./SheetService");
+    const { match, sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date() });
+
+    const service = new SheetService();
+    await service.reopen(match.id, { idempotencyKey: "retry-3" });
+
+    await expect(service.reopen(match.id, { idempotencyKey: "another-key" })).rejects.toThrow(
+      /Impossible de rouvrir/,
+    );
+  });
+
+  it("sans idempotencyKey, le comportement historique est inchangé (rejeu échoue)", async () => {
+    const { SheetService } = await import("./SheetService");
+    const { match, sheet } = await seedBaseGraph(dataSource);
+    await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED", closedAt: new Date() });
+
+    const service = new SheetService();
+    await service.reopen(match.id);
+
+    await expect(service.reopen(match.id)).rejects.toThrow(/Impossible de rouvrir/);
   });
 });

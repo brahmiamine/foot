@@ -7,6 +7,7 @@ import { Goal } from "@/entities/Goal";
 import { Injury } from "@/entities/Injury";
 import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
+import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { Player } from "@/entities/Player";
 import { Sheet } from "@/entities/Sheet";
 import { Substitution } from "@/entities/Substitution";
@@ -24,7 +25,20 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Card, CardReason, Federation, Goal, Injury, Match, Matchday, Player, Sheet, Substitution, Team],
+    entities: [
+      Card,
+      CardReason,
+      Federation,
+      Goal,
+      Injury,
+      Match,
+      Matchday,
+      MatchReopenLog,
+      Player,
+      Sheet,
+      Substitution,
+      Team,
+    ],
   });
 
   await dataSource.initialize();
