@@ -30,12 +30,12 @@ La migration n'est pas encore considérée comme terminée : `LEAGUE_ADMIN` doit
 7. Calcul des analytics officielles ArbiNote : évolution chronologique et comparaison par observateur.
 
 **P0 — écarts fonctionnels ou de sécurité restant à fermer**
-1. Ajouter les tests négatifs cross-ligue pour `LEAGUE_ADMIN`. Le scope est désormais actif sur le CRUD des journées, le CRUD des matchs et la lecture/affectation/révocation des officiels.
-2. Exposer les analytics officielles ArbiNote sur l'endpoint `/stats` sans mélanger note publique et note officielle.
-3. Enrichir l'audit des affectations/révocations d'officiels avec IP et User-Agent.
+1. Étendre les tests d'intégration cross-ligue si nécessaire. Des tests négatifs de routes couvrent désormais les journées, matchs et officiels.
+2. Analytics officielles ArbiNote exposées sur `/stats`, séparées de la note publique ; compléter seulement les sélecteurs paginés/recherchables.
+3. Audit des affectations/révocations enrichi avec IP et User-Agent via `audit_logs`.
 
 **P1 — compléments fonctionnels**
-4. Ajouter dans `teamManager` la vue « Anciens joueurs » et l'historique d'appartenance en lecture seule.
+4. Vue « Anciens joueurs » ajoutée dans `teamManager` avec historique `ENDED` en lecture seule.
 5. Terminer pagination et recherche des sélecteurs match/arbitre de l'écran officiel ArbiNote.
 6. Ajouter les tests d'intégration manquants pour les scopes `LEAGUE_ADMIN` et le contrôle temporel.
 
