@@ -68,4 +68,15 @@ export class Goal {
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
+
+  /**
+   * Annulation sans suppression (TASK-P0-009) : un but annulé reste en base
+   * (traçabilité, cf. `ms_event_corrections`) mais est exclu du score et de
+   * l'affichage live par défaut (voir GoalService.findBySheet).
+   */
+  @Column({ type: "datetime", nullable: true, name: "cancelled_at" })
+  cancelledAt?: Date | null;
+
+  @Column({ type: "text", nullable: true, name: "cancelled_reason" })
+  cancelledReason?: string | null;
 }

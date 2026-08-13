@@ -8,11 +8,11 @@ import {
   addCard,
   deleteCard,
   addGoal,
-  deleteGoal,
+  cancelGoal,
   addInjury,
-  deleteInjury,
+  cancelInjury,
   addSubstitution,
-  deleteSubstitution,
+  cancelSubstitution,
   startMatch,
 } from "./actions";
 
@@ -639,9 +639,14 @@ function GoalsSection({
 
   const handleDelete = async (id: number) => {
     if (!confirm(t("events.goal.confirmDelete"))) return;
+    const reason = prompt(t("events.goal.cancelReasonPrompt"));
+    if (!reason || reason.trim().length < 5) {
+      if (reason !== null) setError(t("events.cancel.errors.reasonRequired"));
+      return;
+    }
     setDeletingId(id);
     try {
-      const result = await deleteGoal(id, matchId);
+      const result = await cancelGoal(id, matchId, reason.trim());
       if (result.success) refresh();
       else setError(t(result.error, result.errorParams));
     } finally {
@@ -866,9 +871,14 @@ function InjuriesSection({
 
   const handleDelete = async (id: number) => {
     if (!confirm(t("events.injury.confirmDelete"))) return;
+    const reason = prompt(t("events.injury.cancelReasonPrompt"));
+    if (!reason || reason.trim().length < 5) {
+      if (reason !== null) setError(t("events.cancel.errors.reasonRequired"));
+      return;
+    }
     setDeletingId(id);
     try {
-      const result = await deleteInjury(id, matchId);
+      const result = await cancelInjury(id, matchId, reason.trim());
       if (result.success) refresh();
       else setError(t(result.error, result.errorParams));
     } finally {
@@ -1092,9 +1102,14 @@ function SubstitutionsSection({
 
   const handleDelete = async (id: number) => {
     if (!confirm(t("events.substitution.confirmDelete"))) return;
+    const reason = prompt(t("events.substitution.cancelReasonPrompt"));
+    if (!reason || reason.trim().length < 5) {
+      if (reason !== null) setError(t("events.cancel.errors.reasonRequired"));
+      return;
+    }
     setDeletingId(id);
     try {
-      const result = await deleteSubstitution(id, matchId);
+      const result = await cancelSubstitution(id, matchId, reason.trim());
       if (result.success) refresh();
       else setError(t(result.error, result.errorParams));
     } finally {

@@ -100,6 +100,9 @@ matchsheet/sql/migration_add_sheet_version.sql
 matchsheet/sql/migration_add_match_reopen_log.sql
 # Colonnes propres à ms_signatures, aucune dépendance (TASK-P0-024, todo.md).
 matchsheet/sql/migration_add_signature_integrity.sql
+# Colonnes propres à ms_goals/ms_injuries/ms_substitutions + nouvelle table
+# ms_event_corrections, aucune dépendance (TASK-P0-009, todo.md).
+matchsheet/sql/migration_add_event_corrections.sql
 
 # --- billetterie (tk_*, dépend de teams/matches) ---
 billetterie/sql/schema.sql

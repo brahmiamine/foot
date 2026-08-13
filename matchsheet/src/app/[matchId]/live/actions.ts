@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { CardEventService } from "@/services/CardEventService";
 import { GoalService } from "@/services/GoalService";
@@ -8,6 +9,11 @@ import { SubstitutionService } from "@/services/SubstitutionService";
 import { SheetService } from "@/services/SheetService";
 import type { CardType, MatchPeriod } from "@/entities/Card";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
+
+async function currentActor(): Promise<{ userId: string | null; name: string | null }> {
+  const requestHeaders = await headers();
+  return { userId: requestHeaders.get("x-sso-user-id"), name: requestHeaders.get("x-sso-name") };
+}
 
 /** Ajoute un carton (jaune/rouge/double jaune) — écrit directement dans la table Card partagée. */
 export async function addCard(
@@ -70,10 +76,16 @@ export async function addGoal(
   }
 }
 
-export async function deleteGoal(id: number, matchId: string): Promise<ActionResult> {
+/**
+ * Annule un but déjà saisi (TASK-P0-009) : conserve la ligne pour l'audit
+ * (voir GoalService.cancel) au lieu de la supprimer silencieusement — un
+ * motif est obligatoire.
+ */
+export async function cancelGoal(id: number, matchId: string, reason: string): Promise<ActionResult> {
   try {
     const goalService = new GoalService();
-    await goalService.delete(id);
+    const actor = await currentActor();
+    await goalService.cancel(id, { reason, actorUserId: actor.userId, actorName: actor.name });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.goal.deleted" };
   } catch {
@@ -104,10 +116,12 @@ export async function addInjury(
   }
 }
 
-export async function deleteInjury(id: number, matchId: string): Promise<ActionResult> {
+/** Annule une blessure déjà saisie (TASK-P0-009) — voir cancelGoal. */
+export async function cancelInjury(id: number, matchId: string, reason: string): Promise<ActionResult> {
   try {
     const injuryService = new InjuryService();
-    await injuryService.delete(id);
+    const actor = await currentActor();
+    await injuryService.cancel(id, { reason, actorUserId: actor.userId, actorName: actor.name });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.injury.deleted" };
   } catch {
@@ -139,10 +153,12 @@ export async function addSubstitution(
   }
 }
 
-export async function deleteSubstitution(id: number, matchId: string): Promise<ActionResult> {
+/** Annule un remplacement déjà saisi (TASK-P0-009) — voir cancelGoal. */
+export async function cancelSubstitution(id: number, matchId: string, reason: string): Promise<ActionResult> {
   try {
     const substitutionService = new SubstitutionService();
-    await substitutionService.delete(id);
+    const actor = await currentActor();
+    await substitutionService.cancel(id, { reason, actorUserId: actor.userId, actorName: actor.name });
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.substitution.deleted" };
   } catch {
