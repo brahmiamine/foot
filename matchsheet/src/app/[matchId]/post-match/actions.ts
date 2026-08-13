@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
-import { SheetService } from "@/services/SheetService";
+import { SheetService, SheetVersionConflictError } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
 import { MatchService } from "@/services/MatchService";
@@ -101,8 +101,16 @@ export async function deleteReservation(id: number, matchId: string): Promise<Ac
  * Clôture la feuille de match : nécessite les 3 signatures après-match,
  * fait passer la feuille par POST_MATCH_SIGNED puis CLOSED (deux mises à
  * jour de statut séquentielles). Action définitive — no-op si déjà clôturée.
+ *
+ * `expectedVersion` (TASK-P0-010) : version connue de l'écran appelant, à
+ * l'origine du premier des deux writes (POST_MATCH_SIGNED). Le second write
+ * (CLOSED) enchaîne sur la version renvoyée par le premier plutôt que de
+ * réutiliser `expectedVersion` : les deux transitions proviennent de la
+ * même action utilisateur, donc seul un tiers intercalé entre le début de
+ * l'action et le premier write doit être détecté comme un conflit — pas la
+ * propre écriture de l'action elle-même.
  */
-export async function confirmPostMatch(sheetId: number, matchId: string): Promise<ActionResult> {
+export async function confirmPostMatch(sheetId: number, matchId: string, expectedVersion: number): Promise<ActionResult> {
   try {
     const sheetService = new SheetService();
     const signatureService = new SignatureService();
@@ -128,14 +136,17 @@ export async function confirmPostMatch(sheetId: number, matchId: string): Promis
       };
     }
 
-    await sheetService.updateStatus(sheetId, "POST_MATCH_SIGNED");
-    await sheetService.updateStatus(sheetId, "CLOSED");
+    const signed = await sheetService.updateStatus(sheetId, "POST_MATCH_SIGNED", expectedVersion);
+    await sheetService.updateStatus(sheetId, "CLOSED", signed.version);
 
     revalidatePath(`/${matchId}/post-match`);
     revalidatePath(`/${matchId}`);
     await notifyMatchSheetClosed(matchId);
     return { success: true, message: "actions.closure.messages.closed" };
-  } catch {
+  } catch (error) {
+    if (error instanceof SheetVersionConflictError) {
+      return { success: false, error: "actions.sheet.errors.conflict", conflict: true };
+    }
     return {
       success: false,
       error: "actions.closure.errors.close",

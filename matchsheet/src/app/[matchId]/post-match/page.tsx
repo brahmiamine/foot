@@ -52,6 +52,7 @@ export default async function PostMatchPage({ params }: { params: Promise<{ matc
       matchId={matchId}
       sheetId={sheet.id}
       sheetStatus={sheet.status}
+      sheetVersion={sheet.version}
       homeTeamName={match.homeTeam?.nom ?? "Équipe domicile"}
       awayTeamName={match.awayTeam?.nom ?? "Équipe extérieure"}
       signatures={postMatchSignatures}

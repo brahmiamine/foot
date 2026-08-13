@@ -93,6 +93,8 @@ interface LiveMatchSheetProps {
   awayTeam: TeamRef;
   sheetId: number;
   sheetStatus: SheetStatus;
+  /** TASK-P0-010 : version de la feuille au chargement de l'écran, transportée jusqu'à startMatch. */
+  sheetVersion: number;
   homeLineup: LineupPlayer[];
   awayLineup: LineupPlayer[];
   cardReasons: CardReasonOption[];
@@ -123,6 +125,7 @@ export function LiveMatchSheet({
   awayTeam,
   sheetId,
   sheetStatus,
+  sheetVersion,
   homeLineup,
   awayLineup,
   cardReasons,
@@ -139,6 +142,7 @@ export function LiveMatchSheet({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [startingMatch, setStartingMatch] = useState(false);
+  const [versionConflict, setVersionConflict] = useState(false);
 
   const teams = [homeTeam, awayTeam];
   const lineupByTeam: Record<string, LineupPlayer[]> = {
@@ -153,13 +157,15 @@ export function LiveMatchSheet({
     setStartingMatch(true);
     setError(null);
     setSuccess(null);
+    setVersionConflict(false);
     try {
-      const result = await startMatch(sheetId, matchId);
+      const result = await startMatch(sheetId, matchId, sheetVersion);
       if (result.success) {
         setSuccess(result.message ? t(result.message, result.messageParams) : t("events.live.started"));
         refresh();
       } else {
         setError(t(result.error, result.errorParams));
+        setVersionConflict(Boolean(result.conflict));
       }
     } finally {
       setStartingMatch(false);
@@ -207,7 +213,14 @@ export function LiveMatchSheet({
 
       {error && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
-          <span>{error}</span>
+          <span>
+            {error}
+            {versionConflict && (
+              <button type="button" className="btn btn-sm btn-outline-danger ms-3" onClick={() => refresh()}>
+                {t("actions.sheet.reload")}
+              </button>
+            )}
+          </span>
           <button type="button" onClick={() => setError(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}

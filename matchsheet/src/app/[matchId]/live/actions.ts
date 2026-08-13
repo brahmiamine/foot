@@ -6,7 +6,7 @@ import { CardEventService } from "@/services/CardEventService";
 import { GoalService } from "@/services/GoalService";
 import { InjuryService } from "@/services/InjuryService";
 import { SubstitutionService } from "@/services/SubstitutionService";
-import { SheetService } from "@/services/SheetService";
+import { SheetService, SheetVersionConflictError } from "@/services/SheetService";
 import type { CardType, MatchPeriod } from "@/entities/Card";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
 
@@ -166,14 +166,20 @@ export async function cancelSubstitution(id: number, matchId: string, reason: st
   }
 }
 
-/** Bascule la feuille en statut "En cours" — purement informatif, ne bloque rien. */
-export async function startMatch(sheetId: number, matchId: string): Promise<ActionResult> {
+/**
+ * Bascule la feuille en statut "En cours" — purement informatif, ne bloque
+ * rien. `expectedVersion` (TASK-P0-010) : voir confirmPreMatch.
+ */
+export async function startMatch(sheetId: number, matchId: string, expectedVersion: number): Promise<ActionResult> {
   try {
     const sheetService = new SheetService();
-    await sheetService.updateStatus(sheetId, "IN_PROGRESS");
+    await sheetService.updateStatus(sheetId, "IN_PROGRESS", expectedVersion);
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.start.saved" };
-  } catch {
+  } catch (error) {
+    if (error instanceof SheetVersionConflictError) {
+      return { success: false, error: "actions.sheet.errors.conflict", conflict: true };
+    }
     return { success: false, error: "actions.events.start.error" };
   }
 }

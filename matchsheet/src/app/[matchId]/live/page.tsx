@@ -122,6 +122,7 @@ export default async function LiveMatchPage({ params }: { params: Promise<{ matc
       awayTeam={{ id: match.equipeAway, name: match.awayTeam?.nom ?? "Équipe extérieure" }}
       sheetId={sheet.id}
       sheetStatus={sheet.status}
+      sheetVersion={sheet.version}
       homeLineup={homeLineup}
       awayLineup={awayLineup}
       cardReasons={cardReasonOptions}

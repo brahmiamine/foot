@@ -52,6 +52,7 @@ export default async function PreMatchPage({ params }: { params: Promise<{ match
       matchId={matchId}
       sheetId={sheet.id}
       sheetStatus={sheet.status}
+      sheetVersion={sheet.version}
       homeTeamName={match.homeTeam?.nom ?? "Équipe domicile"}
       awayTeamName={match.awayTeam?.nom ?? "Équipe extérieure"}
       signatures={preMatchSignatures}

@@ -29,6 +29,8 @@ interface PreMatchSignaturesProps {
   matchId: string;
   sheetId: number;
   sheetStatus: SheetStatus;
+  /** TASK-P0-010 : version de la feuille au chargement de l'écran, transportée jusqu'à confirmPreMatch. */
+  sheetVersion: number;
   homeTeamName: string;
   awayTeamName: string;
   signatures: SignatureInfo[];
@@ -50,6 +52,7 @@ export function PreMatchSignatures({
   matchId,
   sheetId,
   sheetStatus,
+  sheetVersion,
   homeTeamName,
   awayTeamName,
   signatures,
@@ -62,6 +65,7 @@ export function PreMatchSignatures({
   const [confirming, setConfirming] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [pageSuccess, setPageSuccess] = useState<string | null>(null);
+  const [versionConflict, setVersionConflict] = useState(false);
 
   const findSignature = (role: ActorRole) => signatures.find((s) => s.actorRole === role) ?? null;
 
@@ -77,12 +81,14 @@ export function PreMatchSignatures({
     setConfirming(true);
     setPageError(null);
     setPageSuccess(null);
+    setVersionConflict(false);
     try {
-      const result = await confirmPreMatch(sheetId, matchId);
+      const result = await confirmPreMatch(sheetId, matchId, sheetVersion);
       if (result.success) {
         router.push(`/${matchId}/live`);
       } else {
         setPageError(result.error ? t(result.error, result.errorParams) : t("common.errors.confirm"));
+        setVersionConflict(Boolean(result.conflict));
       }
     } finally {
       setConfirming(false);
@@ -104,7 +110,14 @@ export function PreMatchSignatures({
 
       {pageError && (
         <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
-          <span>{pageError}</span>
+          <span>
+            {pageError}
+            {versionConflict && (
+              <button type="button" className="btn btn-sm btn-outline-danger ms-3" onClick={() => refresh()}>
+                {t("actions.sheet.reload")}
+              </button>
+            )}
+          </span>
           <button type="button" onClick={() => setPageError(null)} aria-label={t("common.actions.close")} className="btn-close" />
         </div>
       )}
