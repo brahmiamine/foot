@@ -5,9 +5,7 @@ import { SellerOrder } from './entities/seller-order.entity';
 import { SellerOrderStatus } from './enums/seller-order-status.enum';
 
 describe('SellerOrdersService', () => {
-  let repository: jest.Mocked<
-    Pick<Repository<SellerOrder>, 'findOne' | 'save' | 'find'>
-  >;
+  let repository: { findOne: jest.Mock; save: jest.Mock; find: jest.Mock };
   let service: SellerOrdersService;
 
   function buildOrder(overrides: Partial<SellerOrder> = {}): SellerOrder {
