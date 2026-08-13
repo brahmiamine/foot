@@ -336,6 +336,8 @@ Omission filtrage teamId expose données autre club.
 > - `TripService.toggleConfirmed`/`removeParticipant` — aucune vérification que le déplacement du participant appartient au club appelant
 >
 > Corrigé en ajoutant `teamId` à chaque signature et une vérification de propriété avant mutation (même pattern que les actions de création existantes), avec tests de régression par service (`*.test.ts` à côté de chaque service). **Non fait** : la matrice complète "20+ cas de test IDOR par ressource (Players/Staff/Matches/CMS/Boutique)" demandée par le todo — l'essentiel des chemins CRUD principaux (create/update/delete des entités elles-mêmes, pas leurs sous-ressources) était déjà correctement scopé lors du sondage ; une passe exhaustive sur les 41 fichiers `actions.ts` reste à faire pour une garantie complète.
+>
+> **Suite (passe `actions.ts`, partielle)** : première IDOR trouvée en traçant `admin/roles/actions.ts#assignRoleToUser` → `RoleService.assignRole` : `teamId` était bien dérivé de la session côté action, mais `assignRole` faisait confiance à l'`userId` fourni par le client sans vérifier qu'il appartient à ce club — un ADMIN d'un club pouvait attribuer un rôle de son club à un `userId` deviné d'un autre club (pollution de `cms_user_roles`, fuite du nom du compte visé). Corrigé (vérification `User.findOne({ id: userId, teamId })` avant assignation, `RoleService.ts`) + test de régression (`RoleService.test.ts`). **La passe exhaustive sur les ~39 fichiers `actions.ts` reste incomplète** (seul `admin/roles/actions.ts` a été tracé jusqu'au bout jusqu'ici) — à continuer avant de considérer TASK-P0-012 clos.
 
 **Description**:
 Monolithe 50+ routes sans bornes. Autorisation surtout server actions, pas services.

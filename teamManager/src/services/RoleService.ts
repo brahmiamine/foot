@@ -1,6 +1,7 @@
 import { getDataSource } from "@/lib/database";
 import { Role } from "@/entities/Role";
 import { UserRole } from "@/entities/UserRole";
+import { User } from "@/entities/User";
 import { Repository } from "typeorm";
 import { AgeCategory } from "@/types/categories";
 import { ALL_PERMISSION_KEYS, DEFAULT_ROLE_PRESETS, isValidPermissionKey } from "@/lib/permissions";
@@ -22,6 +23,11 @@ export class RoleService {
   private async getUserRoleRepository(): Promise<Repository<UserRole>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(UserRole);
+  }
+
+  private async getUserRepository(): Promise<Repository<User>> {
+    const dataSource = await getDataSource();
+    return dataSource.getRepository(User);
   }
 
   async findAll(teamId: string): Promise<Role[]> {
@@ -144,6 +150,16 @@ export class RoleService {
     const role = await roleRepository.findOne({ where: { id: roleId, teamId } });
     if (!role) {
       throw new Error("Rôle non trouvé");
+    }
+
+    // TASK-P0-012 (todo.md): sans ce garde, un ADMIN d'un club pouvait
+    // attribuer un rôle de son club à l'userId (deviné) d'un compte d'un
+    // AUTRE club — polluant cms_user_roles et exposant le nom du compte
+    // visé sur la page Rôles de l'attaquant.
+    const userRepository = await this.getUserRepository();
+    const targetUser = await userRepository.findOne({ where: { id: userId, teamId } });
+    if (!targetUser) {
+      throw new Error("Utilisateur non trouvé pour ce club");
     }
     if (!role.isGlobal && !category) {
       throw new Error("Une catégorie est requise pour ce rôle");
