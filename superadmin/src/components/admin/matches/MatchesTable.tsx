@@ -7,6 +7,7 @@ import type { Locale } from '@/lib/i18n'
 import { buildEdit } from './utils'
 import type { MatchEdit } from './types'
 import MatchFactsTimeline from './MatchFactsTimeline'
+import MatchOfficialsPanel from './MatchOfficialsPanel'
 import type { MatchFact } from '@/lib/dataAccess/matchFacts'
 
 interface MatchesTableProps {
@@ -50,6 +51,7 @@ export default function MatchesTable({
   const [factsByMatch, setFactsByMatch] = useState<Record<string, MatchFact[]>>({})
   const [loadingFactsId, setLoadingFactsId] = useState<string | null>(null)
   const [factsError, setFactsError] = useState<string | null>(null)
+  const [expandedOfficialsId, setExpandedOfficialsId] = useState<string | null>(null)
 
   const toggleFacts = async (matchId: string) => {
     if (expandedId === matchId) {
@@ -70,6 +72,10 @@ export default function MatchesTable({
     } finally {
       setLoadingFactsId(null)
     }
+  }
+
+  const toggleOfficials = (matchId: string) => {
+    setExpandedOfficialsId((current) => (current === matchId ? null : matchId))
   }
 
   if (loading) {
@@ -95,6 +101,7 @@ export default function MatchesTable({
             const edit = edits[match.id] ?? buildEdit(match)
             const changed = hasChanges(match)
             const isExpanded = expandedId === match.id
+            const isOfficialsExpanded = expandedOfficialsId === match.id
             return (
               <React.Fragment key={match.id}>
               <tr>
@@ -279,6 +286,12 @@ export default function MatchesTable({
                       Faits {isExpanded ? '▲' : '▼'}
                     </button>
                     <button
+                      className={`btn btn-sm ${isOfficialsExpanded ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                      onClick={() => toggleOfficials(match.id)}
+                    >
+                      Officiels {isOfficialsExpanded ? '▲' : '▼'}
+                    </button>
+                    <button
                       className="btn btn-sm btn-primary"
                       disabled={!changed || savingId === match.id || match.status === 'CANCELLED'}
                       onClick={() => handleSave(match)}
@@ -330,6 +343,13 @@ export default function MatchesTable({
                     ) : (
                       <MatchFactsTimeline facts={factsByMatch[match.id] ?? []} />
                     )}
+                  </td>
+                </tr>
+              )}
+              {isOfficialsExpanded && (
+                <tr>
+                  <td colSpan={7} className="bg-light">
+                    <MatchOfficialsPanel matchId={match.id} />
                   </td>
                 </tr>
               )}

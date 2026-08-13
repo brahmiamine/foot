@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto'
-import { IsNull } from 'typeorm'
+import { In, IsNull } from 'typeorm'
 import { getDataSource } from './db'
 import { StaffInvitation, Team, Federation, League, User, type StaffInvitationRole } from './entities'
 import { sendEmail } from './mailer'
@@ -157,6 +157,66 @@ export async function createInvitation(input: CreateInvitationInput, appUrl: str
   })
 
   return { id: saved.id }
+}
+
+export interface StaffInvitationSummary {
+  id: string
+  name: string
+  email: string
+  role: StaffInvitationRole
+  federationId: string | null
+  federationName: string | null
+  leagueId: string | null
+  leagueName: string | null
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED'
+  expiresAt: string
+  createdAt: string
+}
+
+const STAFF_ROLES: StaffInvitationRole[] = ['FEDERATION_ADMIN', 'LEAGUE_ADMIN', 'REFEREE', 'MATCH_OFFICIAL', 'REFEREE_OBSERVER']
+
+/**
+ * Invitations fédération/ligue/officiels (migration.md §0), triées les
+ * plus récentes d'abord — les invitations ADMIN/OBSERVATEUR d'un club
+ * restent affichées séparément par `/admin/club/:teamId` (comptes déjà
+ * listés là, pas dupliqués ici).
+ */
+export async function listStaffInvitations(): Promise<StaffInvitationSummary[]> {
+  const dataSource = await getDataSource()
+  const invitations = await dataSource.getRepository(StaffInvitation).find({
+    where: STAFF_ROLES.map((role) => ({ role })),
+    order: { createdAt: 'DESC' },
+  })
+
+  const federationIds = [...new Set(invitations.map((i) => i.federationId).filter((id): id is string => !!id))]
+  const leagueIds = [...new Set(invitations.map((i) => i.leagueId).filter((id): id is string => !!id))]
+
+  const federations = federationIds.length
+    ? await dataSource.getRepository(Federation).find({ where: { id: In(federationIds) } })
+    : []
+  const leagues = leagueIds.length
+    ? await dataSource.getRepository(League).find({ where: { id: In(leagueIds) } })
+    : []
+
+  const federationNames = new Map(federations.map((f) => [f.id, f.nom]))
+  const leagueNames = new Map(leagues.map((l) => [l.id, l.nom]))
+
+  const now = Date.now()
+  return toPlain(
+    invitations.map((invitation) => ({
+      id: invitation.id,
+      name: invitation.name,
+      email: invitation.email,
+      role: invitation.role,
+      federationId: invitation.federationId ?? null,
+      federationName: invitation.federationId ? federationNames.get(invitation.federationId) ?? null : null,
+      leagueId: invitation.leagueId ?? null,
+      leagueName: invitation.leagueId ? leagueNames.get(invitation.leagueId) ?? null : null,
+      status: invitation.acceptedAt ? 'ACCEPTED' : invitation.expiresAt.getTime() < now ? 'EXPIRED' : 'PENDING',
+      expiresAt: invitation.expiresAt.toISOString(),
+      createdAt: invitation.createdAt.toISOString(),
+    }))
+  )
 }
 
 export interface InvitationPreview {

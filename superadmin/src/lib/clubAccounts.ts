@@ -83,6 +83,37 @@ export async function listUsersForTeam(teamId: string): Promise<ClubUser[]> {
   )
 }
 
+export interface OfficialAccount {
+  id: string
+  name: string
+  email: string
+  role: 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER'
+  isActive: boolean
+}
+
+/**
+ * Comptes SSO REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0/§11)
+ * — n'ont pas de `teamId`, leur périmètre réel est vérifié match par match
+ * (`match_official_assignments`, Phase 4), pas figé à la création du
+ * compte. Sert au sélecteur d'affectation d'officiels dans `superadmin`.
+ */
+export async function listOfficialAccounts(): Promise<OfficialAccount[]> {
+  const dataSource = await getDataSource()
+  const users = await dataSource.getRepository(User).find({
+    where: [{ role: 'REFEREE' }, { role: 'MATCH_OFFICIAL' }, { role: 'REFEREE_OBSERVER' }],
+    order: { name: 'ASC' },
+  })
+  return toPlainArray(
+    users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role as 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER',
+      isActive: u.isActive,
+    }))
+  )
+}
+
 export interface CreateClubUserInput {
   teamId: string
   name: string
