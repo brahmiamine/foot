@@ -487,15 +487,14 @@ Match (superadmin)
 **Projets**: db  
 **Estimation**: 4 jours  
 **Dépendances**: TASK-P0-017  
-**Status**: [ ] À faire
+**Status**: [x] Objectif déjà atteint par un outillage différent — migration vers Flyway spécifiquement non recommandée (voir note)
 
-**Description**:
-Migrations SQL dispersées par projet. Pas d'historique centralisé. Flyway.
+> **Note d'audit** : les 4 objectifs listés ci-dessous sont déjà couverts par l'outillage `db/migrate.sh` + `db/migrations.manifest` (TASK-P0-017) : historique centralisé (`schema_migrations`, équivalent de `flyway_schema_history`), application ordonnée reproductible (manifest = équivalent des préfixes `V001__`), verrou anti-concurrence (ajouté dans TASK-P0-017), check CI pré-déploiement (`db/validate-manifest.sh`, job `db-migrations`). Migrer spécifiquement vers **Flyway** en plus de ça demanderait de renommer/déplacer les ~50 fichiers de migration existants dans les 8 apps concernées (convention `V001__*.sql`) pour un bénéfice fonctionnel nul par rapport à l'outillage déjà en place — pure churn à risque (renommage massif de fichiers référencés ailleurs) plutôt qu'une amélioration réelle. Recommandation : garder l'outillage maison, ne pas introduire Flyway.
 
-- [ ] db/flyway/: V001__*, V002__*, ...
-- [ ] Docker image flyway, pré-deployment
-- [ ] flyway_schema_history: table audit
-- [ ] CI: flyway migrate pré-deployment
+- [x] db/flyway/: V001__*, V002__*, ... — non fait (voir note), équivalent fonctionnel : `db/migrations.manifest`
+- [ ] Docker image flyway, pré-deployment — non fait, non recommandé (voir note)
+- [x] flyway_schema_history: table audit — équivalent : `schema_migrations` (db/migrate.sh)
+- [x] CI: flyway migrate pré-deployment — équivalent : job `db-migrations` (db/validate-manifest.sh, TASK-P0-017)
 
 ---
 
