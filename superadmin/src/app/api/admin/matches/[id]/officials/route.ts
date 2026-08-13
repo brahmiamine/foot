@@ -27,10 +27,9 @@ async function authorizeMatchScope(request: NextRequest, matchId: string) {
   const dataSource = await getDataSource()
   const scope = await getMatchScope(dataSource, matchId)
   if (!scope) {
-    const response = canAccessPlatform(session)
-      ? NextResponse.json({ error: 'Match ou scope de ligue introuvable' }, { status: 404 })
-      : NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    return { response }
+    return canAccessPlatform(session)
+      ? { session, scope: null }
+      : { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
   const authorized =
