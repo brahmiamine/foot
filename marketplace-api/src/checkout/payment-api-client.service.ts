@@ -149,4 +149,89 @@ export class PaymentApiClientService {
     }
     return 'UNKNOWN';
   }
+
+  /** TASK-P0-006 (todo.md) : demande de remboursement (retours marketplace, ReturnsService). */
+  async requestRefund(input: RequestRefundInput): Promise<RefundResult> {
+    const { baseUrl, apiKey } = this.getConfig();
+
+    const response = await fetch(
+      `${baseUrl}/payments/${input.paymentId}/refunds`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'idempotency-key': input.idempotencyKey,
+        },
+        body: JSON.stringify({ amount: input.amount, reason: input.reason }),
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      this.logger.error(
+        `payment-api refund request failed (${response.status}): ${text}`,
+      );
+      throw new ServiceUnavailableException(
+        'Échec de la demande de remboursement.',
+      );
+    }
+
+    const data = (await response.json()) as { id?: string; status?: string };
+    if (!data.id || !data.status) {
+      throw new ServiceUnavailableException(
+        'Réponse inattendue de payment-api : id ou status de remboursement manquant.',
+      );
+    }
+    return { id: data.id, status: data.status as RefundStatus };
+  }
+
+  /** Relit le statut courant d'un remboursement déjà demandé (voir requestRefund). */
+  async getRefundStatus(refundId: string): Promise<RefundStatus | 'UNKNOWN'> {
+    const { baseUrl, apiKey } = this.getConfig();
+
+    const response = await fetch(`${baseUrl}/refunds/${refundId}`, {
+      headers: { 'x-api-key': apiKey },
+      cache: 'no-store',
+    });
+
+    if (response.status === 404) return 'UNKNOWN';
+    if (!response.ok) {
+      throw new ServiceUnavailableException(
+        'Échec de la lecture du statut de remboursement.',
+      );
+    }
+
+    const data = (await response.json()) as {
+      refund?: { status?: string };
+    };
+    const status = data.refund?.status;
+    if (
+      status === 'REQUESTED' ||
+      status === 'PROCESSING' ||
+      status === 'SUCCEEDED' ||
+      status === 'FAILED' ||
+      status === 'MANUAL_REVIEW'
+    ) {
+      return status;
+    }
+    return 'UNKNOWN';
+  }
+}
+
+export type RefundStatus =
+  'REQUESTED' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'MANUAL_REVIEW';
+
+export interface RequestRefundInput {
+  paymentId: string;
+  /** Omis pour un remboursement total ; requis pour un retour marketplace (partiel par construction). */
+  amount?: number;
+  reason: string;
+  /** Scopée par paiement côté payment-api — un même appel rejoué ne crée jamais un second remboursement. */
+  idempotencyKey: string;
+}
+
+export interface RefundResult {
+  id: string;
+  status: RefundStatus;
 }

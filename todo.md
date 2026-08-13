@@ -16,10 +16,10 @@
 
 | Priorité | Nombre | Objectif |
 |---|---:|---|
-| P0 | 17 | Fermer les parcours argent, match officiel, accès et cohérence distribuée |
+| P0 | 16 | Fermer les parcours argent, match officiel, accès et cohérence distribuée |
 | P1 | 18 | Compléter les fonctionnalités métier indispensables |
 | P2 | 9 | Industrialiser, mesurer et maintenir la plateforme |
-| **Total restant** | **44** | |
+| **Total restant** | **43** | |
 
 ---
 
@@ -119,15 +119,17 @@ Nouvelle table `sp_stock_reservations` (une ligne par réservation individuelle,
 ### TASK-P0-006 — Relier les retours marketplace aux remboursements et payouts
 
 **Projets :** `marketplace-api`, `payment-api`, `notification-api`
-**Statut :** [ ] TASK-P0-001 et TASK-P0-004 ne sont plus bloquantes (API de remboursement et tunnel de commande disponibles) ; le lien retours ↔ remboursement/payout reste à écrire
+**Statut :** [x] Lien retours ↔ remboursement/payout écrit et testé
 
 **Critères d'acceptation :**
-- `COMPLETED` déclenche un remboursement et ne signifie plus à lui seul « remboursé » ;
-- passage à `REFUNDED` uniquement après confirmation financière ;
-- échec de remboursement visible et rejouable ;
-- commission et payout vendeur recalculés ou compensés ;
-- notification du client et du vendeur ;
-- tests de retour accepté, remboursement échoué, rejeu et payout déjà calculé.
+- [x] `COMPLETED` déclenche un remboursement et ne signifie plus à lui seul « remboursé » (`ReturnsService.complete` appelle `PaymentApiClientService.requestRefund` juste après avoir marqué l'article reçu — voir `marketplace-api/src/returns/returns.service.ts`) ;
+- [x] passage à `REFUNDED` uniquement après confirmation financière : seul un statut `SUCCEEDED` renvoyé par payment-api fait passer `ReturnRequest` et `SellerOrder` à `REFUNDED` (immédiatement à la complétion si payment-api répond déjà `SUCCEEDED`, sinon via `ReturnRefundReconciliationService`, scheduler 10 min, qui relit `GET /refunds/:id` tant que le remboursement reste `REQUESTED`/`PROCESSING`/`MANUAL_REVIEW` — jamais optimiste) ;
+- [x] échec de remboursement visible et rejouable (`ReturnStatus.REFUND_FAILED` + `refundError` sur `ReturnRequest`, `POST /returns/:id/retry-refund` rejoue avec la même clé d'idempotence `return:<id>` — un rejeu après un succès côté payment-api non reçu par le client ne crée jamais un second remboursement) ;
+- [x] commission et payout vendeur recalculés ou compensés : automatique, pas de logique séparée à écrire — `PayoutsService.computeAvailableBalance` (TASK-P0-021/US-47) ne somme que les `SellerOrder` au statut `DELIVERED`, donc une commande qui bascule `RETURNED` puis `REFUNDED` sort mécaniquement du solde disponible dès le prochain calcul. **Limite assumée** (héritée de US-47, pas nouvelle ici) : le calcul est un agrégat plancé à zéro (`Math.max(0, ...)`), pas un grand livre par commande (TASK-P1-007) — si un payout couvrant déjà cette commande a été marqué `PAID` avant le retour, la perte n'est pas recouvrée activement, seulement absorbée sur les payouts futurs du vendeur ;
+- [x] notification du client et du vendeur : vendeur via le canal interne existant (`NotificationsService`, nouveaux types `RETURN_REFUNDED`/`RETURN_REFUND_FAILED`) ; acheteur via `notification-api` (`NotificationApiClientService`, réutilisé depuis TASK-P0-004) sur `MarketOrder.memberId` — best-effort, ne bloque jamais la transition d'état sous-jacente ;
+- [x] tests : retour accepté avec remboursement immédiat (`SUCCEEDED`) et différé (`MANUAL_REVIEW`/`PROCESSING`), remboursement échoué (payment-api indisponible), rejeu réussi et rejeu qui échoue à nouveau, réconciliation périodique (résolution en `REFUNDED`/`REFUND_FAILED`, no-op si le statut n'a pas changé ou sans `refundId`), non-réentrance du scheduler (`returns.service.spec.ts`, `return-refund-reconciliation.service.spec.ts`, 20 tests).
+
+> **Note d'implémentation** : le montant remboursé est celui de la ligne retournée (`SellerOrderItem.totalPrice`), pas le total de la commande globale (`MarketOrder`, potentiellement multi-vendeur) — un remboursement de retour est donc par construction partiel, et passe systématiquement par `MANUAL_REVIEW` chez Konnect/Paymee ou pour tout retour chez Flouci qui n'est pas l'unique remboursement du paiement (voir `payment-api/README.md` § Remboursements, TASK-P0-001) : jamais un succès simulé. `PaymentApiClientService`/`NotificationApiClientService` (déjà écrits pour TASK-P0-004 dans `checkout/`) sont réutilisés tels quels via l'export de `CheckoutModule`, plutôt que dupliqués — ce sont des clients HTTP sans état propre. Migration `sellerPortal/sql/migration_add_return_refunds.sql` : étend l'ENUM `sp_return_requests.status` (`REFUND_FAILED`, `REFUNDED`) et ajoute `refundId`/`refundStatus`/`refundRequestedAt`/`refundError` ; corrige à cette occasion une dérive préexistante de l'ENUM `sp_notifications.type` (`SELLER_ACTIVATED`/`SELLER_SUSPENDED`/`LOW_STOCK` du code TypeScript n'étaient pas acceptés par la colonne MySQL réelle — `synchronize` étant désactivé, un INSERT avec l'une de ces valeurs aurait échoué en production).
 
 ## Match officiel et règles sportives
 

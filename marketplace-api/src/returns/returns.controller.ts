@@ -51,12 +51,24 @@ export class ReturnsController {
     return this.returnsService.decide(id, seller.sellerId, false);
   }
 
-  /** US-52 — APPROVED -> COMPLETED (article physiquement reçu en retour) */
+  /**
+   * US-52 — APPROVED -> COMPLETED (article physiquement reçu en retour),
+   * déclenche automatiquement une demande de remboursement (TASK-P0-006).
+   */
   @Post(':id/complete')
   async complete(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentSeller() seller: AuthenticatedSeller,
   ): Promise<ReturnRequest> {
     return this.returnsService.complete(id, seller.sellerId);
+  }
+
+  /** TASK-P0-006 — REFUND_FAILED -> rejeu de la demande de remboursement. */
+  @Post(':id/retry-refund')
+  async retryRefund(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentSeller() seller: AuthenticatedSeller,
+  ): Promise<ReturnRequest> {
+    return this.returnsService.retryRefund(id, seller.sellerId);
   }
 }

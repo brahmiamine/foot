@@ -39,6 +39,13 @@ import { CheckoutReconciliationHealthController } from './checkout-reconciliatio
     NotificationApiClientService,
     CheckoutReconciliationService,
   ],
-  exports: [CheckoutService],
+  // PaymentApiClientService/NotificationApiClientService exportés pour
+  // ReturnsModule (TASK-P0-006) — clients sans état ni dépendance propre
+  // (env + fetch), réutilisés tels quels plutôt que dupliqués.
+  exports: [
+    CheckoutService,
+    PaymentApiClientService,
+    NotificationApiClientService,
+  ],
 })
 export class CheckoutModule {}
