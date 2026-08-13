@@ -115,8 +115,12 @@ export async function confirmPostMatch(sheetId: number, matchId: string): Promis
       return { success: false, error: "actions.closure.errors.alreadyClosed" };
     }
 
-    const complete = await signatureService.isPhaseComplete(sheetId, "POST_MATCH");
-    if (!complete) {
+    // isPhaseValid (pas seulement isPhaseComplete) : une correction/annulation
+    // d'événement après qu'un acteur a signé change le hash du contenu de la
+    // feuille (TASK-P0-009) — la signature existante ne couvre plus le
+    // contenu actuel et ne doit pas suffire à clôturer sans re-signature.
+    const valid = await signatureService.isPhaseValid(sheetId, matchId, "POST_MATCH");
+    if (!valid) {
       return {
         success: false,
         error: "actions.closure.errors.signaturesRequired",

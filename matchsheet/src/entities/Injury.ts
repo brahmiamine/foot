@@ -60,4 +60,11 @@ export class Injury {
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
+
+  /** Annulation sans suppression (TASK-P0-009) — voir Goal.cancelledAt. */
+  @Column({ type: "datetime", nullable: true, name: "cancelled_at" })
+  cancelledAt?: Date | null;
+
+  @Column({ type: "text", nullable: true, name: "cancelled_reason" })
+  cancelledReason?: string | null;
 }

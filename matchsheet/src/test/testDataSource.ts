@@ -7,6 +7,7 @@ import { Goal } from "@/entities/Goal";
 import { Injury } from "@/entities/Injury";
 import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
+import { MatchEventCorrection } from "@/entities/MatchEventCorrection";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { Player } from "@/entities/Player";
 import { Sheet } from "@/entities/Sheet";
@@ -34,6 +35,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       Injury,
       Match,
       Matchday,
+      MatchEventCorrection,
       MatchReopenLog,
       Player,
       Sheet,

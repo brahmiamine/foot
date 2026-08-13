@@ -125,4 +125,24 @@ export class SignatureService {
       .getRawMany<{ actorRole: string }>();
     return rows.length >= 3;
   }
+
+  /**
+   * TASK-P0-009 : vrai si la phase est complète (3 acteurs) ET si chacune
+   * des 3 signatures les plus récentes porte encore le hash du contenu
+   * ACTUEL de la feuille — c'est-à-dire qu'aucun événement n'a été corrigé
+   * ou annulé depuis que cet acteur a signé. `isPhaseComplete` seul ne
+   * détecte pas ce cas (il ne compare jamais `contentHash` à rien) : une
+   * correction après coup laissait jusqu'ici les signatures existantes
+   * "valides" alors que le contenu qu'elles couvraient a changé. À utiliser
+   * pour bloquer la clôture d'une feuille tant qu'une re-signature n'a pas
+   * été recueillie après correction.
+   */
+  async isPhaseValid(sheetId: number, matchId: string, phase: SignaturePhase): Promise<boolean> {
+    const signatures = await this.findBySheet(sheetId);
+    const phaseSignatures = signatures.filter((s) => s.phase === phase);
+    if (phaseSignatures.length < 3) return false;
+
+    const currentHash = await computeSheetContentHash(sheetId, matchId);
+    return phaseSignatures.every((s) => s.contentHash === currentHash);
+  }
 }
