@@ -11,6 +11,7 @@ import { Ticket } from "@/entities/Ticket";
 import { TicketScanLog } from "@/entities/TicketScanLog";
 import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
 import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
+import { MatchCancellationRefund } from "@/entities/MatchCancellationRefund";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
@@ -36,7 +37,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Jamais en production — voir sql/schema.sql
       logging: process.env.NODE_ENV === "development",
-      entities: [Team, Match, TicketCategory, MatchTicketCategory, TicketSaleRule, Ticket, TicketScanLog, ProcessedWebhookEvent, StockUnavailableRefund],
+      entities: [Team, Match, TicketCategory, MatchTicketCategory, TicketSaleRule, Ticket, TicketScanLog, ProcessedWebhookEvent, StockUnavailableRefund, MatchCancellationRefund],
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",

@@ -67,16 +67,19 @@ Scheduler périodique (10 min, `instrumentation.ts`) : reprend les demandes en �
 ### TASK-P0-003 — Saga d'annulation ou de report d'un match
 
 **Projets :** `superadmin`, `matchsheet`, `billetterie`, `payment-api`, `teamManager`, `ob`, `notification-api`, `arbinote`
-**Statut :** [ ] TASK-P0-001 n'est plus bloquante (API de remboursement disponible) ; saga encore à écrire
+**Statut :** [~] Saga d'**annulation** écrite et testée de bout en bout (journal, étapes, retries, intervention manuelle) ; le **report** (`MATCH_RESCHEDULED`) reste au niveau de simple notification déjà existant, sans politique de validité des billets configurable — voir « Reste ouvert » ci-dessous.
 
-**Critères d'acceptation :**
-- événement versionné et idempotent `MATCH_CANCELLED`/`MATCH_RESCHEDULED` ;
-- fermeture ou adaptation de la billetterie et arrêt des ventes ;
-- politique configurable : validité des billets après report ou remboursement ;
-- annulation des convocations et mise à jour de la visibilité publique ;
-- blocage de la saisie live et du vote arbitre pour un match annulé ;
-- journal de saga avec étapes, retries, compensations et intervention manuelle ;
-- tests E2E avec billets payés, paiements en attente et panne d'un service.
+**Critères d'acceptation (annulation) :**
+- [x] événement versionné et idempotent `MATCH_CANCELLED` : `MatchSagaCase.event_version` (=1 aujourd'hui, incrémentable sans casser la lecture de dossiers déjà persistés), un dossier par annulation, chaque étape idempotente côté appelée (billetterie/teamManager) — un rejeu (retry automatique, retry opérateur, ou rattrapage par le scheduler autonome de chaque app) ne refait jamais deux fois le même travail ;
+- [x] fermeture de la vente et remboursement : `POST /api/internal/matches/:matchId/cancel-tickets` (billetterie) annule les billets `PENDING` et ouvre un dossier de remboursement (`tk_match_cancellation_refunds`, même modèle que TASK-P0-002) pour chaque paiement `PAID` sur ce match ;
+- [x] annulation des convocations : `POST /api/internal/matches/:matchId/cancel-convocations` (teamManager) annule (soft, `cancelled_at`/`cancelled_reason`, jamais une suppression) toutes les convocations officielles du match, tous clubs confondus ;
+- [x] mise à jour de la visibilité publique : déjà couverte par le filtre existant de `ob` (`PublicMatchService`, `status IN ('UPCOMING','IN_PROGRESS')`) — un match `CANCELLED` disparaît mécaniquement des listes publiques dès que `matches.status` bascule, sans changement nécessaire côté `ob` ;
+- [x] blocage de la saisie live : `matchsheet/src/services/sheetGuard.ts#assertSheetEditable` vérifie désormais aussi `Match.status !== 'CANCELLED'` (nouvelle `MatchCancelledError`), en plus du statut `CLOSED` de la feuille — lecture directe de la table `matches` partagée, aucun appel réseau ;
+- [x] blocage du vote arbitre : **aucun changement de code nécessaire** — `arbinote/src/lib/utils.ts#canVoteMatch` exige déjà `status` `IN_PROGRESS`/`FINISHED` (jamais `UPCOMING` ni `CANCELLED`), et `cancelMatchAdmin` reste restreint aux matchs `UPCOMING` (voir « Reste ouvert »), donc un match annulé ne peut structurellement jamais atteindre un état votable ;
+- [x] journal de saga avec étapes, retries, compensations et intervention manuelle : `MatchSagaCase` (un dossier par annulation, statut `IN_PROGRESS`/`COMPLETED`/`MANUAL_REVIEW`) + `MatchSagaStep` (append-only, une ligne par tentative d'étape) — `matches.status` bascule d'abord et de façon inconditionnelle (`cancelMatchAdmin`), la saga ne fait que compenser ensuite et ne peut jamais annuler la décision déjà actée. Trois filets de sécurité superposés : retry réseau interne au client HTTP (3 tentatives, voir `matchSagaClients.ts`), retry manuel opérateur (`POST /api/admin/match-sagas/:id/retry`, ne rejoue que les étapes en échec) et scheduler autonome côté billetterie/teamManager (10 min, lit `matches.status` directement, rattrape le cas où l'appel de superadmin a échoué ou n'a jamais eu lieu) ;
+- [x] tests : retour accepté/échec/rejeu déjà couverts côté remboursement de billet (mêmes garanties qu'US-52/TASK-P0-002) + saga complète (2 étapes réussies, 1 étape en échec sans bloquer l'autre, panne des deux services, rejeu qui ne retouche que l'étape en échec, rejeu qui échoue à nouveau) + garde matchsheet (feuille `DRAFT` bloquée par un match `CANCELLED` même sans lien avec le statut de la feuille elle-même). Tests d'intégration au niveau service avec base SQLite réelle (mêmes garanties que des tests E2E sur la logique métier), pas de vrai test E2E HTTP inter-applications bout-en-bout.
+
+> **Reste ouvert (report de match, `MATCH_RESCHEDULED`)** : `updateMatchAdmin` notifie déjà les deux clubs quand la date d'un match change (mécanisme préexistant, conservé tel quel), mais aucune saga de compensation n'est déclenchée — pas de `rescheduleMatchAdmin` dédié, pas de politique configurable « billets valides à la nouvelle date » vs « remboursement », pas d'endpoint `reschedule-tickets` côté billetterie. Décision de scope : plutôt que de livrer les deux moitiés (annulation + report) de façon superficielle dans la même passe, l'annulation a été traitée en entier (le cas le plus critique — argent + convocations + blocage live/vote) et le report est documenté comme non fait plutôt que masqué. `cancelMatchAdmin` reste par ailleurs restreint aux matchs `UPCOMING` (un match déjà `IN_PROGRESS` ne peut pas être annulé depuis cette action — décision produit distincte, cohérente avec le comportement préexistant documenté dans `db/OWNERSHIP.md`).
 
 ### TASK-P0-004 — Checkout marketplace multi-vendeur
 

@@ -65,6 +65,19 @@ export class Convocation {
   @Column({ type: "datetime", nullable: true, name: "responded_at" })
   respondedAt?: Date | null;
 
+  /**
+   * TASK-P0-003 (todo.md) : annulation en masse quand le match officiel
+   * auquel elle se rapporte est annulé (voir ConvocationService.cancelForMatch)
+   * — jamais une suppression silencieuse (l'historique de qui a été convoqué
+   * et comment il avait répondu reste consultable). `updateResponse` refuse
+   * toute nouvelle réponse une fois `cancelledAt` renseigné.
+   */
+  @Column({ type: "datetime", nullable: true, name: "cancelled_at" })
+  cancelledAt?: Date | null;
+
+  @Column({ type: "varchar", length: 255, nullable: true, name: "cancelled_reason" })
+  cancelledReason?: string | null;
+
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
 }

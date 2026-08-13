@@ -12,7 +12,8 @@ interface LogAdminActionParams {
   adminUsername?: string | null
 }
 
-function getAdminUsername(request: NextRequest): string | null {
+/** Exportée pour les appelants qui ont besoin de l'identité de l'admin en dehors du journal lui-même (ex. matchSaga.ts, TASK-P0-003). */
+export function getAdminUsername(request: NextRequest): string | null {
   // Le token contient "username:password" en base64 (voir adminAuth.ts) : on
   // récupère uniquement le nom d'utilisateur pour l'attribution du journal.
   const header = request.headers.get('authorization')

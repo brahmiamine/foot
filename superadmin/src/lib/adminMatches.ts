@@ -5,6 +5,7 @@ import { notify } from './notificationClient'
 import { reopenSheet } from './matchsheetClient'
 import { assertSeasonDateCoherence, findScheduleConflicts, ScheduleConflict, ScheduleConflictError } from './scheduleConflicts'
 import { withScheduleLock } from './scheduleLock'
+import { startMatchCancellationSaga } from './matchSaga'
 
 export interface MatchCreateInput {
   journee_id: string
@@ -422,9 +423,20 @@ export async function deleteMatchAdmin(id: string, leagueId?: string | null) {
  * d'être réannulé — pas de réactivation possible depuis cette action
  * (décision produit à part si le besoin se confirme, voir avancement.md).
  * `matchsheet` ne mirrorera plus jamais IN_PROGRESS/FINISHED par-dessus un
- * match CANCELLED (voir SheetService.mirrorMatchStatus).
+ * match CANCELLED (voir SheetService.mirrorMatchStatus) ; `matchsheet` bloque
+ * lui-même toute saisie live sur un match CANCELLED (assertSheetEditable,
+ * TASK-P0-003) sans appel réseau nécessaire (table `matches` partagée).
+ *
+ * TASK-P0-003 : `matches.status` bascule d'abord, de façon inconditionnelle
+ * — la saga qui suit (billetterie : fermeture de vente + remboursement des
+ * billets payés ; teamManager : annulation des convocations, voir
+ * matchSaga.ts) ne peut jamais empêcher ni retarder cette écriture, elle ne
+ * fait que compenser ensuite. Un échec de la saga (billetterie/teamManager
+ * indisponibles, etc.) laisse un dossier MANUAL_REVIEW consultable via
+ * GET /api/admin/match-sagas — l'annulation du match elle-même reste
+ * acquise et n'est jamais annulée à cause d'un échec de compensation.
  */
-export async function cancelMatchAdmin(id: string, reason: string) {
+export async function cancelMatchAdmin(id: string, reason: string, initiatedBy: string | null = null) {
   const dataSource = await getDataSource()
   const repo = dataSource.getRepository<Match>('matches')
 
@@ -440,6 +452,15 @@ export async function cancelMatchAdmin(id: string, reason: string) {
   }
 
   await repo.update(id, { status: 'CANCELLED' })
+
+  try {
+    await startMatchCancellationSaga(id, reason, initiatedBy)
+  } catch (error) {
+    // Le dossier de saga lui-même n'a pas pu être créé/persisté (ex. base
+    // indisponible) : journalisé, mais n'annule jamais la décision
+    // métier déjà actée (match CANCELLED) — voir note ci-dessus.
+    console.error(`[match-saga] échec du démarrage de la saga d'annulation pour le match ${id} :`, error)
+  }
 
   const matchName = `${match.equipe_home?.nom ?? '?'} - ${match.equipe_away?.nom ?? '?'}`
   const data = { matchId: match.id, matchName, reason }

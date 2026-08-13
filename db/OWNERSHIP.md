@@ -40,6 +40,8 @@ présence d'une entité.
 | Billetterie — achats et contrôle | `tk_tickets`, `tk_ticket_scans` | `billetterie` | — |
 | Marketplace vendeur | `sp_*` (préfixe `sp_`) | `sellerPortal` | — |
 | Audit | `audit_logs` (arbitrage), `AuditLog` (`teamManager`) | `arbinote`/`superadmin` et `teamManager` respectivement (deux journaux d'audit distincts, pas un seul) | — |
+| Saga d'annulation/report de match (TASK-P0-003) | `match_saga_cases`, `match_saga_steps` | `superadmin` | — |
+| Remboursement de billets sur match annulé (TASK-P0-003) | `tk_match_cancellation_refunds` | `billetterie` | — |
 
 `payment-api` et `notification-api` ont leur propre base, hors de `foot`
 (`notification-api` ne lit `foot` qu'en lecture seule, via
@@ -104,12 +106,29 @@ reste annulé même si sa feuille de match progresse encore côté opérateur.
 (`purchaseTickets`, `getMatchDetail`), en plus du filtre déjà en place sur
 les listes (`listOpenMatches`).
 
+**Mis à jour (TASK-P0-003, todo.md)** : l'annulation déclenche désormais un
+véritable workflow multi-étapes, journalisé — `matches.status` bascule
+toujours en premier et de façon inconditionnelle (rien côté saga ne peut
+la retarder ou l'empêcher), puis `superadmin` appelle en HTTP `billetterie`
+(fermeture de la vente + ouverture d'un dossier de remboursement pour
+chaque paiement déjà `PAID` sur ce match) et `teamManager` (annulation, non
+destructive, des convocations de ce match) — voir `MatchSagaCase`/
+`MatchSagaStep` dans `superadmin/src/lib/matchSaga.ts`. `matchsheet` bloque
+lui-même toute saisie live sur un match `CANCELLED`
+(`sheetGuard.ts#assertSheetEditable`) sans appel réseau (table `matches`
+partagée) ; `arbinote` n'a nécessité aucun changement, son garde-fou de
+vote existant excluait déjà `CANCELLED`. Un échec d'étape (billetterie/
+teamManager indisponibles) laisse un dossier `MANUAL_REVIEW` — rejouable
+par un opérateur (`POST /api/admin/match-sagas/:id/retry`) ou convergé
+indépendamment par le scheduler autonome de chaque app concernée (10 min,
+relit `matches.status` directement).
+
 **Volontairement pas fait** : aucune réactivation possible depuis cette
-action (`CANCELLED` est un état terminal du point de vue de cette action),
-et aucun workflow multi-étapes (qui prévient qui au-delà de la notification
-aux deux clubs, remboursement des billets déjà vendus côté `billetterie`,
-etc.) — annuler reste une action simple, pas un processus métier complet.
-À étendre séparément si le besoin se confirme.
+action (`CANCELLED` est un état terminal du point de vue de cette action) ;
+le **report** de match (`MATCH_RESCHEDULED`) n'a pas de saga équivalente —
+seule la notification préexistante aux deux clubs subsiste, sans politique
+de validité des billets configurable côté billetterie (voir todo.md,
+TASK-P0-003 § Reste ouvert).
 
 ## Point d'attention : `superadmin` écrit `User` pour les comptes club (`ADMIN`/`OBSERVATEUR`)
 

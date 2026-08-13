@@ -16,9 +16,11 @@ Académie (infos/candidatures), annonces, billetterie (catégories et matchs), c
 
 ## API
 
-`/api/admin/media-items`, `/api/exports/cards`, `/api/exports/fines`, `/api/exports/players`, `/api/exports/sponsor-contract/[id]`, `/api/exports/suspensions`, `/api/health`, `/api/logout`, `/api/payments/webhook`, `/api/stadiums/[id]`, `/api/stadiums`, `/api/teams`, `/api/upload/application-document`, `/api/upload/media/chunked/complete`, `/api/upload/media/chunked/init`, `/api/upload/media/chunked`, `/api/upload/media`, `/api/upload/news`, `/api/upload/players`, `/api/upload/product`, `/api/upload`, `/api/upload/sponsor-logo`, `/api/upload/stadium`, `/api/upload/staff`
+`/api/admin/media-items`, `/api/exports/cards`, `/api/exports/fines`, `/api/exports/players`, `/api/exports/sponsor-contract/[id]`, `/api/exports/suspensions`, `/api/health`, `/api/internal/matches/[matchId]/cancel-convocations` (service-à-service, TASK-P0-003), `/api/internal/outbox/process`, `/api/internal/outbox/status`, `/api/logout`, `/api/payments/webhook`, `/api/stadiums/[id]`, `/api/stadiums`, `/api/teams`, `/api/upload/application-document`, `/api/upload/media/chunked/complete`, `/api/upload/media/chunked/init`, `/api/upload/media/chunked`, `/api/upload/media`, `/api/upload/news`, `/api/upload/players`, `/api/upload/product`, `/api/upload`, `/api/upload/sponsor-logo`, `/api/upload/stadium`, `/api/upload/staff`
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
+
+**Annulation de match (TASK-P0-003)** : `POST /api/internal/matches/[matchId]/cancel-convocations`, appelée par superadmin juste après avoir marqué le match `CANCELLED` — annule (soft, `Convocation.cancelledAt`/`cancelledReason`, jamais de suppression) toutes les convocations officielles de ce match, tous clubs confondus. Service-à-service (`x-api-key`, `TEAMMANAGER_SERVICE_API_KEY`, voir `src/lib/serviceAuth.ts`, même garde que `/api/internal/outbox/*`). Idempotente ; `updateResponse` refuse toute nouvelle réponse sur une convocation annulée. Un scheduler périodique (`instrumentation.ts`, 10 min) rattrape tout match `CANCELLED` dont des convocations resteraient actives (appel superadmin perdu ou jamais tenté), en lisant `matches.status` directement.
 
 ## Authentification et autorisations
 

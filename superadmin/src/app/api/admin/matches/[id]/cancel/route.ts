@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
 import { ensureAdminAuth } from '@/lib/adminAuth'
 import { cancelMatchAdmin } from '@/lib/adminMatches'
-import { logAdminAction } from '@/lib/auditLog'
+import { getAdminUsername, logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
 
@@ -27,7 +27,7 @@ export async function POST(
       return NextResponse.json({ error: 'Un motif d\'annulation est requis' }, { status: 400 })
     }
 
-    const result = await cancelMatchAdmin(id, reason)
+    const result = await cancelMatchAdmin(id, reason, getAdminUsername(request))
     await logAdminAction({
       request,
       action: 'cancel',

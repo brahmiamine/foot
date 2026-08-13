@@ -66,4 +66,6 @@ Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `su
 
 ## Limites connues
 
-Kiosque volontairement sans session: à isoler réseau/physiquement avant production. PWA sans synchronisation robuste des écritures hors ligne. Seulement `/api/health` et `/api/logout`; les mutations passent par actions serveur/services.
+Kiosque volontairement sans session: à isoler réseau/physiquement avant production. PWA sans synchronisation robuste des écritures hors ligne. Seulement `/api/health`, `/api/internal/matches/[matchId]/reopen` et `/api/logout`; les mutations passent par actions serveur/services.
+
+**Blocage de la saisie sur un match annulé (TASK-P0-003)** : `services/sheetGuard.ts#assertSheetEditable`, déjà appelé par tous les services de saisie live (`GoalService`/`InjuryService`/`SubstitutionService`/`CardEventService`), vérifie désormais aussi `Match.status !== 'CANCELLED'` (nouvelle `MatchCancelledError`) — lecture directe de la table `matches` partagée (superadmin, seul écrivain de ce statut), aucun appel réseau nécessaire.

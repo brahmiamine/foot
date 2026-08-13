@@ -16,19 +16,21 @@ Scanner `/admin/scan`: téléchargement du manifeste hors ligne, validation en l
 
 ## API
 
-`/api/admin/tickets/audience-mismatch/[id]` (traiter un écart), `/api/admin/tickets/audience-mismatch`, `/api/admin/tickets/offline-manifest` (manifeste des QR admis, exclut les billets révoqués), `/api/admin/tickets/scan` (contrôle en ligne, scan unitaire), `/api/admin/tickets/sync-scans` (synchro batch des scans accumulés hors-ligne par un terminal, distingue accepted[]/conflicts[] — TASK-P0-008), `/api/admin/tickets/[id]/revoke` (PATCH révoque un billet ciblé, DELETE annule la révocation — TASK-P0-009), `/api/cron/purge-pending-reservations` (libération des réservations `PENDING` expirées), `/api/health`, `/api/payments/webhook` (confirmation asynchrone signée), `/api/tickets`
+`/api/admin/tickets/audience-mismatch/[id]` (traiter un écart), `/api/admin/tickets/audience-mismatch`, `/api/admin/tickets/offline-manifest` (manifeste des QR admis, exclut les billets révoqués), `/api/admin/tickets/scan` (contrôle en ligne, scan unitaire), `/api/admin/tickets/sync-scans` (synchro batch des scans accumulés hors-ligne par un terminal, distingue accepted[]/conflicts[] — TASK-P0-008), `/api/admin/tickets/[id]/revoke` (PATCH révoque un billet ciblé, DELETE annule la révocation — TASK-P0-009), `/api/cron/purge-pending-reservations` (libération des réservations `PENDING` expirées), `/api/cron/reconcile-stock-unavailable-refunds`, `/api/cron/reconcile-match-cancellation-refunds` (TASK-P0-003), `/api/health`, `/api/internal/matches/[matchId]/cancel-tickets` (service-à-service, TASK-P0-003 — voir ci-dessous), `/api/payments/webhook` (confirmation asynchrone signée), `/api/tickets`
 
 > Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
 ## Authentification et autorisations
 
-Consultation publique; achat et billets exigent un membre SSO. Les routes admin utilisent le garde admin SSO. Le cron exige `CRON_SECRET`; le webhook vérifie `PAYMENT_WEBHOOK_SECRET`; les QR sont signés par `TICKET_QR_SECRET` (rotation optionnelle par `kid` via `TICKET_QR_KID`/`TICKET_QR_SECRET_<KID>`, voir `.env.example` — TASK-P0-009). Un billet peut être révoqué individuellement (`PATCH /api/admin/tickets/[id]/revoke`) sans attendre l'expiration du jeton (1 an, volontairement non lié à la date du match) ni annuler le paiement.
+Consultation publique; achat et billets exigent un membre SSO. Les routes admin utilisent le garde admin SSO. Le cron exige `CRON_SECRET`; le webhook vérifie `PAYMENT_WEBHOOK_SECRET`; les QR sont signés par `TICKET_QR_SECRET` (rotation optionnelle par `kid` via `TICKET_QR_KID`/`TICKET_QR_SECRET_<KID>`, voir `.env.example` — TASK-P0-009). Un billet peut être révoqué individuellement (`PATCH /api/admin/tickets/[id]/revoke`) sans attendre l'expiration du jeton (1 an, volontairement non lié à la date du match) ni annuler le paiement. `/api/internal/*` (TASK-P0-003) exige `BILLETTERIE_SERVICE_API_KEY` (header `x-api-key`, voir `src/lib/serviceAuth.ts`) — service-à-service uniquement, jamais un navigateur ; première route de ce type dans cette app (les `/api/cron/*` préexistantes utilisent un secret distinct, `CRON_SECRET`).
+
+**Annulation de match (TASK-P0-003)** : `POST /api/internal/matches/[matchId]/cancel-tickets`, appelée par superadmin juste après avoir marqué le match `CANCELLED` — annule les billets `PENDING` et ouvre un dossier de remboursement (`MatchCancellationRefund`, même modèle que `StockUnavailableRefund`/TASK-P0-002, un seul remboursement par paiement) pour chaque paiement `PAID` sur ce match. Idempotente. Un scheduler périodique (`instrumentation.ts`, 10 min, comme le reste des reconciliations de ce fichier) rattrape tout match `CANCELLED` non entièrement traité (appel superadmin perdu ou jamais tenté) en lisant directement `matches.status` — pas de dépendance stricte à l'appel HTTP entrant.
 
 ## Données possédées
 
-Base `foot`: possède `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules`, `tk_tickets` et `tk_ticket_scan_logs`; référence les matchs/équipes partagés.
+Base `foot`: possède `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules`, `tk_tickets`, `tk_ticket_scan_logs`, `tk_stock_unavailable_refunds` (TASK-P0-002) et `tk_match_cancellation_refunds` (TASK-P0-003); référence les matchs/équipes partagés.
 
-**Migrations réellement présentes :** `sql/schema.sql`; ajout de la déclaration d'audience, de l'identifiant payment-api, du journal de scan et de la révocation ciblée (`sql/migration_add_ticket_revocation.sql`).
+**Migrations réellement présentes :** `sql/schema.sql`; ajout de la déclaration d'audience, de l'identifiant payment-api, du journal de scan, de la révocation ciblée (`sql/migration_add_ticket_revocation.sql`), du dossier de remboursement stock indisponible (`sql/migration_add_stock_unavailable_refunds.sql`, TASK-P0-002) et du dossier de remboursement match annulé (`sql/migration_add_match_cancellation_refunds.sql`, TASK-P0-003).
 
 ## Intégrations
 
@@ -42,7 +44,7 @@ Copier le fichier réellement versionné :
 cp .env.example .env.local
 ```
 
-Variables déclarées dans `.env.example` : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SSO_JWT_SECRET`, `SSO_COOKIE_NAME`, `SSO_URL`, `PAYMENT_API_URL`, `PAYMENT_API_KEY`, `PAYMENT_PROVIDER`, `PAYMENT_WEBHOOK_SECRET`, `TICKET_QR_SECRET`, `CRON_SECRET`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
+Variables déclarées dans `.env.example` : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SSO_JWT_SECRET`, `SSO_COOKIE_NAME`, `SSO_URL`, `PAYMENT_API_URL`, `PAYMENT_API_KEY`, `PAYMENT_PROVIDER`, `PAYMENT_WEBHOOK_SECRET`, `TICKET_QR_SECRET`, `CRON_SECRET`, `BILLETTERIE_SERVICE_API_KEY`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
 
 ## Démarrage
 
@@ -69,3 +71,5 @@ Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `matchsheet`, `su
 `allowedAudience` repose encore sur une déclaration de l'acheteur: aucune preuve d'affiliation HOME/AWAY. Le mode hors ligne exporte un manifeste et journalise localement, mais la convergence dépend d'un retour réseau et les scans concurrents peuvent nécessiter un rapprochement.
 
 **Remboursement automatique (TASK-P0-002)** : un paiement confirmé après libération de la capacité (`PAID_STOCK_UNAVAILABLE`) ouvre automatiquement un dossier de remboursement auprès de payment-api (voir `src/lib/stockUnavailableRefunds.ts`) au lieu de se limiter à un log pour traitement manuel. Le remboursement lui-même n'est automatisé que pour Flouci (voir `payment-api/README.md` § Remboursements) ; Konnect/Paymee passent par `MANUAL_REVIEW` côté payment-api, suivi jusqu'à résolution par le scheduler périodique (`instrumentation.ts`, alerte ops après 24h sans résolution).
+
+**Remboursement sur match annulé (TASK-P0-003)** : même mécanisme que ci-dessus (`src/lib/matchCancellationRefunds.ts`), déclenché par l'annulation d'un match plutôt que par une réconciliation de stock — mêmes limites côté payment-api (Flouci automatisé, Konnect/Paymee en `MANUAL_REVIEW`). Cette app n'appelle pas notification-api (aucune intégration, contrairement à marketplace-api/billetterie n'ayant jamais eu ce besoin jusqu'ici) : l'acheteur est notifié du remboursement par payment-api lui-même (`Payment.userId`, sur `REFUND_SUCCEEDED`/`REFUND_FAILED`/`REFUND_MANUAL_REVIEW`, voir TASK-P0-001) — aucune notification dédiée « votre match est annulé » côté billetterie.

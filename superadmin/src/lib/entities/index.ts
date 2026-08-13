@@ -20,5 +20,7 @@ export { Card, type CardType, type MatchPeriod } from './Card'
 export { Goal } from './Goal'
 export { Injury } from './Injury'
 export { Substitution } from './Substitution'
+export { MatchSagaCase, type MatchSagaType, type MatchSagaStatus, type TicketPolicy } from './MatchSagaCase'
+export { MatchSagaStep, type MatchSagaStepName, type MatchSagaStepStatus } from './MatchSagaStep'
 
 

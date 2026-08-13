@@ -50,4 +50,35 @@ export async function register() {
     globalForRefundScheduler.__stockUnavailableRefundScheduler = setInterval(runRefundReconciliation, refundIntervalMs);
     void runRefundReconciliation();
   }
+
+  // TASK-P0-003 : filet de sécurité pour les matchs CANCELLED — annule les
+  // convocations restées actives (voir ConvocationService.reconcileCancelledMatches).
+  // L'action synchrone déclenchée par superadmin
+  // (POST /api/internal/matches/:matchId/cancel-convocations) fait déjà ce
+  // travail immédiatement ; ce scheduler rattrape le cas où cet appel a
+  // échoué ou n'a jamais eu lieu.
+  const globalForConvocationScheduler = globalThis as unknown as {
+    __convocationCancellationScheduler?: NodeJS.Timeout;
+  };
+  if (!globalForConvocationScheduler.__convocationCancellationScheduler) {
+    const { ConvocationService } = await import("@/services/ConvocationService");
+    const convocationIntervalMs = 10 * 60 * 1000;
+
+    const runConvocationReconciliation = async () => {
+      try {
+        const report = await new ConvocationService().reconcileCancelledMatches();
+        if (report.matchesScanned > 0) {
+          console.log(`[convocation-cancellation-scheduler] ${JSON.stringify(report)}`);
+        }
+      } catch (error) {
+        console.error("[convocation-cancellation-scheduler] échec du passage périodique :", error);
+      }
+    };
+
+    globalForConvocationScheduler.__convocationCancellationScheduler = setInterval(
+      runConvocationReconciliation,
+      convocationIntervalMs,
+    );
+    void runConvocationReconciliation();
+  }
 }

@@ -1,7 +1,8 @@
 import { getDataSource } from "@/lib/database";
 import { Convocation, ConvocationResponse } from "@/entities/Convocation";
+import { Match } from "@/entities/Match";
 import { MatchLineup } from "@/entities/MatchLineup";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 import { MatchRef } from "./MatchFormationService";
 
 /**
@@ -129,6 +130,9 @@ export class ConvocationService {
     if (!convocation) {
       throw new Error("Convocation non trouvée");
     }
+    if (convocation.cancelledAt) {
+      throw new Error("Cette convocation a été annulée (match annulé) : plus de réponse possible.");
+    }
     convocation.response = response;
     convocation.respondedAt = new Date();
     return repository.save(convocation);
@@ -142,5 +146,57 @@ export class ConvocationService {
     }
     await repository.remove(convocation);
     return true;
+  }
+
+  /**
+   * TASK-P0-003 (todo.md) : annule (soft) toutes les convocations d'un
+   * match officiel, tous clubs confondus (domicile + extérieur) — contexte
+   * système déclenché par une annulation de match, pas une action d'un
+   * club sur ses seules convocations, d'où l'absence de filtre `teamId`
+   * ici (exception documentée, voir /api/internal/matches/[matchId]/cancel-convocations,
+   * seul appelant). Idempotent : ne touche que les convocations pas encore
+   * annulées (`cancelledAt IS NULL`), un rejeu ne réécrase jamais un
+   * horodatage déjà posé.
+   */
+  async cancelForMatch(matchId: string, reason: string): Promise<number> {
+    const repository = await this.getRepository();
+    const result = await repository
+      .createQueryBuilder()
+      .update(Convocation)
+      .set({ cancelledAt: new Date(), cancelledReason: reason })
+      .where("match_id = :matchId", { matchId })
+      .andWhere("match_type = :matchType", { matchType: "OFFICIAL" })
+      .andWhere("cancelled_at IS NULL")
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  /**
+   * TASK-P0-003 (todo.md) : filet de sécurité périodique, même esprit que
+   * ShopOrderService.purgeStaleOrders/processStockUnavailableRefunds — le
+   * même besoin (matchs `CANCELLED` non entièrement traités) mais
+   * synchrone via l'appel de superadmin (voir cancelForMatch, seul
+   * appelant). Rattrape le cas où cet appel a échoué ou n'a jamais eu lieu
+   * (teamManager indisponible au moment de l'annulation) : `matches` est
+   * une table partagée lue directement, aucun appel réseau nécessaire pour
+   * savoir qu'un match est annulé.
+   */
+  async reconcileCancelledMatches(): Promise<{ matchesScanned: number; cancelled: number }> {
+    const dataSource = await getDataSource();
+    const matchRepo = dataSource.getRepository(Match);
+    const repository = await this.getRepository();
+
+    const cancelledMatches = await matchRepo.find({ where: { status: "CANCELLED" } });
+    let matchesScanned = 0;
+    let cancelled = 0;
+    for (const match of cancelledMatches) {
+      const stillActive = await repository.count({
+        where: { matchId: match.id, matchType: "OFFICIAL", cancelledAt: IsNull() },
+      });
+      if (stillActive === 0) continue;
+      matchesScanned++;
+      cancelled += await this.cancelForMatch(match.id, "Match annulé.");
+    }
+    return { matchesScanned, cancelled };
   }
 }

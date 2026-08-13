@@ -169,7 +169,8 @@ export interface PurchaseResult {
 // ordonnanceur externe (voir POST /api/cron/purge-pending-reservations).
 const PENDING_RESERVATION_TTL_MS = 30 * 60 * 1000;
 
-async function releaseTickets(manager: EntityManager, ticketIds: string[]): Promise<void> {
+/** Exportée pour matchCancellationRefunds.ts (TASK-P0-003) : même besoin (libérer des billets PENDING) déclenché par une annulation de match plutôt qu'une expiration de réservation. */
+export async function releaseTickets(manager: EntityManager, ticketIds: string[]): Promise<void> {
   if (ticketIds.length === 0) return;
   const tickets = await manager.find(Ticket, { where: { id: In(ticketIds) } });
   const mtcId = tickets[0]?.matchTicketCategoryId;

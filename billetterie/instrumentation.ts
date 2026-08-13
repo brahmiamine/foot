@@ -60,4 +60,37 @@ export async function register() {
     globalForRefundScheduler.__stockUnavailableRefundScheduler = setInterval(runRefundReconciliation, refundIntervalMs);
     void runRefundReconciliation();
   }
+
+  // TASK-P0-003 : filet de sécurité pour les matchs CANCELLED — ferme la
+  // vente et ouvre/reprend les dossiers de remboursement des billets déjà
+  // payés (voir matchCancellationRefunds.ts). L'action synchrone déclenchée
+  // par superadmin (POST /api/internal/matches/:matchId/cancel-tickets) fait
+  // déjà ce travail immédiatement ; ce scheduler rattrape le cas où cet
+  // appel a échoué ou n'a jamais eu lieu (billetterie indisponible au
+  // moment de l'annulation). POST /api/cron/reconcile-match-cancellation-refunds
+  // reste disponible pour un ordonnanceur externe.
+  const globalForMatchCancellationScheduler = globalThis as unknown as {
+    __matchCancellationRefundScheduler?: NodeJS.Timeout;
+  };
+  if (!globalForMatchCancellationScheduler.__matchCancellationRefundScheduler) {
+    const { processMatchCancellationRefunds } = await import("@/lib/matchCancellationRefunds");
+    const matchCancellationIntervalMs = 10 * 60 * 1000;
+
+    const runMatchCancellationReconciliation = async () => {
+      try {
+        const report = await processMatchCancellationRefunds();
+        if (report.matchesScanned > 0 || report.retriedRequests > 0 || report.refreshed > 0 || report.alerted > 0) {
+          console.log(`[match-cancellation-refund-scheduler] ${JSON.stringify(report)}`);
+        }
+      } catch (error) {
+        console.error("[match-cancellation-refund-scheduler] échec du passage périodique :", error);
+      }
+    };
+
+    globalForMatchCancellationScheduler.__matchCancellationRefundScheduler = setInterval(
+      runMatchCancellationReconciliation,
+      matchCancellationIntervalMs,
+    );
+    void runMatchCancellationReconciliation();
+  }
 }
