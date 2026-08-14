@@ -272,7 +272,27 @@ Les validations réglementaires doivent être traçables de bout en bout.
   d’éligibilité. Lorsque la saison l’exige, le contrat ne peut être soumis ni
   homologué sans une qualification `COACH`, `STAFF`, `MEDICAL` ou `DIRECTOR`
   approuvée, non expirée et rattachée au même staff, club et saison.
-- ⬜ **P0-006 et suivants** : à traiter séquentiellement dans cette migration.
+- ⬜ **P0-006 — Engagement des clubs aux compétitions**, **P0-007 — Fenêtres de
+  transfert** et **P0-008 — Qualification/éligibilité** : non traités dans
+  cette migration, sur demande explicite (reprise directement à P0-009).
+  `player_transfers` (préexistant, `club-hub`) reste donc utilisé sans notion
+  de fenêtre, et il n'existe pas de `EligibilityService` central : les
+  contrôles d'éligibilité restent ceux déjà en place au niveau de chaque
+  domaine (licence, contrat, sanction) plus `LineupService.filterEligibleAtMatchDate`
+  côté `match-operations`. À traiter avant toute activation stricte des
+  blocages de fenêtre de transfert ou d'engagement compétition.
+- ✅ **P0-009 — Sanctions clubs** : `club_sanctions` + historique audité,
+  scopes fédération/ligue serveur, création/suspension/réactivation/levée
+  avec motif obligatoire, notifications `CLUB_SANCTION_CREATED`/
+  `CLUB_SANCTION_LIFTED`, interfaces FR/EN/AR (`federation-hub`) et FR/AR en
+  lecture seule (`club-hub`). `TRANSFER_BAN` bloque désormais l'homologation
+  fédérale d'un transfert (`PlayerTransferService.completeTransfer`) et
+  `REGISTRATION_BAN` bloque l'approbation d'une inscription joueur
+  (`playerRegistrations.transitionPlayerRegistration`). `COMPETITION_BAN`/
+  `COMPETITION_EXCLUSION` sont modélisés et exposés mais non appliqués
+  automatiquement (aucun workflow d'engagement compétition en base, voir
+  P0-006 ci-dessus) : à brancher lorsque ce lot sera traité.
+- ⬜ **P0-010 et suivants** : à traiter séquentiellement dans cette migration.
 
 ---
 

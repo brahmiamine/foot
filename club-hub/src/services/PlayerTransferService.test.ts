@@ -71,6 +71,17 @@ describe("PlayerTransferService workflow", () => {
     expect(memberships.find((m) => m.teamId === to.id)?.status).toBe("ACTIVE");
   });
 
+  it("blocks homologation when the destination club has an active TRANSFER_BAN sanction (migration-v2 P0-009)", async () => {
+    const { createTransfer, approveDestinationTransfer, completeTransfer } = await import("./PlayerTransferService");
+    const { ClubSanction } = await import("@/entities/ClubSanction");
+    const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
+    await approveDestinationTransfer(transfer.id, "destination@example.com");
+    const sanctionRepo = dataSource.getRepository(ClubSanction);
+    await sanctionRepo.save(sanctionRepo.create({ clubId: to.id, federationId: "fed-1", type: "TRANSFER_BAN", reason: "Dettes impayées", startsAt: new Date("2026-01-01"), status: "ACTIVE", createdBy: "federation-admin" }));
+    await expect(completeTransfer(transfer.id, "federation@example.com")).rejects.toThrow(/interdiction de recrutement/i);
+  });
+
   it("rejects replaying a completed transfer", async () => {
     const { createTransfer, approveDestinationTransfer, completeTransfer } = await import("./PlayerTransferService");
     const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);

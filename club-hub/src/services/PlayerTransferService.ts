@@ -6,6 +6,7 @@ import { Player } from "@/entities/Player";
 import { Team } from "@/entities/Team";
 import { TeamMember } from "@/entities/TeamMember";
 import { PlayerTransfer, type PlayerTransferType, type PlayerTransferStatus } from "@/entities/PlayerTransfer";
+import { hasActiveTransferBan } from "@/services/ClubSanctionService";
 
 export class PlayerTransferError extends Error {
   constructor(message: string) {
@@ -163,6 +164,13 @@ export async function completeTransfer(transferId: string, homologatedBy?: strin
     if (transfer.status === "COMPLETED") throw new PlayerTransferError("Ce transfert est déjà complété");
     if (transfer.status !== "APPROVED") {
       throw new PlayerTransferError("Le club destination doit approuver le transfert avant homologation fédérale");
+    }
+
+    // migration-v2.md P0-009 : une interdiction de recrutement (TRANSFER_BAN) active
+    // sur le club destination bloque l'homologation fédérale du transfert.
+    const transferBan = await hasActiveTransferBan(transfer.toTeamId);
+    if (transferBan) {
+      throw new PlayerTransferError("Le club destination fait l'objet d'une interdiction de recrutement (sanction fédérale active)");
     }
 
     const playerRepo = manager.getRepository(Player);

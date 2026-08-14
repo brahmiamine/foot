@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
+import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
 import { Federation } from "@/entities/Federation";
 import { News } from "@/entities/News";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
@@ -30,7 +31,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Federation, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
+    entities: [ClubSanction, ClubSanctionHistory, Federation, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
   });
 
   await dataSource.initialize();
