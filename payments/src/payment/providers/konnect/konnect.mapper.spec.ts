@@ -65,8 +65,7 @@ describe('konnect.mapper', () => {
           baseUrl: 'https://api.sandbox.konnect.network/api/v2',
           apiKey: 'super-secret-key',
           walletId: 'wallet-123',
-          webhookUrl:
-            'https://payments.example.com/payments/konnect/webhook',
+          webhookUrl: 'https://payments.example.com/payments/konnect/webhook',
           successUrl: 'https://payments.example.com/payment/success',
           failUrl: 'https://payments.example.com/payment/fail',
         },
@@ -105,8 +104,7 @@ describe('konnect.mapper', () => {
           baseUrl: 'https://api.sandbox.konnect.network/api/v2',
           apiKey: 'super-secret-key',
           walletId: 'wallet-123',
-          webhookUrl:
-            'https://payments.example.com/payments/konnect/webhook',
+          webhookUrl: 'https://payments.example.com/payments/konnect/webhook',
           successUrl: '',
           failUrl: '',
         },
