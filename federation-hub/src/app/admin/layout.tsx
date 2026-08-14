@@ -7,15 +7,6 @@ import { fetchFederationsWithLeagues } from '@/lib/dataAccess/federations'
 import { getActiveLeagueId } from '@/lib/leagueSelection'
 import { getRefereeDomainPageSession } from '@/lib/adminAuth'
 
-interface LeagueWithId {
-  id: string
-}
-
-interface FederationWithLeagues {
-  id: string
-  leagues: LeagueWithId[]
-}
-
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getRefereeDomainPageSession()
   const observerOnly = session?.role === 'REFEREE_OBSERVER'
@@ -32,7 +23,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         }))
         .filter((federation) => session?.role !== 'LEAGUE_ADMIN' || federation.leagues.length > 0)
   const availableLeagueIds = new Set(
-    federations.flatMap((fed: FederationWithLeagues) => fed.leagues.map((league: LeagueWithId) => league.id))
+    federations.flatMap((federation) => federation.leagues.map((league) => league.id))
   )
 
   let activeLeagueId = await getActiveLeagueId()
