@@ -58,6 +58,7 @@ présence d'une entité.
 | Aptitude médicale fédérale (migration-v2.md, P1-005) | `medical_eligibilities`, `medical_eligibility_history` | `club-hub` (soumission du certificat) **et** `federation-hub` (décision FIT/UNFIT) — mêmes tables partagées. **Aucun diagnostic** : le détail médical reste dans `cms_injuries` (club-hub, hors de ce domaine) | — |
 | Agents / intermédiaires (migration-v2.md, P1-006) | `football_agents`, `representation_agreements`, `football_agent_history` | `federation-hub` (registre et décisions) | `club-hub` (lecture seule, garde serveur lors de la liaison d'un agent à un contrat joueur — voir `AgentService.ts`) |
 | Discipline fédérale avancée (migration-v2.md, P1-007) | `disciplinary_cases`, `disciplinary_case_evidence`, `disciplinary_case_hearings`, `disciplinary_case_decisions`, `disciplinary_case_events` | `federation-hub` (ouverture, instruction, audiences, décisions) | — (pas d'UI `club-hub` dédiée ; une décision peut créer une ligne `club_sanctions` liée, source de vérité inchangée) |
+| Appels (migration-v2.md, P1-008) | `appeals`, `appeal_documents`, `appeal_events` | `club-hub` (dépôt d'un appel par le club requérant) **et** `federation-hub` (instruction et décision) — mêmes tables partagées | — |
 
 `payments` et `notifications` ont leur propre base, hors de `foot`
 (`notifications` ne lit `foot` qu'en lecture seule, via

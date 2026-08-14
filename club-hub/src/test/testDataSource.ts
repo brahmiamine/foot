@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { FootballAgent, RepresentationAgreement } from "@/entities/Agent";
+import { Appeal, AppealDocument, AppealEvent } from "@/entities/Appeal";
 import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
 import { CoachQualification, CoachQualificationHistory } from "@/entities/CoachQualification";
 import { Federation } from "@/entities/Federation";
@@ -39,7 +40,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, FootballAgent, RepresentationAgreement, ClubSanctionHistory, CoachQualification, CoachQualificationHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, MedicalEligibility, MedicalEligibilityHistory, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
+    entities: [Appeal, AppealDocument, AppealEvent, BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, FootballAgent, RepresentationAgreement, ClubSanctionHistory, CoachQualification, CoachQualificationHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, MedicalEligibility, MedicalEligibilityHistory, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
   });
 
   await dataSource.initialize();

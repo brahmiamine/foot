@@ -411,6 +411,21 @@ Les validations réglementaires doivent être traçables de bout en bout.
   `Suspension` lié aux cartons n'a pas été audité dans cette migration),
   seule une `sanctionDescription` texte est enregistrée sur la décision.
   Pas d'UI `club-hub` : non prévue par le document pour ce domaine.
+- ✅ **P1-008 — Appels** : `appeals` + `appeal_documents` + `appeal_events`,
+  référence polymorphe sans FK vers la décision contestée (`legal_cases`,
+  `disciplinary_cases`, `club_sanctions`, `club_license_applications`,
+  `person_licenses`, `stadium_inspections`, `coach_qualifications`,
+  `club_financial_compliance`, `medical_eligibilities`, `OTHER`). Workflow
+  audité (`SUBMITTED → ADMISSIBILITY_REVIEW → UNDER_REVIEW → HEARING/
+  DECIDED`, `→ REJECTED/WITHDRAWN`), scopes fédération/ligue serveur,
+  notifications (`APPEAL_SUBMITTED`, `APPEAL_DECIDED`) et interfaces
+  `club-hub` (dépôt par le club requérant, FR/AR) + `federation-hub`
+  (instruction/décision, FR/EN/AR). **Un appel ne modifie jamais
+  l'historique de la décision originale** (§23) : le dépôt d'un appel
+  contre un `LEGAL_CASE`/`DISCIPLINARY_CASE` `DECIDED` transitionne
+  uniquement son statut vers `APPEALED` (transition déjà prévue par le
+  workflow de ce domaine, P0-010/P1-007), sans toucher aux lignes de
+  décision/historique déjà enregistrées.
 
 ---
 

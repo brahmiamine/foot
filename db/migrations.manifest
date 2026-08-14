@@ -121,6 +121,10 @@ federation-hub/mysql/migration_add_agents.sql
 # club_sanctions (P0-009, décision -> sanction club), teams/federations/
 # ligues/User (déjà en base).
 federation-hub/mysql/migration_add_disciplinary_cases.sql
+# P1-008 migration-v2 : appels. Référence polymorphe sans FK vers la
+# décision contestée (legal_cases/disciplinary_cases/etc.), dépend de
+# federations/ligues/User (déjà en base).
+federation-hub/mysql/migration_add_appeals.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql
