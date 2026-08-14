@@ -62,4 +62,9 @@ export class AssignmentService {
       recentChanges: revoked.filter((item) => item.revokedAt && now.getTime() - item.revokedAt.getTime() <= 7 * 86_400_000).length,
     };
   }
+
+  async history(userId: string): Promise<Assignment[]> {
+    const all = await this.listMine(userId);
+    return all.sort((left, right) => right.assignedAt.getTime() - left.assignedAt.getTime());
+  }
 }

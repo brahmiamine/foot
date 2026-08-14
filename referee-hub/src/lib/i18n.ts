@@ -18,6 +18,9 @@ export function navTranslations(locale: Locale) {
   return {
     dashboard: values["navigation.dashboard"],
     assignments: values["navigation.assignments"],
+    reports: values["navigation.reports"],
+    availability: values["navigation.availability"],
+    history: values["navigation.history"],
     profile: values["navigation.profile"],
     logout: values["navigation.logout"],
     portal: values["navigation.portal"],

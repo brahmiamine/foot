@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { FiCalendar, FiGlobe, FiHome, FiLogOut, FiMenu, FiShield, FiUser, FiX } from "react-icons/fi";
+import { FiCalendar, FiClock, FiFileText, FiGlobe, FiHome, FiLogOut, FiMenu, FiShield, FiSlash, FiUser, FiX } from "react-icons/fi";
 import type { Locale } from "@/lib/i18n";
 import type { RequestSession } from "@/lib/requestSession";
 
 interface ShellLabels {
   dashboard: string;
   assignments: string;
+  reports: string;
+  availability: string;
+  history: string;
   profile: string;
   logout: string;
   portal: string;
@@ -33,6 +36,9 @@ export function PortalShell({
   const nav = [
     { href: "/", label: labels.dashboard, icon: FiHome },
     { href: "/assignments", label: labels.assignments, icon: FiCalendar },
+    { href: "/reports", label: labels.reports, icon: FiFileText },
+    { href: "/availability", label: labels.availability, icon: FiSlash },
+    { href: "/history", label: labels.history, icon: FiClock },
     { href: "/profile", label: labels.profile, icon: FiUser },
   ];
 

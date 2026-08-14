@@ -8,6 +8,8 @@ import { Referee } from "@/entities/Referee";
 import { Season } from "@/entities/Season";
 import { Team } from "@/entities/Team";
 import { User } from "@/entities/User";
+import { RefereeMatchReport } from "@/entities/RefereeMatchReport";
+import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
 
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
@@ -27,7 +29,7 @@ export async function getDataSource(): Promise<DataSource> {
       logging: process.env.NODE_ENV === "development",
       charset: "utf8mb4",
       timezone: "Z",
-      entities: [Assignment, League, Match, Matchday, Referee, Season, Team, User],
+      entities: [Assignment, League, Match, Matchday, Referee, RefereeMatchReport, RefereeUnavailability, Season, Team, User],
     });
     initPromise = nextDataSource.initialize().then((initialized) => {
       dataSource = initialized;

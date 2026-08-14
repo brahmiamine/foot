@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { getDataSource } from './db'
-import { Team, User, type UserRole } from './entities'
+import { RefereeUnavailability, Team, User, type UserRole } from './entities'
 import { toPlain, toPlainArray } from './serialization'
 import { deleteIdentityUser, updateIdentityUser } from './identityClient'
 
@@ -89,6 +89,10 @@ export interface OfficialAccount {
   email: string
   role: 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER'
   isActive: boolean
+  unavailable: boolean
+  unavailableFrom?: string | null
+  unavailableTo?: string | null
+  unavailableReason?: string | null
 }
 
 /**
@@ -97,20 +101,35 @@ export interface OfficialAccount {
  * (`match_official_assignments`, Phase 4), pas figé à la création du
  * compte. Sert au sélecteur d'affectation d'officiels dans `federation-hub`.
  */
-export async function listOfficialAccounts(): Promise<OfficialAccount[]> {
+export async function listOfficialAccounts(matchDate?: Date | null): Promise<OfficialAccount[]> {
   const dataSource = await getDataSource()
   const users = await dataSource.getRepository(User).find({
     where: [{ role: 'REFEREE' }, { role: 'MATCH_OFFICIAL' }, { role: 'REFEREE_OBSERVER' }],
     order: { name: 'ASC' },
   })
+  const periods = matchDate
+    ? await dataSource.getRepository(RefereeUnavailability)
+      .createQueryBuilder('period')
+      .where('period.cancelled_at IS NULL')
+      .andWhere(':matchDate BETWEEN period.start_date AND period.end_date', { matchDate: matchDate.toISOString().slice(0, 10) })
+      .getMany()
+    : []
+  const unavailableByUser = new Map(periods.map((period) => [period.userId, period]))
   return toPlainArray(
-    users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role as 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER',
-      isActive: u.isActive,
-    }))
+    users.map((u) => {
+      const period = unavailableByUser.get(u.id)
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role as 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER',
+        isActive: u.isActive,
+        unavailable: Boolean(period),
+        unavailableFrom: period?.startDate ?? null,
+        unavailableTo: period?.endDate ?? null,
+        unavailableReason: period?.reason ?? null,
+      }
+    }).sort((left, right) => Number(right.unavailable) - Number(left.unavailable) || left.name.localeCompare(right.name))
   )
 }
 

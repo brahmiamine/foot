@@ -2,6 +2,9 @@ export const dictionaries = {
   fr: {
     "navigation.dashboard": "Accueil",
     "navigation.assignments": "Mes désignations",
+    "navigation.reports": "Mes rapports",
+    "navigation.availability": "Indisponibilités",
+    "navigation.history": "Historique",
     "navigation.profile": "Mon profil",
     "navigation.logout": "Déconnexion",
     "navigation.portal": "Espace Arbitre",
@@ -13,6 +16,9 @@ export const dictionaries = {
   ar: {
     "navigation.dashboard": "الرئيسية",
     "navigation.assignments": "تعييناتي",
+    "navigation.reports": "تقاريري",
+    "navigation.availability": "عدم التوفر",
+    "navigation.history": "السجل",
     "navigation.profile": "ملفي الشخصي",
     "navigation.logout": "تسجيل الخروج",
     "navigation.portal": "فضاء الحكم",

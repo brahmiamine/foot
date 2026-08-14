@@ -139,6 +139,10 @@ match-operations/sql/migration_add_event_client_request_id.sql
 # matches (déjà en base).
 match-operations/sql/migration_add_match_official_assignments.sql
 
+# --- referee-hub (données privées personnelles des officiels) ---
+# Dépend de match_official_assignments et matches pour les rapports.
+referee-hub/sql/migration_add_referee_private_workflows.sql
+
 # --- payments (base payment_api, remboursements multi-provider) ---
 payments/sql/migration_add_refunds.sql
 

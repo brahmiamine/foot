@@ -12,6 +12,10 @@ interface OfficialAccount {
   email: string
   role: 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER'
   isActive: boolean
+  unavailable: boolean
+  unavailableFrom?: string | null
+  unavailableTo?: string | null
+  unavailableReason?: string | null
 }
 
 interface Arbitre {
@@ -62,7 +66,7 @@ export default function MatchOfficialsPanel({ matchId }: MatchOfficialsPanelProp
     try {
       const [assignmentsRes, officialsRes, arbitresRes] = await Promise.all([
         fetch(`/api/admin/matches/${matchId}/officials`, { cache: 'no-store', credentials: 'include' }),
-        fetch('/api/admin/officials', { cache: 'no-store', credentials: 'include' }),
+        fetch(`/api/admin/officials?matchId=${encodeURIComponent(matchId)}`, { cache: 'no-store', credentials: 'include' }),
         fetch('/api/admin/arbitres', { cache: 'no-store', credentials: 'include' }),
       ])
       if (!assignmentsRes.ok) throw new Error('Chargement des officiels impossible')
@@ -128,9 +132,25 @@ export default function MatchOfficialsPanel({ matchId }: MatchOfficialsPanelProp
 
   if (loading) return <p className="text-muted small mb-0">Chargement des officiels...</p>
 
+  const unavailableOfficials = officials.filter((official) => official.unavailable)
+
   return (
     <div className="d-flex flex-column gap-3">
       {error && <div className="alert alert-danger py-2 mb-0">{error}</div>}
+
+      {unavailableOfficials.length > 0 && (
+        <div className="alert alert-warning mb-0">
+          <div className="fw-semibold mb-1">Arbitres indisponibles pour ce match</div>
+          <ul className="mb-0 ps-3 small">
+            {unavailableOfficials.map((official) => (
+              <li key={official.id}>
+                {official.name} — du {official.unavailableFrom} au {official.unavailableTo}
+                {official.unavailableReason ? ` (${official.unavailableReason})` : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {assignments.length === 0 ? (
         <p className="text-muted small mb-0">Aucun officiel affecté à ce match.</p>
@@ -185,8 +205,8 @@ export default function MatchOfficialsPanel({ matchId }: MatchOfficialsPanelProp
           >
             <option value="">Sélectionner...</option>
             {officials.map((o) => (
-              <option key={o.id} value={o.id} disabled={!o.isActive}>
-                {o.name} ({o.email}){!o.isActive ? ' — désactivé' : ''}
+              <option key={o.id} value={o.id} disabled={!o.isActive || o.unavailable}>
+                {o.name} ({o.email}){!o.isActive ? ' — désactivé' : o.unavailable ? ' — indisponible' : ''}
               </option>
             ))}
           </select>

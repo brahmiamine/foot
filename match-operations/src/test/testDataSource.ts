@@ -15,6 +15,7 @@ import { Sheet } from "@/entities/Sheet";
 import { Signature } from "@/entities/Signature";
 import { Substitution } from "@/entities/Substitution";
 import { Team } from "@/entities/Team";
+import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
 
 /**
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
@@ -44,6 +45,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       Signature,
       Substitution,
       Team,
+      RefereeUnavailability,
     ],
   });
 

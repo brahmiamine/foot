@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ensureAdminOrFederationAuth } from '@/lib/adminAuth'
+import { canAccessFederation, canAccessLeague, canAccessPlatform, ensureAdminOrFederationAuth, getAdminSession } from '@/lib/adminAuth'
 import { listOfficialAccounts } from '@/lib/clubAccounts'
+import { getDataSource } from '@/lib/db'
+import { Match } from '@/lib/entities'
+import { getMatchScope } from '@/lib/matchFederationScope'
 
 export const runtime = 'nodejs'
 
@@ -12,11 +15,24 @@ export const runtime = 'nodejs'
  * tout FEDERATION_ADMIN, pas de filtre supplémentaire à appliquer.
  */
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminOrFederationAuth(request)
-  if (unauthorized) return unauthorized
-
   try {
-    const officials = await listOfficialAccounts()
+    const matchId = request.nextUrl.searchParams.get('matchId')
+    let matchDate: Date | null = null
+    if (matchId) {
+      const session = await getAdminSession(request)
+      if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const dataSource = await getDataSource()
+      const scope = await getMatchScope(dataSource, matchId)
+      const allowed = canAccessPlatform(session) || Boolean(scope && (
+        canAccessLeague(session, scope.leagueId, scope.federationId) || canAccessFederation(session, scope.federationId)
+      ))
+      if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      matchDate = (await dataSource.getRepository(Match).findOne({ where: { id: matchId } }))?.date ?? null
+    } else {
+      const unauthorized = await ensureAdminOrFederationAuth(request)
+      if (unauthorized) return unauthorized
+    }
+    const officials = await listOfficialAccounts(matchDate)
     return NextResponse.json(officials)
   } catch (error) {
     console.error('Error fetching official accounts:', error)

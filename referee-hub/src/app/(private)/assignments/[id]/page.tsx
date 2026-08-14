@@ -6,6 +6,7 @@ import { formatDate, roleLabel } from "@/lib/assignmentView";
 import { getLocale, localize } from "@/lib/i18n";
 import { requireRequestSession } from "@/lib/requestSession";
 import { AssignmentService } from "@/services/AssignmentService";
+import { canWriteMatchReport } from "@/lib/refereeRules";
 
 export default async function AssignmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [session, locale, routeParams] = await Promise.all([requireRequestSession(), getLocale(), params]);
@@ -75,6 +76,11 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
             <a href={matchOperationsUrl} className="primary-action">{locale === "ar" ? "فتح ورقة المباراة" : "Ouvrir la feuille de match"}<FiExternalLink /></a>
           ) : (
             <div className="revoked-notice">{locale === "ar" ? "لم يعد هذا التعيين يمنح حق الدخول إلى المباراة." : "Cette désignation ne donne plus accès au match."}</div>
+          )}
+          {canWriteMatchReport(assignment.role, assignment.status, match.status) && (
+            <Link href={`/reports/${assignment.id}`} className="secondary-action report-shortcut">
+              {locale === "ar" ? "كتابة التقرير التكميلي" : "Rédiger le rapport complémentaire"}
+            </Link>
           )}
         </section>
       </div>
