@@ -318,7 +318,6 @@ Les validations réglementaires doivent être traçables de bout en bout.
   ouverte bloque la soumission. Pas d'UI `club-hub` dédiée : c'est un outil
   interne à la fédération, le club voit seulement l'effet (soumission
   acceptée ou refusée).
-- ⬜ **P0-012 et suivants** : cette migration passe désormais aux processus P1.
 - ✅ **P1-001 — Conformité financière** : `club_financial_compliance` +
   historique audité, un dossier par club/saison (contrainte d'unicité),
   workflow audité (`DRAFT → SUBMITTED → UNDER_REVIEW → COMPLIANT/CONDITIONAL
@@ -426,6 +425,28 @@ Les validations réglementaires doivent être traçables de bout en bout.
   uniquement son statut vers `APPEALED` (transition déjà prévue par le
   workflow de ce domaine, P0-010/P1-007), sans toucher aux lignes de
   décision/historique déjà enregistrées.
+
+## Bilan de cette migration
+
+Tous les lots P0 et P1 demandés sont terminés (P0-001 à P0-005 déjà acquis en
+entrée de cette migration ; P0-009, P0-010, P0-011 puis P1-001 à P1-008
+implémentés ici, séquentiellement, chacun avec migration SQL, workflow
+audité, scopes fédération/ligue serveur, API, UI FR/AR ou FR/EN/AR dans
+`federation-hub` et/ou `club-hub`, notifications et tests). **P0-006
+(engagement des clubs aux compétitions), P0-007 (fenêtres de transfert) et
+P0-008 (service d'éligibilité central) n'ont volontairement pas été traités**
+dans cette migration, sur demande explicite reprenant directement à P0-009 —
+voir la note détaillée sous P0-006/007/008 ci-dessus pour les conséquences
+(pas de fenêtre de transfert, `COMPETITION_BAN`/`COMPETITION_EXCLUSION`
+modélisés mais non appliqués, `minimumHeadCoachQualification` non vérifié à
+la désignation d'un entraîneur). P2 reste uniquement préparé
+architecturalement (§24), comme demandé : aucune table de ce périmètre n'a
+été créée.
+
+Les deux applications compilent (`next build`) sans erreur, `tsc --noEmit`
+est vert, `pnpm lint`/`eslint` ne relève aucune erreur sur le code de cette
+migration, et l'intégralité des suites de tests (`vitest run`) passe dans
+`federation-hub` et `club-hub`.
 
 ---
 
