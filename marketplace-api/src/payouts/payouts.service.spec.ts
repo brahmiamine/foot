@@ -16,15 +16,14 @@ function buildQueryBuilder(rawResult: Record<string, unknown>) {
 }
 
 describe('PayoutsService', () => {
-  let repository: jest.Mocked<
-    Pick<
-      Repository<Payout>,
-      'findOne' | 'save' | 'find' | 'create' | 'createQueryBuilder'
-    >
-  >;
-  let sellerOrderRepository: jest.Mocked<
-    Pick<Repository<SellerOrder>, 'createQueryBuilder'>
-  >;
+  let repository: {
+    findOne: jest.Mock;
+    save: jest.Mock;
+    find: jest.Mock;
+    create: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let sellerOrderRepository: { createQueryBuilder: jest.Mock };
   let service: PayoutsService;
 
   function buildPayout(overrides: Partial<Payout> = {}): Payout {
@@ -63,7 +62,9 @@ describe('PayoutsService', () => {
   /** TASK-P0-021 : un vendeur ne doit jamais voir les payouts d'un autre. */
   describe('findAllForSeller (isolation vendeur)', () => {
     it('interroge toujours par sellerId, jamais tous les payouts', async () => {
-      repository.find.mockResolvedValue([buildPayout({ sellerId: 'seller-1' })]);
+      repository.find.mockResolvedValue([
+        buildPayout({ sellerId: 'seller-1' }),
+      ]);
 
       await service.findAllForSeller('seller-1');
 
@@ -74,12 +75,14 @@ describe('PayoutsService', () => {
     });
 
     it("ne retourne jamais les payouts d'un autre vendeur", async () => {
-      repository.find.mockImplementation(({ where }: { where: { sellerId: string } }) =>
-        Promise.resolve(
-          [buildPayout({ id: 'payout-1', sellerId: 'seller-1' }), buildPayout({ id: 'payout-2', sellerId: 'seller-2' })].filter(
-            (p) => p.sellerId === where.sellerId,
+      repository.find.mockImplementation(
+        ({ where }: { where: { sellerId: string } }) =>
+          Promise.resolve(
+            [
+              buildPayout({ id: 'payout-1', sellerId: 'seller-1' }),
+              buildPayout({ id: 'payout-2', sellerId: 'seller-2' }),
+            ].filter((p) => p.sellerId === where.sellerId),
           ),
-        ),
       );
 
       const result = await service.findAllForSeller('seller-1');
@@ -92,10 +95,10 @@ describe('PayoutsService', () => {
   describe('computeAvailableBalance (US-47)', () => {
     it('subtracts already-claimed payouts from delivered net revenue', async () => {
       sellerOrderRepository.createQueryBuilder.mockReturnValue(
-        buildQueryBuilder({ total: '500.000' }) as never,
+        buildQueryBuilder({ total: '500.000' }),
       );
       repository.createQueryBuilder.mockReturnValue(
-        buildQueryBuilder({ total: '120.000' }) as never,
+        buildQueryBuilder({ total: '120.000' }),
       );
 
       const balance = await service.computeAvailableBalance('seller-1');
@@ -105,10 +108,10 @@ describe('PayoutsService', () => {
 
     it('never returns a negative balance', async () => {
       sellerOrderRepository.createQueryBuilder.mockReturnValue(
-        buildQueryBuilder({ total: '50.000' }) as never,
+        buildQueryBuilder({ total: '50.000' }),
       );
       repository.createQueryBuilder.mockReturnValue(
-        buildQueryBuilder({ total: '200.000' }) as never,
+        buildQueryBuilder({ total: '200.000' }),
       );
 
       const balance = await service.computeAvailableBalance('seller-1');
@@ -120,10 +123,10 @@ describe('PayoutsService', () => {
   describe('create (US-48)', () => {
     it('rejects creating a payout when there is no available balance', async () => {
       sellerOrderRepository.createQueryBuilder.mockReturnValue(
-        buildQueryBuilder({ total: '0' }) as never,
+        buildQueryBuilder({ total: '0' }),
       );
       repository.createQueryBuilder.mockReturnValue(
-        buildQueryBuilder({ total: '0' }) as never,
+        buildQueryBuilder({ total: '0' }),
       );
 
       await expect(service.create('seller-1')).rejects.toThrow(
@@ -133,12 +136,12 @@ describe('PayoutsService', () => {
 
     it('creates a PENDING payout for the full available balance', async () => {
       sellerOrderRepository.createQueryBuilder
-        .mockReturnValueOnce(buildQueryBuilder({ total: '300.000' }) as never)
+        .mockReturnValueOnce(buildQueryBuilder({ total: '300.000' }))
         .mockReturnValueOnce(
-          buildQueryBuilder({ oldest: '2026-01-15T10:00:00.000Z' }) as never,
+          buildQueryBuilder({ oldest: '2026-01-15T10:00:00.000Z' }),
         );
       repository.createQueryBuilder.mockReturnValue(
-        buildQueryBuilder({ total: '0' }) as never,
+        buildQueryBuilder({ total: '0' }),
       );
 
       const payout = await service.create('seller-1');

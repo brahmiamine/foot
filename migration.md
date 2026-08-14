@@ -4,7 +4,7 @@
 
 **Statut :** `[ ]` à faire · `[~]` partiel · `[x]` terminé
 
-Ce document sert de source de vérité pour le suivi de ce chantier. Chaque phase est traitée par étapes successives, commit + push (branche `claude/migration-markdown-setup-rrb5ht` pour le backend, `claude/migration-ui-screens-hok3qk` pour les écrans UI qui consomment ces routes), avec mise à jour de cette section après chaque étape validée (build/tests passants sur les projets touchés).
+Ce document sert de source de vérité pour le suivi de ce chantier. Les travaux de finalisation sont regroupés dans la branche `agent/finish-federation-migration` et la Draft PR [#65](https://github.com/brahmiamine/foot/pull/65). La PR reste en Draft jusqu'à fermeture des points ouverts et validation des checks CI.
 
 | Phase | Contenu | Statut |
 |---|---|---|
@@ -14,25 +14,30 @@ Ce document sert de source de vérité pour le suivi de ce chantier. Chaque phas
 | Phase 4 | Officiels de match (`match_official_assignments`, contrôle serveur `matchsheet`) | `[~]` |
 | Phase 5 | ArbiNote officiel (évaluation fédérale séparée du score public) | `[~]` |
 
-**État global (13 août 2026) :** les 5 phases ont un premier passage backend complet (modèle de données, transactions, guards serveur, tests), et chacune a maintenant au moins un écran qui consomme ses routes. Les écrans `superadmin` de provisioning/affiliations/officiels de match/transferts sont accessibles à `FEDERATION_ADMIN` (pas seulement `PLATFORM_SUPERADMIN`) — soit directement, soit via des écrans dédiés (`/admin/clubs-affilies`, `/admin/officiels-matchs`, `/admin/joueurs`). Le tableau de bord Transferts (§23) et la vue globale `/joueurs` (§18) existent désormais. Chaque phase reste marquée `[~]` : il subsiste toujours, selon les cas, un workflow simplifié (transferts v1, pas de validation à deux clubs), des notifications non câblées, ou — point à ne pas minimiser — un `LEAGUE_ADMIN` toujours accepté par AUCUNE route Phase 2/3/4, alors que §9 lui assigne explicitement la gestion des journées/matchs et l'affectation des arbitres dans sa ligue : ce n'est pas un détail technique reporté, c'est un écart réel entre la cible de ce document et l'implémentation actuelle (voir Phase 1 "Reste ouvert" et le bilan priorisé ci-dessous). Le détail de ce qui reste par phase est dans chaque section ci-dessous ("Reste ouvert").
+**État global (14 août 2026 — Draft PR #65) :** les cinq phases disposent d'une base fonctionnelle. Cette PR ajoute le backfill des affiliations historiques, la pagination réelle des joueurs, le workflow de transfert multi-acteurs avec homologation et notifications, la vérification temporelle des joueurs dans `matchsheet`, les primitives de scope match/ligue et les analytics officielles ArbiNote. Les nouvelles migrations de la PR ainsi que les migrations historiques signalées par la CI sont désormais enregistrées dans `db/migrations.manifest`.
 
-### Bilan priorisé (13 août 2026)
+La migration n'est pas encore considérée comme terminée : `LEAGUE_ADMIN` doit encore être branché sur l'ensemble des routes journées/matchs/affectations d'officiels, l'UI des anciens joueurs reste à créer, l'audit IP/User-Agent des affectations/révocations doit être enrichi, et les analytics officielles doivent être exposées par `/stats` avec pagination/recherche des sélecteurs. Les échecs CI qui surviennent dans `actions/setup-node@v4` avant le build doivent être suivis séparément des erreurs de code.
 
-**P0 — écarts fonctionnels ou de sécurité réels**
-1. Rétro-remplissage de `team_affiliations` pour les clubs déjà en base (`teams.federation_id` existant, jamais migré) — Phase 2.
-2. Vérification temporelle de l'appartenance joueur à la date du match (`matchsheet` §22, toujours `player.teamId === match.teamId`) — Phase 3/4.
-3. Décider puis implémenter le vrai périmètre opérationnel de `LEAGUE_ADMIN` (§9 : journées, matchs, affectation des arbitres, consultation des clubs de sa ligue) — aujourd'hui `canAccessLeague`/`ensureLeagueAccess` existent côté `packages/auth-shared` mais aucune route Phase 2/3/4 ne les appelle ; `LEAGUE_ADMIN` est de facto un rôle sans aucun pouvoir opérationnel malgré sa place dans le modèle cible — Phase 1.
+### Bilan priorisé (14 août 2026)
 
-**P1 — fonctionnalités documentées comme manquantes, moins bloquantes**
-4. Workflow de transfert à deux acteurs (club source propose, club destination confirme, fédération homologue) — v1 simplifiée actuelle saute cette étape — Phase 3.
-5. Notifications `PLAYER_TRANSFER_*` vers `notification-api` — non câblées — Phase 3.
-6. Historique clubs en lecture seule pour un ancien joueur dans `teamManager` (§23) — Phase 3.
-7. Pagination réelle de `/admin/joueurs` au-delà de 200 résultats — Phase 3.
+**Terminé dans la Draft PR #65**
+1. Backfill idempotent `teams.federation_id → team_affiliations` et enregistrement de la migration dans le manifeste.
+2. Pagination backend et UI de `/admin/joueurs`.
+3. Workflow `PENDING → APPROVED → COMPLETED` avec approbation/rejet du club destination et homologation fédérale.
+4. Transaction atomique sur `cms_team_members` et `Player.teamId`, champs d'audit et notifications `PLAYER_TRANSFER_*`.
+5. Vérification temporelle de l'appartenance joueur dans `matchsheet`.
+6. Scope `LEAGUE_ADMIN` actif sur les journées, les matchs et les affectations/révocations d'officiels, avec résolution serveur depuis les ressources réellement enregistrées.
+7. Calcul des analytics officielles ArbiNote : évolution chronologique et comparaison par observateur.
 
-**P2 — améliorations, pas des manques fonctionnels**
-8. Audit nominatif enrichi (terminal/IP) des officiels de match, au-delà de `assignedBy`/`revokedBy` — Phase 4.
-9. Analytics ArbiNote plus riches (tendance dans le temps, comparaison entre observateurs) — Phase 5.
-10. Pagination/recherche des sélecteurs match/arbitre dans l'écran officiel ArbiNote (limite actuelle 200, recherche déjà supportée par les routes mais pas câblée côté écran) — Phase 5.
+**P0 — écarts fonctionnels ou de sécurité restant à fermer**
+1. Étendre les tests d'intégration cross-ligue si nécessaire. Des tests négatifs de routes couvrent désormais les journées, matchs et officiels.
+2. Analytics officielles ArbiNote exposées sur `/stats`, séparées de la note publique ; sélecteurs match/arbitre paginés et recherchables.
+3. Audit des affectations/révocations enrichi avec IP et User-Agent via `audit_logs`.
+
+**P1 — compléments fonctionnels**
+4. Vue « Anciens joueurs » ajoutée dans `teamManager` avec historique `ENDED` en lecture seule.
+5. Pagination et recherche des sélecteurs match/arbitre terminées dans l'écran officiel ArbiNote.
+6. Ajouter les tests d'intégration manquants pour les scopes `LEAGUE_ADMIN` et le contrôle temporel.
 
 **À valider comme choix d'architecture (pas des bugs, mais des décisions à confirmer)**
 11. `GET /api/admin/teams`/`/arbitres`/`/saisons`/`/officials` sont ouverts en lecture à tout `FEDERATION_ADMIN` sans filtre par fédération (considérés comme référentiel non sensible) — sur une plateforme réellement multi-fédérations, à revalider : veut-on qu'une fédération voie les clubs/arbitres des autres ?

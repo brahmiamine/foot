@@ -8,7 +8,9 @@ import { PaymentReconciliationService } from './payment-reconciliation.service';
  */
 @Controller('health/reconciliation')
 export class PaymentReconciliationHealthController {
-  constructor(private readonly reconciliationService: PaymentReconciliationService) {}
+  constructor(
+    private readonly reconciliationService: PaymentReconciliationService,
+  ) {}
 
   @Get()
   check() {

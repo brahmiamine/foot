@@ -111,6 +111,9 @@ export class TeamMemberService {
     if (!teamMember) {
       throw new Error("Membre d'équipe non trouvé");
     }
+    if (teamMember.playerId && teamMember.status === "ENDED") {
+      throw new Error("L'historique d'un ancien joueur est en lecture seule");
+    }
 
     Object.assign(teamMember, data);
     return repository.save(teamMember);
@@ -125,6 +128,9 @@ export class TeamMemberService {
 
     if (!teamMember) {
       throw new Error("Membre d'équipe non trouvé");
+    }
+    if (teamMember.playerId && teamMember.status === "ENDED") {
+      throw new Error("L'historique d'un ancien joueur ne peut pas être supprimé");
     }
 
     await repository.remove(teamMember);

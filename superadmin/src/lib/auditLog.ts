@@ -52,6 +52,7 @@ export async function logAdminAction({
       summary: summary ?? null,
       admin_username: adminUsername ?? getAdminUsername(request),
       ip_address: getClientIP(request) !== 'unknown' ? getClientIP(request) : null,
+      user_agent: request.headers.get('user-agent'),
     })
     await repo.save(entry)
   } catch (error) {

@@ -56,11 +56,15 @@ function parseServiceApiKeys(
 export const serviceClientsConfig = registerAs(
   'serviceClients',
   (): ServiceClientsConfig => ({
-    current: parseServiceApiKeys(process.env.SERVICE_API_KEYS, 'SERVICE_API_KEYS'),
+    current: parseServiceApiKeys(
+      process.env.SERVICE_API_KEYS,
+      'SERVICE_API_KEYS',
+    ),
     previous: parseServiceApiKeys(
       process.env.SERVICE_API_KEYS_PREVIOUS,
       'SERVICE_API_KEYS_PREVIOUS',
     ),
-    previousExpiresAt: process.env.SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT || undefined,
+    previousExpiresAt:
+      process.env.SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT || undefined,
   }),
 );

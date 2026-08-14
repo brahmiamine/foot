@@ -77,6 +77,7 @@ export function TeamMembersManagement({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [teamMembers, setTeamMembers] = useState<TeamMemberData[]>(initialTeamMembers);
+  const [historyView, setHistoryView] = useState<"CURRENT" | "FORMER_PLAYERS">("CURRENT");
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [editingMember, setEditingMember] = useState<TeamMemberData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -239,6 +240,12 @@ export function TeamMembersManagement({
     return "Inconnu";
   };
 
+  const scopedMembers = teamMembers.filter((member) =>
+    historyView === "FORMER_PLAYERS"
+      ? member.playerId !== null && member.status === "ENDED"
+      : !(member.playerId !== null && member.status === "ENDED"),
+  );
+
   const {
     search,
     setSearch,
@@ -247,7 +254,7 @@ export function TeamMembersManagement({
     totalPages,
     totalCount,
     items: visibleTeamMembers,
-  } = useListFilter(teamMembers, {
+  } = useListFilter(scopedMembers, {
     searchableText: (member) => `${getMemberName(member)} ${getMemberTypeLabel(member)}`,
   });
 
@@ -287,8 +294,35 @@ export function TeamMembersManagement({
         </div>
       )}
 
+      <ul className="nav nav-tabs mb-3" role="tablist">
+        <li className="nav-item">
+          <button
+            type="button"
+            className={`nav-link ${historyView === "CURRENT" ? "active" : ""}`}
+            onClick={() => { setHistoryView("CURRENT"); setPage(1); }}
+          >
+            Membres actuels
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            type="button"
+            className={`nav-link ${historyView === "FORMER_PLAYERS" ? "active" : ""}`}
+            onClick={() => { setHistoryView("FORMER_PLAYERS"); setPage(1); setFormMode(null); setEditingMember(null); }}
+          >
+            Anciens joueurs
+          </button>
+        </li>
+      </ul>
+
+      {historyView === "FORMER_PLAYERS" && (
+        <div className="alert alert-info">
+          Historique en lecture seule : les dates d&apos;appartenance sont conservées après le transfert.
+        </div>
+      )}
+
       {/* Add Button - Always at right */}
-      <div className="row mb-3">
+      {historyView === "CURRENT" && <div className="row mb-3">
         <div className="col-12 d-flex justify-content-end">
           <button
             type="button"
@@ -300,7 +334,7 @@ export function TeamMembersManagement({
             Ajouter un membre
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Add Form - Show before list when adding */}
       {formMode === "add" && (
@@ -489,12 +523,14 @@ export function TeamMembersManagement({
               <ListSearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre..." />
             </div>
             <div className="card-body">
-              {teamMembers.length === 0 ? (
+              {scopedMembers.length === 0 ? (
                 <div className="text-center py-5">
                   <p className="text-muted mb-3">Aucun membre d&apos;équipe enregistré</p>
-                  <button type="button" className="btn btn-primary" onClick={handleAddClick}>
-                    Ajouter le premier membre
-                  </button>
+                  {historyView === "CURRENT" && (
+                    <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+                      Ajouter le premier membre
+                    </button>
+                  )}
                 </div>
               ) : totalCount === 0 ? (
                 <p className="text-muted text-center py-5 mb-0">Aucun membre ne correspond à votre recherche</p>
@@ -555,7 +591,7 @@ export function TeamMembersManagement({
                                 type="button"
                                 className="btn btn-sm btn-outline-primary"
                                 onClick={() => handleEditClick(member)}
-                                disabled={loading || isPending}
+                                disabled={loading || isPending || (member.playerId !== null && member.status === "ENDED")}
                               >
                                 <i className="fas fa-edit" aria-hidden="true" />
                                 <span className="visually-hidden">Modifier</span>
@@ -564,7 +600,7 @@ export function TeamMembersManagement({
                                 type="button"
                                 className="btn btn-sm btn-outline-danger"
                                 onClick={() => handleDelete(member.id)}
-                                disabled={loading || isPending}
+                                disabled={loading || isPending || (member.playerId !== null && member.status === "ENDED")}
                               >
                                 <i className="fas fa-trash" aria-hidden="true" />
                                 <span className="visually-hidden">Supprimer</span>

@@ -26,28 +26,32 @@ describe('AllowedApplicationsGuard', () => {
   it('lets any authenticated application through when no @AllowedApplications is declared', () => {
     const guard = guardWithMetadata(undefined);
 
-    expect(guard.canActivate(contextWithService('sellerPortal', undefined))).toBe(true);
+    expect(
+      guard.canActivate(contextWithService('sellerPortal', undefined)),
+    ).toBe(true);
   });
 
   it('allows an application present in the declared list', () => {
     const guard = guardWithMetadata(['teamManager', 'superadmin']);
 
-    expect(guard.canActivate(contextWithService('teamManager', undefined))).toBe(true);
+    expect(
+      guard.canActivate(contextWithService('teamManager', undefined)),
+    ).toBe(true);
   });
 
   it('rejects an application absent from the declared list (e.g. sellerPortal on a moderation route)', () => {
     const guard = guardWithMetadata(['teamManager', 'superadmin']);
 
-    expect(() => guard.canActivate(contextWithService('sellerPortal', undefined))).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      guard.canActivate(contextWithService('sellerPortal', undefined)),
+    ).toThrow(ForbiddenException);
   });
 
   it('rejects when request.service is missing (ServiceAuthGuard did not run first)', () => {
     const guard = guardWithMetadata(['teamManager']);
 
-    expect(() => guard.canActivate(contextWithService(undefined, undefined))).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      guard.canActivate(contextWithService(undefined, undefined)),
+    ).toThrow(ForbiddenException);
   });
 });

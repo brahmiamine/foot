@@ -55,6 +55,14 @@ export interface PlayerGlobalRow {
   isActive: boolean
 }
 
+export interface PlayerGlobalPage {
+  items: PlayerGlobalRow[]
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
 /**
  * migration.md §18 : vue globale `/joueurs` — fédération/ligue/saison
  * résolus via `team_affiliations` (superadmin), club/catégorie/poste/
@@ -62,9 +70,20 @@ export interface PlayerGlobalRow {
  * Une affiliation correspondant au filtre suffit (pas nécessairement
  * `ACTIVE`) : un joueur d'un club qui a changé de ligue reste trouvable
  * pour l'historique, cohérent avec `listAffiliationsForFederation`.
+ *
+ * Pagination serveur obligatoire : l'ancienne limite silencieuse à 200
+ * résultats est supprimée. `pageSize` est borné à 100 pour éviter les
+ * réponses trop volumineuses tout en permettant un export/usage admin
+ * confortable.
  */
-export async function listPlayersGlobal(filters: PlayerGlobalFilters, limit = 200): Promise<PlayerGlobalRow[]> {
+export async function listPlayersGlobal(
+  filters: PlayerGlobalFilters,
+  page = 1,
+  pageSize = 50,
+): Promise<PlayerGlobalPage> {
   const dataSource = await getDataSource()
+  const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1)
+  const safePageSize = Math.min(100, Math.max(1, Number.isFinite(pageSize) ? Math.floor(pageSize) : 50))
 
   let restrictToTeamIds: string[] | null = null
   if (filters.federationId || filters.leagueId || filters.saisonId) {
@@ -74,7 +93,9 @@ export async function listPlayersGlobal(filters: PlayerGlobalFilters, limit = 20
     if (filters.saisonId) where.saisonId = filters.saisonId
     const affiliations = await dataSource.getRepository(TeamAffiliation).find({ where })
     restrictToTeamIds = [...new Set(affiliations.map((a) => a.teamId))]
-    if (restrictToTeamIds.length === 0) return []
+    if (restrictToTeamIds.length === 0) {
+      return { items: [], page: safePage, pageSize: safePageSize, total: 0, totalPages: 0 }
+    }
   }
 
   const query = dataSource.getRepository(Player).createQueryBuilder('player')
@@ -89,14 +110,19 @@ export async function listPlayersGlobal(filters: PlayerGlobalFilters, limit = 20
   if (filters.search) {
     query.andWhere('(player.firstNameFr LIKE :q OR player.lastNameFr LIKE :q)', { q: `%${filters.search}%` })
   }
-  query.orderBy('player.lastNameFr', 'ASC').take(limit)
 
-  const players = await query.getMany()
+  query
+    .orderBy('player.lastNameFr', 'ASC')
+    .addOrderBy('player.firstNameFr', 'ASC')
+    .skip((safePage - 1) * safePageSize)
+    .take(safePageSize)
+
+  const [players, total] = await query.getManyAndCount()
   const teamIds = [...new Set(players.map((p) => p.teamId))]
   const teams = teamIds.length ? await dataSource.getRepository(Team).find({ where: { id: In(teamIds) } }) : []
   const teamNames = new Map(teams.map((t) => [t.id, t.nom]))
 
-  return toPlainArray(
+  const items = toPlainArray(
     players.map((p) => ({
       id: p.id,
       name: `${p.firstNameFr} ${p.lastNameFr}`.trim(),
@@ -109,4 +135,12 @@ export async function listPlayersGlobal(filters: PlayerGlobalFilters, limit = 20
       isActive: p.isActive,
     }))
   )
+
+  return {
+    items,
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages: total === 0 ? 0 : Math.ceil(total / safePageSize),
+  }
 }

@@ -5,9 +5,7 @@ import { ProductVariant } from './entities/product-variant.entity';
 import { Product } from '../products/entities/product.entity';
 
 describe('VariantsService.toggleActive', () => {
-  let variantRepository: jest.Mocked<
-    Pick<Repository<ProductVariant>, 'findOne' | 'save'>
-  >;
+  let variantRepository: { findOne: jest.Mock; save: jest.Mock };
   let productRepository: jest.Mocked<Pick<Repository<Product>, 'findOne'>>;
   let service: VariantsService;
 

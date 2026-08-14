@@ -44,9 +44,13 @@ describe('validateEnv', () => {
   });
 
   it('rejects an invalid SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT', () => {
-    const env = validEnv({ SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT: 'not-a-date' });
+    const env = validEnv({
+      SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT: 'not-a-date',
+    });
 
-    expect(() => validateEnv(env)).toThrow(/SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT/);
+    expect(() => validateEnv(env)).toThrow(
+      /SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT/,
+    );
   });
 
   it('rejects an invalid EMAIL_PROVIDER', () => {

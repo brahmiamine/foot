@@ -13,12 +13,13 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/enums/notification-type.enum';
 
 describe('ReturnsService', () => {
-  let repository: jest.Mocked<
-    Pick<Repository<ReturnRequest>, 'findOne' | 'save' | 'find' | 'create'>
-  >;
-  let sellerOrderRepository: jest.Mocked<
-    Pick<Repository<SellerOrder>, 'findOne' | 'save'>
-  >;
+  let repository: {
+    findOne: jest.Mock;
+    save: jest.Mock;
+    find: jest.Mock;
+    create: jest.Mock;
+  };
+  let sellerOrderRepository: { findOne: jest.Mock; save: jest.Mock };
   let sellerOrderItemRepository: jest.Mocked<
     Pick<Repository<SellerOrderItem>, 'findOne'>
   >;

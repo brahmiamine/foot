@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { EntityManager } from "typeorm";
 import { getDataSource } from "@/lib/database";
+import { notify } from "@/lib/notificationClient";
 import { Player } from "@/entities/Player";
 import { Team } from "@/entities/Team";
 import { TeamMember } from "@/entities/TeamMember";
@@ -28,11 +29,55 @@ export interface CreateTransferInput {
   createdBy?: string | null;
 }
 
-/**
- * Crée une demande de transfert (statut PENDING — migration.md §19).
- * Ne touche ni `Player.teamId` ni `cms_team_members` : ces mutations
- * n'ont lieu que dans `complete()`, dans une transaction unique.
- */
+async function emitTransferNotification(
+  transfer: PlayerTransfer,
+  type: "PLAYER_TRANSFER_REQUESTED" | "PLAYER_TRANSFER_APPROVED" | "PLAYER_TRANSFER_REJECTED" | "PLAYER_TRANSFER_COMPLETED",
+): Promise<void> {
+  const commonData = {
+    transferId: transfer.id,
+    playerId: transfer.playerId,
+    fromTeamId: transfer.fromTeamId,
+    toTeamId: transfer.toTeamId,
+    transferType: transfer.transferType,
+    effectiveDate: transfer.effectiveDate,
+    status: transfer.status,
+  };
+
+  const titleByType: Record<typeof type, string> = {
+    PLAYER_TRANSFER_REQUESTED: "Nouvelle demande de transfert",
+    PLAYER_TRANSFER_APPROVED: "Transfert approuvé par le club destination",
+    PLAYER_TRANSFER_REJECTED: "Transfert rejeté",
+    PLAYER_TRANSFER_COMPLETED: "Transfert homologué",
+  };
+
+  const bodyByType: Record<typeof type, string> = {
+    PLAYER_TRANSFER_REQUESTED: `Une demande de transfert du joueur ${transfer.playerId} vers le club ${transfer.toTeamId} est en attente.`,
+    PLAYER_TRANSFER_APPROVED: `Le club destination ${transfer.toTeamId} a approuvé le transfert du joueur ${transfer.playerId}.`,
+    PLAYER_TRANSFER_REJECTED: `Le transfert du joueur ${transfer.playerId} a été rejeté.`,
+    PLAYER_TRANSFER_COMPLETED: `Le transfert du joueur ${transfer.playerId} vers ${transfer.toTeamId} est homologué.`,
+  };
+
+  const targets = type === "PLAYER_TRANSFER_REQUESTED"
+    ? [transfer.fromTeamId, transfer.toTeamId]
+    : [transfer.fromTeamId, transfer.toTeamId];
+
+  await Promise.all(
+    targets.map((teamId) =>
+      notify({
+        eventId: `player-transfer:${transfer.id}:${type}:${teamId}`,
+        type,
+        target: { type: "TEAM", teamId },
+        teamId,
+        category: "SPORT",
+        title: titleByType[type],
+        body: bodyByType[type],
+        data: commonData,
+      }),
+    ),
+  );
+}
+
+/** Club source : crée une demande PENDING sans modifier l'effectif. */
 export async function createTransfer(input: CreateTransferInput): Promise<PlayerTransfer> {
   const dataSource = await getDataSource();
 
@@ -41,36 +86,60 @@ export async function createTransfer(input: CreateTransferInput): Promise<Player
   }
 
   const player = await dataSource.getRepository(Player).findOne({ where: { id: input.playerId } });
-  if (!player) {
-    throw new PlayerTransferError("Joueur introuvable");
-  }
+  if (!player) throw new PlayerTransferError("Joueur introuvable");
   if (player.teamId !== input.fromTeamId) {
     throw new PlayerTransferError("Le club source ne correspond pas au club actuel du joueur");
   }
 
   const toTeam = await dataSource.getRepository(Team).findOne({ where: { id: input.toTeamId } });
-  if (!toTeam) {
-    throw new PlayerTransferError("Club destination introuvable");
-  }
+  if (!toTeam) throw new PlayerTransferError("Club destination introuvable");
 
   const repo = dataSource.getRepository(PlayerTransfer);
-  const transfer = repo.create({
-    id: randomUUID(),
-    playerId: input.playerId,
-    fromTeamId: input.fromTeamId,
-    toTeamId: input.toTeamId,
-    transferType: input.transferType,
-    status: "PENDING",
-    effectiveDate: input.effectiveDate,
-    seasonId: input.seasonId ?? null,
-    fee: input.fee ?? null,
-    currency: input.currency ?? null,
-    loanStartDate: input.loanStartDate ?? null,
-    loanEndDate: input.loanEndDate ?? null,
-    notes: input.notes ?? null,
-    createdBy: input.createdBy ?? null,
+  const existing = await repo.findOne({
+    where: { playerId: input.playerId, fromTeamId: input.fromTeamId, toTeamId: input.toTeamId, status: "PENDING" },
   });
-  return repo.save(transfer);
+  if (existing) throw new PlayerTransferError("Une demande de transfert identique est déjà en attente");
+
+  const transfer = await repo.save(
+    repo.create({
+      id: randomUUID(),
+      playerId: input.playerId,
+      fromTeamId: input.fromTeamId,
+      toTeamId: input.toTeamId,
+      transferType: input.transferType,
+      status: "PENDING",
+      effectiveDate: input.effectiveDate,
+      seasonId: input.seasonId ?? null,
+      fee: input.fee ?? null,
+      currency: input.currency ?? null,
+      loanStartDate: input.loanStartDate ?? null,
+      loanEndDate: input.loanEndDate ?? null,
+      notes: input.notes ?? null,
+      createdBy: input.createdBy ?? null,
+    }),
+  );
+
+  await emitTransferNotification(transfer, "PLAYER_TRANSFER_REQUESTED");
+  return transfer;
+}
+
+/** Club destination : confirme une demande avant homologation fédérale. */
+export async function approveDestinationTransfer(transferId: string, approvedBy: string): Promise<PlayerTransfer> {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(PlayerTransfer);
+  const transfer = await repo.findOne({ where: { id: transferId } });
+  if (!transfer) throw new PlayerTransferError("Transfert introuvable");
+  if (transfer.status !== "PENDING") {
+    throw new PlayerTransferError("Seul un transfert PENDING peut être approuvé par le club destination");
+  }
+
+  transfer.status = "APPROVED";
+  transfer.approvedBy = approvedBy;
+  transfer.destinationApprovedBy = approvedBy;
+  transfer.destinationApprovedAt = new Date();
+  const saved = await repo.save(transfer);
+  await emitTransferNotification(saved, "PLAYER_TRANSFER_APPROVED");
+  return saved;
 }
 
 async function closeCurrentMembership(manager: EntityManager, teamId: string, playerId: string, endDate: string): Promise<void> {
@@ -83,38 +152,22 @@ async function closeCurrentMembership(manager: EntityManager, teamId: string, pl
   }
 }
 
-/**
- * Homologue et exécute un transfert PENDING/APPROVED (migration.md §20) :
- * clôture l'affiliation `cms_team_members` du club source, en ouvre une au
- * club destination, met à jour `Player.teamId` — le tout dans une seule
- * transaction DB, jamais un enchaînement d'appels séparés qui pourrait
- * laisser le joueur dans un état incohérent si l'un échoue.
- *
- * Idempotence : un transfert déjà `COMPLETED` ne peut pas être rejoué (une
- * double validation concurrente échoue sur la seconde tentative avec le
- * même message que "déjà complété").
- */
-export async function completeTransfer(transferId: string, approvedBy?: string | null): Promise<PlayerTransfer> {
+/** Fédération : homologue uniquement un transfert déjà APPROVED. */
+export async function completeTransfer(transferId: string, homologatedBy?: string | null): Promise<PlayerTransfer> {
   const dataSource = await getDataSource();
 
-  return dataSource.transaction(async (manager) => {
+  const completed = await dataSource.transaction(async (manager) => {
     const transferRepo = manager.getRepository(PlayerTransfer);
     const transfer = await transferRepo.findOne({ where: { id: transferId } });
-    if (!transfer) {
-      throw new PlayerTransferError("Transfert introuvable");
-    }
-    if (transfer.status === "COMPLETED") {
-      throw new PlayerTransferError("Ce transfert est déjà complété");
-    }
-    if (transfer.status === "CANCELLED" || transfer.status === "REJECTED") {
-      throw new PlayerTransferError(`Ce transfert est ${transfer.status.toLowerCase()}, il ne peut plus être complété`);
+    if (!transfer) throw new PlayerTransferError("Transfert introuvable");
+    if (transfer.status === "COMPLETED") throw new PlayerTransferError("Ce transfert est déjà complété");
+    if (transfer.status !== "APPROVED") {
+      throw new PlayerTransferError("Le club destination doit approuver le transfert avant homologation fédérale");
     }
 
     const playerRepo = manager.getRepository(Player);
     const player = await playerRepo.findOne({ where: { id: transfer.playerId } });
-    if (!player) {
-      throw new PlayerTransferError("Joueur introuvable");
-    }
+    if (!player) throw new PlayerTransferError("Joueur introuvable");
     if (player.teamId !== transfer.fromTeamId) {
       throw new PlayerTransferError(
         "Le joueur n'appartient plus au club source indiqué par ce transfert (déjà transféré ailleurs ?)",
@@ -124,21 +177,26 @@ export async function completeTransfer(transferId: string, approvedBy?: string |
     await closeCurrentMembership(manager, transfer.fromTeamId, transfer.playerId, transfer.effectiveDate);
 
     const memberRepo = manager.getRepository(TeamMember);
-    const newMembership = memberRepo.create({
-      teamId: transfer.toTeamId,
-      playerId: transfer.playerId,
-      status: "ACTIVE",
-      startDate: new Date(transfer.effectiveDate),
-    });
-    await memberRepo.save(newMembership);
+    await memberRepo.save(
+      memberRepo.create({
+        teamId: transfer.toTeamId,
+        playerId: transfer.playerId,
+        status: "ACTIVE",
+        startDate: new Date(transfer.effectiveDate),
+      }),
+    );
 
     player.teamId = transfer.toTeamId;
     await playerRepo.save(player);
 
     transfer.status = "COMPLETED";
-    transfer.approvedBy = approvedBy ?? null;
+    transfer.homologatedBy = homologatedBy ?? null;
+    transfer.homologatedAt = new Date();
     return transferRepo.save(transfer);
   });
+
+  await emitTransferNotification(completed, "PLAYER_TRANSFER_COMPLETED");
+  return completed;
 }
 
 export interface CloseTransferInput {
@@ -146,20 +204,19 @@ export interface CloseTransferInput {
   reason?: string | null;
 }
 
-/** Annule ou rejette un transfert qui n'a pas encore été complété — ne touche ni Player ni cms_team_members. */
 export async function closeTransfer(transferId: string, input: CloseTransferInput): Promise<PlayerTransfer> {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(PlayerTransfer);
   const transfer = await repo.findOne({ where: { id: transferId } });
-  if (!transfer) {
-    throw new PlayerTransferError("Transfert introuvable");
-  }
+  if (!transfer) throw new PlayerTransferError("Transfert introuvable");
   if (transfer.status === "COMPLETED") {
     throw new PlayerTransferError("Un transfert déjà complété ne peut pas être annulé/rejeté");
   }
   transfer.status = input.status;
   transfer.statusReason = input.reason ?? null;
-  return repo.save(transfer);
+  const saved = await repo.save(transfer);
+  if (input.status === "REJECTED") await emitTransferNotification(saved, "PLAYER_TRANSFER_REJECTED");
+  return saved;
 }
 
 export async function getTransferById(transferId: string): Promise<PlayerTransfer | null> {
@@ -167,18 +224,23 @@ export async function getTransferById(transferId: string): Promise<PlayerTransfe
   return dataSource.getRepository(PlayerTransfer).findOne({ where: { id: transferId } });
 }
 
-/**
- * migration.md §23 : tableau de bord Transferts (superadmin) — pas de
- * filtre par fédération ici (`team_affiliations` vit côté superadmin, pas
- * dans cette base) : `superadmin` filtre le résultat après coup avec sa
- * propre connaissance des affiliations, voir playerTransferClient.ts.
- */
 export async function listTransfers(status?: PlayerTransferStatus, limit = 200): Promise<PlayerTransfer[]> {
   const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(PlayerTransfer);
-  return repo.find({
+  return dataSource.getRepository(PlayerTransfer).find({
     where: status ? { status } : {},
     order: { createdAt: "DESC" },
     take: limit,
   });
+}
+
+/** Club : transferts entrants/sortants visibles dans son propre périmètre. */
+export async function listTransfersForTeam(teamId: string, limit = 200): Promise<PlayerTransfer[]> {
+  const dataSource = await getDataSource();
+  return dataSource
+    .getRepository(PlayerTransfer)
+    .createQueryBuilder("transfer")
+    .where("transfer.fromTeamId = :teamId OR transfer.toTeamId = :teamId", { teamId })
+    .orderBy("transfer.createdAt", "DESC")
+    .take(limit)
+    .getMany();
 }

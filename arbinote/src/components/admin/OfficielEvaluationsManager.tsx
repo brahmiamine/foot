@@ -123,6 +123,19 @@ export default function OfficielEvaluationsManager({
   )
 }
 
+function SelectorPager({ page, total, pageSize, onPageChange }: { page: number; total: number; pageSize: number; onPageChange: (page: number) => void }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  return (
+    <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
+      <span>{total} résultat(s) · page {page + 1}/{pages}</span>
+      <div className="flex gap-2">
+        <button type="button" disabled={page === 0} onClick={() => onPageChange(page - 1)} className="px-2 py-1 border rounded disabled:opacity-40">Précédent</button>
+        <button type="button" disabled={page + 1 >= pages} onClick={() => onPageChange(page + 1)} className="px-2 py-1 border rounded disabled:opacity-40">Suivant</button>
+      </div>
+    </div>
+  )
+}
+
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -138,27 +151,56 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 }
 
 function useMatchesAndArbitres() {
+  const PAGE_SIZE = 25
   const [matches, setMatches] = useState<MatchOption[]>([])
   const [arbitres, setArbitres] = useState<ArbitreOption[]>([])
+  const [matchQuery, setMatchQuery] = useState('')
+  const [arbitreQuery, setArbitreQuery] = useState('')
+  const [matchPage, setMatchPage] = useState(0)
+  const [arbitrePage, setArbitrePage] = useState(0)
+  const [matchTotal, setMatchTotal] = useState(0)
+  const [arbitreTotal, setArbitreTotal] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/matches?limit=200').then((r) => (r.ok ? r.json() : { items: [] })),
-      fetch('/api/arbitres').then((r) => (r.ok ? r.json() : { items: [] })),
-    ])
-      .then(([matchesRes, arbitresRes]) => {
-        setMatches(matchesRes.items ?? [])
-        setArbitres(arbitresRes.items ?? [])
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    const timer = window.setTimeout(() => {
+      setLoading(true)
+      const matchParams = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(matchPage * PAGE_SIZE) })
+      const arbitreParams = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(arbitrePage * PAGE_SIZE) })
+      if (matchQuery.trim()) matchParams.set('q', matchQuery.trim())
+      if (arbitreQuery.trim()) arbitreParams.set('q', arbitreQuery.trim())
 
-  return { matches, arbitres, loading }
+      Promise.all([
+        fetch(`/api/matches?${matchParams}`).then((r) => (r.ok ? r.json() : { items: [], total: 0 })),
+        fetch(`/api/arbitres?${arbitreParams}`).then((r) => (r.ok ? r.json() : { items: [], total: 0 })),
+      ])
+        .then(([matchesRes, arbitresRes]) => {
+          setMatches(matchesRes.items ?? [])
+          setArbitres(arbitresRes.items ?? [])
+          setMatchTotal(matchesRes.total ?? 0)
+          setArbitreTotal(arbitresRes.total ?? 0)
+        })
+        .finally(() => setLoading(false))
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [matchQuery, arbitreQuery, matchPage, arbitrePage])
+
+  return {
+    matches, arbitres, loading,
+    matchQuery, setMatchQuery: (value: string) => { setMatchQuery(value); setMatchPage(0) },
+    arbitreQuery, setArbitreQuery: (value: string) => { setArbitreQuery(value); setArbitrePage(0) },
+    matchPage, setMatchPage, arbitrePage, setArbitrePage,
+    matchTotal, arbitreTotal, pageSize: PAGE_SIZE,
+  }
 }
 
 function NewReportForm({ criteres, onCreated }: { criteres: CritereOption[]; onCreated: () => void }) {
-  const { matches, arbitres, loading } = useMatchesAndArbitres()
+  const {
+    matches, arbitres, loading,
+    matchQuery, setMatchQuery, arbitreQuery, setArbitreQuery,
+    matchPage, setMatchPage, arbitrePage, setArbitrePage,
+    matchTotal, arbitreTotal, pageSize,
+  } = useMatchesAndArbitres()
   const [matchId, setMatchId] = useState('')
   const [arbitreId, setArbitreId] = useState('')
   const [scores, setScores] = useState<Record<string, number>>({})
@@ -223,6 +265,13 @@ function NewReportForm({ criteres, onCreated }: { criteres: CritereOption[]; onC
 
       <div>
         <label className="block text-sm font-medium mb-1">Match</label>
+        <input
+          type="search"
+          value={matchQuery}
+          onChange={(e) => setMatchQuery(e.target.value)}
+          placeholder="Rechercher une équipe..."
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
+        />
         <select
           required
           disabled={loading}
@@ -237,10 +286,18 @@ function NewReportForm({ criteres, onCreated }: { criteres: CritereOption[]; onC
             </option>
           ))}
         </select>
+        <SelectorPager page={matchPage} total={matchTotal} pageSize={pageSize} onPageChange={setMatchPage} />
       </div>
 
       <div>
         <label className="block text-sm font-medium mb-1">Arbitre évalué</label>
+        <input
+          type="search"
+          value={arbitreQuery}
+          onChange={(e) => setArbitreQuery(e.target.value)}
+          placeholder="Rechercher un arbitre..."
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
+        />
         <select
           required
           disabled={loading}
@@ -255,6 +312,7 @@ function NewReportForm({ criteres, onCreated }: { criteres: CritereOption[]; onC
             </option>
           ))}
         </select>
+        <SelectorPager page={arbitrePage} total={arbitreTotal} pageSize={pageSize} onPageChange={setArbitrePage} />
       </div>
 
       <div>
@@ -683,7 +741,10 @@ function ReviewQueue() {
 }
 
 function ArbitreHistory() {
-  const { arbitres, loading: loadingArbitres } = useMatchesAndArbitres()
+  const {
+    arbitres, loading: loadingArbitres,
+    arbitreQuery, setArbitreQuery, arbitrePage, setArbitrePage, arbitreTotal, pageSize,
+  } = useMatchesAndArbitres()
   const [arbitreId, setArbitreId] = useState('')
   const [evaluations, setEvaluations] = useState<Evaluation[]>([])
   const [stats, setStats] = useState<{ evaluationCount: number; averageNoteOfficielle: number | null } | null>(null)
@@ -712,6 +773,13 @@ function ArbitreHistory() {
     <div className="space-y-4">
       <div className="max-w-md">
         <label className="block text-sm font-medium mb-1">Arbitre</label>
+        <input
+          type="search"
+          value={arbitreQuery}
+          onChange={(e) => setArbitreQuery(e.target.value)}
+          placeholder="Rechercher un arbitre..."
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
+        />
         <select
           disabled={loadingArbitres}
           value={arbitreId}
@@ -725,6 +793,7 @@ function ArbitreHistory() {
             </option>
           ))}
         </select>
+        <SelectorPager page={arbitrePage} total={arbitreTotal} pageSize={pageSize} onPageChange={setArbitrePage} />
       </div>
 
       {loading && <p className="text-gray-500">Chargement...</p>}

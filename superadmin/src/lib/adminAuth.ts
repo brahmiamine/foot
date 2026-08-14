@@ -54,6 +54,18 @@ export async function hasAdminSession() {
  * fédération (staff-invitations, transferts) plutôt que `hasAdminSession`
  * (accès plateforme complet uniquement).
  */
+export async function getCompetitionAdminPageSession(): Promise<SsoUser | null> {
+  const session = await getSsoSession();
+  if (!session) return null;
+  const allowedRoles: SsoUser["role"][] = [
+    "SUPERADMIN",
+    "PLATFORM_SUPERADMIN",
+    "FEDERATION_ADMIN",
+    "LEAGUE_ADMIN",
+  ];
+  return allowedRoles.includes(session.role) ? session : null;
+}
+
 export async function getAdminPageSession(): Promise<SsoUser | null> {
   const session = await getSsoSession();
   if (!session) return null;

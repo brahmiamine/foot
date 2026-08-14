@@ -44,10 +44,16 @@ export class SsoJwtService {
 
   private getRemoteJwks(): ReturnType<typeof createRemoteJWKSet> {
     const ssoUrl = this.config.get<string>('SSO_URL');
-    if (!ssoUrl) throw new Error('SSO_URL must be set to verify RS256 session tokens (JWKS)');
+    if (!ssoUrl) {
+      throw new Error(
+        'SSO_URL must be set to verify RS256 session tokens (JWKS)',
+      );
+    }
     const jwksUrl = `${ssoUrl.replace(/\/$/, '')}/api/.well-known/jwks.json`;
     if (!this.remoteJwks || this.remoteJwksUrl !== jwksUrl) {
-      this.remoteJwks = createRemoteJWKSet(new URL(jwksUrl), { cooldownDuration: 5 * 60 * 1000 });
+      this.remoteJwks = createRemoteJWKSet(new URL(jwksUrl), {
+        cooldownDuration: 5 * 60 * 1000,
+      });
       this.remoteJwksUrl = jwksUrl;
     }
     return this.remoteJwks;
@@ -64,15 +70,21 @@ export class SsoJwtService {
     }
 
     try {
-      const res = await fetch(`${ssoUrl.replace(/\/$/, '')}/api/session/introspect`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(REVOCATION_FETCH_TIMEOUT_MS),
-      });
+      const res = await fetch(
+        `${ssoUrl.replace(/\/$/, '')}/api/session/introspect`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(REVOCATION_FETCH_TIMEOUT_MS),
+        },
+      );
       if (!res.ok) return false;
 
       const body = (await res.json()) as { active?: boolean };
       const active = body.active === true;
-      this.revocationCache.set(token, { active, expiresAt: now + REVOCATION_CACHE_TTL_MS });
+      this.revocationCache.set(token, {
+        active,
+        expiresAt: now + REVOCATION_CACHE_TTL_MS,
+      });
       return !active;
     } catch {
       return false;
@@ -89,7 +101,9 @@ export class SsoJwtService {
         if (!legacySecret) return null;
         ({ payload } = await jwtVerify(token, legacySecret, { issuer }));
       } else {
-        ({ payload } = await jwtVerify(token, this.getRemoteJwks(), { issuer }));
+        ({ payload } = await jwtVerify(token, this.getRemoteJwks(), {
+          issuer,
+        }));
       }
       if (
         !payload.sub ||

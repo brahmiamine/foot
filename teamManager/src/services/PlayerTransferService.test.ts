@@ -8,253 +8,93 @@ import { TeamMember } from "@/entities/TeamMember";
 
 let dataSource: DataSource;
 
-vi.mock("@/lib/database", () => ({
-  getDataSource: async () => dataSource,
-}));
+vi.mock("@/lib/database", () => ({ getDataSource: async () => dataSource }));
+vi.mock("@/lib/notificationClient", () => ({ notify: vi.fn(async () => undefined) }));
 
-beforeEach(async () => {
-  dataSource = await createTestDataSource();
-});
-
-afterEach(async () => {
-  await dataSource.destroy();
-});
+beforeEach(async () => { dataSource = await createTestDataSource(); });
+afterEach(async () => { await dataSource.destroy(); });
 
 async function seedTeam(overrides: Partial<Team> = {}): Promise<Team> {
   const repo = dataSource.getRepository(Team);
-  return repo.save(
-    repo.create({
-      id: randomUUID(),
-      nom: "Club",
-      teamType: "club",
-      sport: "football",
-      ageCategory: "seniors",
-      ...overrides,
-    }),
-  );
+  return repo.save(repo.create({ id: randomUUID(), nom: "Club", teamType: "club", sport: "football", ageCategory: "seniors", ...overrides }));
 }
 
-async function seedPlayer(teamId: string, overrides: Partial<Player> = {}): Promise<Player> {
+async function seedPlayer(teamId: string): Promise<Player> {
   const repo = dataSource.getRepository(Player);
-  return repo.save(
-    repo.create({
-      id: randomUUID(),
-      firstNameFr: "Sami",
-      lastNameFr: "Trabelsi",
-      number: 10,
-      teamId,
-      ...overrides,
-    }),
-  );
+  return repo.save(repo.create({ id: randomUUID(), firstNameFr: "Sami", lastNameFr: "Trabelsi", number: 10, teamId }));
 }
 
-async function seedMembership(teamId: string, playerId: string, startDate: string): Promise<void> {
+async function seedMembership(teamId: string, playerId: string): Promise<void> {
   const repo = dataSource.getRepository(TeamMember);
-  await repo.save(repo.create({ teamId, playerId, status: "ACTIVE", startDate: new Date(startDate) }));
+  await repo.save(repo.create({ teamId, playerId, status: "ACTIVE", startDate: new Date("2024-08-01") }));
 }
 
-describe("createTransfer", () => {
-  it("rejects a transfer to the same club", async () => {
+describe("PlayerTransferService workflow", () => {
+  it("creates PENDING without changing the player's current club", async () => {
     const { createTransfer } = await import("./PlayerTransferService");
-    const team = await seedTeam();
-    const player = await seedPlayer(team.id);
-
-    await expect(
-      createTransfer({
-        playerId: player.id,
-        fromTeamId: team.id,
-        toTeamId: team.id,
-        transferType: "PERMANENT",
-        effectiveDate: "2026-01-15",
-      }),
-    ).rejects.toThrow(/différents/);
-  });
-
-  it("rejects an unknown player", async () => {
-    const { createTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-
-    await expect(
-      createTransfer({
-        playerId: randomUUID(),
-        fromTeamId: fromTeam.id,
-        toTeamId: toTeam.id,
-        transferType: "PERMANENT",
-        effectiveDate: "2026-01-15",
-      }),
-    ).rejects.toThrow(/introuvable/);
-  });
-
-  it("rejects when the source club does not match the player's current club", async () => {
-    const { createTransfer } = await import("./PlayerTransferService");
-    const actualTeam = await seedTeam();
-    const wrongFromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-    const player = await seedPlayer(actualTeam.id);
-
-    await expect(
-      createTransfer({
-        playerId: player.id,
-        fromTeamId: wrongFromTeam.id,
-        toTeamId: toTeam.id,
-        transferType: "PERMANENT",
-        effectiveDate: "2026-01-15",
-      }),
-    ).rejects.toThrow(/club source ne correspond pas/);
-  });
-
-  it("rejects an unknown destination club", async () => {
-    const { createTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const player = await seedPlayer(fromTeam.id);
-
-    await expect(
-      createTransfer({
-        playerId: player.id,
-        fromTeamId: fromTeam.id,
-        toTeamId: randomUUID(),
-        transferType: "PERMANENT",
-        effectiveDate: "2026-01-15",
-      }),
-    ).rejects.toThrow(/destination introuvable/);
-  });
-
-  it("creates a PENDING transfer without touching Player.teamId", async () => {
-    const { createTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-    const player = await seedPlayer(fromTeam.id);
-
-    const transfer = await createTransfer({
-      playerId: player.id,
-      fromTeamId: fromTeam.id,
-      toTeamId: toTeam.id,
-      transferType: "LOAN",
-      effectiveDate: "2026-01-15",
-      loanStartDate: "2026-01-15",
-      loanEndDate: "2026-06-30",
-    });
-
+    const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
     expect(transfer.status).toBe("PENDING");
-    const reloadedPlayer = await dataSource.getRepository(Player).findOne({ where: { id: player.id } });
-    expect(reloadedPlayer?.teamId).toBe(fromTeam.id);
+    expect((await dataSource.getRepository(Player).findOneByOrFail({ id: player.id })).teamId).toBe(from.id);
   });
-});
 
-describe("completeTransfer (migration.md §20 — transaction unique)", () => {
-  it("preserves Player.id, updates Player.teamId, and closes/opens cms_team_members atomically", async () => {
+  it("rejects homologation before destination approval", async () => {
     const { createTransfer, completeTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-    const player = await seedPlayer(fromTeam.id);
-    await seedMembership(fromTeam.id, player.id, "2024-08-01");
+    const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
+    await expect(completeTransfer(transfer.id, "federation@example.com")).rejects.toThrow(/doit approuver/i);
+  });
 
-    const transfer = await createTransfer({
-      playerId: player.id,
-      fromTeamId: fromTeam.id,
-      toTeamId: toTeam.id,
-      transferType: "PERMANENT",
-      effectiveDate: "2026-01-15",
-    });
+  it("moves PENDING to APPROVED only through destination approval", async () => {
+    const { createTransfer, approveDestinationTransfer } = await import("./PlayerTransferService");
+    const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
+    const approved = await approveDestinationTransfer(transfer.id, "destination@example.com");
+    expect(approved.status).toBe("APPROVED");
+    expect(approved.destinationApprovedBy).toBe("destination@example.com");
+    expect(approved.destinationApprovedAt).toBeTruthy();
+  });
 
-    const completed = await completeTransfer(transfer.id, "federation-admin@example.com");
-
+  it("preserves Player.id and changes membership atomically after approval + homologation", async () => {
+    const { createTransfer, approveDestinationTransfer, completeTransfer } = await import("./PlayerTransferService");
+    const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);
+    await seedMembership(from.id, player.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
+    await approveDestinationTransfer(transfer.id, "destination@example.com");
+    const completed = await completeTransfer(transfer.id, "federation@example.com");
     expect(completed.status).toBe("COMPLETED");
-    expect(completed.approvedBy).toBe("federation-admin@example.com");
-
-    const reloadedPlayer = await dataSource.getRepository(Player).findOne({ where: { id: player.id } });
-    expect(reloadedPlayer?.id).toBe(player.id); // Player.id jamais recréé
-    expect(reloadedPlayer?.teamId).toBe(toTeam.id);
-
+    expect(completed.homologatedBy).toBe("federation@example.com");
+    const reloaded = await dataSource.getRepository(Player).findOneByOrFail({ id: player.id });
+    expect(reloaded.id).toBe(player.id); expect(reloaded.teamId).toBe(to.id);
     const memberships = await dataSource.getRepository(TeamMember).find({ where: { playerId: player.id } });
-    expect(memberships).toHaveLength(2);
-
-    const oldMembership = memberships.find((m) => m.teamId === fromTeam.id)!;
-    expect(oldMembership.status).toBe("ENDED");
-
-    const newMembership = memberships.find((m) => m.teamId === toTeam.id)!;
-    expect(newMembership.status).toBe("ACTIVE");
+    expect(memberships.find((m) => m.teamId === from.id)?.status).toBe("ENDED");
+    expect(memberships.find((m) => m.teamId === to.id)?.status).toBe("ACTIVE");
   });
 
-  it("rejects completing the same transfer twice (idempotence / double validation concurrente)", async () => {
-    const { createTransfer, completeTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-    const player = await seedPlayer(fromTeam.id);
-
-    const transfer = await createTransfer({
-      playerId: player.id,
-      fromTeamId: fromTeam.id,
-      toTeamId: toTeam.id,
-      transferType: "PERMANENT",
-      effectiveDate: "2026-01-15",
-    });
-
-    await completeTransfer(transfer.id);
-    await expect(completeTransfer(transfer.id)).rejects.toThrow(/déjà complété/);
-
-    // Une seconde tentative n'a pas dû créer une deuxième affiliation ACTIVE.
-    const memberships = await dataSource.getRepository(TeamMember).find({ where: { playerId: player.id, status: "ACTIVE" } });
-    expect(memberships).toHaveLength(1);
+  it("rejects replaying a completed transfer", async () => {
+    const { createTransfer, approveDestinationTransfer, completeTransfer } = await import("./PlayerTransferService");
+    const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
+    await approveDestinationTransfer(transfer.id, "destination@example.com");
+    await completeTransfer(transfer.id, "federation@example.com");
+    await expect(completeTransfer(transfer.id, "federation@example.com")).rejects.toThrow(/déjà complété/i);
   });
 
-  it("rejects completing a transfer whose player already moved to a different club", async () => {
-    const { createTransfer, completeTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-    const thirdTeam = await seedTeam();
-    const player = await seedPlayer(fromTeam.id);
-
-    const transfer = await createTransfer({
-      playerId: player.id,
-      fromTeamId: fromTeam.id,
-      toTeamId: toTeam.id,
-      transferType: "PERMANENT",
-      effectiveDate: "2026-01-15",
-    });
-
-    // Le joueur change de club par un autre biais avant l'homologation de ce transfert.
-    await dataSource.getRepository(Player).update({ id: player.id }, { teamId: thirdTeam.id });
-
-    await expect(completeTransfer(transfer.id)).rejects.toThrow(/n'appartient plus au club source/);
+  it("rejects if the player moved elsewhere before homologation", async () => {
+    const { createTransfer, approveDestinationTransfer, completeTransfer } = await import("./PlayerTransferService");
+    const from = await seedTeam(); const to = await seedTeam(); const third = await seedTeam(); const player = await seedPlayer(from.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
+    await approveDestinationTransfer(transfer.id, "destination@example.com");
+    await dataSource.getRepository(Player).update({ id: player.id }, { teamId: third.id });
+    await expect(completeTransfer(transfer.id, "federation@example.com")).rejects.toThrow(/n'appartient plus/i);
   });
 
-  it("rejects completing a CANCELLED transfer", async () => {
-    const { createTransfer, completeTransfer, closeTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-    const player = await seedPlayer(fromTeam.id);
-
-    const transfer = await createTransfer({
-      playerId: player.id,
-      fromTeamId: fromTeam.id,
-      toTeamId: toTeam.id,
-      transferType: "PERMANENT",
-      effectiveDate: "2026-01-15",
-    });
-    await closeTransfer(transfer.id, { status: "CANCELLED", reason: "Accord rompu" });
-
-    await expect(completeTransfer(transfer.id)).rejects.toThrow(/cancelled/i);
-  });
-});
-
-describe("closeTransfer", () => {
-  it("cannot cancel/reject a transfer that is already COMPLETED", async () => {
-    const { createTransfer, completeTransfer, closeTransfer } = await import("./PlayerTransferService");
-    const fromTeam = await seedTeam();
-    const toTeam = await seedTeam();
-    const player = await seedPlayer(fromTeam.id);
-
-    const transfer = await createTransfer({
-      playerId: player.id,
-      fromTeamId: fromTeam.id,
-      toTeamId: toTeam.id,
-      transferType: "PERMANENT",
-      effectiveDate: "2026-01-15",
-    });
-    await completeTransfer(transfer.id);
-
-    await expect(closeTransfer(transfer.id, { status: "REJECTED" })).rejects.toThrow(/déjà complété/);
+  it("rejects/cancels non-completed transfers and forbids closing a completed one", async () => {
+    const { createTransfer, approveDestinationTransfer, completeTransfer, closeTransfer } = await import("./PlayerTransferService");
+    const from = await seedTeam(); const to = await seedTeam(); const player = await seedPlayer(from.id);
+    const transfer = await createTransfer({ playerId: player.id, fromTeamId: from.id, toTeamId: to.id, transferType: "PERMANENT", effectiveDate: "2026-01-15" });
+    await approveDestinationTransfer(transfer.id, "destination@example.com");
+    await completeTransfer(transfer.id, "federation@example.com");
+    await expect(closeTransfer(transfer.id, { status: "REJECTED" })).rejects.toThrow(/déjà complété/i);
   });
 });

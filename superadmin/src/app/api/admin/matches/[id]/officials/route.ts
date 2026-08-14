@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
+import { getAdminSession, canAccessFederation, canAccessLeague, canAccessPlatform } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
-import { getMatchFederationId } from '@/lib/matchFederationScope'
+import { getMatchScope } from '@/lib/matchFederationScope'
 import { assignMatchOfficial, listMatchOfficials, MatchOfficialClientError } from '@/lib/matchOfficialClient'
 import { logAdminAction } from '@/lib/auditLog'
 
@@ -20,14 +20,32 @@ export const runtime = 'nodejs'
  * lib/matchFederationScope.ts), jamais d'un identifiant fourni par le
  * client (migration.md §3).
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function authorizeMatchScope(request: NextRequest, matchId: string) {
   const session = await getAdminSession(request)
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+
+  const dataSource = await getDataSource()
+  const scope = await getMatchScope(dataSource, matchId)
+  if (!scope) {
+    return canAccessPlatform(session)
+      ? { session, scope: null }
+      : { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
+  const authorized =
+    canAccessPlatform(session) ||
+    canAccessLeague(session, scope.leagueId, scope.federationId) ||
+    canAccessFederation(session, scope.federationId)
+  return authorized
+    ? { session, scope }
+    : { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: matchId } = await params
+    const access = await authorizeMatchScope(request, matchId)
+    if ('response' in access) return access.response
     const officials = await listMatchOfficials(matchId)
     return NextResponse.json(officials)
   } catch (error) {
@@ -49,18 +67,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'user_id et role sont requis' }, { status: 400 })
     }
 
-    const session = await getAdminSession(request)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const dataSource = await getDataSource()
-    const federationId = await getMatchFederationId(dataSource, matchId)
-
-    const authorized = federationId ? canAccessFederation(session, federationId) : canAccessPlatform(session)
-    if (!authorized) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const access = await authorizeMatchScope(request, matchId)
+    if ('response' in access) return access.response
+    const { session } = access
 
     const assignment = await assignMatchOfficial(matchId, {
       userId: user_id,

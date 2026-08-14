@@ -46,7 +46,12 @@ class EnvironmentVariables {
   SERVICE_API_KEYS_PREVIOUS?: string;
 
   @IsOptional()
-  @IsISO8601({}, { message: 'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date' })
+  @IsISO8601(
+    {},
+    {
+      message: 'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date',
+    },
+  )
   SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?: string;
 
   // --- payment-api (TASK-P0-004) : optionnelles — sans elles, le service

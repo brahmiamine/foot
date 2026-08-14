@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { ensureAdminAuth } from '@/lib/adminAuth'
+import { getAdminSession, canAccessLeague, canAccessPlatform } from '@/lib/adminAuth'
 import { listMatchesForAdmin, createMatchAdmin } from '@/lib/adminMatches'
 import { logAdminAction } from '@/lib/auditLog'
 import { ScheduleConflictError } from '@/lib/scheduleConflicts'
+import { getDataSource } from '@/lib/db'
+import { getJourneeScope } from '@/lib/matchFederationScope'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
-  if (unauthorized) return unauthorized
+  const session = await getAdminSession(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const limitParam = searchParams.get('limit')
@@ -18,8 +20,18 @@ export async function GET(request: NextRequest) {
   const journeeId = journeeIdParam || null
 
   try {
-    // Lister les matchs sans restriction de ligue
-    const matches = await listMatchesForAdmin(limit, null, journeeId)
+    const leagueId = canAccessPlatform(session) ? null : session.leagueId ?? null
+    if (!canAccessPlatform(session) && !leagueId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (journeeId && leagueId) {
+      const dataSource = await getDataSource()
+      const scope = await getJourneeScope(dataSource, journeeId)
+      if (!scope || scope.leagueId !== leagueId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+    const matches = await listMatchesForAdmin(limit, leagueId, journeeId)
     return NextResponse.json(matches)
   } catch (error) {
     console.error('Error fetching admin matches:', error)
@@ -28,13 +40,18 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const unauthorized = await ensureAdminAuth(request)
-  if (unauthorized) return unauthorized
+  const session = await getAdminSession(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const body = await request.json()
-    // Créer le match sans restriction de ligue
-    const { match, overriddenConflicts } = await createMatchAdmin(body, null)
+    const dataSource = await getDataSource()
+    const scope = await getJourneeScope(dataSource, body.journee_id)
+    if (!scope) return NextResponse.json({ error: 'Journée ou scope de ligue introuvable' }, { status: 404 })
+    if (!canAccessLeague(session, scope.leagueId, scope.federationId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const { match, overriddenConflicts } = await createMatchAdmin(body, scope.leagueId)
     await logAdminAction({ request, action: 'create', entityType: 'match', entityId: match.id })
     if (overriddenConflicts.length > 0) {
       await logAdminAction({

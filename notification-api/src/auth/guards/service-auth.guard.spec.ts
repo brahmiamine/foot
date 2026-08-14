@@ -7,7 +7,11 @@ describe('ServiceAuthGuard', () => {
   function contextWithHeaders(headers: Record<string, string>) {
     return {
       switchToHttp: () => ({
-        getRequest: () => ({ headers, method: 'POST', path: '/internal/notifications' }),
+        getRequest: () => ({
+          headers,
+          method: 'POST',
+          path: '/internal/notifications',
+        }),
       }),
     } as unknown as ExecutionContext;
   }

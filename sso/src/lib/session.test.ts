@@ -46,7 +46,7 @@ describe("verifySessionToken", () => {
       email: user.email,
       name: user.name,
       role: user.role,
-      teamId: user.teamId,
+      teamId: user.teamId ?? null,
       tokenVersion: 2,
     });
     const token = response.cookies.get("foot_sso_session")?.value;
@@ -171,10 +171,11 @@ describe("verifySessionToken", () => {
       email: user.email,
       name: user.name,
       role: user.role,
-      teamId: user.teamId,
+      teamId: user.teamId ?? null,
       tokenVersion: 0,
     });
-    const oldToken = response.cookies.get("foot_sso_session")?.value!;
+    const oldToken = response.cookies.get("foot_sso_session")?.value;
+    if (!oldToken) throw new Error("Session cookie was not issued");
 
     // Rotation : l'ancienne clé devient "previous", une nouvelle clé courante est générée.
     process.env.SSO_JWT_PRIVATE_KEY_PREVIOUS = process.env.SSO_JWT_PRIVATE_KEY;
@@ -192,10 +193,11 @@ describe("verifySessionToken", () => {
       email: user.email,
       name: user.name,
       role: user.role,
-      teamId: user.teamId,
+      teamId: user.teamId ?? null,
       tokenVersion: 0,
     });
-    const newToken = response2.cookies.get("foot_sso_session")?.value!;
+    const newToken = response2.cookies.get("foot_sso_session")?.value;
+    if (!newToken) throw new Error("Session cookie was not issued");
     const result2 = await verifySessionToken(newToken);
     expect(result2?.id).toBe("user-1");
   });

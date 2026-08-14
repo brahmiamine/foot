@@ -57,6 +57,7 @@ sso/sql/migration_add_match_official_roles.sql
 
 # --- superadmin (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
 superadmin/mysql/migration_add_audit_logs.sql
+superadmin/mysql/migration_add_user_agent_to_audit_logs.sql
 superadmin/mysql/migration_add_ip_address_to_votes.sql
 superadmin/mysql/migration_add_team_fields.sql
 superadmin/mysql/migration_add_team_gender_and_youth_categories.sql
@@ -65,6 +66,7 @@ superadmin/mysql/migration_add_vote_alerts.sql
 superadmin/mysql/migration_add_vote_moderation.sql
 superadmin/mysql/migration_add_staff_invitations.sql
 superadmin/mysql/migration_add_match_actual_times.sql
+superadmin/mysql/migration_add_match_saga.sql
 # Élargit staff_invitations aux rôles FEDERATION_ADMIN/LEAGUE_ADMIN/REFEREE/
 # MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0, provisioning). Dépend de
 # migration_add_staff_invitations.sql (ci-dessus).
@@ -73,6 +75,8 @@ superadmin/mysql/migration_widen_staff_invitations_scope.sql
 # §6, Phase 2). Dépend de teams/federations/ligues/saisons (FK), donc
 # placée après leurs migrations respectives.
 superadmin/mysql/migration_add_team_affiliations.sql
+# Backfill idempotent des clubs historiques depuis teams.federation_id.
+superadmin/mysql/migration_backfill_team_affiliations.sql
 superadmin/migrations/add_is_active_to_federations.sql
 superadmin/migrations/add_is_active_to_leagues.sql
 superadmin/migrations/add_unique_vote_per_match_device.sql
@@ -83,6 +87,7 @@ superadmin/migrations/add_team_branding_icons.sql
 # migration.md §12, Phase 5 : évaluation fédérale, strictement séparée de
 # la notation publique (`votes`, déjà en base, inchangée).
 arbinote/mysql/migration_add_referee_official_evaluations.sql
+arbinote/mysql/migration_add_vote_authenticated.sql
 
 # --- teamManager (Player, discipline, cms_*) ---
 teamManager/sql/migration_unify_players.sql
@@ -103,6 +108,7 @@ teamManager/sql/migration_add_club_pages_academy_applications.sql
 teamManager/sql/migration_add_card_unique_constraint.sql
 # Dépend de teams (base) et cms_products (migration_add_shop_sponsors_notifications.sql).
 teamManager/sql/migration_add_shop_orders.sql
+teamManager/sql/migration_add_stock_unavailable_refunds.sql
 # Table propre à teamManager, aucune dépendance (TS-25/TS-26, avancement.md).
 teamManager/sql/migration_add_notification_outbox.sql
 # Table propre à teamManager, aucune dépendance (TASK-P0-005, todo.md).
@@ -110,6 +116,9 @@ teamManager/sql/migration_add_processed_webhook_events.sql
 # Module central de transfert/homologation (migration.md §19-21, Phase 3).
 # Dépend de Player (migration_unify_players.sql) et teams (déjà en base).
 teamManager/sql/migration_add_player_transfers.sql
+# Étend le workflow : approbation club destination puis homologation fédérale.
+teamManager/sql/migration_extend_player_transfer_workflow.sql
+teamManager/sql/migration_add_convocation_cancellation.sql
 
 # --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
 matchsheet/sql/migration_matchsheet_init.sql
@@ -124,19 +133,30 @@ matchsheet/sql/migration_add_signature_integrity.sql
 # Colonnes propres à ms_goals/ms_injuries/ms_substitutions + nouvelle table
 # ms_event_corrections, aucune dépendance (TASK-P0-009, todo.md).
 matchsheet/sql/migration_add_event_corrections.sql
+matchsheet/sql/migration_add_event_client_request_id.sql
 # Identité officielle de match (migration.md §11, Phase 4). Dépend de
 # matches (déjà en base).
 matchsheet/sql/migration_add_match_official_assignments.sql
+
+# --- payment-api (base payment_api, remboursements multi-provider) ---
+payment-api/sql/migration_add_refunds.sql
 
 # --- billetterie (tk_*, dépend de teams/matches) ---
 billetterie/sql/schema.sql
 billetterie/sql/migration_add_payment_id.sql
 billetterie/sql/migration_add_audience_declaration.sql
 billetterie/sql/migration_add_ticket_scan_log.sql
+billetterie/sql/migration_add_ticket_scan_sync.sql
+billetterie/sql/migration_add_ticket_revocation.sql
 billetterie/sql/migration_add_processed_webhook_events.sql
 billetterie/sql/migration_add_audience_validation_mode.sql
+billetterie/sql/migration_add_stock_unavailable_refunds.sql
+billetterie/sql/migration_add_match_cancellation_refunds.sql
 
 # --- sellerPortal (sp_*, dépend de teams) ---
 sellerPortal/sql/schema.sql
 sellerPortal/sql/migration_add_club_id.sql
 sellerPortal/sql/migration_add_moderation_fields.sql
+sellerPortal/sql/migration_add_stock_reservations.sql
+sellerPortal/sql/migration_add_marketplace_checkout.sql
+sellerPortal/sql/migration_add_return_refunds.sql
