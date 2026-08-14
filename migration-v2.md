@@ -246,6 +246,14 @@ Les validations réglementaires doivent être traçables de bout en bout.
 24. Mécanismes de solidarité.
 25. Contrôle réglementaire documentaire avancé.
 
+## Suivi d'implémentation
+
+- ✅ **P0-001 — Licence et conformité du club** : schéma, workflow audité,
+  contrôle des scopes club/fédération/ligue, documents versionnés, APIs,
+  notifications de transition et interfaces FR/AR dans `club-hub` et
+  `federation-hub`.
+- ⬜ **P0-002 et suivants** : à traiter séquentiellement dans cette migration.
+
 ---
 
 # 5. P0-001 — Licence et conformité du club

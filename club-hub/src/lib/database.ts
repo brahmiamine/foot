@@ -71,6 +71,13 @@ import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
 import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
 import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
 import { PlayerTransfer } from "@/entities/PlayerTransfer";
+import {
+  ClubLicenseApplication,
+  ClubLicenseDocument,
+  ClubLicenseHistory,
+  ClubLicenseRequirement,
+} from "@/entities/ClubLicense";
+import { TeamAffiliation } from "@/entities/TeamAffiliation";
 
 /**
  * Database connection configuration
@@ -104,7 +111,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Never use synchronize in production
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund, PlayerTransfer], // Import entities directly instead of using glob patterns
+      entities: [Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory], // Import entities directly instead of using glob patterns
       migrations: [], // Add migrations as needed
       charset: "utf8mb4",
       timezone: "Z",

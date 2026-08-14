@@ -27,3 +27,10 @@ export { RefereeOfficialEvaluation, type RefereeOfficialEvaluationStatus } from 
 export { OfficialRefereeCriterion } from './OfficialRefereeCriterion'
 export { RefereeUnavailability } from './RefereeUnavailability'
 export { RefereeMatchReport } from './RefereeMatchReport'
+export {
+  ClubLicenseApplication,
+  ClubLicenseRequirement,
+  ClubLicenseDocument,
+  ClubLicenseHistory,
+  type ClubLicenseDocumentStatus,
+} from './ClubLicense'

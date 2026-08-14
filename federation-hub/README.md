@@ -14,6 +14,14 @@ Connexion via SSO et acceptation d'une invitation staff par jeton.
 
 Dashboard/statistiques; fédérations, ligues, saisons, journées, équipes et branding, matchs (annulation/réouverture, saga de compensation), arbitres/import CSV, motifs de carton, clubs/utilisateurs/invitations et audit.
 
+### Licence et conformité des clubs (migration-v2 P0-001)
+
+`/admin/club-licensing` fournit la file d'examen réglementaire scopée par
+fédération ou ligue. Le workflow couvre le démarrage d'examen, la décision de
+chaque exigence, les dérogations motivées, les demandes de correction,
+l'approbation, le rejet et la suspension. Chaque transition conserve auteur,
+rôle, IP, User-Agent, motif et valeurs avant/après.
+
 ### Domaine Arbitrage
 
 - profils officiels des arbitres : fédération, ligue, catégorie, grade, statut et date de début ;

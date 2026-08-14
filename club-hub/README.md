@@ -14,6 +14,14 @@ Formulaires contact/sponsor/inscription/recrutement par équipe; boutique, comma
 
 Académie (infos/candidatures), annonces, ticketing (catégories et matchs), club (histoire, chiffres, palmarès, contact/messages), convocations, exports CSV/PDF, discipline (cartons, suspensions, amendes, notes), matchs et compositions dont amicaux, blessures, marketplace, médias/galeries/actualités, recrutement, boutique, tactiques, entraînements/invitations et déplacements/participants/véhicules; aussi joueurs/stats, staff, sponsors, stades, rôles, utilisateurs, notifications, audit et réglages.
 
+### Dossier fédéral (migration-v2 P0-001)
+
+`/admin/federation/compliance` permet au club connecté de créer son dossier de
+licence pour une saison, joindre une version de chaque pièce obligatoire,
+soumettre le dossier et suivre les observations et décisions. Toutes les APIs
+relisent le `teamId` depuis la session SSO : aucun identifiant de club fourni
+par le navigateur n'est utilisé comme scope d'autorisation.
+
 ## API
 
 `/api/admin/media-items`, `/api/exports/cards`, `/api/exports/fines`, `/api/exports/players`, `/api/exports/sponsor-contract/[id]`, `/api/exports/suspensions`, `/api/health`, `/api/internal/matches/[matchId]/cancel-convocations` (service-à-service, TASK-P0-003), `/api/internal/outbox/process`, `/api/internal/outbox/status`, `/api/logout`, `/api/payments/webhook`, `/api/stadiums/[id]`, `/api/stadiums`, `/api/teams`, `/api/upload/application-document`, `/api/upload/media/chunked/complete`, `/api/upload/media/chunked/init`, `/api/upload/media/chunked`, `/api/upload/media`, `/api/upload/news`, `/api/upload/players`, `/api/upload/product`, `/api/upload`, `/api/upload/sponsor-logo`, `/api/upload/stadium`, `/api/upload/staff`
