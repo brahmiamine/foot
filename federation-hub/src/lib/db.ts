@@ -59,6 +59,9 @@ import {
   BoardMandate,
   BoardMember,
   BoardMandateHistory,
+  StadiumInspection,
+  StadiumRestriction,
+  StadiumInspectionHistory,
 } from './entities'
 
 const globalForDataSource = globalThis as unknown as {
@@ -93,7 +96,7 @@ function createDataSource() {
     // le schéma sur les seules entités TypeORM et pourrait supprimer les colonnes/
     // tables ajoutées pour ob.
     synchronize: false,
-    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent, SeasonRegulatoryCycle, SeasonRegulatoryCycleHistory, FinancialCompliance, FinancialComplianceHistory, BoardMandate, BoardMember, BoardMandateHistory],
+    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent, SeasonRegulatoryCycle, SeasonRegulatoryCycleHistory, FinancialCompliance, FinancialComplianceHistory, BoardMandate, BoardMember, BoardMandateHistory, StadiumInspection, StadiumRestriction, StadiumInspectionHistory],
     extra: {
       decimalNumbers: true,
     },
@@ -148,6 +151,9 @@ const REQUIRED_ENTITY_CLASSES = [
   BoardMandate,
   BoardMember,
   BoardMandateHistory,
+  StadiumInspection,
+  StadiumRestriction,
+  StadiumInspectionHistory,
 ]
 
 function hasAllRequiredEntities(dataSource: DataSource): boolean {

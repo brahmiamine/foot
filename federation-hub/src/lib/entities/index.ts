@@ -43,3 +43,4 @@ export { LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, Lega
 export { SeasonRegulatoryCycle, SeasonRegulatoryCycleHistory } from './SeasonRegulatoryCycle'
 export { FinancialCompliance, FinancialComplianceHistory } from './FinancialCompliance'
 export { BoardMandate, BoardMember, BoardMandateHistory } from './Governance'
+export { StadiumInspection, StadiumRestriction, StadiumInspectionHistory } from './StadiumInspection'

@@ -340,6 +340,19 @@ Les validations réglementaires doivent être traçables de bout en bout.
   et interfaces `club-hub` (dépôt du mandat, ajout de membres, soumission,
   FR/AR) + `federation-hub` (validation/rejet, approbation des membres,
   FR/EN/AR).
+- ✅ **P1-003 — Homologation des stades** : `stadium_inspections` +
+  `stadium_restrictions` + historique audité, réutilise `cms_stadiums`
+  (référentiel riche des stades déjà propriété de `club-hub`) sans le
+  dupliquer — lu en lecture seule par `federation-hub` via requête directe,
+  comme le fait déjà `staffContracts.ts` pour `cms_staff`. Sept aspects
+  d'inspection (terrain, éclairage, vestiaires, sécurité, capacité, médical,
+  médias) + VAR optionnel, workflow audité (`PENDING → APPROVED/
+  APPROVED_WITH_RESTRICTIONS/REJECTED`, `APPROVED(_WITH_RESTRICTIONS) →
+  SUSPENDED → APPROVED`), réserves versionnées en cas d'homologation sous
+  réserve, scopes fédération/ligue serveur, notification
+  (`STADIUM_INSPECTION_DECIDED`) et interface `federation-hub` (FR/EN/AR).
+  Pas d'UI `club-hub` : le document ne prévoit cette homologation que côté
+  fédération (§33/§34).
 
 ---
 
