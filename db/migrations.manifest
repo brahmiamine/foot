@@ -108,6 +108,9 @@ federation-hub/mysql/migration_add_governance.sql
 # P1-003 migration-v2 : homologation des stades. Dépend de cms_stadiums
 # (club-hub, référentiel des stades), teams/saisons/federations/ligues/User.
 federation-hub/mysql/migration_add_stadium_inspections.sql
+# P1-004 migration-v2 : qualifications CAF des entraîneurs. Dépend de
+# cms_staff (club-hub), teams/federations/ligues/User + colonne sur saisons.
+federation-hub/mysql/migration_add_coach_qualifications.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

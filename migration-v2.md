@@ -353,6 +353,22 @@ Les validations réglementaires doivent être traçables de bout en bout.
   (`STADIUM_INSPECTION_DECIDED`) et interface `federation-hub` (FR/EN/AR).
   Pas d'UI `club-hub` : le document ne prévoit cette homologation que côté
   fédération (§33/§34).
+- ✅ **P1-004 — Qualifications entraîneurs (CAF)** : `coach_qualifications` +
+  historique audité, distinct de `person_licenses` (P0-002, enregistrement
+  administratif saisonnier) — ici un diplôme technique permanent
+  (`CAF_PRO`/`CAF_A`/`CAF_B`/`CAF_C`/`NATIONAL`/`OTHER`) rattaché à la
+  personne. `staff_contracts.qualification_id` (P0-005) continue de
+  référencer `person_licenses` sans changement, aucune donnée migrée entre
+  les deux domaines. Workflow audité (`PENDING → VALID/REVOKED`,
+  `VALID → EXPIRED/SUSPENDED/REVOKED`, `SUSPENDED → VALID/REVOKED`),
+  colonne `saisons.minimum_head_coach_qualification` avec comparateur de
+  niveau (`meetsMinimumQualification`), scopes fédération/ligue serveur,
+  notifications et interfaces `club-hub` (soumission, FR/AR) +
+  `federation-hub` (validation/décision, FR/EN/AR). Le niveau minimum par
+  saison est modélisé et exposé mais pas encore appliqué automatiquement à
+  la désignation d'un entraîneur principal : aucun domaine "responsable
+  technique de match" n'existe dans ce dépôt pour porter ce contrôle
+  (P0-006/P0-008 hors périmètre de cette migration, voir note P0-009).
 
 ---
 

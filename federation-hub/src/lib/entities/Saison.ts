@@ -31,6 +31,9 @@ export class Saison {
   @Column({ type: 'boolean', name: 'requires_staff_qualification', default: false })
   requiresStaffQualification!: boolean
 
+  @Column({ type: 'enum', enum: ['CAF_PRO', 'CAF_A', 'CAF_B', 'CAF_C', 'NATIONAL', 'OTHER'], name: 'minimum_head_coach_qualification', nullable: true })
+  minimumHeadCoachQualification?: 'CAF_PRO' | 'CAF_A' | 'CAF_B' | 'CAF_C' | 'NATIONAL' | 'OTHER' | null
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 

@@ -44,3 +44,4 @@ export { SeasonRegulatoryCycle, SeasonRegulatoryCycleHistory } from './SeasonReg
 export { FinancialCompliance, FinancialComplianceHistory } from './FinancialCompliance'
 export { BoardMandate, BoardMember, BoardMandateHistory } from './Governance'
 export { StadiumInspection, StadiumRestriction, StadiumInspectionHistory } from './StadiumInspection'
+export { CoachQualification, CoachQualificationHistory } from './CoachQualification'
