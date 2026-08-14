@@ -14,6 +14,7 @@ import {
 } from "@/entities/ClubLicense";
 import { TeamAffiliation } from "@/entities/TeamAffiliation";
 import { NotificationOutboxService } from "@/services/NotificationOutboxService";
+import { isClubLicensingWindowOpen } from "@/services/SeasonRegulatoryCycleService";
 
 export interface ClubLicenseActor {
   userId: string;
@@ -253,6 +254,11 @@ export async function submitClubLicenseApplication(
   return source.transaction(async (manager) => {
     const application = await getOwnedApplication(manager, applicationId, clubId, true);
     assertClubLicenseTransition(application.status, "SUBMITTED");
+
+    // migration-v2.md P0-011 : la campagne de licence club doit être ouverte pour cette saison.
+    if (!(await isClubLicensingWindowOpen(application.seasonId))) {
+      throw new ClubLicenseWorkflowError("La campagne de licence club n'est pas ouverte pour cette saison");
+    }
 
     const requirements = await manager.getRepository(ClubLicenseRequirement).find({
       where: { applicationId },

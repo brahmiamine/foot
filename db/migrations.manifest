@@ -96,6 +96,9 @@ federation-hub/mysql/migration_add_club_sanctions.sql
 # federations/ligues/saisons/User (déjà en base) ; parties polymorphes, pas
 # de FK vers teams (voir en-tête du fichier).
 federation-hub/mysql/migration_add_legal_cases.sql
+# P0-011 migration-v2 : assistant de renouvellement saisonnier. Dépend de
+# saisons/federations/ligues/User (déjà en base).
+federation-hub/mysql/migration_add_season_regulatory_cycles.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

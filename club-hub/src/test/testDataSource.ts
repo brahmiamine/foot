@@ -10,6 +10,7 @@ import { PlayerTransfer } from "@/entities/PlayerTransfer";
 import { Product } from "@/entities/Product";
 import { ProductCategory } from "@/entities/ProductCategory";
 import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
+import { SeasonRegulatoryCycle } from "@/entities/SeasonRegulatoryCycle";
 import { ShopOrder } from "@/entities/ShopOrder";
 import { ShopOrderItem } from "@/entities/ShopOrderItem";
 import { Staff } from "@/entities/Staff";
@@ -32,7 +33,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [ClubSanction, ClubSanctionHistory, Federation, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
+    entities: [ClubSanction, ClubSanctionHistory, Federation, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
   });
 
   await dataSource.initialize();

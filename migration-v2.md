@@ -303,7 +303,22 @@ Les validations réglementaires doivent être traçables de bout en bout.
   pièces/réponse, jamais de changement de statut). L'ouverture d'un dossier
   reste un acte fédéral (conforme à la doc : le club ne fait que « déposer
   une réponse »), pas une auto-saisie par le club.
-- ⬜ **P0-011 et suivants** : à traiter séquentiellement dans cette migration.
+- ✅ **P0-011 — Renouvellement saisonnier** : `season_regulatory_cycles` +
+  historique audité, un cycle par saison (`DRAFT → ACTIVE → CLOSED`),
+  fenêtres de licence club et d'inscription joueurs pilotées par dates
+  (ouverture/fermeture indépendantes), expiration automatique et idempotente
+  des licences club/personnes `APPROVED` de la saison précédente à la
+  clôture du cycle, notifications (`CLUB_LICENSING_WINDOW_OPENED`,
+  `REGISTRATION_WINDOW_OPENED`) et interface `federation-hub` (FR/EN/AR).
+  Les fenêtres sont branchées comme garde serveur sur la soumission d'une
+  licence club (`ClubLicenseService.submitClubLicenseApplication`) et d'une
+  inscription joueur (`PlayerRegistrationService.submitPlayerRegistration`)
+  côté `club-hub` : une saison sans cycle reste ouverte (comportement
+  historique inchangé, §36), un cycle `CLOSED` ou une fenêtre non encore
+  ouverte bloque la soumission. Pas d'UI `club-hub` dédiée : c'est un outil
+  interne à la fédération, le club voit seulement l'effet (soumission
+  acceptée ou refusée).
+- ⬜ **P0-012 et suivants** : cette migration passe désormais aux processus P1.
 
 ---
 
