@@ -86,7 +86,7 @@ export function TicketScanner({
   // --- Mode hors-ligne (avancement.md, rang 2) ---
   // Lecture initiale paresseuse (pas dans un effet) : localStorage/navigator
   // sont des systèmes externes lus une fois au montage, pas une souscription
-  // à synchroniser en continu — voir avancement.md, `referee-center`, pour le même
+  // à synchroniser en continu — voir avancement.md, `arbinote`, pour le même
   // arbitrage sur react-hooks/set-state-in-effect.
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [offlineMode, setOfflineMode] = useState(false);

@@ -11,7 +11,7 @@ import {
  * packages/auth-shared/README.md), avec le type `SsoUser` propre à
  * match-operations.
  *
- * Contrairement aux autres apps (referee-center/federation-hub/club-hub), ce
+ * Contrairement aux autres apps (arbinote/federation-hub/club-hub), ce
  * fichier n'importe volontairement PAS `next/headers` (cookies()) : il est
  * chargé par le middleware, qui tourne dans un contexte où `next/headers`
  * n'est pas utilisable. Les Server Components lisent l'utilisateur via les

@@ -12,11 +12,11 @@ export type UserRole =
   | 'REFEREE_OBSERVER'
 
 /**
- * Comptes de connexion partagés par les 5 apps (match-operations, referee-center,
+ * Comptes de connexion partagés par les 5 apps (match-operations, arbinote,
  * federation-hub, club-hub, sso), table gérée ici sous /admin/club. Un compte
  * ADMIN/OBSERVATEUR appartient à un club (teamId) et sert à se connecter à
  * club-hub/match-operations ; SUPERADMIN (teamId null) sert à se connecter à
- * federation-hub/referee-center. L'authentification elle-même (vérification du mot de
+ * federation-hub/arbinote. L'authentification elle-même (vérification du mot de
  * passe, émission du cookie de session) se fait uniquement dans l'app `sso`
  * — voir identity/src/lib/authenticate.ts.
  */

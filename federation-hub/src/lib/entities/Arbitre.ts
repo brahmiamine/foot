@@ -26,9 +26,29 @@ export class Arbitre {
   @Column({ type: 'text', nullable: true })
   photo_url?: string | null
 
+  @Column({ type: 'uuid', nullable: true })
+  federation_id?: string | null
+
+  @Column({ type: 'uuid', nullable: true })
+  league_id?: string | null
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  categorie?: string | null
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  grade?: string | null
+
+  @Column({ type: 'varchar', length: 50, default: 'ACTIVE' })
+  status!: string
+
+  @Column({ type: 'tinyint', default: 1 })
+  is_active!: boolean
+
+  @Column({ type: 'date', nullable: true })
+  start_date?: Date | null
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 
 }
-
 

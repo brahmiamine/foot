@@ -36,7 +36,7 @@ function createDataSource() {
  * Next.js peut déclencher plusieurs appels concurrents à getDataSource()
  * avant la fin de la première initialisation ; on mémorise la promesse en
  * cours pour que tout le monde attende la même instance (même pattern que
- * referee-center/federation-hub/club-hub/match-operations).
+ * arbinote/federation-hub/club-hub/match-operations).
  */
 export async function getDataSource(): Promise<DataSource> {
   if (globalForDataSource.dataSource?.isInitialized) {

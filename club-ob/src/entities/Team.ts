@@ -2,7 +2,7 @@ import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from "typeorm";
 import { Federation } from "./Federation";
 
 /**
- * Mappée sur `teams`, table partagée avec referee-center/club-hub/cardManager
+ * Mappée sur `teams`, table partagée avec arbinote/club-hub/cardManager
  * (mêmes UUID). Lecture seule ici : une ligne = un club (ou une catégorie
  * d'âge d'un club) ; la gestion du référentiel reste dans cardManager.
  */

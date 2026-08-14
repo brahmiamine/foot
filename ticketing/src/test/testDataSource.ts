@@ -15,7 +15,7 @@ import { TicketScanLog } from "@/entities/TicketScanLog";
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
  * TypeORM — utilisée par les tests d'intégration pour exécuter du vrai SQL
  * (jointures, contraintes) sans dépendre d'un serveur MySQL. Même pattern
- * que referee-center/src/test/testDataSource.ts.
+ * que arbinote/src/test/testDataSource.ts.
  */
 export async function createTestDataSource(): Promise<DataSource> {
   const dataSource = new DataSource({

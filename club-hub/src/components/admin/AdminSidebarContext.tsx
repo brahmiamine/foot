@@ -14,7 +14,7 @@ interface AdminSidebarContextType {
 const AdminSidebarContext = createContext<AdminSidebarContextType | undefined>(undefined);
 
 /**
- * Provider for admin sidebar state — même modèle qu'referee-center/federation-hub :
+ * Provider for admin sidebar state — même modèle qu'arbinote/federation-hub :
  * `isOpen` pilote le tiroir mobile, `isCollapsed` le mode icône seule desktop.
  */
 export function AdminSidebarProvider({ children }: { children: ReactNode }) {

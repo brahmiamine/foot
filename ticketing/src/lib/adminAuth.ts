@@ -3,7 +3,7 @@ import { getSsoSession, getSsoSessionFromRequest } from "./ssoSession";
 
 /**
  * Garde d'accès au back-office ticketing (ADMIN/SUPERADMIN), même
- * convention que federation-hub/referee-center/src/lib/adminAuth.ts. OBSERVATEUR
+ * convention que federation-hub/arbinote/src/lib/adminAuth.ts. OBSERVATEUR
  * (lecture seule) est volontairement exclu : ce back-office n'expose pour
  * l'instant que des actions de modération (voir /admin/audience-mismatch).
  */

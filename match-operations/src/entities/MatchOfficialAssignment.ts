@@ -48,7 +48,7 @@ export class MatchOfficialAssignment {
   @Column({ type: "varchar", length: 191, name: "user_id" })
   userId!: string;
 
-  /** Référence optionnelle vers le profil arbitre (`arbitres`, referee-center) — traçabilité, jamais utilisée seule pour autoriser un accès. */
+  /** Référence optionnelle vers le profil arbitre (`arbitres`, arbinote) — traçabilité, jamais utilisée seule pour autoriser un accès. */
   @Column({ type: "varchar", length: 191, nullable: true, name: "referee_id" })
   refereeId?: string | null;
 

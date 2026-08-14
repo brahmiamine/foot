@@ -5,17 +5,32 @@ import { FederationProvider } from '@/components/FederationContext'
 import { AdminSidebarProvider } from '@/components/admin/AdminSidebarContext'
 import { fetchFederationsWithLeagues } from '@/lib/dataAccess/federations'
 import { getActiveLeagueId } from '@/lib/leagueSelection'
+import { getRefereeDomainPageSession } from '@/lib/adminAuth'
 
 interface LeagueWithId {
-  id: number
+  id: string
 }
 
 interface FederationWithLeagues {
+  id: string
   leagues: LeagueWithId[]
 }
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const federations = await fetchFederationsWithLeagues()
+  const session = await getRefereeDomainPageSession()
+  const observerOnly = session?.role === 'REFEREE_OBSERVER'
+  const allFederations = await fetchFederationsWithLeagues()
+  const federations = observerOnly
+    ? []
+    : allFederations
+        .filter((federation) => session?.role !== 'FEDERATION_ADMIN' || federation.id === session.federationId)
+        .map((federation) => ({
+          ...federation,
+          leagues: session?.role === 'LEAGUE_ADMIN'
+            ? federation.leagues.filter((league) => String(league.id) === session.leagueId)
+            : federation.leagues,
+        }))
+        .filter((federation) => session?.role !== 'LEAGUE_ADMIN' || federation.leagues.length > 0)
   const availableLeagueIds = new Set(
     federations.flatMap((fed: FederationWithLeagues) => fed.leagues.map((league: LeagueWithId) => league.id))
   )
@@ -25,7 +40,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     activeLeagueId = federations[0]?.leagues[0]?.id ?? null
   }
 
-  if (!activeLeagueId) {
+  if (!activeLeagueId && !observerOnly) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center px-3 bg-body-tertiary">
         <div className="card shadow-sm border-0" style={{ maxWidth: '680px' }}>
@@ -46,7 +61,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <AdminSidebarProvider>
         <div id="layout-wrapper">
           <AdminHeader />
-            <AdminSidebar />
+            <AdminSidebar role={session?.role} />
             <div className="main-content">
               <div className="page-content">
                 <div className="container-fluid">{children}</div>

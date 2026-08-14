@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-export const applications = ["referee-center", "ticketing", "match-operations", "club-ob", "seller-portal", "identity", "federation-hub", "club-hub"];
+export const applications = ["arbinote", "ticketing", "match-operations", "club-ob", "seller-portal", "identity", "federation-hub", "club-hub"];
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 
 function params(value) {

@@ -74,6 +74,34 @@ export default function EditArbitreForm({
               />
             </div>
             <div className="col-12">
+              <label className="form-label">Fédération (ID)</label>
+              <input className="form-control" value={editForm.federation_id} onChange={(e) => setEditForm((prev) => ({ ...prev, federation_id: e.target.value }))} />
+            </div>
+            <div className="col-12">
+              <label className="form-label">Ligue (ID)</label>
+              <input className="form-control" value={editForm.league_id} onChange={(e) => setEditForm((prev) => ({ ...prev, league_id: e.target.value }))} />
+            </div>
+            <div className="col-6">
+              <label className="form-label">Catégorie</label>
+              <input className="form-control" value={editForm.categorie} onChange={(e) => setEditForm((prev) => ({ ...prev, categorie: e.target.value }))} />
+            </div>
+            <div className="col-6">
+              <label className="form-label">Grade</label>
+              <input className="form-control" value={editForm.grade} onChange={(e) => setEditForm((prev) => ({ ...prev, grade: e.target.value }))} />
+            </div>
+            <div className="col-6">
+              <label className="form-label">Début d'activité</label>
+              <input type="date" className="form-control" value={editForm.start_date} onChange={(e) => setEditForm((prev) => ({ ...prev, start_date: e.target.value }))} />
+            </div>
+            <div className="col-6">
+              <label className="form-label">Statut</label>
+              <select className="form-select" value={editForm.status} onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value, is_active: e.target.value === 'ACTIVE' }))}>
+                <option value="ACTIVE">Actif</option>
+                <option value="INACTIVE">Inactif</option>
+                <option value="SUSPENDED">Suspendu</option>
+              </select>
+            </div>
+            <div className="col-12">
               <label className="form-label">Photo</label>
               {editForm.photo_url ? (
                 <div className="d-flex align-items-start gap-3 mb-3 p-3 bg-light rounded border">

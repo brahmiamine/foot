@@ -10,7 +10,7 @@ import { vi } from "vitest";
  * équivalents compatibles SQLite ('simple-enum', 'varchar', 'datetime') au
  * chargement des entités dans le test runner. N'affecte que la base de test
  * en mémoire ; le code de production ne passe jamais par Vitest. Même
- * pattern que referee-center/src/test/setupSqliteTypes.ts et
+ * pattern que arbinote/src/test/setupSqliteTypes.ts et
  * ticketing/src/test/setupSqliteTypes.ts.
  */
 vi.mock("typeorm", async (importOriginal) => {

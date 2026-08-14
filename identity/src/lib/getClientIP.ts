@@ -1,6 +1,6 @@
 /**
  * Extrait l'IP réelle du client depuis les headers de la requête, en gérant
- * les proxies (Cloudflare, nginx...). Copié depuis referee-center/federation-hub
+ * les proxies (Cloudflare, nginx...). Copié depuis arbinote/federation-hub
  * (src/lib/utils.ts) qui l'utilisaient pour le même usage (rate-limit login).
  */
 

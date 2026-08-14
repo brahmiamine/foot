@@ -1,7 +1,7 @@
 {
   "name": "notifications",
   "version": "0.0.1",
-  "description": "Centre de notifications centralisé (in-app, email, push, SMS futur) pour l'écosystème foot : sso, club-hub, ob, match-operations, referee-center, federation-hub, payments, marketplace, seller-portal.",
+  "description": "Centre de notifications centralisé (in-app, email, push, SMS futur) pour l'écosystème foot : sso, club-hub, ob, match-operations, arbinote, federation-hub, payments, marketplace, seller-portal.",
   "author": "",
   "private": true,
   "license": "UNLICENSED",

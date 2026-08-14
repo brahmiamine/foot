@@ -7,7 +7,7 @@ name: CI
 # pour la même logique appliquée à un package partagé).
 #
 # Ce que ce workflow ne fait PAS : il ne masque pas la dette de lint
-# existante. referee-center/federation-hub ont des erreurs `no-explicit-any`
+# existante. arbinote/federation-hub ont des erreurs `no-explicit-any`
 # pré-existantes (respectivement ~106 et ~11, voir avancement.md rang 6) —
 # ce job les fait apparaître en rouge intentionnellement plutôt que de les
 # exclure, pour que cette dette reste visible au lieu de rester invisible
@@ -42,8 +42,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: referee-center
-            dir: referee-center
+          - name: arbinote
+            dir: arbinote
             pm: pnpm
             test: true
           - name: match-operations

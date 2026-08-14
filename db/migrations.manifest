@@ -19,7 +19,7 @@
 #   à rejouer automatiquement ;
 # - les fichiers de données d'exemple/seed (club-hub/sql/seed_*.sql,
 #   insert_*_example.sql) : données de démo, pas du schéma ;
-# - referee-center/migrations/*.sql et referee-center/mysql/*.sql : copies identiques
+# - arbinote/migrations/*.sql et arbinote/mysql/*.sql : copies identiques
 #   (voir `diff`) des fichiers federation-hub/migrations et federation-hub/mysql
 #   correspondants — un seul exemplaire de chaque référencé ici, pour ne
 #   pas rejouer deux fois la même altération.
@@ -77,17 +77,16 @@ federation-hub/mysql/migration_widen_staff_invitations_scope.sql
 federation-hub/mysql/migration_add_team_affiliations.sql
 # Backfill idempotent des clubs historiques depuis teams.federation_id.
 federation-hub/mysql/migration_backfill_team_affiliations.sql
+federation-hub/mysql/migration_extend_referee_profiles.sql
+federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql
 federation-hub/migrations/add_is_active_to_leagues.sql
 federation-hub/migrations/add_unique_vote_per_match_device.sql
 federation-hub/migrations/add_team_branding.sql
 federation-hub/migrations/add_team_branding_icons.sql
 
-# --- referee-center (évaluation officielle d'arbitre, dépend de matches/arbitres) ---
-# migration.md §12, Phase 5 : évaluation fédérale, strictement séparée de
-# la notation publique (`votes`, déjà en base, inchangée).
-referee-center/mysql/migration_add_referee_official_evaluations.sql
-referee-center/mysql/migration_add_vote_authenticated.sql
+# --- arbinote (perception publique uniquement) ---
+arbinote/mysql/migration_add_vote_authenticated.sql
 
 # --- club-hub (Player, discipline, cms_*) ---
 club-hub/sql/migration_unify_players.sql

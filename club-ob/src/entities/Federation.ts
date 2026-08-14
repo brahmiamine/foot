@@ -1,7 +1,7 @@
 import { Entity, PrimaryColumn, Column } from "typeorm";
 
 /**
- * Mappée sur `federations`, table partagée avec referee-center/club-hub/cardManager.
+ * Mappée sur `federations`, table partagée avec arbinote/club-hub/cardManager.
  * Lecture seule ici : sert à regrouper les équipes d'une même compétition
  * pour calculer le classement (voir PublicStandingsService).
  */

@@ -10,7 +10,7 @@ export const KNOWN_APPLICATIONS = [
   'club-hub',
   'club-ob',
   'match-operations',
-  'referee-center',
+  'arbinote',
   'federation-hub',
   'payments',
   'marketplace',

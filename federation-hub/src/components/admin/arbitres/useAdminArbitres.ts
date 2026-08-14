@@ -97,6 +97,13 @@ export function useAdminArbitres() {
         : '',
       photoFile: null,
       photo_url: arbitre.photo_url || '',
+      federation_id: arbitre.federation_id || '',
+      league_id: arbitre.league_id || '',
+      categorie: arbitre.categorie || '',
+      grade: arbitre.grade || '',
+      status: arbitre.status || 'ACTIVE',
+      is_active: arbitre.is_active ?? true,
+      start_date: arbitre.start_date ? new Date(arbitre.start_date).toISOString().split('T')[0] : '',
     })
   }
 
@@ -136,6 +143,13 @@ export function useAdminArbitres() {
           nom_ar: createForm.nom_ar || null,
           date_naissance: createForm.date_naissance || null,
           photo_url: photoUrl,
+          federation_id: createForm.federation_id || null,
+          league_id: createForm.league_id || null,
+          categorie: createForm.categorie || null,
+          grade: createForm.grade || null,
+          status: createForm.status,
+          is_active: createForm.is_active,
+          start_date: createForm.start_date || null,
         }),
       })
       if (!response.ok) {
@@ -184,6 +198,13 @@ export function useAdminArbitres() {
           nom_ar: editForm.nom_ar || null,
           date_naissance: editForm.date_naissance || null,
           photo_url: photoUrl,
+          federation_id: editForm.federation_id || null,
+          league_id: editForm.league_id || null,
+          categorie: editForm.categorie || null,
+          grade: editForm.grade || null,
+          status: editForm.status,
+          is_active: editForm.is_active,
+          start_date: editForm.start_date || null,
         }),
       })
       if (!response.ok) {
@@ -214,6 +235,13 @@ export function useAdminArbitres() {
           nom_ar: editForm.nom_ar || null,
           date_naissance: editForm.date_naissance || null,
           photo_url: '',
+          federation_id: editForm.federation_id || null,
+          league_id: editForm.league_id || null,
+          categorie: editForm.categorie || null,
+          grade: editForm.grade || null,
+          status: editForm.status,
+          is_active: editForm.is_active,
+          start_date: editForm.start_date || null,
         }),
       })
       if (!response.ok) {
@@ -228,7 +256,7 @@ export function useAdminArbitres() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cet arbitre ?')) return
+    if (!confirm('Désactiver cet arbitre ? Son historique sera conservé.')) return
     setError(null)
     try {
       const response = await fetch(`/api/admin/arbitres/${id}`, {
@@ -239,7 +267,7 @@ export function useAdminArbitres() {
         const payload = await response.json().catch(() => ({ error: 'Erreur' }))
         throw new Error(payload.error || 'Suppression impossible')
       }
-      // Si on supprime l'arbitre en cours d'édition, annuler l'édition
+      // La route effectue une désactivation réversible et conserve l'historique.
       if (editingId === id) {
         setEditingId(null)
         setEditForm({ ...emptyForm })

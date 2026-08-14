@@ -9,9 +9,9 @@ Les ports ci-dessous sont ceux des scripts `package.json` (ou la valeur par déf
 | Projet | Rôle | Port local | Authentification |
 |---|---|---:|---|
 | [`identity`](./identity) | Identité centralisée staff/club et membre public, connexion Google comprise ; émet le cookie JWT partagé. | 3000 par défaut (3004 via `start.sh`) | Émetteur SSO ; identifiants ou Google |
-| [`referee-center`](./referee-center) | Notation publique des arbitres : votes, critères, classement, anomalies et alertes. | 3000 | Public anonyme/fingerprint ; back-office `SUPERADMIN` via SSO |
+| [`arbinote`](./arbinote) | Perception publique des arbitres : profils, matchs, votes, statistiques et classement. Aucun back-office fédéral. | 3000 | Public anonyme/fingerprint ; SSO membre facultatif pour les votes |
 | [`match-operations`](./match-operations) | Feuille de match électronique en kiosque : avant-match, live, événements, après-match et signatures. | 3000 par défaut (3001 via `start.sh`) | Aucune session utilisateur ; preuve par signature sur place |
-| [`federation-hub`](./federation-hub) | Référentiels plateforme, audit et comptes club. | 3000 par défaut (3002 via `start.sh`) | `SUPERADMIN` via SSO |
+| [`federation-hub`](./federation-hub) | Référentiels, administration de l'arbitrage, évaluations officielles privées et modération ArbiNote. | 3000 par défaut (3002 via `start.sh`) | SSO avec scopes plateforme/fédération/ligue et affectations observateur |
 | [`club-hub`](./club-hub) | Gestion d’un club : effectif, staff, discipline, contenus, boutique, sponsors, académie, billetterie admin et réglages. | 3000 par défaut (3003 via `start.sh`) | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
 | [`club-ob`](./club-ob) | Site public **custom** de l'Olympique de Béja et espace membre, consommateur de `notifications`. | 3000 | Public ; `MEMBER` via SSO |
 | [`ticketing`](./ticketing) | Vente générique multi-clubs, catégories/règles/quota par match et espace « mes billets » ; paiement via `payments`. | 3000 | Public en consultation ; `MEMBER` via SSO pour acheter et consulter ses billets |
@@ -27,7 +27,7 @@ Le dépôt ne contient aucun dossier `skote` : il ne s'agit donc pas d'une appli
 
 | Package | Statut et consommateurs | Exports / responsabilité |
 |---|---|---|
-| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les six applications clientes (`referee-center`, `match-operations`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
+| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les six applications clientes (`arbinote`, `match-operations`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
 
 ## Composants partagés non déployables
 
@@ -41,7 +41,7 @@ La règle de contribution est : **aucun composant générique ne connaît un clu
 ```text
 GENERIC PLATFORM (multi-clubs)
 ├── Frontends Next.js
-│   ├── identity, referee-center, match-operations, federation-hub, club-hub
+│   ├── identity, arbinote, match-operations, federation-hub, club-hub
 │   ├── seller-portal
 │   └── ticketing
 ├── APIs NestJS
@@ -60,7 +60,7 @@ CUSTOM APPLICATIONS
 | Projet | Type | Portée |
 |---|---|---|
 | `identity`, `federation-hub`, `payments`, `notifications`, `marketplace` | Générique | Services plateforme |
-| `club-hub`, `seller-portal`, `ticketing`, `referee-center`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
+| `club-hub`, `seller-portal`, `ticketing`, `arbinote`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
 | `packages/auth-shared`, `db` | Interne partagé | Code d'authentification et schéma de référence |
 | `club-ob` | Custom | Olympique de Béja uniquement |
 
@@ -70,7 +70,7 @@ Les éléments de marque génériques doivent venir de `ClubBranding` (`clubId`,
 
 | Domaine | Responsabilité | Intégrations observées / attendues |
 |---|---|---|
-| SSO | Identité staff, club et membre ; émission du cookie JWT. | `auth-shared` vérifie ce JWT dans les apps Next.js ; `club-hub`, `federation-hub`, `referee-center`, `club-ob` et `ticketing` appliquent leurs rôles. L'identité vendeur marketplace reste séparée. |
+| SSO | Identité staff, club et membre ; émission du cookie JWT. | `auth-shared` vérifie ce JWT dans les apps Next.js ; `club-hub`, `federation-hub`, `arbinote`, `club-ob` et `ticketing` appliquent leurs rôles. L'identité vendeur marketplace reste séparée. |
 | Paiement | Initialisation et suivi Konnect/Paymee/Flouci. | `ticketing` l'appelle pour l'achat ; `marketplace` figure parmi les clients de service prévus ; un paiement confirmé peut émettre vers `notifications` si configuré. |
 | Notifications | In-app/email/push, préférences et distribution asynchrone. | `club-ob` et `club-hub` consomment ses routes ; `payments` peut émettre `PAYMENT_SUCCEEDED`. Les notifications de modération de `marketplace` restent actuellement dans `sp_notifications`, en attente du branchement central. |
 | Marketplace | Vendeurs, catégories, catalogue/variantes, stock, modération, commandes, retours et reversements. | `seller-portal` fournit l'UI vendeur et appelle les écritures produit par clé de service ; `club-hub` appelle la modération et les catégories ; données `sp_*` dans `foot`; paiement/notification centralisés sont les intégrations cibles. |
@@ -86,7 +86,7 @@ flowchart TB
   Notification[(Base notifications)]
   Redis[(Redis / BullMQ)]
 
-  Next[Next.js : identity, referee-center, match-operations, federation-hub, club-hub, club-ob, ticketing]
+  Next[Next.js : identity, arbinote, match-operations, federation-hub, club-hub, club-ob, ticketing]
   Seller[seller-portal]
   Market[marketplace]
   Pay[payments]
@@ -138,8 +138,8 @@ Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparé
 ### Prérequis
 
 - Bash, Docker actif et les images `mariadb:latest` / `phpmyadmin/phpmyadmin` disponibles ;
-- `pnpm` et les dépendances déjà installées dans chacun de `identity`, `referee-center`, `match-operations`, `federation-hub` et `club-hub` ;
-- `referee-center/.env.local`, créé depuis `referee-center/.env.example`, avec au minimum `DB_USER`, `DB_PASSWORD` et `DB_ROOT_PASSWORD` : le script s'arrête immédiatement si l'un manque ;
+- `pnpm` et les dépendances déjà installées dans chacun de `identity`, `arbinote`, `match-operations`, `federation-hub` et `club-hub` ;
+- `arbinote/.env.local`, créé depuis `arbinote/.env.example`, avec au minimum `DB_USER`, `DB_PASSWORD` et `DB_ROOT_PASSWORD` : le script s'arrête immédiatement si l'un manque ;
 - pour activer le SSO, `identity/.env.local`, créé avec `cp identity/.env.example identity/.env.local` puis complété. Son absence n'arrête pas le script, mais `identity` n'est pas lancé ;
 - les `.env.local` propres aux autres apps Next.js, à créer depuis leurs `.env.example` selon leurs besoins. Le script ne les crée ni ne les valide.
 
@@ -151,7 +151,7 @@ Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparé
 
 | Service | Port injecté par `start.sh` |
 |---|---:|
-| `referee-center` | 3000 |
+| `arbinote` | 3000 |
 | `match-operations` | 3001 |
 | `federation-hub` | 3002 |
 | `club-hub` | 3003 |

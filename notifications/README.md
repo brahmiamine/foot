@@ -60,7 +60,7 @@ pnpm lint
 
 **Port :** 3010 par défaut dans `src/main.ts` et `.env.example`.
 
-Le script racine `../start.sh` ne lance que `sso`, `referee-center`, `match-operations`, `federation-hub` et `club-hub`, avec MariaDB partagée. Les autres projets se lancent séparément. `payments` et `notifications` possèdent leur base; `marketplace` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (seller-portal inclus).
+Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `match-operations`, `federation-hub` et `club-hub`, avec MariaDB partagée. Les autres projets se lancent séparément. `payments` et `notifications` possèdent leur base; `marketplace` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (seller-portal inclus).
 
 ## Tests
 

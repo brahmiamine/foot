@@ -28,7 +28,7 @@ import { Injury } from "@/entities/Injury";
 import { Card } from "@/entities/Card";
 
 /**
- * Connexion en lecture seule à la base "foot" partagée avec referee-center,
+ * Connexion en lecture seule à la base "foot" partagée avec arbinote,
  * federation-hub et club-hub (mêmes tables, voir ../club-hub/src/lib/database.ts).
  * Ce site public n'écrit jamais dans ces tables.
  */

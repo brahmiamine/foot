@@ -11,7 +11,7 @@ import {
  * Wrapper local au-dessus de la vérification JWT partagée (voir
  * packages/auth-shared/README.md) : type `SsoUser` propre à `ticketing`
  * (rôles staff + `MEMBER`). Copie en lecture seule, comme dans
- * ob/match-operations/referee-center/federation-hub/club-hub — ce site ne signe jamais
+ * ob/match-operations/arbinote/federation-hub/club-hub — ce site ne signe jamais
  * de session, il ne fait que lire celle posée par `sso`.
  */
 

@@ -10,7 +10,7 @@ procédure cross-app sont dans [`OWNERSHIP.md`](./OWNERSHIP.md).
 
 | Base | Projets / accès | Tables |
 |---|---|---|
-| **`foot` partagée** | `referee-center`, `match-operations`, `federation-hub`, `club-hub`, `identity`, `seller-portal`, `ticketing`; `ob` en lecture | Référentiel, matchs, arbitrage, comptes, effectif, CMS, feuille de match, ticketing et marketplace (`sp_*`). |
+| **`foot` partagée** | `arbinote`, `match-operations`, `federation-hub`, `club-hub`, `identity`, `seller-portal`, `ticketing`; `ob` en lecture | Référentiel, matchs, arbitrage, comptes, effectif, CMS, feuille de match, ticketing et marketplace (`sp_*`). |
 | **base propre à `payments`** (`DB_DATABASE`) | `payments` seulement | `payments`. Aucune table de paiement n'appartient à `foot`. |
 | **base propre à `notifications`** (`DB_DATABASE`) | `notifications` seulement | `notifications`, `notification_deliveries`, `notification_events`, `notification_preferences`, `notification_user_locales`, `notification_templates`, `push_subscriptions`. |
 
@@ -33,7 +33,7 @@ La comparaison avec les scripts présents montre qu'il est **en retard** :
 
 | Projet / emplacement | Écart par rapport à `foot.sql` |
 |---|---|
-| `referee-center/migrations`, `referee-center/mysql` | Les tables historiques d'arbitrage sont dans le dump ; des évolutions de colonnes/index de `federations`, `ligues`, `teams`, `saisons`, `votes` peuvent rester à appliquer. |
+| `arbinote/migrations`, `arbinote/mysql` | Les tables historiques d'arbitrage sont dans le dump ; des évolutions de colonnes/index de `federations`, `ligues`, `teams`, `saisons`, `votes` peuvent rester à appliquer. |
 | `federation-hub/migrations`, `federation-hub/mysql` | `team_branding` et `staff_invitations` manquent au dump ; les migrations modifient aussi `matches` et les tables référentielles/arbitrage. |
 | `identity/sql` | `member_team_affiliations`, `password_reset_tokens`, `security_events` et `mfa_enrollment_challenges` manquent ; plusieurs claims/profils/MFA modifient `User`. |
 | `match-operations/sql` | Toutes les tables `ms_*` manquent : `ms_sheets`, `ms_signatures`, `ms_goals`, `ms_injuries`, `ms_substitutions`, `ms_reservations`, `ms_match_officials`, `ms_player_controls`; les scripts modifient aussi `Card`. |

@@ -6,7 +6,7 @@
 -- FEDERATION_ADMIN/LEAGUE_ADMIN à son périmètre (migration.md §3/§8).
 --
 -- Additive uniquement : les rôles/colonnes existants ne changent pas, les
--- 5 autres apps (match-operations/referee-center/federation-hub/club-hub/ob) décodent
+-- 5 autres apps (match-operations/arbinote/federation-hub/club-hub/ob) décodent
 -- déjà le rôle du JWT comme une simple string (voir leur src/lib/
 -- ssoSession.ts), rien à modifier côté schéma pour elles. Les colonnes
 -- `federation_id`/`league_id` restent NULL pour tout compte qui n'est ni

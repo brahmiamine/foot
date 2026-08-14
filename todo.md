@@ -66,7 +66,7 @@ Scheduler périodique (10 min, `instrumentation.ts`) : reprend les demandes en �
 
 ### TASK-P0-003 — Saga d'annulation ou de report d'un match
 
-**Projets :** `federation-hub`, `match-operations`, `ticketing`, `payments`, `club-hub`, `ob`, `notifications`, `referee-center`
+**Projets :** `federation-hub`, `match-operations`, `ticketing`, `payments`, `club-hub`, `ob`, `notifications`, `arbinote`
 **Statut :** [~] Saga d'**annulation** écrite et testée de bout en bout (journal, étapes, retries, intervention manuelle) ; le **report** (`MATCH_RESCHEDULED`) reste au niveau de simple notification déjà existant, sans politique de validité des billets configurable — voir « Reste ouvert » ci-dessous.
 
 **Critères d'acceptation (annulation) :**
@@ -75,7 +75,7 @@ Scheduler périodique (10 min, `instrumentation.ts`) : reprend les demandes en �
 - [x] annulation des convocations : `POST /api/internal/matches/:matchId/cancel-convocations` (club-hub) annule (soft, `cancelled_at`/`cancelled_reason`, jamais une suppression) toutes les convocations officielles du match, tous clubs confondus ;
 - [x] mise à jour de la visibilité publique : déjà couverte par le filtre existant de `ob` (`PublicMatchService`, `status IN ('UPCOMING','IN_PROGRESS')`) — un match `CANCELLED` disparaît mécaniquement des listes publiques dès que `matches.status` bascule, sans changement nécessaire côté `ob` ;
 - [x] blocage de la saisie live : `match-operations/src/services/sheetGuard.ts#assertSheetEditable` vérifie désormais aussi `Match.status !== 'CANCELLED'` (nouvelle `MatchCancelledError`), en plus du statut `CLOSED` de la feuille — lecture directe de la table `matches` partagée, aucun appel réseau ;
-- [x] blocage du vote arbitre : **aucun changement de code nécessaire** — `referee-center/src/lib/utils.ts#canVoteMatch` exige déjà `status` `IN_PROGRESS`/`FINISHED` (jamais `UPCOMING` ni `CANCELLED`), et `cancelMatchAdmin` reste restreint aux matchs `UPCOMING` (voir « Reste ouvert »), donc un match annulé ne peut structurellement jamais atteindre un état votable ;
+- [x] blocage du vote arbitre : **aucun changement de code nécessaire** — `arbinote/src/lib/utils.ts#canVoteMatch` exige déjà `status` `IN_PROGRESS`/`FINISHED` (jamais `UPCOMING` ni `CANCELLED`), et `cancelMatchAdmin` reste restreint aux matchs `UPCOMING` (voir « Reste ouvert »), donc un match annulé ne peut structurellement jamais atteindre un état votable ;
 - [x] journal de saga avec étapes, retries, compensations et intervention manuelle : `MatchSagaCase` (un dossier par annulation, statut `IN_PROGRESS`/`COMPLETED`/`MANUAL_REVIEW`) + `MatchSagaStep` (append-only, une ligne par tentative d'étape) — `matches.status` bascule d'abord et de façon inconditionnelle (`cancelMatchAdmin`), la saga ne fait que compenser ensuite et ne peut jamais annuler la décision déjà actée. Trois filets de sécurité superposés : retry réseau interne au client HTTP (3 tentatives, voir `matchSagaClients.ts`), retry manuel opérateur (`POST /api/admin/match-sagas/:id/retry`, ne rejoue que les étapes en échec) et scheduler autonome côté ticketing/club-hub (10 min, lit `matches.status` directement, rattrape le cas où l'appel de federation-hub a échoué ou n'a jamais eu lieu) ;
 - [x] tests : retour accepté/échec/rejeu déjà couverts côté remboursement de billet (mêmes garanties qu'US-52/TASK-P0-002) + saga complète (2 étapes réussies, 1 étape en échec sans bloquer l'autre, panne des deux services, rejeu qui ne retouche que l'étape en échec, rejeu qui échoue à nouveau) + garde match-operations (feuille `DRAFT` bloquée par un match `CANCELLED` même sans lien avec le statut de la feuille elle-même). Tests d'intégration au niveau service avec base SQLite réelle (mêmes garanties que des tests E2E sur la logique métier), pas de vrai test E2E HTTP inter-applications bout-en-bout.
 
@@ -387,21 +387,21 @@ Décider migration, séparation explicite ou synchronisation ; éliminer les dou
 
 ### TASK-P1-010 — Éligibilité et confiance des votes ArbiNote
 
-**Projets :** `referee-center`, `ticketing`, `identity`
+**Projets :** `arbinote`, `ticketing`, `identity`
 **Statut :** [ ]
 
 Différencier vote vérifié par billet utilisé/affiliation, vote membre et vote anonyme ; définir fenêtre de vote, pondération, seuil de publication et affichage du niveau de confiance.
 
 ### TASK-P1-011 — Critères d'évaluation arbitre versionnés
 
-**Projets :** `referee-center`, `federation-hub`
+**Projets :** `arbinote`, `federation-hub`
 **Statut :** [ ]
 
 Versionner critères et pondérations par rôle d'officiel, compétition, type de match, période et langue ; préserver la règle utilisée pour chaque vote historique.
 
 ### TASK-P1-012 — Contestation et droit de réponse ArbiNote
 
-**Projets :** `referee-center`, `notifications`
+**Projets :** `arbinote`, `notifications`
 **Statut :** [ ]
 
 Permettre observation, contestation, instruction, décision, recours, délais, pièces et historique de modération sans exposer les votants.

@@ -70,6 +70,34 @@ export default function CreateArbitreForm({
               className="form-control"
             />
           </div>
+          <div className="col-md-4">
+            <label className="form-label">Fédération (ID)</label>
+            <input className="form-control" value={createForm.federation_id} onChange={(e) => setCreateForm((prev) => ({ ...prev, federation_id: e.target.value }))} />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label">Ligue (ID)</label>
+            <input className="form-control" value={createForm.league_id} onChange={(e) => setCreateForm((prev) => ({ ...prev, league_id: e.target.value }))} />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label">Catégorie</label>
+            <input className="form-control" value={createForm.categorie} onChange={(e) => setCreateForm((prev) => ({ ...prev, categorie: e.target.value }))} />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label">Grade</label>
+            <input className="form-control" value={createForm.grade} onChange={(e) => setCreateForm((prev) => ({ ...prev, grade: e.target.value }))} />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label">Début d'activité</label>
+            <input type="date" className="form-control" value={createForm.start_date} onChange={(e) => setCreateForm((prev) => ({ ...prev, start_date: e.target.value }))} />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label">Statut</label>
+            <select className="form-select" value={createForm.status} onChange={(e) => setCreateForm((prev) => ({ ...prev, status: e.target.value, is_active: e.target.value === 'ACTIVE' }))}>
+              <option value="ACTIVE">Actif</option>
+              <option value="INACTIVE">Inactif</option>
+              <option value="SUSPENDED">Suspendu</option>
+            </select>
+          </div>
           <div className="col-12">
             <label className="form-label">Photo</label>
             <input

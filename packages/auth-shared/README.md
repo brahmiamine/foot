@@ -47,10 +47,10 @@ contrôler le rôle et, si nécessaire, le `teamId` attendu.
 
 ## Projets consommateurs
 
-Six applications importent directement ce module : `referee-center`, `match-operations`,
+Six applications importent directement ce module : `arbinote`, `match-operations`,
 `federation-hub`, `club-hub`, `ob` et `ticketing`. Leurs wrappers
 `src/lib/ssoSession.ts` ajoutent les unions de rôles et, selon le runtime, les
-helpers Server Components. Les middlewares d'`referee-center`, `federation-hub` et
+helpers Server Components. Les middlewares d'`arbinote`, `federation-hub` et
 `club-hub` l'importent aussi directement. `notifications` valide le même
 contrat dans son service NestJS, mais ne dépend pas de ce module TypeScript.
 
@@ -109,7 +109,7 @@ Matrice de sensibilité et mode recommandé par app :
 | App | Sensibilité | Mode recommandé | Raison |
 |---|---|---|---|
 | `ob` (public/espace membre) | Basse | `open` | Site public, dégrader plutôt que bloquer une panne SSO transitoire |
-| `referee-center` (vote public) | Basse | `open` | Même raisonnement — la modération admin reste, elle, `closed` (voir ci-dessous) |
+| `arbinote` (vote public) | Basse | `open` | Même raisonnement — la modération admin reste, elle, `closed` (voir ci-dessous) |
 | `ticketing` | Élevée | `closed` | Argent — un incident réseau transitoire sur `identity` ne doit jamais laisser passer une session révoquée sur un parcours de paiement |
 | `club-hub` | Élevée | `closed` | Données métier club |
 | `match-operations` | Élevée | `closed` | Match en direct, feuille de match officielle |
@@ -119,7 +119,7 @@ Chaque app définit sa propre valeur dans son `.env` — voir
 `match-operations/.env.example`, `federation-hub/.env.example`,
 `club-hub/.env.example` et `ticketing/.env.example` pour l'exemple
 `closed`. `ticketing` est fail-**closed** par défaut malgré son trafic
-public (contrairement à `ob`/`referee-center`) : c'est la seule des 3 apps
+public (contrairement à `ob`/`arbinote`) : c'est la seule des 3 apps
 "publiques" à manipuler de l'argent directement, ce qui change l'arbitrage
 disponibilité/sécurité.
 

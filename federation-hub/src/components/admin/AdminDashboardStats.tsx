@@ -109,7 +109,7 @@ export default function AdminDashboardStats() {
         </Link>
 
         <Link
-          href="/admin/votes"
+          href="/admin/arbitrage/arbinote/votes"
           className="col-xl-4 col-md-6 text-decoration-none"
         >
           <div className="card mini-stats-wid h-100 shadow-sm border-0">
@@ -136,7 +136,7 @@ export default function AdminDashboardStats() {
           </h3>
           <div className="row g-3">
           <Link
-            href="/admin/anomalies"
+            href="/admin/arbitrage/arbinote/anomalies"
               className="col-lg-3 col-md-6 text-decoration-none"
           >
               <div className="p-3 rounded border bg-light d-flex align-items-center gap-2 text-body">
@@ -145,7 +145,7 @@ export default function AdminDashboardStats() {
               </div>
           </Link>
           <Link
-            href="/admin/alerts"
+            href="/admin/arbitrage/arbinote/alerts"
               className="col-lg-3 col-md-6 text-decoration-none"
           >
               <div className="p-3 rounded border bg-light d-flex align-items-center gap-2 text-body">
@@ -177,4 +177,3 @@ export default function AdminDashboardStats() {
     </div>
   )
 }
-

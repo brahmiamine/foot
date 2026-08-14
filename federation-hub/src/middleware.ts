@@ -36,6 +36,13 @@ const ADMIN_PERIMETER_ROLES = new Set([
   "FEDERATION_ADMIN",
   "LEAGUE_ADMIN",
 ]);
+
+function isObserverAssessmentPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/admin/arbitrage/evaluations") ||
+    pathname.startsWith("/api/admin/arbitrage/evaluations")
+  );
+}
 export const config = {
   matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
@@ -48,7 +55,11 @@ export async function middleware(request: NextRequest) {
   const token = getSsoTokenFromRequest(request);
   const session = token ? await verifySsoTokenWithRevocation(token) : null;
 
-  if (session?.role && ADMIN_PERIMETER_ROLES.has(session.role)) {
+  if (
+    session?.role &&
+    (ADMIN_PERIMETER_ROLES.has(session.role) ||
+      (session.role === "REFEREE_OBSERVER" && isObserverAssessmentPath(request.nextUrl.pathname)))
+  ) {
     return NextResponse.next();
   }
 

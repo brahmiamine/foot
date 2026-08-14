@@ -1,7 +1,7 @@
 /**
  * Anti brute-force sur /api/login : compteur en mémoire par IP. Suffisant
  * pour un déploiement mono-instance (pas besoin de Redis). Repris tel quel
- * du pattern utilisé auparavant dans referee-center/federation-hub — c'est maintenant
+ * du pattern utilisé auparavant dans arbinote/federation-hub — c'est maintenant
  * le seul endroit qui vérifie des mots de passe, donc le seul qui en a besoin.
  * Seules les tentatives échouées sont comptabilisées.
  */

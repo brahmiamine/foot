@@ -1,6 +1,6 @@
 -- Ajoute le rôle MEMBER (espace membre public de `ob`) à la table `User`
 -- partagée. Additive uniquement : les rôles existants (ADMIN, OBSERVATEUR,
--- SUPERADMIN) et leurs contraintes ne changent pas, match-operations/referee-center/
+-- SUPERADMIN) et leurs contraintes ne changent pas, match-operations/arbinote/
 -- federation-hub/club-hub n'ont rien à modifier (ils décodent le rôle du JWT
 -- comme une simple string, voir leur src/lib/ssoSession.ts).
 

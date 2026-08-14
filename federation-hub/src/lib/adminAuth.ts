@@ -109,6 +109,34 @@ export async function getAdminSession(request: NextRequest): Promise<SsoUser | n
 }
 
 /**
+ * Accès au domaine arbitrage privé. Le projet ne possède pas encore de
+ * permissions fines persistées dans le SSO : on réutilise donc les rôles
+ * existants et on applique ensuite le scope de chaque ressource côté serveur.
+ * Ce garde ne donne aucun droit à lui seul.
+ */
+const REFEREE_DOMAIN_ROLES = new Set<SsoUser["role"]>([
+  "SUPERADMIN",
+  "PLATFORM_SUPERADMIN",
+  "FEDERATION_ADMIN",
+  "LEAGUE_ADMIN",
+  "REFEREE_OBSERVER",
+]);
+
+export async function getRefereeDomainSession(request: NextRequest): Promise<SsoUser | null> {
+  const session = await getSsoSessionFromRequest(request);
+  return session && REFEREE_DOMAIN_ROLES.has(session.role) ? session : null;
+}
+
+export async function getRefereeDomainPageSession(): Promise<SsoUser | null> {
+  const session = await getSsoSession();
+  return session && REFEREE_DOMAIN_ROLES.has(session.role) ? session : null;
+}
+
+// Compatibilité avec les routes migrées depuis ArbiNote.
+export const getOfficialEvalSession = getRefereeDomainSession;
+export const getOfficialEvalPageSession = getRefereeDomainPageSession;
+
+/**
  * Garde pour une ressource au niveau fédération (migration.md §9) :
  * PLATFORM_SUPERADMIN/SUPERADMIN passent toujours, FEDERATION_ADMIN
  * uniquement si `session.federationId === federationId`, tout autre rôle

@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 /**
  * Introspection de session pour les apps clientes (match-operations, federation-hub,
- * club-hub, ob, ticketing, referee-center) : jusqu'ici elles vérifiaient
+ * club-hub, ob, ticketing, arbinote) : jusqu'ici elles vérifiaient
  * seulement signature/issuer/expiration (packages/auth-shared, Edge-safe,
  * sans DB) et pouvaient donc accepter un JWT révoqué (mot de passe changé,
  * MFA modifiée, déconnexion partout) jusqu'à 12h, le temps qu'il expire —
