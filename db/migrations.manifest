@@ -92,6 +92,10 @@ federation-hub/mysql/migration_add_staff_contracts.sql
 # P0-009 migration-v2 : sanctions clubs et interdictions de recrutement.
 # Dépend de teams/saisons/federations/ligues/User (déjà en base).
 federation-hub/mysql/migration_add_club_sanctions.sql
+# P0-010 migration-v2 : litiges (commission juridique fédérale). Dépend de
+# federations/ligues/saisons/User (déjà en base) ; parties polymorphes, pas
+# de FK vers teams (voir en-tête du fichier).
+federation-hub/mysql/migration_add_legal_cases.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

@@ -292,7 +292,18 @@ Les validations réglementaires doivent être traçables de bout en bout.
   `COMPETITION_EXCLUSION` sont modélisés et exposés mais non appliqués
   automatiquement (aucun workflow d'engagement compétition en base, voir
   P0-006 ci-dessus) : à brancher lorsque ce lot sera traité.
-- ⬜ **P0-010 et suivants** : à traiter séquentiellement dans cette migration.
+- ✅ **P0-010 — Litiges** : `legal_cases` + `legal_case_documents`/`legal_case_hearings`/
+  `legal_case_decisions`/`legal_case_events`, parties polymorphes (club,
+  joueur, coach, staff, agent, fédération), numéro de dossier unique généré
+  serveur, workflow audité (recevabilité, instruction, audience, décision,
+  appel, clôture, retrait), scopes fédération/ligue serveur, notifications
+  (`LEGAL_CASE_CREATED`, `LEGAL_CASE_HEARING_SCHEDULED`, `LEGAL_CASE_DECIDED`,
+  `LEGAL_CASE_STATUS_CHANGED`) et interfaces FR/EN/AR (`federation-hub`) et
+  FR/AR (`club-hub`, lecture des dossiers où le club est partie + dépôt de
+  pièces/réponse, jamais de changement de statut). L'ouverture d'un dossier
+  reste un acte fédéral (conforme à la doc : le club ne fait que « déposer
+  une réponse »), pas une auto-saisie par le club.
+- ⬜ **P0-011 et suivants** : à traiter séquentiellement dans cette migration.
 
 ---
 

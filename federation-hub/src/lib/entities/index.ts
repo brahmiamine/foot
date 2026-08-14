@@ -39,3 +39,4 @@ export { PlayerRegistration, PlayerRegistrationHistory } from './PlayerRegistrat
 export { PlayerContract, PlayerContractDocument, PlayerContractHistory } from './PlayerContract'
 export { StaffContract, StaffContractDocument, StaffContractHistory } from './StaffContract'
 export { ClubSanction, ClubSanctionHistory } from './ClubSanction'
+export { LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent } from './LegalCase'

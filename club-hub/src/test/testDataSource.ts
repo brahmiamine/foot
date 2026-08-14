@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
 import { Federation } from "@/entities/Federation";
+import { LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing } from "@/entities/LegalCase";
 import { News } from "@/entities/News";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
 import { Player } from "@/entities/Player";
@@ -31,7 +32,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [ClubSanction, ClubSanctionHistory, Federation, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
+    entities: [ClubSanction, ClubSanctionHistory, Federation, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
   });
 
   await dataSource.initialize();

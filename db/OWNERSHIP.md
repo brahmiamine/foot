@@ -49,6 +49,7 @@ présence d'une entité.
 | Remboursement de billets sur match annulé (TASK-P0-003) | `tk_match_cancellation_refunds` | `ticketing` | — |
 | Processus réglementaires fédéraux (migration-v2.md, P0-001 à P0-005) | `club_license_applications` + `club_license_requirements`/`club_license_documents`/`club_license_history`, `person_licenses` + `person_license_documents`/`person_license_history`, `player_registrations` + `player_registration_history`, `player_contracts` + `player_contract_documents`/`player_contract_history`, `staff_contracts` + `staff_contract_documents`/`staff_contract_history` | `federation-hub` (décision/homologation) **et** `club-hub` (dépôt/instruction, mêmes tables partagées) | — |
 | Sanctions clubs (migration-v2.md, P0-009) | `club_sanctions`, `club_sanction_history` | `federation-hub` (seul à créer/lever une sanction) | `club-hub` (lecture des sanctions de son propre club, garde serveur pour transferts/inscriptions — voir `ClubSanctionService.ts`) |
+| Litiges (migration-v2.md, P0-010) | `legal_cases`, `legal_case_documents`, `legal_case_hearings`, `legal_case_decisions`, `legal_case_events` | `federation-hub` (ouverture, instruction, audiences, décisions) | `club-hub` (lecture des dossiers où le club est partie + dépôt de pièces/réponse dans `legal_case_documents`/`legal_case_events`, jamais de changement de statut — voir `LegalCaseService.ts`) |
 
 `payments` et `notifications` ont leur propre base, hors de `foot`
 (`notifications` ne lit `foot` qu'en lecture seule, via
