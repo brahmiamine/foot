@@ -1,0 +1,61 @@
+:root {
+  --sh-bg: #f4f6f9;
+  --sh-surface: #ffffff;
+  --sh-surface-alt: #f8fafc;
+  --sh-border: #e2e8f0;
+  --sh-text: #0f172a;
+  --sh-text-muted: #64748b;
+  --sh-text-subtle: #94a3b8;
+
+  /* Palette alignée sur les autres apps du dépôt (identity/club-hub/seller-portal) —
+     rouge OB par défaut, écrasé par le branding du club connecté (voir lib/clubBranding.ts). */
+  --sh-primary: #c8102e;
+  --sh-primary-dark: #a10d25;
+  --sh-primary-soft: #ffd9de;
+  --sh-accent: #b8860b;
+  --sh-danger: #dc2626;
+  --sh-danger-soft: #fee2e2;
+  --sh-warning: #d97706;
+  --sh-warning-soft: #fef3c7;
+  --sh-success: #16a34a;
+  --sh-success-soft: #dcfce7;
+  --sh-info: #2563eb;
+  --sh-info-soft: #dbeafe;
+  --sh-neutral-soft: #f1f5f9;
+
+  --sh-sidebar-bg: #0d0d0d;
+  --sh-sidebar-text: #c9c4bd;
+  --sh-sidebar-text-active: #ffffff;
+  --sh-sidebar-active-bg: #2a0a0f;
+
+  --sh-radius-sm: 6px;
+  --sh-radius-md: 10px;
+  --sh-radius-lg: 14px;
+
+  --sh-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --sh-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  --sh-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--sh-bg);
+  color: var(--sh-text);
+  font-family: var(--sh-font);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}

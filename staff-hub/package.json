@@ -1,0 +1,33 @@
+{
+  "name": "staff-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Espace staff technique générique multi-clubs (coach, adjoint, analyste, préparateur...) — effectif, entraînements, convocations, composition, tactique, statistiques et déplacements, sur les mêmes données que club-hub, avec le RBAC déjà en place (cms_roles/cms_user_roles).",
+  "scripts": {
+    "dev": "next dev --webpack -p 3008",
+    "build": "next build --webpack",
+    "start": "next start -p 3008",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "jose": "^5.9.6",
+    "mariadb": "^3.4.5",
+    "mysql2": "^3.16.0",
+    "next": "16.0.10",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.10",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

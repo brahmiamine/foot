@@ -11,10 +11,11 @@ Les ports ci-dessous sont ceux des scripts `package.json` (ou la valeur par déf
 | [`identity`](./identity) | Identité centralisée staff/club et membre public, connexion Google comprise ; émet le cookie JWT partagé. | 3000 par défaut (3004 via `start.sh`) | Émetteur SSO ; identifiants ou Google |
 | [`arbinote`](./arbinote) | Perception publique des arbitres : profils, matchs, votes, statistiques et classement. Aucun back-office fédéral. | 3000 | Public anonyme/fingerprint ; SSO membre facultatif pour les votes |
 | [`match-operations`](./match-operations) | Feuille de match électronique en kiosque : avant-match, live, événements, après-match et signatures. | 3000 par défaut (3001 via `start.sh`) | Aucune session utilisateur ; preuve par signature sur place |
-| [`referee-hub`](./referee-hub) | Espace personnel privé des arbitres : désignations, équipe arbitrale, profil et accès à la feuille de match. | 3000 par défaut (3008 via `start.sh`) | `REFEREE`, `MATCH_OFFICIAL` ou `REFEREE_OBSERVER` via SSO et affectation personnelle |
+| [`referee-hub`](./referee-hub) | Espace personnel privé des arbitres : désignations, équipe arbitrale, profil et accès à la feuille de match. | 3000 par défaut (3009 via `start.sh`) | `REFEREE`, `MATCH_OFFICIAL` ou `REFEREE_OBSERVER` via SSO et affectation personnelle |
 | [`federation-hub`](./federation-hub) | Référentiels, administration de l'arbitrage, évaluations officielles privées et modération ArbiNote. | 3000 par défaut (3002 via `start.sh`) | SSO avec scopes plateforme/fédération/ligue et affectations observateur |
 | [`club-hub`](./club-hub) | Gestion d’un club : effectif, staff, discipline, contenus, boutique, sponsors, académie, billetterie admin et réglages. | 3000 par défaut (3003 via `start.sh`) | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
 | [`player-hub`](./player-hub) | Espace joueur multi-clubs : calendrier, convocations, entraînements, matchs, statistiques, discipline, déplacements, disponibilité et notifications — en lecture sur les données déjà gérées par `club-hub` (`cms_convocations`, `cms_trainings`, `cms_player_stats`, `Card`/`Suspension`/`Fine`, `cms_trips`...), écriture limitée aux réponses du joueur connecté. | 3007 | `PLAYER` via SSO (scopé à un club ET à un joueur, voir `identity/src/entities/User.ts`) |
+| [`staff-hub`](./staff-hub) | Espace staff technique multi-clubs (coach, adjoint, analyste, préparateur...) : effectif, calendrier, entraînements, présences, matchs, convocations, composition, planches tactiques, statistiques et déplacements — mêmes données et même RBAC applicatif que `club-hub` (`cms_roles`/`cms_user_roles`), interface plus opérationnelle et menu réduit au périmètre du rôle connecté. | 3008 | Rôles club (`ADMIN`, `OBSERVATEUR`, …) via SSO — identique à `club-hub` |
 | [`club-ob`](./club-ob) | Site public **custom** de l'Olympique de Béja et espace membre, consommateur de `notifications`. | 3000 | Public ; `MEMBER` via SSO |
 | [`ticketing`](./ticketing) | Vente générique multi-clubs, catégories/règles/quota par match et espace « mes billets » ; paiement via `payments`. | 3000 | Public en consultation ; `MEMBER` via SSO pour acheter et consulter ses billets |
 | [`seller-portal`](./seller-portal) | UI vendeur marketplace : catalogue, variantes, stock, commandes, retours, payouts et notifications. | 3006 | Cookie vendeur propre (`SP_JWT_SECRET`), indépendant du SSO |
@@ -43,7 +44,7 @@ La règle de contribution est : **aucun composant générique ne connaît un clu
 ```text
 GENERIC PLATFORM (multi-clubs)
 ├── Frontends Next.js
-│   ├── identity, arbinote, match-operations, referee-hub, federation-hub, club-hub, player-hub
+│   ├── identity, arbinote, match-operations, referee-hub, federation-hub, club-hub, player-hub, staff-hub
 │   ├── seller-portal
 │   └── ticketing
 ├── APIs NestJS
@@ -62,7 +63,7 @@ CUSTOM APPLICATIONS
 | Projet | Type | Portée |
 |---|---|---|
 | `identity`, `federation-hub`, `payments`, `notifications`, `marketplace` | Générique | Services plateforme |
-| `club-hub`, `player-hub`, `referee-hub`, `seller-portal`, `ticketing`, `arbinote`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
+| `club-hub`, `player-hub`, `staff-hub`, `referee-hub`, `seller-portal`, `ticketing`, `arbinote`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
 | `packages/auth-shared`, `db` | Interne partagé | Code d'authentification et schéma de référence |
 | `club-ob` | Custom | Olympique de Béja uniquement |
 

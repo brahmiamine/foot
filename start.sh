@@ -121,10 +121,10 @@ echo "🚀 Lancement d'arbinote sur http://localhost:3000 ..."
 echo "🚀 Lancement de match-operations sur http://localhost:3001 ..."
 (cd "$ROOT_DIR/match-operations" && PORT=3001 pnpm run dev 2>&1 | sed -u 's/^/[match-operations] /') &
 
-# ── referee-hub sur le port 3008 (espace personnel privé des arbitres :
+# ── referee-hub sur le port 3009 (espace personnel privé des arbitres :
 # désignations, profil et accès sécurisé à match-operations) ─────────────────
-echo "🚀 Lancement de referee-hub sur http://localhost:3008 ..."
-(cd "$ROOT_DIR/referee-hub" && PORT=3008 pnpm run dev 2>&1 | sed -u 's/^/[referee-hub] /') &
+echo "🚀 Lancement de referee-hub sur http://localhost:3009 ..."
+(cd "$ROOT_DIR/referee-hub" && PORT=3009 pnpm run dev 2>&1 | sed -u 's/^/[referee-hub] /') &
 
 # ── federation-hub sur le port 3002 (outil interne : référentiel fédérations/
 # ligues/saisons/journées/équipes/matchs/arbitres, journal d'audit,

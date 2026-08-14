@@ -45,7 +45,7 @@ pnpm install
 pnpm dev
 ```
 
-Port conventionnel dans le script racine : `3008`.
+Port conventionnel dans le script racine : `3009` (`3008` est réservé à `staff-hub`).
 
 ## Validation
 
