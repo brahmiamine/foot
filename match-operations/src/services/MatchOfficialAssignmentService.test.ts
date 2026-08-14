@@ -82,7 +82,8 @@ describe("MatchOfficialAssignmentService", () => {
       const { MatchOfficialAssignmentService, MatchOfficialAssignmentError } = await import("./MatchOfficialAssignmentService");
       const { match } = await seedBaseGraph(dataSource);
       const repo = dataSource.getRepository(RefereeUnavailability);
-      await repo.save(repo.create({ userId: "referee-1", startDate: "2026-01-09", endDate: "2026-01-11" }));
+      const matchDate = match.date!.toISOString().slice(0, 10);
+      await repo.save(repo.create({ userId: "referee-1", startDate: matchDate, endDate: matchDate }));
 
       await expect(new MatchOfficialAssignmentService().assign({
         matchId: match.id,
@@ -95,7 +96,8 @@ describe("MatchOfficialAssignmentService", () => {
       const { MatchOfficialAssignmentService } = await import("./MatchOfficialAssignmentService");
       const { match } = await seedBaseGraph(dataSource);
       const repo = dataSource.getRepository(RefereeUnavailability);
-      await repo.save(repo.create({ userId: "referee-1", startDate: "2026-01-09", endDate: "2026-01-11", cancelledAt: new Date() }));
+      const matchDate = match.date!.toISOString().slice(0, 10);
+      await repo.save(repo.create({ userId: "referee-1", startDate: matchDate, endDate: matchDate, cancelledAt: new Date() }));
 
       await expect(new MatchOfficialAssignmentService().assign({
         matchId: match.id,
