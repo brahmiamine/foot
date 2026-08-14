@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import type { CompetitionRegistrationStatus } from "../../../packages/regulatory-shared/src/competitionRegistration";
-import type { TransferWindowStatus, TransferWindowType } from "../../../../packages/regulatory-shared/src/transferWindow";
+import type { TransferWindowStatus, TransferWindowType } from "../../../packages/regulatory-shared/src/transferWindow";
 
 const ENTRY_STATUSES = ["DRAFT","SUBMITTED","UNDER_REVIEW","CHANGES_REQUESTED","APPROVED","REJECTED","WITHDRAWN","SUSPENDED"] as const;
 const WINDOW_TYPES = ["SUMMER","WINTER","SPECIAL","YOUTH","AMATEUR"] as const;
