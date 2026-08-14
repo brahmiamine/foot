@@ -122,7 +122,8 @@ export class PaymentReconciliationService
             resolvedCount++;
           }
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           this.logger.warn(
             `Reconciliation failed for payment ${payment.id}: ${message}`,
           );
