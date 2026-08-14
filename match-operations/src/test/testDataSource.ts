@@ -16,6 +16,9 @@ import { Signature } from "@/entities/Signature";
 import { Substitution } from "@/entities/Substitution";
 import { Team } from "@/entities/Team";
 import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
+import { MatchLineup } from "@/entities/MatchLineup";
+import { TeamMembership } from "@/entities/TeamMembership";
+import { CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead, SeasonRegulation, SuspensionRead } from "@/entities/Eligibility";
 
 /**
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
@@ -46,6 +49,17 @@ export async function createTestDataSource(): Promise<DataSource> {
       Substitution,
       Team,
       RefereeUnavailability,
+      MatchLineup,
+      TeamMembership,
+      CompetitionRegistrationRead,
+      EligibilityCheckWrite,
+      MedicalEligibilityRead,
+      PersonLicenseRead,
+      PlayerContractRead,
+      PlayerRegistrationRead,
+      PlayerTransferRead,
+      SeasonRegulation,
+      SuspensionRead,
     ],
   });
 

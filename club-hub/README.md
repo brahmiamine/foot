@@ -104,3 +104,7 @@ Le script racine `../start.sh` ne lance que `identity`, `arbinote`, `match-opera
 Très large monolithe et schéma SQL appliqué manuellement. Uploads locaux/chunkés sans stockage objet ni antivirus. Certaines intégrations sont optionnelles selon variables; marketplace local et API peuvent coexister. Les PWA n'assurent pas la synchro CRUD hors ligne.
 
 **Remboursement automatique (TASK-P0-002)** : un paiement confirmé après restockage (`PAID_STOCK_UNAVAILABLE`) ouvre automatiquement un dossier de remboursement auprès de payments (voir `src/lib/stockUnavailableRefunds.ts`) au lieu de se limiter à un log pour traitement manuel. Même limite que ticketing : le remboursement lui-même n'est automatisé que pour Flouci ; Konnect/Paymee passent par `MANUAL_REVIEW` côté payments, suivi jusqu'à résolution par le scheduler périodique (`instrumentation.ts`, alerte ops après 24h sans résolution).
+
+## Engagements et fenêtres réglementaires
+
+Le club dépose ses engagements dans `/admin/federation/competition-entries` et consulte les fenêtres et demandes de transfert dans `/admin/federation/transfers`. Les contrôles sont recalculés côté serveur à partir du club de la session.

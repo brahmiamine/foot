@@ -1,7 +1,5 @@
 import { getDataSource } from "@/lib/db";
 import { MatchLineup } from "@/entities/MatchLineup";
-import { Match } from "@/entities/Match";
-import { TeamMembership } from "@/entities/TeamMembership";
 import { Repository } from "typeorm";
 
 export class LineupService {
@@ -27,6 +25,6 @@ export class LineupService {
       relations: ["player"],
       order: { role: "ASC", shirtNumber: "ASC" },
     });
-    return this.filterEligibleAtMatchDate(matchId, lineups);
+    return lineups;
   }
 }
