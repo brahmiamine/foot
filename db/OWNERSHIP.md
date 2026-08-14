@@ -51,6 +51,7 @@ présence d'une entité.
 | Sanctions clubs (migration-v2.md, P0-009) | `club_sanctions`, `club_sanction_history` | `federation-hub` (seul à créer/lever une sanction) | `club-hub` (lecture des sanctions de son propre club, garde serveur pour transferts/inscriptions — voir `ClubSanctionService.ts`) |
 | Litiges (migration-v2.md, P0-010) | `legal_cases`, `legal_case_documents`, `legal_case_hearings`, `legal_case_decisions`, `legal_case_events` | `federation-hub` (ouverture, instruction, audiences, décisions) | `club-hub` (lecture des dossiers où le club est partie + dépôt de pièces/réponse dans `legal_case_documents`/`legal_case_events`, jamais de changement de statut — voir `LegalCaseService.ts`) |
 | Renouvellement saisonnier (migration-v2.md, P0-011) | `season_regulatory_cycles`, `season_regulatory_cycle_history` | `federation-hub` (création du cycle, ouverture des fenêtres, clôture + expiration des licences de la saison précédente) | `club-hub` (lecture seule, garde serveur sur la soumission des licences club et des inscriptions joueurs — voir `SeasonRegulatoryCycleService.ts`) |
+| Conformité financière (migration-v2.md, P1-001) | `club_financial_compliance`, `club_financial_compliance_history` | `club-hub` (dépôt/mise à jour du brouillon, soumission) **et** `federation-hub` (revue, décision) — mêmes tables partagées, comme les licences club | — |
 
 `payments` et `notifications` ont leur propre base, hors de `foot`
 (`notifications` ne lit `foot` qu'en lecture seule, via

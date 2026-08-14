@@ -319,6 +319,16 @@ Les validations réglementaires doivent être traçables de bout en bout.
   interne à la fédération, le club voit seulement l'effet (soumission
   acceptée ou refusée).
 - ⬜ **P0-012 et suivants** : cette migration passe désormais aux processus P1.
+- ✅ **P1-001 — Conformité financière** : `club_financial_compliance` +
+  historique audité, un dossier par club/saison (contrainte d'unicité),
+  workflow audité (`DRAFT → SUBMITTED → UNDER_REVIEW → COMPLIANT/CONDITIONAL
+  /NON_COMPLIANT`, `NON_COMPLIANT` réouvrable en `DRAFT`), scopes
+  fédération/ligue serveur, notifications (`FINANCIAL_COMPLIANCE_SUBMITTED`,
+  `FINANCIAL_COMPLIANCE_DECIDED`) et interfaces `club-hub` (dépôt/soumission,
+  FR/AR) + `federation-hub` (revue/décision, FR/EN/AR). Volontairement pas
+  un système comptable complet : uniquement les agrégats déclaratifs
+  (budget, masse salariale, dettes par catégorie) nécessaires à la décision
+  fédérale, conformément au périmètre du document.
 
 ---
 

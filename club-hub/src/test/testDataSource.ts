@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
 import { Federation } from "@/entities/Federation";
+import { FinancialCompliance, FinancialComplianceHistory } from "@/entities/FinancialCompliance";
 import { LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing } from "@/entities/LegalCase";
 import { News } from "@/entities/News";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
@@ -16,6 +17,7 @@ import { ShopOrderItem } from "@/entities/ShopOrderItem";
 import { Staff } from "@/entities/Staff";
 import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
 import { Team } from "@/entities/Team";
+import { TeamAffiliation } from "@/entities/TeamAffiliation";
 import { TeamMember } from "@/entities/TeamMember";
 
 /**
@@ -33,7 +35,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [ClubSanction, ClubSanctionHistory, Federation, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
+    entities: [ClubSanction, ClubSanctionHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
   });
 
   await dataSource.initialize();

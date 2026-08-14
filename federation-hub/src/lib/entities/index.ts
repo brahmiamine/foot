@@ -41,3 +41,4 @@ export { StaffContract, StaffContractDocument, StaffContractHistory } from './St
 export { ClubSanction, ClubSanctionHistory } from './ClubSanction'
 export { LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent } from './LegalCase'
 export { SeasonRegulatoryCycle, SeasonRegulatoryCycleHistory } from './SeasonRegulatoryCycle'
+export { FinancialCompliance, FinancialComplianceHistory } from './FinancialCompliance'
