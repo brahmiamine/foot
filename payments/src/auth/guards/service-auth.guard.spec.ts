@@ -25,7 +25,7 @@ describe('ServiceAuthGuard', () => {
   }
 
   it('rejects a request without x-api-key', () => {
-    const guard = guardWithClients({ current: { ob: 'ob-key' } });
+    const guard = guardWithClients({ current: { 'club-ob': 'ob-key' } });
 
     expect(() => guard.canActivate(contextWithHeaders({}))).toThrow(
       UnauthorizedException,
@@ -33,7 +33,7 @@ describe('ServiceAuthGuard', () => {
   });
 
   it('rejects an unknown api key', () => {
-    const guard = guardWithClients({ current: { ob: 'ob-key' } });
+    const guard = guardWithClients({ current: { 'club-ob': 'ob-key' } });
 
     expect(() =>
       guard.canActivate(contextWithHeaders({ 'x-api-key': 'wrong-key' })),
@@ -41,7 +41,7 @@ describe('ServiceAuthGuard', () => {
   });
 
   it('accepts a known api key and attaches the calling application', () => {
-    const guard = guardWithClients({ current: { ob: 'ob-key' } });
+    const guard = guardWithClients({ current: { 'club-ob': 'ob-key' } });
     const request: {
       headers: Record<string, string>;
       method: string;
@@ -63,8 +63,8 @@ describe('ServiceAuthGuard', () => {
   // TASK-P0-003 : rotation sans interruption.
   it('accepts the previous key while still within the grace period', () => {
     const guard = guardWithClients({
-      current: { ob: 'ob-key-new' },
-      previous: { ob: 'ob-key-old' },
+      current: { 'club-ob': 'ob-key-new' },
+      previous: { 'club-ob': 'ob-key-old' },
       previousExpiresAt: new Date(Date.now() + 60_000).toISOString(),
     });
 
@@ -75,8 +75,8 @@ describe('ServiceAuthGuard', () => {
 
   it('rejects the previous key once the grace period has expired', () => {
     const guard = guardWithClients({
-      current: { ob: 'ob-key-new' },
-      previous: { ob: 'ob-key-old' },
+      current: { 'club-ob': 'ob-key-new' },
+      previous: { 'club-ob': 'ob-key-old' },
       previousExpiresAt: new Date(Date.now() - 60_000).toISOString(),
     });
 
@@ -87,8 +87,8 @@ describe('ServiceAuthGuard', () => {
 
   it('accepts the previous key with no expiry set (no rotation deadline configured)', () => {
     const guard = guardWithClients({
-      current: { ob: 'ob-key-new' },
-      previous: { ob: 'ob-key-old' },
+      current: { 'club-ob': 'ob-key-new' },
+      previous: { 'club-ob': 'ob-key-old' },
     });
 
     expect(
