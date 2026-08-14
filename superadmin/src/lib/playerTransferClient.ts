@@ -101,6 +101,13 @@ export async function listPlayerTransfers(status?: string): Promise<RemotePlayer
   return requestWithRetries<RemotePlayerTransfer[]>('GET', `/api/internal/player-transfers${query}`)
 }
 
+export async function getPlayerTransfer(transferId: string): Promise<RemotePlayerTransfer> {
+  return requestWithRetries<RemotePlayerTransfer>(
+    'GET',
+    `/api/internal/player-transfers/${encodeURIComponent(transferId)}`,
+  )
+}
+
 export async function approvePlayerTransfer(transferId: string, approvedBy: string): Promise<RemotePlayerTransfer> {
   return postJsonWithRetries<RemotePlayerTransfer>(`/api/internal/player-transfers/${transferId}/approve`, { approvedBy })
 }
