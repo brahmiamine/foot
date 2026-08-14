@@ -272,7 +272,19 @@ Les validations réglementaires doivent être traçables de bout en bout.
   d’éligibilité. Lorsque la saison l’exige, le contrat ne peut être soumis ni
   homologué sans une qualification `COACH`, `STAFF`, `MEDICAL` ou `DIRECTOR`
   approuvée, non expirée et rattachée au même staff, club et saison.
-- ⬜ **P0-006 et suivants** : à traiter séquentiellement dans cette migration.
+- ✅ **P0-006 — Engagements clubs aux compétitions** : modèle adossé aux
+  éditions existantes dans `saisons`, dépôt club, contrôle fédération/ligue,
+  licence club, dossier, stade/finance/frais configurables, interdiction de
+  participation, audit, notifications et UI dans les deux hubs.
+- ✅ **P0-007 — Fenêtres de transfert** : périodes fédération/ligue auditées,
+  refus `TRANSFER_WINDOW_CLOSED` à la création et à l'homologation,
+  interdictions de recrutement, exception fédérale avec motif et référence
+  réglementaire obligatoires, notifications et vues club/fédération.
+- ✅ **P0-008 — Qualification et éligibilité** : `EligibilityService` central
+  dans `match-operations`, contrôles serveur complets, journal des tentatives,
+  API fédérale et blocage réel de la transition `DRAFT -> PRE_MATCH_SIGNED`
+  lorsque la composition contient un joueur inéligible.
+- ⬜ **P0-009 et suivants** : à traiter séquentiellement dans cette migration.
 
 ---
 

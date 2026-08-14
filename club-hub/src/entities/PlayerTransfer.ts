@@ -77,6 +77,12 @@ export class PlayerTransfer {
   @Column({ type: "datetime", nullable: true, name: "homologated_at" })
   homologatedAt?: Date | null;
 
+  @Column({ type: "char", length: 36, nullable: true, name: "transfer_window_id" })
+  transferWindowId?: string | null;
+
+  @Column({ type: "char", length: 36, nullable: true, name: "transfer_window_exception_id" })
+  transferWindowExceptionId?: string | null;
+
   @Column({ type: "text", nullable: true, name: "status_reason" })
   statusReason?: string | null;
 

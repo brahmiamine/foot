@@ -114,3 +114,7 @@ Le script racine `../start.sh` ne lance que `identity`, `arbinote`, `match-opera
 ## Limites connues
 
 Import CSV et uploads exigent validation/sauvegarde opérationnelle. Le secret SSO symétrique est partagé. Les migrations sont des scripts SQL manuels, sans runner/versionnement central.
+
+## Migration V2 P0-006 à P0-008
+
+Les écrans `/admin/competition-entries`, `/admin/transfer-windows` et `/admin/eligibility` gèrent les engagements, les périodes de transfert et le contrôle d'éligibilité avec scopes plateforme/fédération/ligue, audit et notifications.

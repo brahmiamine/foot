@@ -1,0 +1,1 @@
+import AdminLogin from "@/components/admin/AdminLogin";import AdminTransferWindowsManager from "@/components/admin/AdminTransferWindowsManager";import { getCompetitionAdminPageSession } from "@/lib/adminAuth";export default async function Page(){return await getCompetitionAdminPageSession()?<AdminTransferWindowsManager/>:<AdminLogin/>}

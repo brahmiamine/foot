@@ -14,6 +14,8 @@ import { Staff } from "@/entities/Staff";
 import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
 import { Team } from "@/entities/Team";
 import { TeamMember } from "@/entities/TeamMember";
+import { TeamAffiliation } from "@/entities/TeamAffiliation";
+import { RegulatoryBan, TransferWindow } from "@/entities/Regulatory";
 
 /**
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
@@ -30,7 +32,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Federation, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember],
+    entities: [Federation, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember, TeamAffiliation, RegulatoryBan, TransferWindow],
   });
 
   await dataSource.initialize();

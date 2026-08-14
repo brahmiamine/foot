@@ -38,3 +38,5 @@ export { PersonLicense, PersonLicenseDocument, PersonLicenseHistory } from './Pe
 export { PlayerRegistration, PlayerRegistrationHistory } from './PlayerRegistration'
 export { PlayerContract, PlayerContractDocument, PlayerContractHistory } from './PlayerContract'
 export { StaffContract, StaffContractDocument, StaffContractHistory } from './StaffContract'
+
+export { CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory, EligibilityCheck } from './Regulatory'

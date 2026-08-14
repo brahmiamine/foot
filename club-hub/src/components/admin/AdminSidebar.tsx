@@ -222,7 +222,7 @@ export function AdminSidebar({
       {
         title: "Administration",
         items: [
-          { title: "Dossier fédéral", icon: "fas fa-file-shield", href: "/admin/federation/compliance", children: [{ title: "Conformité", href: "/admin/federation/compliance" }, { title: "Licences", href: "/admin/federation/licenses" }, { title: "Inscriptions joueurs", href: "/admin/federation/registrations" }, { title: "Contrats joueurs", href: "/admin/federation/contracts" }, { title: "Contrats staff", href: "/admin/federation/staff-contracts" }] },
+          { title: "Dossier fédéral", icon: "fas fa-file-shield", href: "/admin/federation/compliance", children: [{ title: "Conformité", href: "/admin/federation/compliance" }, { title: "Licences", href: "/admin/federation/licenses" }, { title: "Inscriptions joueurs", href: "/admin/federation/registrations" }, { title: "Engagements", href: "/admin/federation/competition-entries" }, { title: "Transferts fédéraux", href: "/admin/federation/transfers" }, { title: "Contrats joueurs", href: "/admin/federation/contracts" }, { title: "Contrats staff", href: "/admin/federation/staff-contracts" }] },
           { title: "Utilisateurs", icon: "fas fa-id-badge", href: "/admin/users", children: [], permission: "users.view" },
           { title: "Rôles & permissions", icon: "fas fa-user-shield", href: "/admin/roles", children: [], permission: "roles.manage" },
         ],
