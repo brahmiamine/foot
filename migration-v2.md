@@ -329,6 +329,17 @@ Les validations réglementaires doivent être traçables de bout en bout.
   un système comptable complet : uniquement les agrégats déclaratifs
   (budget, masse salariale, dettes par catégorie) nécessaires à la décision
   fédérale, conformément au périmètre du document.
+- ✅ **P1-002 — Gouvernance et comité directeur** : `club_board_mandates` +
+  `club_board_members` + historique audité, workflow de mandat audité
+  (`DRAFT → SUBMITTED → VALIDATED/REJECTED`, `REJECTED` réouvrable en
+  `DRAFT`, `VALIDATED → ENDED`), validation fédérale globale d'un mandat qui
+  approuve en bloc tous ses membres courants, approbation individuelle pour
+  tout membre ajouté ensuite (remplacement en cours de mandat), scopes
+  fédération/ligue serveur, notifications (`BOARD_MANDATE_SUBMITTED`,
+  `BOARD_MANDATE_VALIDATED`, `BOARD_MANDATE_REJECTED`, `BOARD_MANDATE_ENDED`)
+  et interfaces `club-hub` (dépôt du mandat, ajout de membres, soumission,
+  FR/AR) + `federation-hub` (validation/rejet, approbation des membres,
+  FR/EN/AR).
 
 ---
 

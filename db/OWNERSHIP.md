@@ -52,6 +52,7 @@ présence d'une entité.
 | Litiges (migration-v2.md, P0-010) | `legal_cases`, `legal_case_documents`, `legal_case_hearings`, `legal_case_decisions`, `legal_case_events` | `federation-hub` (ouverture, instruction, audiences, décisions) | `club-hub` (lecture des dossiers où le club est partie + dépôt de pièces/réponse dans `legal_case_documents`/`legal_case_events`, jamais de changement de statut — voir `LegalCaseService.ts`) |
 | Renouvellement saisonnier (migration-v2.md, P0-011) | `season_regulatory_cycles`, `season_regulatory_cycle_history` | `federation-hub` (création du cycle, ouverture des fenêtres, clôture + expiration des licences de la saison précédente) | `club-hub` (lecture seule, garde serveur sur la soumission des licences club et des inscriptions joueurs — voir `SeasonRegulatoryCycleService.ts`) |
 | Conformité financière (migration-v2.md, P1-001) | `club_financial_compliance`, `club_financial_compliance_history` | `club-hub` (dépôt/mise à jour du brouillon, soumission) **et** `federation-hub` (revue, décision) — mêmes tables partagées, comme les licences club | — |
+| Gouvernance / comité directeur (migration-v2.md, P1-002) | `club_board_mandates`, `club_board_members`, `club_board_mandate_history` | `club-hub` (création du mandat, ajout des membres, soumission) **et** `federation-hub` (validation/rejet du mandat, approbation individuelle des membres) — mêmes tables partagées | — |
 
 `payments` et `notifications` ont leur propre base, hors de `foot`
 (`notifications` ne lit `foot` qu'en lecture seule, via

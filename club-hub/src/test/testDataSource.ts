@@ -3,6 +3,7 @@ import { DataSource } from "typeorm";
 import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
 import { Federation } from "@/entities/Federation";
 import { FinancialCompliance, FinancialComplianceHistory } from "@/entities/FinancialCompliance";
+import { BoardMandate, BoardMandateHistory, BoardMember } from "@/entities/Governance";
 import { LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing } from "@/entities/LegalCase";
 import { News } from "@/entities/News";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
@@ -35,7 +36,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [ClubSanction, ClubSanctionHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
+    entities: [BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, ClubSanctionHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
   });
 
   await dataSource.initialize();
