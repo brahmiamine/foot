@@ -1,0 +1,40 @@
+{
+  "name": "ticketing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Billetterie générique multi-clubs — achat de billets pour les matchs",
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:i18n": "node --test test/i18n-parity.test.mjs"
+  },
+  "dependencies": {
+    "jose": "^5.9.6",
+    "jsqr": "^1.4.0",
+    "mariadb": "^3.4.5",
+    "mysql2": "^3.16.0",
+    "next": "16.0.10",
+    "qrcode": "^1.5.4",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "better-sqlite3": "^11.10.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.10",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

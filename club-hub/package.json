@@ -1,0 +1,49 @@
+{
+  "name": "club-hub",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:i18n": "node --test test/i18n-parity.test.mjs"
+  },
+  "dependencies": {
+    "@tiptap/extension-image": "^3.14.0",
+    "@tiptap/extension-link": "^3.14.0",
+    "@tiptap/extension-underline": "^3.14.0",
+    "@tiptap/react": "^3.14.0",
+    "@tiptap/starter-kit": "^3.14.0",
+    "bcryptjs": "^3.0.3",
+    "exceljs": "^4.4.0",
+    "jose": "^5.9.6",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "mariadb": "^3.4.5",
+    "mysql": "^2.18.1",
+    "mysql2": "^3.16.0",
+    "next": "16.0.10",
+    "nodemailer": "^8.0.11",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^20",
+    "@types/nodemailer": "^7.0.12",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "better-sqlite3": "^11.10.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.10",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

@@ -5,17 +5,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 # ── Base de données partagée (mariadb_container) ────────────────────────────
-# Identifiants stockés dans arbinote/.env.local (base "foot" partagée par
-# arbinote, superadmin, teamManager et sso).
-if [ -f "$ROOT_DIR/arbinote/.env.local" ]; then
+# Identifiants stockés dans referee-center/.env.local (base "foot" partagée par
+# referee-center, federation-hub, club-hub et identity).
+if [ -f "$ROOT_DIR/referee-center/.env.local" ]; then
   set -a
-  source "$ROOT_DIR/arbinote/.env.local"
+  source "$ROOT_DIR/referee-center/.env.local"
   set +a
 fi
 
-: "${DB_USER:?DB_USER manquant dans arbinote/.env.local}"
-: "${DB_PASSWORD:?DB_PASSWORD manquant dans arbinote/.env.local}"
-: "${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans arbinote/.env.local}"
+: "${DB_USER:?DB_USER manquant dans referee-center/.env.local}"
+: "${DB_PASSWORD:?DB_PASSWORD manquant dans referee-center/.env.local}"
+: "${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans referee-center/.env.local}"
 
 echo "🔍 Vérification de Docker..."
 if ! docker info >/dev/null 2>&1; then
@@ -70,7 +70,7 @@ done
 echo "✅ Base de données prête."
 
 # ── Correctif schéma partagé (idempotent) ───────────────────────────────────
-# teamManager et matchsheet lisent `Card.period`. On l'ajoute automatiquement
+# club-hub et match-operations lisent `Card.period`. On l'ajoute automatiquement
 # si la colonne n'existe pas encore.
 # NB: on utilise l'utilisateur applicatif ($DB_USER, droits ALTER accordés sur
 # `foot`) plutôt que root, car le mot de passe root n'est valable qu'à la toute
@@ -101,37 +101,37 @@ fi
 # ── Nettoyage à la sortie (Ctrl+C arrête les applications) ──────────────────
 trap 'echo; echo "🛑 Arrêt des applications..."; kill 0' EXIT INT TERM
 
-# ── sso sur le port 3004 (authentification centralisée : émet le cookie JWT
+# ── identity sur le port 3004 (authentification centralisée : émet le cookie JWT
 # partagé par toutes les autres apps — doit tourner avant qu'un login soit
 # possible ailleurs) ──────────────────────────────────────────────────────────
-if [ -f "$ROOT_DIR/sso/.env.local" ]; then
-  echo "🚀 Lancement de sso sur http://localhost:3004 ..."
-  (cd "$ROOT_DIR/sso" && PORT=3004 pnpm run dev 2>&1 | sed -u 's/^/[sso]        /') &
+if [ -f "$ROOT_DIR/identity/.env.local" ]; then
+  echo "🚀 Lancement de identity sur http://localhost:3004 ..."
+  (cd "$ROOT_DIR/identity" && PORT=3004 pnpm run dev 2>&1 | sed -u 's/^/[identity]        /') &
 else
-  echo "⚠️  sso/.env.local absent : sso n'est pas démarré (copier sso/env.example → sso/.env.local pour l'activer). Les autres apps ne pourront pas authentifier tant qu'il ne tourne pas."
+  echo "⚠️  identity/.env.local absent : identity n’est pas démarré (copier identity/env.example → identity/.env.local pour l'activer). Les autres apps ne pourront pas authentifier tant qu'il ne tourne pas."
 fi
 
-# ── arbinote sur le port 3000 (site public de notation des arbitres : votes,
+# ── referee-center sur le port 3000 (site public de notation des arbitres : votes,
 # critères, anomalies, alertes, messages — remplace l'ancien ArbiNote) ───────
-echo "🚀 Lancement d'arbinote sur http://localhost:3000 ..."
-(cd "$ROOT_DIR/arbinote" && PORT=3000 pnpm run dev 2>&1 | sed -u 's/^/[arbinote]   /') &
+echo "🚀 Lancement d'referee-center sur http://localhost:3000 ..."
+(cd "$ROOT_DIR/referee-center" && PORT=3000 pnpm run dev 2>&1 | sed -u 's/^/[referee-center]   /') &
 
-# ── matchsheet sur le port 3001 (feuille de match électronique : avant-match,
+# ── match-operations sur le port 3001 (feuille de match électronique : avant-match,
 # live, après-match, signatures et événements) ───────────────────────────────
-echo "🚀 Lancement de matchsheet sur http://localhost:3001 ..."
-(cd "$ROOT_DIR/matchsheet" && PORT=3001 pnpm run dev 2>&1 | sed -u 's/^/[matchsheet] /') &
+echo "🚀 Lancement de match-operations sur http://localhost:3001 ..."
+(cd "$ROOT_DIR/match-operations" && PORT=3001 pnpm run dev 2>&1 | sed -u 's/^/[match-operations] /') &
 
-# ── superadmin sur le port 3002 (outil interne : référentiel fédérations/
+# ── federation-hub sur le port 3002 (outil interne : référentiel fédérations/
 # ligues/saisons/journées/équipes/matchs/arbitres, journal d'audit,
 # gestion des comptes clubs) ──────────────────────────────────────────────────
-echo "🚀 Lancement de superadmin sur http://localhost:3002 ..."
-(cd "$ROOT_DIR/superadmin" && PORT=3002 pnpm run dev 2>&1 | sed -u 's/^/[superadmin]  /') &
+echo "🚀 Lancement de federation-hub sur http://localhost:3002 ..."
+(cd "$ROOT_DIR/federation-hub" && PORT=3002 pnpm run dev 2>&1 | sed -u 's/^/[federation-hub]  /') &
 
-# ── teamManager sur le port 3003 (site/effectif/actualités par club ET module
+# ── club-hub sur le port 3003 (site/effectif/actualités par club ET module
 # discipline — cartons/suspensions/amendes/notes/audit/réglages, fusionné
 # depuis cardManager. Un seul déploiement partagé, chaque club se connecte
 # avec son propre compte `User`) ─────────────────────────────────────────────
-echo "🚀 Lancement de teamManager sur http://localhost:3003 ..."
-(cd "$ROOT_DIR/teamManager" && PORT=3003 pnpm run dev 2>&1 | sed -u 's/^/[teamManager] /') &
+echo "🚀 Lancement de club-hub sur http://localhost:3003 ..."
+(cd "$ROOT_DIR/club-hub" && PORT=3003 pnpm run dev 2>&1 | sed -u 's/^/[club-hub] /') &
 
 wait

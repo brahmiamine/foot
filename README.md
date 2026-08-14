@@ -8,17 +8,17 @@ Les ports ci-dessous sont ceux des scripts `package.json` (ou la valeur par déf
 
 | Projet | Rôle | Port local | Authentification |
 |---|---|---:|---|
-| [`sso`](./sso) | Identité centralisée staff/club et membre public, connexion Google comprise ; émet le cookie JWT partagé. | 3000 par défaut (3004 via `start.sh`) | Émetteur SSO ; identifiants ou Google |
-| [`arbinote`](./arbinote) | Notation publique des arbitres : votes, critères, classement, anomalies et alertes. | 3000 | Public anonyme/fingerprint ; back-office `SUPERADMIN` via SSO |
-| [`matchsheet`](./matchsheet) | Feuille de match électronique en kiosque : avant-match, live, événements, après-match et signatures. | 3000 par défaut (3001 via `start.sh`) | Aucune session utilisateur ; preuve par signature sur place |
-| [`superadmin`](./superadmin) | Référentiels plateforme, audit et comptes club. | 3000 par défaut (3002 via `start.sh`) | `SUPERADMIN` via SSO |
-| [`teamManager`](./teamManager) | Gestion d'un club : effectif, staff, discipline, contenus, boutique, sponsors, académie, billetterie admin et réglages. | 3000 par défaut (3003 via `start.sh`) | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
-| [`ob`](./ob) | Site public **custom** de l'Olympique de Béja et espace membre, consommateur de `notification-api`. | 3000 | Public ; `MEMBER` via SSO |
-| [`billetterie`](./billetterie) | Vente générique multi-clubs, catégories/règles/quota par match et espace « mes billets » ; paiement via `payment-api`. | 3000 | Public en consultation ; `MEMBER` via SSO pour acheter et consulter ses billets |
-| [`sellerPortal`](./sellerPortal) | UI vendeur marketplace : catalogue, variantes, stock, commandes, retours, payouts et notifications. | 3006 | Cookie vendeur propre (`SP_JWT_SECRET`), indépendant du SSO |
-| [`marketplace-api`](./marketplace-api) | API NestJS multi-vendeurs : inscription/connexion vendeur ; catégories club ; produits et variantes ; inventaire ; commandes et sous-commandes vendeur ; retours et payouts ; workflow de modération ; notifications vendeur internes. Les commandes, retours et payouts restent du scaffolding à lecture minimale. | 3011 | JWT vendeur Bearer (`SELLER_JWT_SECRET`) ; clé `x-api-key` (`SERVICE_API_KEYS`) pour `teamManager`, `sellerPortal` et autres backends internes |
-| [`payment-api`](./payment-api) | Paiement mutualisé NestJS : Konnect Network, Paymee et Flouci derrière une interface unique. | 3000 | Clé `x-api-key` de service (`SERVICE_API_KEYS`) |
-| [`notification-api`](./notification-api) | Notifications in-app, email et push, préférences, templates multilingues, BullMQ et idempotence. | 3010 | JWT SSO pour les routes utilisateur ; clé `x-api-key` de service en interne |
+| [`identity`](./identity) | Identité centralisée staff/club et membre public, connexion Google comprise ; émet le cookie JWT partagé. | 3000 par défaut (3004 via `start.sh`) | Émetteur SSO ; identifiants ou Google |
+| [`referee-center`](./referee-center) | Notation publique des arbitres : votes, critères, classement, anomalies et alertes. | 3000 | Public anonyme/fingerprint ; back-office `SUPERADMIN` via SSO |
+| [`match-operations`](./match-operations) | Feuille de match électronique en kiosque : avant-match, live, événements, après-match et signatures. | 3000 par défaut (3001 via `start.sh`) | Aucune session utilisateur ; preuve par signature sur place |
+| [`federation-hub`](./federation-hub) | Référentiels plateforme, audit et comptes club. | 3000 par défaut (3002 via `start.sh`) | `SUPERADMIN` via SSO |
+| [`club-hub`](./club-hub) | Gestion d’un club : effectif, staff, discipline, contenus, boutique, sponsors, académie, billetterie admin et réglages. | 3000 par défaut (3003 via `start.sh`) | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
+| [`club-ob`](./club-ob) | Site public **custom** de l'Olympique de Béja et espace membre, consommateur de `notifications`. | 3000 | Public ; `MEMBER` via SSO |
+| [`ticketing`](./ticketing) | Vente générique multi-clubs, catégories/règles/quota par match et espace « mes billets » ; paiement via `payments`. | 3000 | Public en consultation ; `MEMBER` via SSO pour acheter et consulter ses billets |
+| [`seller-portal`](./seller-portal) | UI vendeur marketplace : catalogue, variantes, stock, commandes, retours, payouts et notifications. | 3006 | Cookie vendeur propre (`SP_JWT_SECRET`), indépendant du SSO |
+| [`marketplace`](./marketplace) | API NestJS multi-vendeurs : inscription/connexion vendeur ; catégories club ; produits et variantes ; inventaire ; commandes et sous-commandes vendeur ; retours et payouts ; workflow de modération ; notifications vendeur internes. Les commandes, retours et payouts restent du scaffolding à lecture minimale. | 3011 | JWT vendeur Bearer (`SELLER_JWT_SECRET`) ; clé `x-api-key` (`SERVICE_API_KEYS`) pour `club-hub`, `seller-portal` et autres backends internes |
+| [`payments`](./payments) | Paiement mutualisé NestJS : Konnect Network, Paymee et Flouci derrière une interface unique. | 3000 | Clé `x-api-key` de service (`SERVICE_API_KEYS`) |
+| [`notifications`](./notifications) | Notifications in-app, email et push, préférences, templates multilingues, BullMQ et idempotence. | 3010 | JWT SSO pour les routes utilisateur ; clé `x-api-key` de service en interne |
 | [`db`](./db) | Dump SQL de référence du schéma partagé `foot`. | — | — |
 
 Le dépôt ne contient aucun dossier `skote` : il ne s'agit donc pas d'une application versionnée ici. Le suivi détaillé et les écarts connus se trouvent dans [`avancement.md`](./avancement.md).
@@ -27,42 +27,42 @@ Le dépôt ne contient aucun dossier `skote` : il ne s'agit donc pas d'une appli
 
 | Package | Statut et consommateurs | Exports / responsabilité |
 |---|---|---|
-| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les six applications clientes (`arbinote`, `matchsheet`, `superadmin`, `teamManager`, `ob`, `billetterie`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
+| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les six applications clientes (`referee-center`, `match-operations`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
 
 ## Composants partagés non déployables
 
-- [`packages/auth-shared`](./packages/auth-shared) — contrat et helpers de vérification des sessions JWT émises par `sso`, importés par les applications clientes.
+- [`packages/auth-shared`](./packages/auth-shared) — contrat et helpers de vérification des sessions JWT émises par `identity`, importés par les applications clientes.
 - [`db`](./db) — instantané SQL de la base partagée `foot`, inventaire des écarts avec les migrations et règles de propriété des domaines.
 
 ## Classification des projets — générique vs custom
 
-La règle de contribution est : **aucun composant générique ne connaît un club particulier**. Identité visuelle et contenu propres à l'Olympique de Béja restent dans `ob`; le contexte des applications génériques vient du `teamId` résolu côté serveur.
+La règle de contribution est : **aucun composant générique ne connaît un club particulier**. Identité visuelle et contenu propres à l'Olympique de Béja restent dans `club-ob`; le contexte des applications génériques vient du `teamId` résolu côté serveur.
 
 ```text
 GENERIC PLATFORM (multi-clubs)
 ├── Frontends Next.js
-│   ├── sso, arbinote, matchsheet, superadmin, teamManager
-│   ├── sellerPortal
-│   └── billetterie
+│   ├── identity, referee-center, match-operations, federation-hub, club-hub
+│   ├── seller-portal
+│   └── ticketing
 ├── APIs NestJS
-│   ├── payment-api
-│   ├── notification-api
-│   └── marketplace-api
+│   ├── payments
+│   ├── notifications
+│   └── marketplace
 ├── Package partagé
 │   └── packages/auth-shared
 └── Données de référence
     └── db
 
 CUSTOM APPLICATIONS
-└── ob — site vitrine + espace membre de l'Olympique de Béja
+└── club-ob — site vitrine + espace membre de l'Olympique de Béja
 ```
 
 | Projet | Type | Portée |
 |---|---|---|
-| `sso`, `superadmin`, `payment-api`, `notification-api`, `marketplace-api` | Générique | Services plateforme |
-| `teamManager`, `sellerPortal`, `billetterie`, `arbinote`, `matchsheet` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
+| `identity`, `federation-hub`, `payments`, `notifications`, `marketplace` | Générique | Services plateforme |
+| `club-hub`, `seller-portal`, `ticketing`, `referee-center`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
 | `packages/auth-shared`, `db` | Interne partagé | Code d'authentification et schéma de référence |
-| `ob` | Custom | Olympique de Béja uniquement |
+| `club-ob` | Custom | Olympique de Béja uniquement |
 
 Les éléments de marque génériques doivent venir de `ClubBranding` (`clubId`, `name`, `shortName`, `logo`, `favicon`, couleurs, police et metadata), résolu depuis le `teamId` authentifié et non depuis une valeur arbitraire du frontend.
 
@@ -70,27 +70,27 @@ Les éléments de marque génériques doivent venir de `ClubBranding` (`clubId`,
 
 | Domaine | Responsabilité | Intégrations observées / attendues |
 |---|---|---|
-| SSO | Identité staff, club et membre ; émission du cookie JWT. | `auth-shared` vérifie ce JWT dans les apps Next.js ; `teamManager`, `superadmin`, `arbinote`, `ob` et `billetterie` appliquent leurs rôles. L'identité vendeur marketplace reste séparée. |
-| Paiement | Initialisation et suivi Konnect/Paymee/Flouci. | `billetterie` l'appelle pour l'achat ; `marketplace-api` figure parmi les clients de service prévus ; un paiement confirmé peut émettre vers `notification-api` si configuré. |
-| Notifications | In-app/email/push, préférences et distribution asynchrone. | `ob` et `teamManager` consomment ses routes ; `payment-api` peut émettre `PAYMENT_SUCCEEDED`. Les notifications de modération de `marketplace-api` restent actuellement dans `sp_notifications`, en attente du branchement central. |
-| Marketplace | Vendeurs, catégories, catalogue/variantes, stock, modération, commandes, retours et reversements. | `sellerPortal` fournit l'UI vendeur et appelle les écritures produit par clé de service ; `teamManager` appelle la modération et les catégories ; données `sp_*` dans `foot`; paiement/notification centralisés sont les intégrations cibles. |
-| Billetterie | Catalogue de matchs, règles de vente, réservation, achat et billets d'un membre. | Réutilise les matchs et catégories `tk_*` de `foot`; administration dans `teamManager`; identité `MEMBER` du SSO; paiement via `payment-api`; `ob` redirige son espace billets vers cette app. |
-| Applications Next.js | Interfaces publiques, staff, vendeur et custom. | Elles ne réimplémentent pas les domaines NestJS : appels HTTP vers les APIs lorsque branchés, cookie SSO partagé via `auth-shared`, ou session vendeur distincte pour `sellerPortal`. |
+| SSO | Identité staff, club et membre ; émission du cookie JWT. | `auth-shared` vérifie ce JWT dans les apps Next.js ; `club-hub`, `federation-hub`, `referee-center`, `club-ob` et `ticketing` appliquent leurs rôles. L'identité vendeur marketplace reste séparée. |
+| Paiement | Initialisation et suivi Konnect/Paymee/Flouci. | `ticketing` l'appelle pour l'achat ; `marketplace` figure parmi les clients de service prévus ; un paiement confirmé peut émettre vers `notifications` si configuré. |
+| Notifications | In-app/email/push, préférences et distribution asynchrone. | `club-ob` et `club-hub` consomment ses routes ; `payments` peut émettre `PAYMENT_SUCCEEDED`. Les notifications de modération de `marketplace` restent actuellement dans `sp_notifications`, en attente du branchement central. |
+| Marketplace | Vendeurs, catégories, catalogue/variantes, stock, modération, commandes, retours et reversements. | `seller-portal` fournit l'UI vendeur et appelle les écritures produit par clé de service ; `club-hub` appelle la modération et les catégories ; données `sp_*` dans `foot`; paiement/notification centralisés sont les intégrations cibles. |
+| Billetterie | Catalogue de matchs, règles de vente, réservation, achat et billets d'un membre. | Réutilise les matchs et catégories `tk_*` de `foot`; administration dans `club-hub`; identité `MEMBER` du SSO; paiement via `payments`; `club-ob` redirige son espace billets vers cette app. |
+| Applications Next.js | Interfaces publiques, staff, vendeur et custom. | Elles ne réimplémentent pas les domaines NestJS : appels HTTP vers les APIs lorsque branchés, cookie SSO partagé via `auth-shared`, ou session vendeur distincte pour `seller-portal`. |
 
 ### Architecture des données actuelle
 
 ```mermaid
 flowchart TB
   Shared[(MariaDB foot)]
-  Payment[(Base payment-api)]
-  Notification[(Base notification-api)]
+  Payment[(Base payments)]
+  Notification[(Base notifications)]
   Redis[(Redis / BullMQ)]
 
-  Next[Next.js : sso, arbinote, matchsheet, superadmin, teamManager, ob, billetterie]
-  Seller[sellerPortal]
-  Market[marketplace-api]
-  Pay[payment-api]
-  Notify[notification-api]
+  Next[Next.js : identity, referee-center, match-operations, federation-hub, club-hub, club-ob, ticketing]
+  Seller[seller-portal]
+  Market[marketplace]
+  Pay[payments]
+  Notify[notifications]
 
   Next -->|référentiels, matchs, utilisateurs, tk_*| Shared
   Seller -->|lectures et tables sp_*| Shared
@@ -105,7 +105,7 @@ flowchart TB
   Next --> Market
 ```
 
-`marketplace-api` est déjà présente mais partage encore les tables `sp_*` avec `sellerPortal`; elle ne possède donc pas encore une base marketplace autonome. `payment-api` et `notification-api` ont leurs bases dédiées. La séparation du reste de `foot` par domaine est une architecture cible, pas l'état actuel.
+`marketplace` est déjà présente mais partage encore les tables `sp_*` avec `seller-portal`; elle ne possède donc pas encore une base marketplace autonome. `payments` et `notifications` ont leurs bases dédiées. La séparation du reste de `foot` par domaine est une architecture cible, pas l'état actuel.
 
 ### URLs et API Gateway cibles
 
@@ -113,34 +113,34 @@ Aucun domaine DNS/SSL/reverse proxy ci-dessous n'est configuré par ce dépôt.
 
 | Domaine cible | Routage |
 |---|---|
-| `www.ob.tn` | `ob` custom |
-| `sso.platform.tn` | `sso` |
-| `admin.platform.tn` | `teamManager` multi-clubs |
-| `sellers.platform.tn` | `sellerPortal` multi-clubs |
-| `tickets.platform.tn` | `billetterie` multi-clubs |
-| `superadmin.platform.tn` | `superadmin` |
+| `www.ob.tn` | `club-ob` custom |
+| `sso.platform.tn` | `identity` |
+| `admin.platform.tn` | `club-hub` multi-clubs |
+| `sellers.platform.tn` | `seller-portal` multi-clubs |
+| `tickets.platform.tn` | `ticketing` multi-clubs |
+| `federation-hub.platform.tn` | `federation-hub` |
 | `scanner.platform.tn` | Contrôle billet, **application absente du dépôt** |
 | `api.platform.tn` | Passerelle cible, **absente de l'infrastructure actuelle** |
 
 La passerelle doit garder un domaine unique et router par chemin vers les services réellement présents :
 
 ```text
-api.platform.tn/payment/*       → payment-api
-api.platform.tn/notifications/* → notification-api
-api.platform.tn/marketplace/*   → marketplace-api
-api.platform.tn/ticketing/*     → billetterie (routes serveur/API de l'app Next.js)
+api.platform.tn/payment/*       → payments
+api.platform.tn/notifications/* → notifications
+api.platform.tn/marketplace/*   → marketplace
+api.platform.tn/ticketing/*     → ticketing (routes serveur/API de l'app Next.js)
 ```
 
-Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparément et `billetterie` est une app Next.js séparée. Le slug club éventuel (`tickets.platform.tn/ob`) doit être résolu côté serveur en `teamId`; il ne constitue ni un déploiement ni une autorisation. De même, `admin.platform.tn` et `sellers.platform.tn` servent tous les clubs, avec contenu et branding déterminés par le contexte authentifié.
+Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparément et `ticketing` est une app Next.js séparée. Le slug club éventuel (`tickets.platform.tn/ob`) doit être résolu côté serveur en `teamId`; il ne constitue ni un déploiement ni une autorisation. De même, `admin.platform.tn` et `sellers.platform.tn` servent tous les clubs, avec contenu et branding déterminés par le contexte authentifié.
 
 ## Démarrage local
 
 ### Prérequis
 
 - Bash, Docker actif et les images `mariadb:latest` / `phpmyadmin/phpmyadmin` disponibles ;
-- `pnpm` et les dépendances déjà installées dans chacun de `sso`, `arbinote`, `matchsheet`, `superadmin` et `teamManager` ;
-- `arbinote/.env.local`, créé depuis `arbinote/.env.example`, avec au minimum `DB_USER`, `DB_PASSWORD` et `DB_ROOT_PASSWORD` : le script s'arrête immédiatement si l'un manque ;
-- pour activer le SSO, `sso/.env.local`, créé avec `cp sso/.env.example sso/.env.local` puis complété. Son absence n'arrête pas le script, mais `sso` n'est pas lancé ;
+- `pnpm` et les dépendances déjà installées dans chacun de `identity`, `referee-center`, `match-operations`, `federation-hub` et `club-hub` ;
+- `referee-center/.env.local`, créé depuis `referee-center/.env.example`, avec au minimum `DB_USER`, `DB_PASSWORD` et `DB_ROOT_PASSWORD` : le script s'arrête immédiatement si l'un manque ;
+- pour activer le SSO, `identity/.env.local`, créé avec `cp identity/.env.example identity/.env.local` puis complété. Son absence n'arrête pas le script, mais `identity` n'est pas lancé ;
 - les `.env.local` propres aux autres apps Next.js, à créer depuis leurs `.env.example` selon leurs besoins. Le script ne les crée ni ne les valide.
 
 ```bash
@@ -151,29 +151,29 @@ Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparé
 
 | Service | Port injecté par `start.sh` |
 |---|---:|
-| `arbinote` | 3000 |
-| `matchsheet` | 3001 |
-| `superadmin` | 3002 |
-| `teamManager` | 3003 |
-| `sso` (seulement si `sso/.env.local` existe) | 3004 |
+| `referee-center` | 3000 |
+| `match-operations` | 3001 |
+| `federation-hub` | 3002 |
+| `club-hub` | 3003 |
+| `identity` (seulement si `identity/.env.local` existe) | 3004 |
 
-`ob`, `billetterie`, `sellerPortal`, `marketplace-api`, `payment-api` et `notification-api` ne sont pas lancés. Démarrez-les depuis leur dossier, après copie de leur `.env.example` vers le fichier demandé par l'application (`.env.local` pour Next.js, `.env` pour les APIs NestJS). Attention : plusieurs scripts Next.js et `payment-api` utilisent 3000 par défaut ; choisissez `PORT` ou l'option du framework pour éviter une collision. `sellerPortal`, `notification-api` et `marketplace-api` fixent respectivement 3006, 3010 et 3011.
+`club-ob`, `ticketing`, `seller-portal`, `marketplace`, `payments` et `notifications` ne sont pas lancés. Démarrez-les depuis leur dossier, après copie de leur `.env.example` vers le fichier demandé par l'application (`.env.local` pour Next.js, `.env` pour les APIs NestJS). Attention : plusieurs scripts Next.js et `payments` utilisent 3000 par défaut ; choisissez `PORT` ou l'option du framework pour éviter une collision. `seller-portal`, `notifications` et `marketplace` fixent respectivement 3006, 3010 et 3011.
 
 ## Architecture partagée
 
-- **Authentification** : `sso` émet le cookie `foot_sso_session` (nom configurable), JWT HS256 issuer `foot-sso`. `packages/auth-shared` centralise sa vérification et sa révocation dans les six clients. `matchsheet` conserve un fonctionnement kiosque sans exigence de connexion malgré la disponibilité du helper partagé.
-- **Billetterie** : l'identité `MEMBER` est globale ; le `teamId` d'un billet désigne l'organisateur, pas le club favori de l'acheteur. Les catégories et `TicketSaleRule` sont configurées par club dans `teamManager`, puis vendues par `billetterie`.
-- **PWA** : `teamManager` et `matchsheet` fournissent manifest et service worker ; la synchronisation offline des écritures reste à faire. Le suivi correspondant est dans [`avancement.md`](./avancement.md).
+- **Authentification** : `identity` émet le cookie `foot_sso_session` (nom configurable), JWT HS256 issuer `foot-sso`. `packages/auth-shared` centralise sa vérification et sa révocation dans les six clients. `match-operations` conserve un fonctionnement kiosque sans exigence de connexion malgré la disponibilité du helper partagé.
+- **Billetterie** : l'identité `MEMBER` est globale ; le `teamId` d'un billet désigne l'organisateur, pas le club favori de l'acheteur. Les catégories et `TicketSaleRule` sont configurées par club dans `club-hub`, puis vendues par `ticketing`.
+- **PWA** : `club-hub` et `match-operations` fournissent manifest et service worker ; la synchronisation offline des écritures reste à faire. Le suivi correspondant est dans [`avancement.md`](./avancement.md).
 - **État détaillé** : les fonctionnalités et processus encore incomplets, notamment l'unification marketplace et les intégrations inter-services, sont suivis dans [`avancement.md`](./avancement.md), seul document de suivi présent à la racine.
 
 ## Points nécessitant une intervention manuelle
 
 Ce qui suit ne peut pas être fait depuis ce repo seul et doit être traité séparément (infra/DNS/secrets) :
 
-- **DNS / SSL / reverse proxy** : aucun des domaines cibles (`www.ob.tn`, `sso.platform.tn`, `admin.platform.tn`, `sellers.platform.tn`, `tickets.platform.tn`, `scanner.platform.tn`, `api.platform.tn`, `superadmin.platform.tn`) n'existe aujourd'hui — achat/délégation de domaine, certificats et configuration Nginx/Traefik sont à faire hors repo.
-- **`SSO_COOKIE_DOMAIN`** : pour un cookie SSO partagé entre plusieurs sous-domaines `*.platform.tn` (`admin.`, `sellers.`, `tickets.`, `scanner.`, `superadmin.`, …), cette variable (déjà supportée par `sso`, voir son README) doit être positionnée en production sur le domaine parent (`.platform.tn`), avec `HttpOnly`, `Secure` et `SameSite=Lax`. Vérifier aussi le domaine séparé `ob.tn`, hors du périmètre `*.platform.tn`, qui ne peut pas partager ce cookie sans mécanisme dédié (SSO cross-domaine, à concevoir si le besoin apparaît). Ne pas mélanger ce cookie avec celui de `sellerPortal` (`SP_JWT_SECRET`, cookie propre) : un vendeur n'est pas un utilisateur `sso`, les deux identités et les deux cookies doivent rester indépendants même une fois tous les sous-domaines déployés sous `.platform.tn`.
-- **CORS** : chaque app back-end (`payment-api`, `notification-api`, `marketplace-api`, `sso`) doit avoir ses origines autorisées mises à jour avec les domaines de production définitifs une fois connus.
-- **Callback OAuth (Google)** : `sso` gère la connexion Google — les URIs de redirection autorisées côté Google Cloud Console devront être mises à jour pour `https://sso.platform.tn/...` en production.
+- **DNS / SSL / reverse proxy** : aucun des domaines cibles (`www.ob.tn`, `sso.platform.tn`, `admin.platform.tn`, `sellers.platform.tn`, `tickets.platform.tn`, `scanner.platform.tn`, `api.platform.tn`, `federation-hub.platform.tn`) n'existe aujourd'hui — achat/délégation de domaine, certificats et configuration Nginx/Traefik sont à faire hors repo.
+- **`SSO_COOKIE_DOMAIN`** : pour un cookie SSO partagé entre plusieurs sous-domaines `*.platform.tn` (`admin.`, `sellers.`, `tickets.`, `scanner.`, `federation-hub.`, …), cette variable (déjà supportée par `identity`, voir son README) doit être positionnée en production sur le domaine parent (`.platform.tn`), avec `HttpOnly`, `Secure` et `SameSite=Lax`. Vérifier aussi le domaine séparé `ob.tn`, hors du périmètre `*.platform.tn`, qui ne peut pas partager ce cookie sans mécanisme dédié (SSO cross-domaine, à concevoir si le besoin apparaît). Ne pas mélanger ce cookie avec celui de `seller-portal` (`SP_JWT_SECRET`, cookie propre) : un vendeur n'est pas un utilisateur `identity`, les deux identités et les deux cookies doivent rester indépendants même une fois tous les sous-domaines déployés sous `.platform.tn`.
+- **CORS** : chaque app back-end (`payments`, `notifications`, `marketplace`, `identity`) doit avoir ses origines autorisées mises à jour avec les domaines de production définitifs une fois connus.
+- **Callback OAuth (Google)** : `identity` gère la connexion Google — les URIs de redirection autorisées côté Google Cloud Console devront être mises à jour pour `https://sso.platform.tn/...` en production.
 - **Secrets/variables d'environnement** : `SSO_JWT_SECRET`, `SP_JWT_SECRET`, `SELLER_JWT_SECRET`, `SERVICE_API_KEYS`, clés des providers de paiement (Konnect/Paymee/Flouci) et clés push (VAPID) doivent être générées/gérées via un secret manager en production — aucune valeur réelle n'est commitée (seuls des `*.env.example` existent), mais leur provisioning reste une action manuelle par environnement.
-- **`sellerPortal` multi-clubs — backfill en production** : le scoping applicatif est fait (voir `sellerPortal/README.md` § « Portée V1 »), mais une installation déjà en production doit exécuter `sellerPortal/sql/migration_add_club_id.sql` puis backfiller manuellement `club_id` sur les lignes existantes de `sp_sellers`/`sp_product_categories` avant de compter dessus pour filtrer une requête — nécessite une décision produit sur la stratégie de migration (quel club pour quelles lignes existantes) avant toute exécution en base de production.
-- **`ClubBranding` — personnalisation des icônes PWA par club** : nom/couleurs/favicon sont résolus dynamiquement (`superadmin`, `teamManager`, `sellerPortal`), mais les icônes PWA (`icon-192x192.png`, `icon-512x512.png`) restent des assets statiques partagés par tous les clubs — les personnaliser demanderait de valider des images fournies par chaque club (formats/tailles requis pour rester installable), hors périmètre de cette normalisation.
+- **`seller-portal` multi-clubs — backfill en production** : le scoping applicatif est fait (voir `seller-portal/README.md` § « Portée V1 »), mais une installation déjà en production doit exécuter `seller-portal/sql/migration_add_club_id.sql` puis backfiller manuellement `club_id` sur les lignes existantes de `sp_sellers`/`sp_product_categories` avant de compter dessus pour filtrer une requête — nécessite une décision produit sur la stratégie de migration (quel club pour quelles lignes existantes) avant toute exécution en base de production.
+- **`ClubBranding` — personnalisation des icônes PWA par club** : nom/couleurs/favicon sont résolus dynamiquement (`federation-hub`, `club-hub`, `seller-portal`), mais les icônes PWA (`icon-192x192.png`, `icon-512x512.png`) restent des assets statiques partagés par tous les clubs — les personnaliser demanderait de valider des images fournies par chaque club (formats/tailles requis pour rester installable), hors périmètre de cette normalisation.

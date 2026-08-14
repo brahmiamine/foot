@@ -1,0 +1,49 @@
+:root {
+  /* Palette alignee sur ob (Olympique de Beja) : rouge #c8102e en couleur
+     de marque primaire, fond quasi-noir et texte creme — reprise a
+     l'identique dans federation-hub/club-hub/ticketing/seller-portal pour
+     qu'un utilisateur circulant entre les apps reconnaisse la meme marque. */
+  --sso-bg: #0d0d0d;
+  --sso-card: #171717;
+  --sso-border: #2a2a2a;
+  --sso-text: #f5f2ee;
+  --sso-muted: #c9c4bd;
+  --sso-accent: #c8102e;
+  --sso-accent-hover: #e2213f;
+  --sso-error: #ff8a94;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--sso-bg);
+  color: var(--sso-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--sso-accent);
+  outline-offset: 2px;
+}
+
+/* Internationalisation: logical positioning keeps both writing directions usable. */
+.language-selector { position: fixed; inset-block-start: .75rem; inset-inline-end: .75rem; z-index: 1000; }
+.language-selector select { padding-block: .4rem; padding-inline: .65rem; }
+[dir="rtl"] { text-align: start; }
+[dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] select { text-align: start; }

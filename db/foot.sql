@@ -1655,7 +1655,7 @@ CREATE TABLE `_prisma_migrations` (
 --
 
 INSERT INTO `_prisma_migrations` (`id`, `checksum`, `finished_at`, `migration_name`, `logs`, `rolled_back_at`, `started_at`, `applied_steps_count`) VALUES
-('6e06b8f6-3fc1-47d9-8fd4-2335549a0912', 'f6768d007c2f62c63626c3d065372a03956f6fc8db449cedc6ec3caf6ff4904d', '2026-08-02 14:13:00.509', '20260802000000_merged_with_arbinote', '', NULL, '2026-08-02 14:13:00.509', 0),
+('6e06b8f6-3fc1-47d9-8fd4-2335549a0912', 'f6768d007c2f62c63626c3d065372a03956f6fc8db449cedc6ec3caf6ff4904d', '2026-08-02 14:13:00.509', '20260802000000_merged_with_referee-center', '', NULL, '2026-08-02 14:13:00.509', 0),
 ('d0d4f11d-0822-44a6-9884-f003feed2564', 'a10948e102d3a8b515ac0de30028fcbca4bb7ba80bbe5b3b51f5fc7e89630f72', '2026-08-02 14:38:45.892', '20260802010000_multitenant_teams', '', NULL, '2026-08-02 14:38:45.892', 0);
 
 --

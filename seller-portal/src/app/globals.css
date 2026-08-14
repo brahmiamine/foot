@@ -1,0 +1,82 @@
+:root {
+  --sp-bg: #f4f6f9;
+  --sp-surface: #ffffff;
+  --sp-surface-alt: #f8fafc;
+  --sp-border: #e2e8f0;
+  --sp-text: #0f172a;
+  --sp-text-muted: #64748b;
+  --sp-text-subtle: #94a3b8;
+
+  /* Palette alignee sur ob (Olympique de Beja), meme rouge de marque que
+     identity/federation-hub/club-hub/ticketing. */
+  --sp-primary: #c8102e;
+  --sp-primary-dark: #a10d25;
+  --sp-primary-soft: #ffd9de;
+
+  --sp-accent: #b8860b;
+  --sp-danger: #dc2626;
+  --sp-danger-soft: #fee2e2;
+  --sp-warning: #d97706;
+  --sp-warning-soft: #fef3c7;
+  --sp-success: #16a34a;
+  --sp-success-soft: #dcfce7;
+  --sp-info: #2563eb;
+  --sp-info-soft: #dbeafe;
+  --sp-neutral-soft: #f1f5f9;
+
+  --sp-sidebar-bg: #0d0d0d;
+  --sp-sidebar-text: #c9c4bd;
+  --sp-sidebar-text-active: #ffffff;
+  --sp-sidebar-active-bg: #2a0a0f;
+
+  --sp-radius-sm: 6px;
+  --sp-radius-md: 10px;
+  --sp-radius-lg: 14px;
+  --sp-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --sp-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  --sp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  font-family: var(--sp-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+::selection {
+  background: var(--sp-primary-soft);
+}
+
+/* Internationalisation: logical positioning keeps both writing directions usable. */
+.language-selector { position: fixed; inset-block-start: .75rem; inset-inline-end: .75rem; z-index: 1000; }
+.language-selector select { padding-block: .4rem; padding-inline: .65rem; }
+[dir="rtl"] { text-align: start; }
+[dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] select { text-align: start; }

@@ -1,0 +1,602 @@
+@import url("/css/bootstrap.min.css");
+@import url("/css/all.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap");
+
+/* Club-branded admin theme for club-hub (/admin only) — palette taken from
+ * ob (Olympique de Beja), la source de verite de la marque rouge partagee
+ * par identity/federation-hub/club-hub/ticketing/seller-portal, "Bebas Neue"
+ * display face) instead of the generic Skote indigo, so the admin panel
+ * reads as the same product. */
+
+:root {
+  --skote-body-bg: #f4f6f8;
+  --skote-body-color: #3d4650;
+  --skote-font-ui: "Manrope", "Segoe UI", sans-serif;
+  --skote-font-display: "Bebas Neue", "Manrope", sans-serif;
+  --skote-primary: #c8102e;
+  --skote-primary-rgb: 200, 16, 46;
+  --skote-primary-dark: #a10d25;
+  --skote-secondary: #64748b;
+  --skote-success: #3fa772;
+  --skote-info: #4a90a4;
+  --skote-warning: #d99a3d;
+  --skote-danger: #d6455a;
+  --skote-dark: #0d0d0d;
+  --skote-sidebar-bg: #0d0d0d;
+  --skote-sidebar-menu-item: #c9c4bd;
+  --skote-sidebar-menu-item-active: #ffffff;
+  --skote-sidebar-menu-item-active-bg: rgba(200, 16, 46, 0.22);
+  --skote-topbar-bg: #ffffff;
+  --skote-topbar-height: 70px;
+  --skote-border: #e7ebf0;
+  --skote-card-bg: #ffffff;
+  --skote-card-shadow: 0 1px 2px rgba(11, 31, 46, 0.04), 0 8px 20px -12px rgba(11, 31, 46, 0.14);
+  --skote-card-shadow-hover: 0 1px 2px rgba(11, 31, 46, 0.05), 0 14px 28px -14px rgba(11, 31, 46, 0.2);
+  --skote-radius-sm: 0.4rem;
+  --skote-radius-md: 0.65rem;
+  --skote-radius-lg: 1rem;
+
+  /* Retint Bootstrap's own semantic variables so every .btn-primary,
+     .text-danger, .badge.bg-* etc. across the ~20 admin pages picks up the
+     brand palette automatically, without touching each page. */
+  --bs-primary: var(--skote-primary);
+  --bs-primary-rgb: var(--skote-primary-rgb);
+  --bs-secondary: var(--skote-secondary);
+  --bs-success: var(--skote-success);
+  --bs-success-rgb: 63, 167, 114;
+  --bs-info: var(--skote-info);
+  --bs-info-rgb: 74, 144, 164;
+  --bs-warning: var(--skote-warning);
+  --bs-warning-rgb: 217, 154, 61;
+  --bs-danger: var(--skote-danger);
+  --bs-danger-rgb: 214, 69, 90;
+  --bs-dark: var(--skote-dark);
+  --bs-link-color: var(--skote-primary);
+  --bs-link-hover-color: var(--skote-primary-dark);
+  --bs-border-radius: var(--skote-radius-sm);
+  --bs-border-radius-lg: var(--skote-radius-md);
+  --bs-body-font-family: var(--skote-font-ui);
+}
+
+.skote-admin {
+  min-height: 100vh;
+  background: var(--skote-body-bg);
+  color: var(--skote-body-color);
+  font-family: var(--skote-font-ui);
+}
+
+.skote-admin .page-content {
+  min-height: calc(100vh - var(--skote-topbar-height));
+  padding: 24px;
+}
+
+@media (max-width: 991.98px) {
+  .skote-admin .page-content {
+    padding: 16px;
+  }
+}
+
+.skote-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--skote-topbar-height);
+  border-bottom: 1px solid var(--skote-border);
+  background: var(--skote-topbar-bg);
+}
+
+#page-topbar {
+  background: var(--skote-topbar-bg);
+  border-bottom: 1px solid var(--skote-border);
+  box-shadow: 0 1px 0 rgba(11, 31, 46, 0.03), 0 6px 16px -12px rgba(11, 31, 46, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 1010;
+}
+
+#page-topbar .navbar-header {
+  height: var(--skote-topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+}
+
+@media (min-width: 992px) {
+  #page-topbar .navbar-header {
+    padding: 0 1.5rem;
+  }
+}
+
+.skote-topbar-title {
+  color: var(--skote-dark);
+  font-family: var(--skote-font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+  margin: 0;
+}
+
+.vertical-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1040;
+  height: 100vh;
+  width: 250px;
+  min-width: 250px;
+  background: var(--skote-sidebar-bg);
+  color: var(--skote-sidebar-menu-item);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease, width 0.2s ease, min-width 0.2s ease;
+  overflow: hidden;
+}
+
+.vertical-menu.vertical-menu-open {
+  transform: translateX(0);
+}
+
+@media (min-width: 992px) {
+  .vertical-menu {
+    position: sticky;
+    transform: translateX(0) !important;
+    flex-shrink: 0;
+  }
+
+  .vertical-menu.vertical-menu-collapsed {
+    width: 76px;
+    min-width: 76px;
+  }
+}
+
+.vertical-menu .navbar-brand-box {
+  height: var(--skote-topbar-height);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  position: relative;
+}
+
+.vertical-menu .navbar-brand-box::after {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--skote-primary), transparent);
+}
+
+.vertical-menu .logo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: #fff;
+  width: 100%;
+  overflow: hidden;
+}
+
+.vertical-menu .logo-sm {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--skote-radius-sm);
+  background: var(--skote-primary);
+  color: #fff;
+  font-family: var(--skote-font-display);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.vertical-menu .logo-lg {
+  color: #fff;
+  font-family: var(--skote-font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.vertical-menu #sidebar-menu {
+  height: calc(100vh - var(--skote-topbar-height) - 44px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(166, 176, 207, 0.45) transparent;
+}
+
+.vertical-menu #sidebar-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vertical-menu #sidebar-menu::-webkit-scrollbar-thumb {
+  background: rgba(166, 176, 207, 0.45);
+  border-radius: 100px;
+}
+
+.vertical-menu #sidebar-menu .metismenu {
+  padding: 0.75rem 0.5rem;
+  margin: 0;
+}
+
+.vertical-menu #sidebar-menu .menu-title {
+  color: #6f7d9b;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 0.65rem 0.65rem 0.35rem;
+}
+
+.vertical-menu #sidebar-menu li a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--skote-sidebar-menu-item);
+  font-size: 0.9rem;
+  border-radius: var(--skote-radius-sm);
+  padding: 0.6rem 0.65rem;
+  min-height: 42px;
+  text-decoration: none;
+  position: relative;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.vertical-menu #sidebar-menu li a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.vertical-menu #sidebar-menu li.mm-active > a,
+.vertical-menu #sidebar-menu li a.active {
+  color: #fff;
+  background: var(--skote-sidebar-menu-item-active-bg);
+}
+
+.vertical-menu #sidebar-menu li.mm-active > a::before,
+.vertical-menu #sidebar-menu li a.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--skote-primary);
+}
+
+.vertical-menu #sidebar-menu li a i:first-child {
+  width: 1.1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.vertical-menu #sidebar-menu li.mm-active > a i:first-child,
+.vertical-menu #sidebar-menu li a.active i:first-child {
+  color: #ef7674;
+}
+
+.vertical-menu #sidebar-menu .menu-arrow {
+  margin-left: auto;
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
+.vertical-menu #sidebar-menu .sub-menu {
+  margin: 0.2rem 0 0.35rem;
+  padding-left: 1.8rem;
+}
+
+.vertical-menu #sidebar-menu .sub-menu li a {
+  font-size: 0.84rem;
+  padding: 0.38rem 0.45rem;
+  color: #8f9bb7;
+}
+
+.vertical-menu #sidebar-menu .sub-menu li a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.vertical-menu #sidebar-menu .sub-menu li a.active {
+  color: #fff;
+  background: var(--skote-sidebar-menu-item-active-bg);
+}
+
+.vertical-menu.vertical-menu-collapsed .logo-lg,
+.vertical-menu.vertical-menu-collapsed #sidebar-menu .menu-title,
+.vertical-menu.vertical-menu-collapsed #sidebar-menu .menu-arrow,
+.vertical-menu.vertical-menu-collapsed #sidebar-menu .sub-menu,
+.vertical-menu.vertical-menu-collapsed #sidebar-menu li a span,
+.vertical-menu.vertical-menu-collapsed .sidebar-footer .small {
+  display: none !important;
+}
+
+.vertical-menu.vertical-menu-collapsed #sidebar-menu li a {
+  justify-content: center;
+}
+
+.vertical-menu .sidebar-footer {
+  height: 44px;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.skote-sidebar-brand {
+  min-height: var(--skote-topbar-height);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.skote-sidebar-brand-name {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.skote-menu-title {
+  color: #6f7d9b;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin: 0.9rem 0.85rem 0.45rem;
+}
+
+.skote-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--skote-sidebar-menu-item);
+  font-size: 0.9rem;
+  border-radius: 0.35rem;
+  padding: 0.55rem 0.85rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.skote-sidebar-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.skote-sidebar-link.active {
+  color: var(--skote-sidebar-menu-item-active);
+  background: var(--skote-sidebar-menu-item-active-bg);
+}
+
+.skote-sidebar-link .menu-icon {
+  width: 1.1rem;
+  text-align: center;
+}
+
+.skote-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1039;
+}
+
+.skote-content {
+  min-width: 0;
+  flex: 1;
+  width: 100%;
+}
+
+.skote-admin .card,
+.skote-admin .bg-white.rounded-lg.shadow.border.border-gray-200 {
+  border: 0 !important;
+  box-shadow: var(--skote-card-shadow) !important;
+  border-radius: var(--skote-radius-md) !important;
+  background: var(--skote-card-bg) !important;
+  transition: box-shadow 0.25s ease;
+}
+
+.skote-admin .card-header,
+.skote-admin .px-5.py-4.border-b.border-gray-200 {
+  background-color: transparent;
+  border-bottom: 1px solid var(--skote-border) !important;
+  padding: 1rem 1.25rem;
+  font-family: var(--skote-font-ui);
+}
+
+.skote-admin .card-body {
+  padding: 1.25rem;
+}
+
+.skote-admin .btn {
+  border-radius: var(--skote-radius-sm);
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.skote-admin .btn:active {
+  transform: scale(0.98);
+}
+
+.skote-admin .btn-primary {
+  background: var(--skote-primary);
+  border-color: var(--skote-primary);
+}
+
+.skote-admin .btn-primary:hover,
+.skote-admin .btn-primary:focus {
+  background: var(--skote-primary-dark);
+  border-color: var(--skote-primary-dark);
+  box-shadow: 0 6px 14px -6px rgba(var(--skote-primary-rgb), 0.55);
+  transform: translateY(-1px);
+}
+
+.skote-admin .btn-outline-primary {
+  color: var(--skote-primary);
+  border-color: var(--skote-primary);
+}
+
+.skote-admin .btn-outline-primary:hover {
+  background: var(--skote-primary);
+  border-color: var(--skote-primary);
+  transform: translateY(-1px);
+}
+
+.skote-admin .btn-soft-primary {
+  color: var(--skote-primary);
+  background: rgba(var(--skote-primary-rgb), 0.1);
+  border-color: transparent;
+}
+
+.skote-admin .btn-soft-primary:hover {
+  color: #fff;
+  background: var(--skote-primary);
+  transform: translateY(-1px);
+}
+
+.skote-admin .btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(var(--skote-primary-rgb), 0.25);
+}
+
+.skote-admin .table {
+  color: var(--skote-body-color);
+  margin-bottom: 0;
+}
+
+.skote-admin .table > :not(caption) > * > * {
+  border-bottom-color: var(--skote-border);
+}
+
+.skote-admin .table > thead {
+  background: #f4f6f8;
+}
+
+.skote-admin .table > thead th {
+  color: #5b6570;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  border-bottom-width: 1px;
+  white-space: nowrap;
+}
+
+.skote-admin .table > tbody > tr:hover {
+  background-color: rgba(11, 31, 46, 0.02);
+}
+
+.skote-admin .badge {
+  font-weight: 600;
+  border-radius: var(--skote-radius-sm);
+}
+
+.skote-admin .form-control,
+.skote-admin .form-select,
+.skote-admin input,
+.skote-admin select,
+.skote-admin textarea {
+  border-color: #d6d6e0;
+}
+
+.skote-admin .form-control:focus,
+.skote-admin .form-select:focus,
+.skote-admin input:focus,
+.skote-admin select:focus,
+.skote-admin textarea:focus {
+  border-color: rgba(var(--skote-primary-rgb), 0.65);
+  box-shadow: 0 0 0 0.15rem rgba(var(--skote-primary-rgb), 0.15);
+}
+
+.skote-admin .text-muted,
+.skote-admin .text-gray-500 {
+  color: #74788d !important;
+}
+
+.skote-admin .text-gray-900 {
+  color: #343a40 !important;
+}
+
+.skote-admin .admin-kpi-card {
+  border: 0;
+  border-radius: var(--skote-radius-lg);
+  padding: 1.15rem 1.25rem;
+  background: #fff;
+  box-shadow: var(--skote-card-shadow);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.skote-admin .admin-kpi-card:hover {
+  box-shadow: var(--skote-card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.skote-admin .admin-kpi-value {
+  color: var(--skote-dark);
+  font-family: var(--skote-font-display);
+  font-size: 2.1rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+.skote-admin .admin-kpi-label {
+  color: #74788d;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  margin-top: 0.3rem;
+}
+
+.skote-admin .admin-alert-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.skote-admin .admin-alert-list li {
+  padding: 0.3rem 0;
+  border-bottom: 1px dashed #edf0f5;
+}
+
+.skote-admin .admin-alert-list li:last-child {
+  border-bottom: 0;
+}
+
+.skote-admin .skote-form-narrow {
+  max-width: 860px;
+}
+
+.skote-admin .skote-settings-narrow {
+  max-width: 980px;
+}
+
+.skote-admin .skote-preview-img-300 {
+  max-width: 300px;
+  max-height: 300px;
+  object-fit: contain;
+}
+
+.skote-admin .skote-preview-img-200 {
+  max-width: 200px;
+  max-height: 200px;
+  object-fit: cover;
+}
+
+.skote-admin .skote-avatar-img,
+.skote-admin .skote-avatar-placeholder {
+  width: 50px;
+  height: 50px;
+}
+
+.skote-admin .skote-avatar-img {
+  object-fit: cover;
+}
+
+.skote-admin .skote-row-inactive {
+  opacity: 0.5;
+}
+
+.skote-admin .skote-input-w-80 {
+  width: 80px;
+}

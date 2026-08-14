@@ -12,151 +12,151 @@
 # les rejouer.
 #
 # Volontairement exclus de ce fichier (voir db/migrate.sh en tête) :
-# - les dumps de schéma complets (superadmin/mysql/arbitres.sql,
-#   teamManager/sql/olympique_beja_db_complete.sql) : déjà couverts par
+# - les dumps de schéma complets (federation-hub/mysql/arbitres.sql,
+#   club-hub/sql/olympique_beja_db_complete.sql) : déjà couverts par
 #   db/foot.sql, pas des deltas ;
-# - superadmin/mysql/drop-old-schema.sql : destructif (DROP TABLE), jamais
+# - federation-hub/mysql/drop-old-schema.sql : destructif (DROP TABLE), jamais
 #   à rejouer automatiquement ;
-# - les fichiers de données d'exemple/seed (teamManager/sql/seed_*.sql,
+# - les fichiers de données d'exemple/seed (club-hub/sql/seed_*.sql,
 #   insert_*_example.sql) : données de démo, pas du schéma ;
-# - arbinote/migrations/*.sql et arbinote/mysql/*.sql : copies identiques
-#   (voir `diff`) des fichiers superadmin/migrations et superadmin/mysql
+# - referee-center/migrations/*.sql et referee-center/mysql/*.sql : copies identiques
+#   (voir `diff`) des fichiers federation-hub/migrations et federation-hub/mysql
 #   correspondants — un seul exemplaire de chaque référencé ici, pour ne
 #   pas rejouer deux fois la même altération.
-# - matchsheet/sql/migration_add_card_unique_constraint.sql : copie
-#   identique de teamManager/sql/migration_add_card_unique_constraint.sql
-#   (référencé ci-dessus, section teamManager) — même altération de `Card`,
+# - match-operations/sql/migration_add_card_unique_constraint.sql : copie
+#   identique de club-hub/sql/migration_add_card_unique_constraint.sql
+#   (référencé ci-dessus, section club-hub) — même altération de `Card`,
 #   voir db/OWNERSHIP.md "Card a deux écrivains".
-# - teamManager/sql/migration_add_team_gender_and_youth_categories.sql :
+# - club-hub/sql/migration_add_team_gender_and_youth_categories.sql :
 #   copie identique de
-#   superadmin/mysql/migration_add_team_gender_and_youth_categories.sql
-#   (référencé ci-dessus, section superadmin).
+#   federation-hub/mysql/migration_add_team_gender_and_youth_categories.sql
+#   (référencé ci-dessus, section federation-hub).
 #
-# Ordre : par app dans un ordre de dépendance de domaine best-effort (sso
-# avant superadmin avant les apps qui dépendent du référentiel sportif),
+# Ordre : par app dans un ordre de dépendance de domaine best-effort (identity
+# avant federation-hub avant les apps qui dépendent du référentiel sportif),
 # puis par ordre de fichier au sein d'une app. La plupart de ces migrations
 # sont additives et indépendantes entre elles (ALTER TABLE ADD COLUMN sur
 # une table déjà existante, ou CREATE TABLE IF NOT EXISTS pour une nouvelle
 # table propre à une app) ; seules quelques-unes ont une dépendance connue
 # et documentée (annotée ci-dessous).
 
-# --- sso (User, authentification — fondation) ---
-sso/sql/migration_add_token_version_to_user.sql
-sso/sql/migration_add_mfa_to_user.sql
-sso/sql/migration_add_password_reset_tokens.sql
-sso/sql/migration_add_security_events.sql
-sso/sql/migration_add_member_profile_fields.sql
-sso/sql/migration_add_member_role.sql
-sso/sql/migration_add_member_team_affiliations.sql
-sso/sql/migration_add_mfa_enrollment_challenges.sql
+# --- identity (User, authentification — fondation) ---
+identity/sql/migration_add_token_version_to_user.sql
+identity/sql/migration_add_mfa_to_user.sql
+identity/sql/migration_add_password_reset_tokens.sql
+identity/sql/migration_add_security_events.sql
+identity/sql/migration_add_member_profile_fields.sql
+identity/sql/migration_add_member_role.sql
+identity/sql/migration_add_member_team_affiliations.sql
+identity/sql/migration_add_mfa_enrollment_challenges.sql
 # Rôles cibles PLATFORM_SUPERADMIN/FEDERATION_ADMIN/LEAGUE_ADMIN + scope
 # federation_id/league_id sur `User` (migration.md §7-8, Phase 1).
-sso/sql/migration_add_federation_league_scope.sql
+identity/sql/migration_add_federation_league_scope.sql
 # Rôles REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §7/§11, Phase 4).
-sso/sql/migration_add_match_official_roles.sql
+identity/sql/migration_add_match_official_roles.sql
 
-# --- superadmin (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
-superadmin/mysql/migration_add_audit_logs.sql
-superadmin/mysql/migration_add_user_agent_to_audit_logs.sql
-superadmin/mysql/migration_add_ip_address_to_votes.sql
-superadmin/mysql/migration_add_team_fields.sql
-superadmin/mysql/migration_add_team_gender_and_youth_categories.sql
-superadmin/mysql/migration_add_tournois_type.sql
-superadmin/mysql/migration_add_vote_alerts.sql
-superadmin/mysql/migration_add_vote_moderation.sql
-superadmin/mysql/migration_add_staff_invitations.sql
-superadmin/mysql/migration_add_match_actual_times.sql
-superadmin/mysql/migration_add_match_saga.sql
+# --- federation-hub (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
+federation-hub/mysql/migration_add_audit_logs.sql
+federation-hub/mysql/migration_add_user_agent_to_audit_logs.sql
+federation-hub/mysql/migration_add_ip_address_to_votes.sql
+federation-hub/mysql/migration_add_team_fields.sql
+federation-hub/mysql/migration_add_team_gender_and_youth_categories.sql
+federation-hub/mysql/migration_add_tournois_type.sql
+federation-hub/mysql/migration_add_vote_alerts.sql
+federation-hub/mysql/migration_add_vote_moderation.sql
+federation-hub/mysql/migration_add_staff_invitations.sql
+federation-hub/mysql/migration_add_match_actual_times.sql
+federation-hub/mysql/migration_add_match_saga.sql
 # Élargit staff_invitations aux rôles FEDERATION_ADMIN/LEAGUE_ADMIN/REFEREE/
 # MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0, provisioning). Dépend de
 # migration_add_staff_invitations.sql (ci-dessus).
-superadmin/mysql/migration_widen_staff_invitations_scope.sql
+federation-hub/mysql/migration_widen_staff_invitations_scope.sql
 # Historique d'affiliation club <-> fédération/ligue/saison (migration.md
 # §6, Phase 2). Dépend de teams/federations/ligues/saisons (FK), donc
 # placée après leurs migrations respectives.
-superadmin/mysql/migration_add_team_affiliations.sql
+federation-hub/mysql/migration_add_team_affiliations.sql
 # Backfill idempotent des clubs historiques depuis teams.federation_id.
-superadmin/mysql/migration_backfill_team_affiliations.sql
-superadmin/migrations/add_is_active_to_federations.sql
-superadmin/migrations/add_is_active_to_leagues.sql
-superadmin/migrations/add_unique_vote_per_match_device.sql
-superadmin/migrations/add_team_branding.sql
-superadmin/migrations/add_team_branding_icons.sql
+federation-hub/mysql/migration_backfill_team_affiliations.sql
+federation-hub/migrations/add_is_active_to_federations.sql
+federation-hub/migrations/add_is_active_to_leagues.sql
+federation-hub/migrations/add_unique_vote_per_match_device.sql
+federation-hub/migrations/add_team_branding.sql
+federation-hub/migrations/add_team_branding_icons.sql
 
-# --- arbinote (évaluation officielle d'arbitre, dépend de matches/arbitres) ---
+# --- referee-center (évaluation officielle d'arbitre, dépend de matches/arbitres) ---
 # migration.md §12, Phase 5 : évaluation fédérale, strictement séparée de
 # la notation publique (`votes`, déjà en base, inchangée).
-arbinote/mysql/migration_add_referee_official_evaluations.sql
-arbinote/mysql/migration_add_vote_authenticated.sql
+referee-center/mysql/migration_add_referee_official_evaluations.sql
+referee-center/mysql/migration_add_vote_authenticated.sql
 
-# --- teamManager (Player, discipline, cms_*) ---
-teamManager/sql/migration_unify_players.sql
-teamManager/sql/migration_add_match_lineups.sql
-teamManager/sql/migrate_matches_external_teams.sql
-teamManager/sql/migration_cms_unification.sql
-teamManager/sql/migration_add_shop_sponsors_notifications.sql
-teamManager/sql/migration_add_notification_scope.sql
-teamManager/sql/migration_add_roles_scheduling_and_formations.sql
-teamManager/sql/migration_add_tactics_boards.sql
-teamManager/sql/migration_add_training_details_and_presence_states.sql
-teamManager/sql/migration_add_trips.sql
-teamManager/sql/migration_add_player_stats.sql
-teamManager/sql/migration_add_injuries.sql
-teamManager/sql/migration_add_club_pages_academy_applications.sql
-# Dépend de Card (table de base, voir db/foot.sql) et de teamManager/matchsheet
+# --- club-hub (Player, discipline, cms_*) ---
+club-hub/sql/migration_unify_players.sql
+club-hub/sql/migration_add_match_lineups.sql
+club-hub/sql/migrate_matches_external_teams.sql
+club-hub/sql/migration_cms_unification.sql
+club-hub/sql/migration_add_shop_sponsors_notifications.sql
+club-hub/sql/migration_add_notification_scope.sql
+club-hub/sql/migration_add_roles_scheduling_and_formations.sql
+club-hub/sql/migration_add_tactics_boards.sql
+club-hub/sql/migration_add_training_details_and_presence_states.sql
+club-hub/sql/migration_add_trips.sql
+club-hub/sql/migration_add_player_stats.sql
+club-hub/sql/migration_add_injuries.sql
+club-hub/sql/migration_add_club_pages_academy_applications.sql
+# Dépend de Card (table de base, voir db/foot.sql) et de club-hub/match-operations
 # alignés sur la même contrainte (voir db/OWNERSHIP.md, "Card a deux écrivains").
-teamManager/sql/migration_add_card_unique_constraint.sql
+club-hub/sql/migration_add_card_unique_constraint.sql
 # Dépend de teams (base) et cms_products (migration_add_shop_sponsors_notifications.sql).
-teamManager/sql/migration_add_shop_orders.sql
-teamManager/sql/migration_add_stock_unavailable_refunds.sql
-# Table propre à teamManager, aucune dépendance (TS-25/TS-26, avancement.md).
-teamManager/sql/migration_add_notification_outbox.sql
-# Table propre à teamManager, aucune dépendance (TASK-P0-005, todo.md).
-teamManager/sql/migration_add_processed_webhook_events.sql
+club-hub/sql/migration_add_shop_orders.sql
+club-hub/sql/migration_add_stock_unavailable_refunds.sql
+# Table propre à club-hub, aucune dépendance (TS-25/TS-26, avancement.md).
+club-hub/sql/migration_add_notification_outbox.sql
+# Table propre à club-hub, aucune dépendance (TASK-P0-005, todo.md).
+club-hub/sql/migration_add_processed_webhook_events.sql
 # Module central de transfert/homologation (migration.md §19-21, Phase 3).
 # Dépend de Player (migration_unify_players.sql) et teams (déjà en base).
-teamManager/sql/migration_add_player_transfers.sql
+club-hub/sql/migration_add_player_transfers.sql
 # Étend le workflow : approbation club destination puis homologation fédérale.
-teamManager/sql/migration_extend_player_transfer_workflow.sql
-teamManager/sql/migration_add_convocation_cancellation.sql
+club-hub/sql/migration_extend_player_transfer_workflow.sql
+club-hub/sql/migration_add_convocation_cancellation.sql
 
-# --- matchsheet (feuille de match électronique, dépend de Player/Card/Match) ---
-matchsheet/sql/migration_matchsheet_init.sql
-# Dépend explicitement de migration_matchsheet_init.sql (voir son en-tête).
-matchsheet/sql/migration_matchsheet_officials_controls.sql
+# --- match-operations (feuille de match électronique, dépend de Player/Card/Match) ---
+match-operations/sql/migration_match-operations_init.sql
+# Dépend explicitement de migration_match-operations_init.sql (voir son en-tête).
+match-operations/sql/migration_match-operations_officials_controls.sql
 # Colonne propre à ms_sheets, aucune dépendance (TASK-P0-023, todo.md).
-matchsheet/sql/migration_add_sheet_version.sql
-# Table propre à matchsheet, aucune dépendance (TASK-P0-014, todo.md).
-matchsheet/sql/migration_add_match_reopen_log.sql
+match-operations/sql/migration_add_sheet_version.sql
+# Table propre à match-operations, aucune dépendance (TASK-P0-014, todo.md).
+match-operations/sql/migration_add_match_reopen_log.sql
 # Colonnes propres à ms_signatures, aucune dépendance (TASK-P0-024, todo.md).
-matchsheet/sql/migration_add_signature_integrity.sql
+match-operations/sql/migration_add_signature_integrity.sql
 # Colonnes propres à ms_goals/ms_injuries/ms_substitutions + nouvelle table
 # ms_event_corrections, aucune dépendance (TASK-P0-009, todo.md).
-matchsheet/sql/migration_add_event_corrections.sql
-matchsheet/sql/migration_add_event_client_request_id.sql
+match-operations/sql/migration_add_event_corrections.sql
+match-operations/sql/migration_add_event_client_request_id.sql
 # Identité officielle de match (migration.md §11, Phase 4). Dépend de
 # matches (déjà en base).
-matchsheet/sql/migration_add_match_official_assignments.sql
+match-operations/sql/migration_add_match_official_assignments.sql
 
-# --- payment-api (base payment_api, remboursements multi-provider) ---
-payment-api/sql/migration_add_refunds.sql
+# --- payments (base payment_api, remboursements multi-provider) ---
+payments/sql/migration_add_refunds.sql
 
-# --- billetterie (tk_*, dépend de teams/matches) ---
-billetterie/sql/schema.sql
-billetterie/sql/migration_add_payment_id.sql
-billetterie/sql/migration_add_audience_declaration.sql
-billetterie/sql/migration_add_ticket_scan_log.sql
-billetterie/sql/migration_add_ticket_scan_sync.sql
-billetterie/sql/migration_add_ticket_revocation.sql
-billetterie/sql/migration_add_processed_webhook_events.sql
-billetterie/sql/migration_add_audience_validation_mode.sql
-billetterie/sql/migration_add_stock_unavailable_refunds.sql
-billetterie/sql/migration_add_match_cancellation_refunds.sql
+# --- ticketing (tk_*, dépend de teams/matches) ---
+ticketing/sql/schema.sql
+ticketing/sql/migration_add_payment_id.sql
+ticketing/sql/migration_add_audience_declaration.sql
+ticketing/sql/migration_add_ticket_scan_log.sql
+ticketing/sql/migration_add_ticket_scan_sync.sql
+ticketing/sql/migration_add_ticket_revocation.sql
+ticketing/sql/migration_add_processed_webhook_events.sql
+ticketing/sql/migration_add_audience_validation_mode.sql
+ticketing/sql/migration_add_stock_unavailable_refunds.sql
+ticketing/sql/migration_add_match_cancellation_refunds.sql
 
-# --- sellerPortal (sp_*, dépend de teams) ---
-sellerPortal/sql/schema.sql
-sellerPortal/sql/migration_add_club_id.sql
-sellerPortal/sql/migration_add_moderation_fields.sql
-sellerPortal/sql/migration_add_stock_reservations.sql
-sellerPortal/sql/migration_add_marketplace_checkout.sql
-sellerPortal/sql/migration_add_return_refunds.sql
+# --- seller-portal (sp_*, dépend de teams) ---
+seller-portal/sql/schema.sql
+seller-portal/sql/migration_add_club_id.sql
+seller-portal/sql/migration_add_moderation_fields.sql
+seller-portal/sql/migration_add_stock_reservations.sql
+seller-portal/sql/migration_add_marketplace_checkout.sql
+seller-portal/sql/migration_add_return_refunds.sql

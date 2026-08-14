@@ -2,21 +2,21 @@
 set -euo pipefail
 
 # Sauvegarde de la base MariaDB `foot` (mariadb_container, voir ../start.sh)
-# et des dossiers d'uploads applicatifs (arbinote/superadmin/teamManager) —
+# et des dossiers d'uploads applicatifs (referee-center/federation-hub/club-hub) —
 # jusqu'ici jamais testée au-delà du volume Docker local (voir
 # avancement.md). Écrit un dump SQL compressé + une archive des uploads dans
 # db/backups/<horodatage>/. Voir restore.sh pour la restauration.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-if [ -f "$ROOT_DIR/arbinote/.env.local" ]; then
+if [ -f "$ROOT_DIR/referee-center/.env.local" ]; then
   set -a
-  source "$ROOT_DIR/arbinote/.env.local"
+  source "$ROOT_DIR/referee-center/.env.local"
   set +a
 fi
 
-: "${DB_USER:?DB_USER manquant dans arbinote/.env.local}"
-: "${DB_PASSWORD:?DB_PASSWORD manquant dans arbinote/.env.local}"
+: "${DB_USER:?DB_USER manquant dans referee-center/.env.local}"
+: "${DB_PASSWORD:?DB_PASSWORD manquant dans referee-center/.env.local}"
 
 if ! docker ps --format '{{.Names}}' | grep -q '^mariadb_container$'; then
   echo "❌ mariadb_container n'est pas démarré. Lancez ./start.sh d'abord."
@@ -37,7 +37,7 @@ echo "✅ Dump écrit : $BACKUP_DIR/foot.sql.gz"
 # Dossiers d'uploads connus (voir avancement.md) — absents en toute
 # légitimité sur un checkout qui n'a jamais servi d'upload, on les ignore
 # silencieusement plutôt que d'échouer.
-UPLOAD_DIRS=(arbinote/public/uploads superadmin/public/uploads teamManager/public/uploads)
+UPLOAD_DIRS=(referee-center/public/uploads federation-hub/public/uploads club-hub/public/uploads)
 EXISTING_UPLOAD_DIRS=()
 for dir in "${UPLOAD_DIRS[@]}"; do
   if [ -d "$ROOT_DIR/$dir" ]; then

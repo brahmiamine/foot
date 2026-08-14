@@ -2,5 +2,5 @@
   "name": "auth-shared",
   "private": true,
   "version": "0.1.0",
-  "description": "Vérification du JWT SSO partagée par les apps clientes (arbinote, matchsheet, superadmin, teamManager, ob, billetterie). Pas un package pnpm workspace : importé par chemin relatif depuis src/lib/ssoSession.ts de chaque app, pour ne rien changer à leur déploiement indépendant (chaque app garde son propre pnpm-lock.yaml et sa propre dépendance directe sur `jose`)."
+  "description": "Vérification du JWT SSO partagée par les apps clientes (referee-center, match-operations, federation-hub, club-hub, ob, ticketing). Pas un package pnpm workspace : importé par chemin relatif depuis src/lib/ssoSession.ts de chaque app, pour ne rien changer à leur déploiement indépendant (chaque app garde son propre pnpm-lock.yaml et sa propre dépendance directe sur `jose`)."
 }

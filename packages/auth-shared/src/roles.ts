@@ -1,7 +1,7 @@
 /**
  * Modèle de rôles cible Fédération / Ligue / Club (voir migration.md §7-9)
  * et compatibilité avec les rôles historiques de la table `User` partagée
- * (ADMIN, OBSERVATEUR, SUPERADMIN, MEMBER — voir sso/src/entities/User.ts).
+ * (ADMIN, OBSERVATEUR, SUPERADMIN, MEMBER — voir identity/src/entities/User.ts).
  *
  * Ce module ne fait aucune vérification de session à lui seul : il lit un
  * rôle déjà authentifié (JWT vérifié par verifySsoTokenWithRevocation, voir
