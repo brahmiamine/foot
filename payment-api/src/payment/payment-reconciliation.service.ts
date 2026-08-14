@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
@@ -42,7 +47,9 @@ export interface ReconciliationReport {
  * cette lacune de l'intégration Paymee n'est pas comblée.
  */
 @Injectable()
-export class PaymentReconciliationService implements OnModuleInit, OnModuleDestroy {
+export class PaymentReconciliationService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PaymentReconciliationService.name);
   private timer: NodeJS.Timeout | null = null;
   private isRunning = false;
@@ -71,7 +78,14 @@ export class PaymentReconciliationService implements OnModuleInit, OnModuleDestr
   async reconcileStalePayments(): Promise<ReconciliationReport> {
     const timestamp = new Date().toISOString();
     if (this.isRunning) {
-      return this.lastReport ?? { staleCount: 0, resolvedCount: 0, stillPendingCount: 0, timestamp };
+      return (
+        this.lastReport ?? {
+          staleCount: 0,
+          resolvedCount: 0,
+          stillPendingCount: 0,
+          timestamp,
+        }
+      );
     }
     this.isRunning = true;
 
@@ -81,7 +95,10 @@ export class PaymentReconciliationService implements OnModuleInit, OnModuleDestr
         where: {
           status: PaymentStatus.PENDING,
           createdAt: LessThan(staleCutoff),
-          provider: In([PaymentProviderName.KONNECT, PaymentProviderName.FLOUCI]),
+          provider: In([
+            PaymentProviderName.KONNECT,
+            PaymentProviderName.FLOUCI,
+          ]),
         },
         order: { createdAt: 'ASC' },
         take: BATCH_SIZE,
@@ -98,13 +115,17 @@ export class PaymentReconciliationService implements OnModuleInit, OnModuleDestr
             await this.paymentService.handleFlouciWebhook(payment.providerRef);
           }
 
-          const reloaded = await this.repository.findOne({ where: { id: payment.id } });
+          const reloaded = await this.repository.findOne({
+            where: { id: payment.id },
+          });
           if (reloaded && reloaded.status !== PaymentStatus.PENDING) {
             resolvedCount++;
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          this.logger.warn(`Reconciliation failed for payment ${payment.id}: ${message}`);
+          this.logger.warn(
+            `Reconciliation failed for payment ${payment.id}: ${message}`,
+          );
         }
       }
 
