@@ -34,6 +34,9 @@ contourné.
 La migration `sql/migration_add_referee_private_workflows.sql` est référencée
 dans le manifeste commun `db/migrations.manifest`.
 
+Les nouveaux parcours conservent l’interface responsive bilingue FR/AR et le
+support RTL du portail.
+
 ## Configuration et lancement
 
 ```bash
