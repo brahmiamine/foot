@@ -161,8 +161,9 @@ Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparé
 | `federation-hub` | 3002 |
 | `club-hub` | 3003 |
 | `identity` (seulement si `identity/.env.local` existe) | 3004 |
+| `referee-hub` | 3009 |
 
-`club-ob`, `ticketing`, `seller-portal`, `marketplace`, `payments` et `notifications` ne sont pas lancés. Démarrez-les depuis leur dossier, après copie de leur `.env.example` vers le fichier demandé par l'application (`.env.local` pour Next.js, `.env` pour les APIs NestJS). Attention : plusieurs scripts Next.js et `payments` utilisent 3000 par défaut ; choisissez `PORT` ou l'option du framework pour éviter une collision. `seller-portal`, `notifications` et `marketplace` fixent respectivement 3006, 3010 et 3011.
+`player-hub`, `staff-hub`, `club-ob`, `ticketing`, `seller-portal`, `marketplace`, `payments` et `notifications` ne sont pas lancés. Démarrez-les depuis leur dossier, après copie de leur `.env.example` vers le fichier demandé par l'application (`.env.local` pour Next.js, `.env` pour les APIs NestJS). Attention : plusieurs scripts Next.js et `payments` utilisent 3000 par défaut ; choisissez `PORT` ou l'option du framework pour éviter une collision. `seller-portal`, `staff-hub`, `notifications` et `marketplace` fixent respectivement 3006, 3008, 3010 et 3011.
 
 ## Architecture partagée
 
