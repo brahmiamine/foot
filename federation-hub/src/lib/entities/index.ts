@@ -47,3 +47,4 @@ export { StadiumInspection, StadiumRestriction, StadiumInspectionHistory } from 
 export { CoachQualification, CoachQualificationHistory } from './CoachQualification'
 export { MedicalEligibility, MedicalEligibilityHistory } from './MedicalEligibility'
 export { FootballAgent, RepresentationAgreement, FootballAgentHistory } from './Agent'
+export { DisciplinaryCase, DisciplinaryCaseEvidence, DisciplinaryCaseHearing, DisciplinaryCaseDecision, DisciplinaryCaseEvent } from './DisciplinaryCase'

@@ -394,6 +394,23 @@ Les validations réglementaires doivent être traçables de bout en bout.
   (lecture seule de `football_agents` via `AgentService.isAgentActive`).
   Pas d'UI `club-hub` pour le registre lui-même (non prévue par le
   document), uniquement cette garde serveur.
+- ✅ **P1-007 — Discipline fédérale avancée** : `disciplinary_cases` +
+  `disciplinary_case_evidence`/`disciplinary_case_hearings`/
+  `disciplinary_case_decisions`/`disciplinary_case_events`. Ne remplace pas
+  `Card`/`Suspension`/`CardReason` existants (§3.2) : c'est un niveau
+  supérieur d'instruction/décision. Numéro de dossier unique généré
+  serveur, workflow audité (`OPEN → UNDER_REVIEW → HEARING_SCHEDULED/
+  DECIDED → APPEALED/CLOSED`), scopes fédération/ligue serveur, interface
+  `federation-hub` (FR/EN/AR). Intégration concrète avec P0-009 : une
+  décision peut créer directement une ligne `club_sanctions`
+  (`sourceCaseType='DISCIPLINARY_CASE'`, liée via
+  `disciplinary_case_decisions.club_sanction_id`) quand le dossier concerne
+  un club. Pour une sanction individuelle (joueur/staff), le document
+  demande de réutiliser le mécanisme `Suspension` existant : cette
+  création n'est **pas automatisée** ici (le flux d'émission de
+  `Suspension` lié aux cartons n'a pas été audité dans cette migration),
+  seule une `sanctionDescription` texte est enregistrée sur la décision.
+  Pas d'UI `club-hub` : non prévue par le document pour ce domaine.
 
 ---
 

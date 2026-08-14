@@ -117,6 +117,10 @@ federation-hub/mysql/migration_add_medical_eligibilities.sql
 # P1-006 migration-v2 : agents et intermédiaires. Dépend de
 # Player/teams/federations/User (déjà en base).
 federation-hub/mysql/migration_add_agents.sql
+# P1-007 migration-v2 : discipline fédérale avancée. Dépend de
+# club_sanctions (P0-009, décision -> sanction club), teams/federations/
+# ligues/User (déjà en base).
+federation-hub/mysql/migration_add_disciplinary_cases.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql
