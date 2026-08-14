@@ -26,6 +26,7 @@ const arbitrationNavItems = [
   { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },
   { label: 'Observateurs', href: '/admin/staff-invitations', icon: 'bx bx-id-card' },
   { label: 'Évaluations', href: '/admin/arbitrage/evaluations', icon: 'bx bx-clipboard' },
+  { label: 'Rapports arbitres', href: '/admin/arbitrage/rapports', icon: 'bx bx-file' },
   { label: 'Analytics', href: '/admin/arbitrage/evaluations#analytics', icon: 'bx bx-line-chart' },
   { label: 'ArbiNote · Votes', href: '/admin/arbitrage/arbinote/votes', icon: 'bx bx-message-square-check', platformOnly: true },
   { label: 'ArbiNote · Anomalies', href: '/admin/arbitrage/arbinote/anomalies', icon: 'bx bx-error', platformOnly: true },

@@ -28,10 +28,14 @@ export async function authenticate(credentials: Credentials): Promise<SsoUser | 
   const valid = await bcrypt.compare(credentials.password, user.password);
   if (!valid) return null;
 
-  if (user.role === "SUPERADMIN" || user.role === "MEMBER") {
-    if (credentials.teamId) return null;
-  } else {
+  const isClubScopedAccount = user.role === "ADMIN" || user.role === "OBSERVATEUR" || user.role === "PLAYER";
+  if (isClubScopedAccount) {
     if (!user.teamId || user.teamId !== credentials.teamId) return null;
+  } else {
+    // Les comptes fédéraux et les officiels (REFEREE/MATCH_OFFICIAL/
+    // REFEREE_OBSERVER) sont personnels et non rattachés à un club. Leur
+    // imposer un teamId rendrait leur connexion Identity impossible.
+    if (credentials.teamId || user.teamId) return null;
   }
 
   return {

@@ -21,6 +21,8 @@ import {
   VoteAlert,
   RefereeOfficialEvaluation,
   OfficialRefereeCriterion,
+  RefereeMatchReport,
+  RefereeUnavailability,
 } from '@/lib/entities'
 
 /**
@@ -58,6 +60,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       VoteAlert,
       RefereeOfficialEvaluation,
       OfficialRefereeCriterion,
+      RefereeMatchReport,
+      RefereeUnavailability,
     ],
   })
 

@@ -1,5 +1,8 @@
 import { getDataSource } from "@/lib/db";
 import { MatchOfficialAssignment, type MatchOfficialAssignmentRole } from "@/entities/MatchOfficialAssignment";
+import { Match } from "@/entities/Match";
+import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
+import { IsNull } from "typeorm";
 
 export class MatchOfficialAssignmentError extends Error {
   constructor(message: string) {
@@ -36,6 +39,22 @@ export class MatchOfficialAssignmentService {
     });
     if (existing) {
       return existing;
+    }
+
+    const dataSource = await getDataSource();
+    const match = await dataSource.getRepository(Match).findOne({ where: { id: input.matchId } });
+    if (!match) throw new MatchOfficialAssignmentError("Match introuvable");
+    if (match.date) {
+      const matchDate = match.date.toISOString().slice(0, 10);
+      const periods = await dataSource.getRepository(RefereeUnavailability).find({
+        where: { userId: input.userId, cancelledAt: IsNull() },
+      });
+      const unavailable = periods.find((period) => period.startDate <= matchDate && period.endDate >= matchDate);
+      if (unavailable) {
+        throw new MatchOfficialAssignmentError(
+          `Cet officiel est indisponible du ${unavailable.startDate} au ${unavailable.endDate}`,
+        );
+      }
     }
 
     const assignment = repo.create({

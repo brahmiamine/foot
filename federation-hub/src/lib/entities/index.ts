@@ -25,4 +25,5 @@ export { MatchSagaCase, type MatchSagaType, type MatchSagaStatus, type TicketPol
 export { MatchSagaStep, type MatchSagaStepName, type MatchSagaStepStatus } from './MatchSagaStep'
 export { RefereeOfficialEvaluation, type RefereeOfficialEvaluationStatus } from './RefereeOfficialEvaluation'
 export { OfficialRefereeCriterion } from './OfficialRefereeCriterion'
-
+export { RefereeUnavailability } from './RefereeUnavailability'
+export { RefereeMatchReport } from './RefereeMatchReport'

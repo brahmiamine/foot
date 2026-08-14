@@ -5,6 +5,7 @@ import { getDataSource } from '@/lib/db'
 import { getMatchScope } from '@/lib/matchFederationScope'
 import { revokeMatchOfficial, MatchOfficialClientError } from '@/lib/matchOfficialClient'
 import { logAdminAction } from '@/lib/auditLog'
+import { notify } from '@/lib/notificationClient'
 
 export const runtime = 'nodejs'
 
@@ -40,6 +41,15 @@ export async function POST(
       entityType: 'match_official_assignment',
       entityId: assignmentId,
       summary: `Affectation ${assignmentId} révoquée pour le match ${matchId}`,
+    })
+
+    await notify({
+      eventId: `match-official-revoked:${assignment.id}`,
+      type: 'MATCH_OFFICIAL_REVOKED',
+      userId: assignment.userId,
+      title: 'Désignation modifiée',
+      body: 'Une de vos désignations officielles a été révoquée.',
+      data: { matchId, assignmentId: assignment.id, role: assignment.role, url: `${process.env.REFEREE_HUB_URL || 'http://localhost:3008'}/assignments/${assignment.id}` },
     })
 
     return NextResponse.json(assignment)

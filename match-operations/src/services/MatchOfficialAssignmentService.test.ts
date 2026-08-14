@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { createTestDataSource } from "@/test/testDataSource";
 import { seedBaseGraph } from "@/test/fixtures";
+import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
 
 let dataSource: DataSource;
 
@@ -75,6 +76,34 @@ describe("MatchOfficialAssignmentService", () => {
 
       const all = await service.listForMatch(match.id);
       expect(all).toHaveLength(2);
+    });
+
+    it("rejects an assignment when the official is unavailable on match day", async () => {
+      const { MatchOfficialAssignmentService, MatchOfficialAssignmentError } = await import("./MatchOfficialAssignmentService");
+      const { match } = await seedBaseGraph(dataSource);
+      const repo = dataSource.getRepository(RefereeUnavailability);
+      const matchDate = match.date!.toISOString().slice(0, 10);
+      await repo.save(repo.create({ userId: "referee-1", startDate: matchDate, endDate: matchDate }));
+
+      await expect(new MatchOfficialAssignmentService().assign({
+        matchId: match.id,
+        userId: "referee-1",
+        role: "CENTER_REFEREE",
+      })).rejects.toThrow(MatchOfficialAssignmentError);
+    });
+
+    it("ignores a cancelled unavailability", async () => {
+      const { MatchOfficialAssignmentService } = await import("./MatchOfficialAssignmentService");
+      const { match } = await seedBaseGraph(dataSource);
+      const repo = dataSource.getRepository(RefereeUnavailability);
+      const matchDate = match.date!.toISOString().slice(0, 10);
+      await repo.save(repo.create({ userId: "referee-1", startDate: matchDate, endDate: matchDate, cancelledAt: new Date() }));
+
+      await expect(new MatchOfficialAssignmentService().assign({
+        matchId: match.id,
+        userId: "referee-1",
+        role: "CENTER_REFEREE",
+      })).resolves.toMatchObject({ status: "ACTIVE" });
     });
   });
 

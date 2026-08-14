@@ -95,4 +95,27 @@ describe("authenticate", () => {
 
     expect(result?.role).toBe("MEMBER");
   });
+
+  it("allows referee roles to login without selecting a club", async () => {
+    const { authenticate } = await import("./authenticate");
+    await seedUser(dataSource, { email: "referee@example.com", password: "s3cret!", role: "REFEREE" });
+
+    const result = await authenticate({ email: "referee@example.com", password: "s3cret!" });
+    const withClub = await authenticate({ email: "referee@example.com", password: "s3cret!", teamId: "team-1" });
+
+    expect(result?.role).toBe("REFEREE");
+    expect(result?.teamId).toBeNull();
+    expect(withClub).toBeNull();
+  });
+
+  it("keeps PLAYER accounts scoped to their club", async () => {
+    const { authenticate } = await import("./authenticate");
+    await seedUser(dataSource, { email: "player@example.com", password: "s3cret!", role: "PLAYER", teamId: "team-1", playerId: "player-1" });
+
+    const withoutClub = await authenticate({ email: "player@example.com", password: "s3cret!" });
+    const rightClub = await authenticate({ email: "player@example.com", password: "s3cret!", teamId: "team-1" });
+
+    expect(withoutClub).toBeNull();
+    expect(rightClub?.playerId).toBe("player-1");
+  });
 });

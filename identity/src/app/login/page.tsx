@@ -20,7 +20,7 @@ export default async function LoginPage({
     <div className="sso-page">
       <div className="sso-card">
         <h1>Connexion</h1>
-        <p className="sso-muted">Authentification centralisée — match-operations, arbinote, federation-hub, club-hub.</p>
+        <p className="sso-muted">Authentification centralisée — federation-hub, club-hub, referee-hub et match-operations.</p>
         <LoginForm redirectTo={target} />
       </div>
       <style>{`

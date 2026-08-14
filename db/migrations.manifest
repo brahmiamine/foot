@@ -54,6 +54,8 @@ identity/sql/migration_add_mfa_enrollment_challenges.sql
 identity/sql/migration_add_federation_league_scope.sql
 # Rôles REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §7/§11, Phase 4).
 identity/sql/migration_add_match_official_roles.sql
+# Rôle PLAYER et liaison vers Player pour l'espace personnel player-hub.
+identity/sql/migration_add_player_role.sql
 
 # --- federation-hub (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
 federation-hub/mysql/migration_add_audit_logs.sql
@@ -136,6 +138,10 @@ match-operations/sql/migration_add_event_client_request_id.sql
 # Identité officielle de match (migration.md §11, Phase 4). Dépend de
 # matches (déjà en base).
 match-operations/sql/migration_add_match_official_assignments.sql
+
+# --- referee-hub (données privées personnelles des officiels) ---
+# Dépend de match_official_assignments et matches pour les rapports.
+referee-hub/sql/migration_add_referee_private_workflows.sql
 
 # --- payments (base payment_api, remboursements multi-provider) ---
 payments/sql/migration_add_refunds.sql
