@@ -5,7 +5,7 @@
 -- app n'y écrit ni ne la lit (voir db/OWNERSHIP.md). Pas de clé étrangère
 -- vers `User` : un échec de connexion avec un email inconnu ne correspond
 -- à aucun compte, l'événement doit quand même être journalisé (email/ip
--- en valeurs figées, comme audit_logs côté referee-center/federation-hub).
+-- en valeurs figées, comme audit_logs côté arbinote/federation-hub).
 
 USE foot;
 

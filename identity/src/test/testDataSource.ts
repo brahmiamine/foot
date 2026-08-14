@@ -11,7 +11,7 @@ import { MfaEnrollmentChallenge } from "@/entities/MfaEnrollmentChallenge";
  * DataSource SQLite en mémoire, avec les vraies entités TypeORM (voir
  * src/lib/db.ts pour l'équivalent MySQL de production). Utilisé par les
  * tests d'intégration (TS-34) pour exercer du vrai SQL sans dépendre d'un
- * serveur MySQL. Même pattern que referee-center/ticketing
+ * serveur MySQL. Même pattern que arbinote/ticketing
  * (src/test/testDataSource.ts).
  */
 export async function createTestDataSource(): Promise<DataSource> {

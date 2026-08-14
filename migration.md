@@ -61,11 +61,11 @@ Le flux d'invitation staff existant (`federation-hub` → email → `identity`, 
 Détail des sous-tâches par phase, mis à jour au fil de l'implémentation :
 
 ### Phase 1 — Modèle d'autorisation `[~]`
-- [x] Inspecter les rôles/guards/middlewares existants (`identity`, `federation-hub`, `match-operations`, `club-hub`, `referee-center`, `ticketing`, `ob`) — audit complet, rien dupliqué (rôles stockés en `enum` sur `User.role`, dupliqué en union TS par app ; pas de scope fédéral/ligue existant avant ce chantier).
+- [x] Inspecter les rôles/guards/middlewares existants (`identity`, `federation-hub`, `match-operations`, `club-hub`, `arbinote`, `ticketing`, `ob`) — audit complet, rien dupliqué (rôles stockés en `enum` sur `User.role`, dupliqué en union TS par app ; pas de scope fédéral/ligue existant avant ce chantier).
 - [x] Introduire `PLATFORM_SUPERADMIN`, `FEDERATION_ADMIN`, `LEAGUE_ADMIN` dans l'enum `User.role` (migration SQL additive, `identity/sql/migration_add_federation_league_scope.sql`) en conservant `SUPERADMIN`/`ADMIN`/`OBSERVATEUR`/`MEMBER` — `PLATFORM_SUPERADMIN` traité comme un alias strict de `SUPERADMIN` partout (aucun élargissement d'accès).
 - [x] Définir les scopes serveur : `federationId`/`leagueId` ajoutés à `User` (colonnes), au JWT (`identity/src/lib/session.ts`, `packages/auth-shared/src/session.ts`) et modélisés dans `packages/auth-shared/src/roles.ts` (`normalizeRole`, `canAccessFederation`, `canAccessLeague`, `canAccessPlatform`) — `teamId`/`matchId` existaient déjà (Phase 4 les exploitera pour `MATCH_OFFICIAL`).
-- [x] Ajouter les guards serveur : `federation-hub/src/lib/adminAuth.ts` (`ensureFederationAccess`, `ensureLeagueAccess`, `getAdminSession`), branchés sur `federations/route.ts` (POST), `federations/[id]/route.ts` (PUT/DELETE), `leagues/route.ts` (POST), `leagues/[id]/route.ts` (PUT/DELETE) — `ensureAdminAuth` (accès plateforme complet) explicitement **non élargi** à `FEDERATION_ADMIN`/`LEAGUE_ADMIN` pour ne pas leur donner par erreur un accès complet aux ~40 autres routes qui ne font que cette vérification. `match-operations`/`club-hub`/`referee-center`/`ticketing` : `PLATFORM_SUPERADMIN` reconnu comme alias de `SUPERADMIN` dans leurs middlewares/guards existants (comportement inchangé pour les comptes actuels).
-- [x] Tests négatifs : `federation-hub/src/lib/roles.test.ts` (24 cas — dont `FEDERATION_ADMIN A` ne peut pas accéder à la fédération B, `LEAGUE_ADMIN X` ne peut pas accéder à la ligue Y, refus sans scope) + `federation-hub/src/lib/adminAuth.test.ts` (guards HTTP 401/403). `pnpm vitest run` et `pnpm tsc --noEmit` verts sur `identity`, `federation-hub`, `match-operations`, `club-hub`, `referee-center`, `ticketing`, `ob`.
+- [x] Ajouter les guards serveur : `federation-hub/src/lib/adminAuth.ts` (`ensureFederationAccess`, `ensureLeagueAccess`, `getAdminSession`), branchés sur `federations/route.ts` (POST), `federations/[id]/route.ts` (PUT/DELETE), `leagues/route.ts` (POST), `leagues/[id]/route.ts` (PUT/DELETE) — `ensureAdminAuth` (accès plateforme complet) explicitement **non élargi** à `FEDERATION_ADMIN`/`LEAGUE_ADMIN` pour ne pas leur donner par erreur un accès complet aux ~40 autres routes qui ne font que cette vérification. `match-operations`/`club-hub`/`arbinote`/`ticketing` : `PLATFORM_SUPERADMIN` reconnu comme alias de `SUPERADMIN` dans leurs middlewares/guards existants (comportement inchangé pour les comptes actuels).
+- [x] Tests négatifs : `federation-hub/src/lib/roles.test.ts` (24 cas — dont `FEDERATION_ADMIN A` ne peut pas accéder à la fédération B, `LEAGUE_ADMIN X` ne peut pas accéder à la ligue Y, refus sans scope) + `federation-hub/src/lib/adminAuth.test.ts` (guards HTTP 401/403). `pnpm vitest run` et `pnpm tsc --noEmit` verts sur `identity`, `federation-hub`, `match-operations`, `club-hub`, `arbinote`, `ticketing`, `ob`.
 - [x] **Adaptation des écrans `federation-hub` à `FEDERATION_ADMIN` (13 août 2026)** : `getAdminPageSession()` (Server Component, `PLATFORM_SUPERADMIN`/`FEDERATION_ADMIN` — pas `LEAGUE_ADMIN`, qu'aucune route Phase 2/3/4 ne reconnaît encore, voir `canAccessFederation`/`canAccessLeague`) remplace `hasAdminSession` sur les pages `/admin/staff-invitations`, `/admin/player-transfers`, et les deux nouveaux écrans dédiés `/admin/clubs-affilies`/`/admin/officiels-matchs` (évitent d'ouvrir entièrement les gros écrans génériques `/admin/teams`/`/admin/matches`, qui restent `hasAdminSession`-only). Nouveau `ensureAdminOrFederationAuth` (`lib/adminAuth.ts`) ouvre en LECTURE seule à `FEDERATION_ADMIN` les routes de référence consommées par ces écrans — `GET /api/admin/federations`/`/leagues` (filtrées à sa fédération), `/api/admin/teams`, `/api/admin/teams/:id/players`, `/api/admin/saisons`, `/api/admin/arbitres`, `/api/admin/officials` (non filtrées : référentiel non sensible) — l'ÉCRITURE (POST/PUT/DELETE) sur fédérations/équipes/arbitres/saisons reste `PLATFORM_SUPERADMIN`-only, inchangée.
 - [ ] **Reste ouvert — écart réel avec la cible, pas un simple report** : `LEAGUE_ADMIN` existe dans l'enum de rôles, le JWT (`leagueId`), et `canAccessLeague`/`ensureLeagueAccess` (`packages/auth-shared`, `federation-hub/src/lib/adminAuth.ts`) sont implémentés et testés (§27) — mais **aucune route Phase 2/3/4 ne les appelle**. §9 assigne pourtant explicitement à `LEAGUE_ADMIN`, dans sa ligue : gérer les journées, gérer les matchs, affecter les arbitres autorisés, consulter les clubs de la ligue. Aujourd'hui, `LEAGUE_ADMIN` n'a donc aucun pouvoir opérationnel réel : c'est un rôle "coquille vide" côté guards métier. Tant que ce n'est pas traité, les gros écrans génériques `/admin/teams` (CRUD équipe : création, import, branding, suppression) et `/admin/matches` (CRUD match, y compris saisons/journées) restent `PLATFORM_SUPERADMIN`-only par cohérence — les ouvrir à `FEDERATION_ADMIN`/`LEAGUE_ADMIN` sans scope réel derrière n'aurait pas de sens, et demanderait de toute façon de scoper leurs routes d'écriture (aujourd'hui `ensureAdminAuth` simple, sans vérification de propriété par fédération/ligue). Provisioning des comptes `FEDERATION_ADMIN`/`LEAGUE_ADMIN` : fait, voir "Provisioning des comptes" §0.
 
@@ -95,19 +95,21 @@ Détail des sous-tâches par phase, mis à jour au fil de l'implémentation :
 - [x] Table `match_official_assignments` (`match-operations/src/entities/MatchOfficialAssignment.ts`, migration `match-operations/sql/migration_add_match_official_assignments.sql`) : `matchId`, `userId` (compte SSO réel), `refereeId` optionnel, `role` (`CENTER_REFEREE`/`ASSISTANT_REFEREE`/`FOURTH_OFFICIAL`/`MATCH_DELEGATE`/`REFEREE_OBSERVER`/`TEAM_REPRESENTATIVE`), `status` (`ACTIVE`/`REVOKED`), `assignedBy`/`assignedAt`, `revokedBy`/`revokedAt` — jamais de suppression, l'historique reste l'audit (§11). Distincte de `ms_match_officials` (saisie libre nom/licence existante, conservée telle quelle, aucun lien avec un compte).
 - [x] Contrôle serveur : `src/middleware.ts` (edge, authentification seulement — ne peut pas interroger la base) laisse passer un rôle REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER sans `teamId` ; `[matchId]/layout.tsx` (runtime Node, choke-point déjà existant pour les comptes club) vérifie ENSUITE une affectation `ACTIVE` réelle via `MatchOfficialAssignmentService.findActiveAssignment` avant de laisser passer — jamais uniquement le rôle porté par le JWT (§3). SUPERADMIN/PLATFORM_SUPERADMIN restent refusés (aucun changement de comportement pour les comptes existants).
 - [x] Orchestration `federation-hub` → `match-operations` (même pattern que la Phase 3) : `POST/GET /api/admin/matches/:id/officials`, `POST .../:assignmentId/revoke` appellent les routes internes service-à-service de `match-operations`. Autorisation dérivée de la fédération qui gouverne RÉELLEMENT le match (`match → journée → saison → ligue → fédération`, `lib/matchFederationScope.ts`), pas d'un identifiant fourni par le client ; une saison sans ligue (tournoi hors championnat) réserve l'action à `PLATFORM_SUPERADMIN`.
-- [x] Tests : 8 cas `match-operations` (`MatchOfficialAssignmentService.test.ts` — affectation/révocation idempotentes, deux officiels sur le même rôle, ré-affectation après révocation, aucune fuite entre deux matchs) + 3 cas `federation-hub` (`matchFederationScope.test.ts`) + 4 cas de guard (`route.test.ts` — fédération A ne peut pas affecter un officiel sur un match de fédération B, match sans fédération résolvable réservé à `PLATFORM_SUPERADMIN`). `vitest run` + `tsc --noEmit` verts sur `identity`, `match-operations` (70 tests), `federation-hub` (105 tests), et re-vérifiés sans régression sur `club-hub`/`referee-center`/`ticketing`/`ob`.
+- [x] Tests : 8 cas `match-operations` (`MatchOfficialAssignmentService.test.ts` — affectation/révocation idempotentes, deux officiels sur le même rôle, ré-affectation après révocation, aucune fuite entre deux matchs) + 3 cas `federation-hub` (`matchFederationScope.test.ts`) + 4 cas de guard (`route.test.ts` — fédération A ne peut pas affecter un officiel sur un match de fédération B, match sans fédération résolvable réservé à `PLATFORM_SUPERADMIN`). `vitest run` + `tsc --noEmit` verts sur `identity`, `match-operations` (70 tests), `federation-hub` (105 tests), et re-vérifiés sans régression sur `club-hub`/`arbinote`/`ticketing`/`ob`.
 - **Écran (13 août 2026, branche `claude/migration-ui-screens-hok3qk`)** : panneau "Officiels" (`MatchOfficialsPanel.tsx`) intégré à `/admin/matches` (deuxième bascule d'expansion par ligne, à côté de "Faits" déjà existant) — liste des affectations, formulaire d'affectation (compte SSO officiel + rôle + arbitre lié optionnel), révocation, sur `GET/POST /api/admin/matches/:id/officials` et `POST .../officials/:assignmentId/revoke` (routes déjà existantes). Nouvelle route `GET /api/admin/officials` (`listOfficialAccounts()` dans `clubAccounts.ts`) pour peupler le sélecteur de comptes `REFEREE`/`MATCH_OFFICIAL`/`REFEREE_OBSERVER` — a mis en évidence que l'entité locale `federation-hub/src/lib/entities/User.ts` avait un type `role` resté figé sur `ADMIN`/`OBSERVATEUR`/`SUPERADMIN` malgré les migrations Phase 1/4 qui ont élargi l'enum réel en base ; élargi pour correspondre à `IdentityUserRole` (`identityClient.ts`). Réservé `PLATFORM_SUPERADMIN` (intégré au gros écran `/admin/matches`, voir Phase 1).
 - **Écran dédié `FEDERATION_ADMIN` (13 août 2026)** : `/admin/officiels-matchs` (`AdminFederationMatchOfficialsManager.tsx`) — liste les matchs RÉELLEMENT gouvernés par une fédération (nouvelle `listMatchesForFederation()` dans `matchFederationScope.ts`, jointure match→journée→saison→ligue, et route `GET /api/admin/federations/:id/matches`) et réutilise le même `MatchOfficialsPanel` par match (déjà correctement gardé côté API : POST/revoke vérifient `canAccessFederation` sur la fédération réelle du match, pas de changement nécessaire là). `PLATFORM_SUPERADMIN` choisit la fédération, `FEDERATION_ADMIN` voit directement la sienne.
 - [ ] **Reste ouvert** : vérification temporelle `player.teamId === match.teamId` dans `match-operations` (§22, distincte des officiels — reste à câbler sur `cms_team_members`/`getAffiliationAt` équivalent côté joueurs) ; audit nominatif enrichi (terminal/IP) au-delà de `assignedBy`/`revokedBy`.
 
-### Phase 5 — ArbiNote officiel `[~]`
-- [x] Évaluation fédérale séparée : `referee-center/src/lib/entities/RefereeOfficialEvaluation.ts` (table `referee_official_evaluations`, migration `referee-center/mysql/migration_add_referee_official_evaluations.sql`) — domaine et code strictement distincts de la notation publique (`votes`) : `refereeOfficialEvaluations.ts` n'importe jamais `adminVotes.ts`, aucune fonction ne calcule de score combiné entre `note_officielle` et `votes.note_globale`.
-- [x] Workflow `DRAFT → SUBMITTED → VALIDATED|REJECTED` : rédigé par `REFEREE_OBSERVER` (auteur, `observer_user_id` = sa propre session), homologué (`VALIDATED`) ou renvoyé (`REJECTED`, avec motif) par le `FEDERATION_ADMIN` de la fédération qui gouverne RÉELLEMENT le match évalué (résolu serveur via `match → journée → saison → ligue → fédération`, `lib/matchFederationScope.ts` — jamais un `federation_id` fourni par le client). Routes `/api/officiel/evaluations` (create/submit/validate/reject), distinctes de `/api/admin/*` (accès plateforme complet) et non couvertes par le middleware existant.
-- [x] Historique par arbitre (`GET /api/officiel/arbitres/:arbitreId/evaluations`, tous statuts) et statistiques de performance (`GET .../stats`, moyenne uniquement sur les évaluations `VALIDATED` — jamais `DRAFT`/`SUBMITTED`/`REJECTED`) — migration.md §12 "aide aux promotions/désignations/formations".
-- [x] Tests : 9 cas service (`refereeOfficialEvaluations.test.ts` — création, doublon refusé, deux observateurs sur le même match, workflow complet validation/rejet, transitions invalides refusées, moyenne excluant les statuts non validés) + 3 cas résolution fédération (`matchFederationScope.test.ts`) + 4 cas de garde (`validate/route.test.ts` — REFEREE_OBSERVER ne peut pas valider, fédération A ne peut pas valider un match de fédération B, PLATFORM_SUPERADMIN passe toujours). `vitest run` (140 tests) + `tsc --noEmit` verts sur `referee-center`.
-- **Écran (13 août 2026, branche `claude/migration-ui-screens-hok3qk`)** : `/admin/officiel` dans `referee-center` (`OfficielEvaluationsManager.tsx`) — trois blocs selon le rôle de la session : "Nouveau rapport"/"Mes rapports" (`REFEREE_OBSERVER`, création DRAFT puis soumission séparée via `POST .../submit`), "File d'homologation" (`FEDERATION_ADMIN`, valider/rejeter avec motif), "Historique par arbitre" (tout rôle officiel, réutilise les routes déjà existantes `GET /api/officiel/arbitres/:id/evaluations`+`/stats`). `PLATFORM_SUPERADMIN` voit les trois blocs. Contrairement aux écrans `federation-hub` de cette même branche, la page est bien ouverte à `FEDERATION_ADMIN`/`REFEREE_OBSERVER` (nouveau `getOfficialEvalPageSession()` dans `lib/adminAuth.ts`, variant Server Component de `getOfficialEvalSession`), pas seulement à `PLATFORM_SUPERADMIN` — les sélecteurs match/arbitre réutilisent les routes publiques déjà existantes `GET /api/matches`/`GET /api/arbitres` (aucun nouvel accès n'était nécessaire, ces routes sont déjà ouvertes à tout visiteur). A nécessité deux nouvelles fonctions de listing côté serveur (`listEvaluationsForObserver`, `listEvaluationsPendingReview` — cette dernière jointe match→journée→saison→ligue pour ne montrer à un `FEDERATION_ADMIN` que les rapports `SUBMITTED` de matchs RÉELLEMENT sous sa fédération) exposées via un nouveau `GET /api/officiel/evaluations` (le POST existant n'avait pas de pendant en lecture).
-- [x] **Édition d'un rapport `DRAFT` (13 août 2026)** : nouvelle `updateEvaluation()` (`refereeOfficialEvaluations.ts`, refuse toute transition hors `DRAFT`) et route `PATCH /api/officiel/evaluations/:id` (même garde que `.../submit` : auteur du rapport ou `PLATFORM_SUPERADMIN`) — bouton "Modifier" dans "Mes rapports" ouvrant un formulaire d'édition inline (critères/points forts/points faibles/recommandations, note recalculée).
-- [ ] **Reste ouvert** : agrégats plus riches (tendance dans le temps, comparaison entre observateurs) au-delà de la moyenne simple ; pagination de `GET /api/matches`/`GET /api/arbitres` pour les sélecteurs (limite actuelle 200 matchs, pas de recherche câblée dans l'écran alors que les routes la supportent).
+### Phase 5 — Arbitrage officiel dans Federation Hub `[x]`
+- [x] Le domaine privé a été retiré d'ArbiNote et déplacé dans `federation-hub/src/lib/refereeOfficialEvaluations.ts`, avec ses pages sous `/admin/arbitrage/evaluations` et ses API sous `/api/admin/arbitrage/evaluations/*`.
+- [x] La table `referee_official_evaluations` reste distincte de `votes`, conserve les rapports existants et reçoit les scopes serveur `federation_id`/`league_id`, le rôle d'évaluateur et le commentaire confidentiel.
+- [x] Le barème officiel est stocké dans `official_referee_criteria`, distinct de `critere_definitions` qui reste le barème des votes publics.
+- [x] La note officielle est recalculée côté serveur depuis tous les critères privés actifs et leur poids ; la valeur calculée par le navigateur n'est jamais une source de vérité.
+- [x] Avant création, le serveur vérifie le match, l'arbitre, la désignation active de l'arbitre et l'affectation active `REFEREE_OBSERVER` via la source officielle `match_official_assignments`/`match-operations`.
+- [x] `PLATFORM_SUPERADMIN`, `FEDERATION_ADMIN`, `LEAGUE_ADMIN` et `REFEREE_OBSERVER` sont autorisés selon leur action, puis filtrés côté serveur par scope ou par identité d'auteur.
+- [x] Les analytics internes affichent séparément la moyenne officielle validée et la moyenne des votes publics non exclus, sans calcul combiné.
+- [x] Les profils arbitres sont enrichis (fédération, ligue, catégorie, grade, statut, actif/inactif, date de début) et la suppression devient une désactivation conservant l'historique.
+- [x] Les outils ArbiNote (votes, anomalies, alertes, signalements, critères) sont disponibles sous `/admin/arbitrage/arbinote/*`; ArbiNote ne contient plus `/admin`, `/api/admin` ni `/api/officiel`.
 
 ---
 
@@ -210,7 +212,7 @@ Ne jamais faire confiance à un identifiant de scope envoyé uniquement par le f
 
 ### Fédération / compétition
 
-- `referee-center`
+- `arbinote`
 - `match-operations`
 
 ### Clubs
@@ -597,7 +599,7 @@ Journaliser :
 
 ---
 
-## 12. `referee-center` — séparer public et officiel
+## 12. `arbinote` — séparer public et officiel
 
 Conserver la notation publique existante.
 
@@ -1301,3 +1303,44 @@ Avant de coder :
 10. fournir un bilan final précis des fichiers modifiés, migrations, nouvelles permissions, tests et éventuelles actions manuelles.
 
 **Ne pas s’arrêter à une simple analyse : appliquer les changements nécessaires jusqu’à obtenir un modèle Fédération / Ligue / Club cohérent, sécurisé et rétrocompatible.**
+
+---
+
+## 31. Séparation ArbiNote public / arbitrage fédéral privé
+
+Architecture appliquée :
+
+```text
+ArbiNote (public)                 Federation Hub (SSO)
+----------------                 --------------------
+profils et matchs                profils officiels arbitres
+votes publics                    observateurs et affectations
+score/classement publics         évaluations officielles privées
+anti-abus                        analytics public/officiel séparés
+                                 modération ArbiNote
+```
+
+Sources de vérité :
+
+| Donnée | Source de vérité |
+|---|---|
+| Referee, Federation, League, Season, Match | `federation-hub` / référentiel MariaDB partagé |
+| MatchOfficialAssignment | `match-operations` |
+| PublicVote, alerte et critère public | ArbiNote pour la collecte ; Federation Hub pour la modération |
+| OfficialAssessment et critère officiel | `federation-hub` |
+
+Règles invariantes :
+
+- `PUBLIC SCORE != OFFICIAL SCORE` ;
+- aucune route publique ArbiNote ne lit les évaluations officielles ;
+- `matchId`, `arbitreId`, `federationId` et `leagueId` sont revérifiés côté serveur ;
+- un observateur ne peut créer un rapport que s'il est affecté au match et si l'arbitre y est désigné ;
+- chaque critère officiel actif doit recevoir une note de 1 à 5 et la moyenne pondérée est calculée côté serveur ;
+- `FEDERATION_ADMIN` et `LEAGUE_ADMIN` sont limités à leur scope issu du JWT et du référentiel ;
+- les suppressions d'arbitres deviennent des désactivations afin de conserver l'historique.
+
+Migrations canoniques :
+
+- `federation-hub/mysql/migration_extend_referee_profiles.sql` ;
+- `federation-hub/mysql/migration_add_official_referee_assessments.sql` ;
+- ordre enregistré dans `db/migrations.manifest`.

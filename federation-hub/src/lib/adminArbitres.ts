@@ -11,6 +11,13 @@ export interface ArbitreInput {
   nationalite_ar?: string | null
   date_naissance?: string | null
   photo_url?: string | null
+  federation_id?: string | null
+  league_id?: string | null
+  categorie?: string | null
+  grade?: string | null
+  status?: string | null
+  is_active?: boolean
+  start_date?: string | null
 }
 
 export interface ArbitreImportInput extends ArbitreInput {
@@ -31,10 +38,13 @@ function normalizeDate(value?: string | null) {
   return date
 }
 
-export async function listArbitres() {
+export async function listArbitres(scope: { federationId?: string | null; leagueId?: string | null } = {}) {
   const ds = await getDataSource()
   const repo = ds.getRepository<Arbitre>('arbitres')
-  const rows = await repo.find({ order: { nom: 'ASC' } })
+  const qb = repo.createQueryBuilder('arbitre').orderBy('arbitre.nom', 'ASC')
+  if (scope.federationId) qb.where('arbitre.federation_id = :federationId', { federationId: scope.federationId })
+  if (scope.leagueId) qb.where('arbitre.league_id = :leagueId', { leagueId: scope.leagueId })
+  const rows = await qb.getMany()
   return toPlainArray(rows)
 }
 
@@ -59,6 +69,13 @@ export async function createArbitre(payload: ArbitreInput) {
     nationalite_ar: normalizeString(payload.nationalite_ar) ?? 'تونس',
     date_naissance: normalizeDate(payload.date_naissance),
     photo_url: normalizeString(payload.photo_url),
+    federation_id: normalizeString(payload.federation_id),
+    league_id: normalizeString(payload.league_id),
+    categorie: normalizeString(payload.categorie),
+    grade: normalizeString(payload.grade),
+    status: normalizeString(payload.status) ?? 'ACTIVE',
+    is_active: payload.is_active ?? true,
+    start_date: normalizeDate(payload.start_date),
   })
 
   const saved = await repo.save(arbitre)
@@ -94,6 +111,13 @@ export async function updateArbitre(id: string, payload: ArbitreInput) {
         : payload.photo_url === null
           ? null
           : normalizeString(payload.photo_url),
+    federation_id: payload.federation_id === undefined ? existing.federation_id : normalizeString(payload.federation_id),
+    league_id: payload.league_id === undefined ? existing.league_id : normalizeString(payload.league_id),
+    categorie: payload.categorie === undefined ? existing.categorie : normalizeString(payload.categorie),
+    grade: payload.grade === undefined ? existing.grade : normalizeString(payload.grade),
+    status: payload.status === undefined ? existing.status : normalizeString(payload.status) ?? 'ACTIVE',
+    is_active: payload.is_active === undefined ? existing.is_active : payload.is_active,
+    start_date: payload.start_date === undefined ? existing.start_date : normalizeDate(payload.start_date),
   })
 
   const saved = await repo.save(existing)
@@ -149,6 +173,13 @@ export async function importArbitres(rows: ArbitreImportInput[]) {
         date_naissance:
           row.date_naissance === undefined ? target.date_naissance : normalizeDate(row.date_naissance),
         photo_url: row.photo_url === undefined ? target.photo_url : normalizeString(row.photo_url),
+        federation_id: row.federation_id === undefined ? target.federation_id : normalizeString(row.federation_id),
+        league_id: row.league_id === undefined ? target.league_id : normalizeString(row.league_id),
+        categorie: row.categorie === undefined ? target.categorie : normalizeString(row.categorie),
+        grade: row.grade === undefined ? target.grade : normalizeString(row.grade),
+        status: row.status === undefined ? target.status : normalizeString(row.status) ?? 'ACTIVE',
+        is_active: row.is_active === undefined ? target.is_active : row.is_active,
+        start_date: row.start_date === undefined ? target.start_date : normalizeDate(row.start_date),
       })
       updated += 1
       toSave.push(target)
@@ -161,6 +192,13 @@ export async function importArbitres(rows: ArbitreImportInput[]) {
         nationalite_ar: normalizeString(row.nationalite_ar) ?? 'تونس',
         date_naissance: normalizeDate(row.date_naissance),
         photo_url: normalizeString(row.photo_url),
+        federation_id: normalizeString(row.federation_id),
+        league_id: normalizeString(row.league_id),
+        categorie: normalizeString(row.categorie),
+        grade: normalizeString(row.grade),
+        status: normalizeString(row.status) ?? 'ACTIVE',
+        is_active: row.is_active ?? true,
+        start_date: normalizeDate(row.start_date),
       })
       inserted += 1
       toSave.push(created)
@@ -173,5 +211,3 @@ export async function importArbitres(rows: ArbitreImportInput[]) {
 
   return { inserted, updated }
 }
-
-

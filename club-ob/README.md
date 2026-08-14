@@ -56,9 +56,9 @@ pnpm start
 pnpm lint
 ```
 
-**Port :** Aucun port fixé dans les scripts: défaut Next 3000 (et conflit possible avec referee-center).
+**Port :** Aucun port fixé dans les scripts: défaut Next 3000 (et conflit possible avec arbinote).
 
-Le script racine `../start.sh` ne lance que `identity`, `referee-center`, `match-operations`, `federation-hub` et `club-hub`, avec MariaDB partagée. Les autres projets se lancent séparément. `payments` et `notifications` possèdent leur base; `marketplace` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (seller-portal inclus).
+Le script racine `../start.sh` ne lance que `identity`, `arbinote`, `match-operations`, `federation-hub` et `club-hub`, avec MariaDB partagée. Les autres projets se lancent séparément. `payments` et `notifications` possèdent leur base; `marketplace` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (seller-portal inclus).
 
 ## Tests
 

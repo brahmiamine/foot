@@ -10,7 +10,7 @@ import { vi } from "vitest";
  * leurs équivalents compatibles SQLite au chargement des entités dans le
  * test runner. N'affecte que la base de test en mémoire ; le code de
  * production ne passe jamais par Vitest. Même pattern que
- * referee-center/src/test/setupSqliteTypes.ts et les autres apps du dépôt.
+ * arbinote/src/test/setupSqliteTypes.ts et les autres apps du dépôt.
  */
 vi.mock("typeorm", async (importOriginal) => {
   const actual = await importOriginal<typeof import("typeorm")>();

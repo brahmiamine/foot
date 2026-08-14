@@ -13,7 +13,7 @@ import { Player } from "@/entities/Player";
  * DataSource SQLite en mémoire, avec les vraies entités TypeORM — utilisée
  * par les tests d'intégration (TS-36) pour exercer du vrai SQL sans
  * dépendre d'un serveur MySQL. Même pattern que
- * referee-center/ticketing/identity/seller-portal (src/test/testDataSource.ts).
+ * arbinote/ticketing/identity/seller-portal (src/test/testDataSource.ts).
  */
 export async function createTestDataSource(): Promise<DataSource> {
   const dataSource = new DataSource({

@@ -20,7 +20,7 @@ import { Team } from "@/entities/Team";
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
  * TypeORM — utilisée par les tests d'intégration pour exécuter du vrai SQL
  * sans dépendre d'un serveur MySQL. Même pattern que
- * referee-center/src/test/testDataSource.ts et ticketing/src/test/testDataSource.ts.
+ * arbinote/src/test/testDataSource.ts et ticketing/src/test/testDataSource.ts.
  */
 export async function createTestDataSource(): Promise<DataSource> {
   const dataSource = new DataSource({

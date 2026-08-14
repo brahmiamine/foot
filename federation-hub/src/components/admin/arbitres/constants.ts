@@ -7,4 +7,11 @@ export const emptyForm: ArbitreFormState = {
   date_naissance: '',
   photoFile: null,
   photo_url: '',
+  federation_id: '',
+  league_id: '',
+  categorie: '',
+  grade: '',
+  status: 'ACTIVE',
+  is_active: true,
+  start_date: '',
 }

@@ -23,5 +23,6 @@ export { Injury } from './Injury'
 export { Substitution } from './Substitution'
 export { MatchSagaCase, type MatchSagaType, type MatchSagaStatus, type TicketPolicy } from './MatchSagaCase'
 export { MatchSagaStep, type MatchSagaStepName, type MatchSagaStepStatus } from './MatchSagaStep'
-
+export { RefereeOfficialEvaluation, type RefereeOfficialEvaluationStatus } from './RefereeOfficialEvaluation'
+export { OfficialRefereeCriterion } from './OfficialRefereeCriterion'
 

@@ -75,6 +75,7 @@ export interface RemoteMatchOfficialAssignment {
   id: number
   matchId: string
   userId: string
+  refereeId?: string | null
   role: string
   status: 'ACTIVE' | 'REVOKED'
   assignedBy?: string | null

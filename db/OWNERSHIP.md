@@ -1,7 +1,7 @@
 # Propriété des tables et processus de migration — base partagée `foot`
 
 Ce document répond à un manque identifié dans `avancement.md` (rang 3) :
-7 applications (`referee-center`, `match-operations`, `federation-hub`, `club-hub`, `identity`,
+7 applications (`arbinote`, `match-operations`, `federation-hub`, `club-hub`, `identity`,
 `club-ob`, `seller-portal`) lisent et/ou écrivent la même base MariaDB `foot`
 sans qu'aucun document ne dise, table par table, qui a le droit d'écrire
 quoi. Établi en croisant les entités TypeORM (`@Entity`) réellement
@@ -15,7 +15,7 @@ voir « Ce que ce document corrige » plus bas).
 **Source de vérité** = l'app qui a le droit de créer/modifier/supprimer les
 lignes de ce domaine. **Lecture** = les apps qui consomment ces données
 sans jamais les écrire. Une app peut avoir une entité TypeORM sur une table
-sans avoir de route qui écrit dessus (c'est le cas d'`referee-center`, voir plus
+sans avoir de route qui écrit dessus (c'est le cas d'`arbinote`, voir plus
 bas) : la colonne « Source de vérité » reflète les droits, pas la simple
 présence d'une entité.
 
@@ -23,23 +23,26 @@ présence d'une entité.
 
 | Domaine | Tables | Source de vérité | Lecture seule |
 |---|---|---|---|
-| Fédérations / ligues / saisons / journées | `federations`, `ligues`, `saisons`, `journees` | `federation-hub` | `referee-center`, `match-operations`, `club-ob`, `club-hub` |
-| Équipes / clubs (référentiel) | `teams` | `federation-hub` (CRUD complet) | `referee-center`, `match-operations`, `club-ob`, `identity`, `seller-portal`, `ticketing` |
+| Fédérations / ligues / saisons / journées | `federations`, `ligues`, `saisons`, `journees` | `federation-hub` | `arbinote`, `match-operations`, `club-ob`, `club-hub` |
+| Équipes / clubs (référentiel) | `teams` | `federation-hub` (CRUD complet) | `arbinote`, `match-operations`, `club-ob`, `identity`, `seller-portal`, `ticketing` |
 | Fiche du club connecté (paramètres, branding) | `teams` (sa propre ligne, `WHERE id = teamId`), `team_branding` | `club-hub` (sa ligne), `federation-hub` (branding, toutes lignes) | `seller-portal` |
-| Matchs — référentiel (équipes, date, score, arbitre) | `matches` (hors `status`, voir ligne suivante) | `federation-hub` (création/programmation) | `referee-center`, `match-operations`, `club-ob`, `ticketing`, `club-hub` (lecture pour préparation) |
+| Matchs — référentiel (équipes, date, score, arbitre) | `matches` (hors `status`, voir ligne suivante) | `federation-hub` (création/programmation) | `arbinote`, `match-operations`, `club-ob`, `ticketing`, `club-hub` (lecture pour préparation) |
 | Matchs — statut opérationnel (`UPCOMING`/`IN_PROGRESS`/`FINISHED`/`CANCELLED`) | `matches.status` | `match-operations` (`IN_PROGRESS`/`FINISHED`, seul à savoir avec certitude quand un match démarre/finit réellement) ; `federation-hub` (`CANCELLED` uniquement, voir alerte ci-dessous) | `club-ob` (résultats, classement), `ticketing` (fenêtre de vente + refus d'achat sur `CANCELLED`), `club-hub` (formations) |
-| Arbitrage : arbitres, votes, alertes, critères | `arbitres`, `votes`, `vote_alerts`, `critere_definitions` | `referee-center` | `federation-hub` (consultation) |
-| Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens`, `security_events`, `staff_invitations` | `identity` (authentification, `SUPERADMIN`/`MEMBER`) ; `federation-hub` (provisioning des comptes club `ADMIN`/`OBSERVATEUR` uniquement — voir alerte ci-dessous) | `referee-center`, `club-hub` (lecture/jointures) |
-| Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `club-hub` | `match-operations`, `club-ob` (lecture) ; `referee-center`, `federation-hub` (lecture de `Player` uniquement — noms de joueurs dans le fil des faits de match) |
-| **Cartons (`Card`) — écriture partagée, voir alerte ci-dessous** | `Card` | `club-hub` **et** `match-operations` | `club-ob` (lecture) ; `referee-center`, `federation-hub` (lecture, fil des faits de match — club-hub la lit déjà en écrivain) |
+| Référentiel officiel des arbitres | `arbitres` | `federation-hub` | `arbinote`, `match-operations` |
+| Perception publique ArbiNote | `votes`, `vote_alerts`, `critere_definitions` | `arbinote` (création des votes/alertes) ; `federation-hub` (modération, invalidation et administration des critères) | `arbinote` et `federation-hub` selon leurs écrans |
+| Évaluations officielles privées | `referee_official_evaluations`, `official_referee_criteria` | `federation-hub` | aucune route publique ArbiNote |
+| Désignations d'officiels | `match_official_assignments` | `match-operations` | `federation-hub` via API de service et lecture de sélection |
+| Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens`, `security_events`, `staff_invitations` | `identity` (authentification, `SUPERADMIN`/`MEMBER`) ; `federation-hub` (provisioning des comptes club `ADMIN`/`OBSERVATEUR` uniquement — voir alerte ci-dessous) | `arbinote`, `club-hub` (lecture/jointures) |
+| Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `club-hub` | `match-operations`, `club-ob` (lecture) ; `arbinote`, `federation-hub` (lecture de `Player` uniquement — noms de joueurs dans le fil des faits de match) |
+| **Cartons (`Card`) — écriture partagée, voir alerte ci-dessous** | `Card` | `club-hub` **et** `match-operations` | `club-ob` (lecture) ; `arbinote`, `federation-hub` (lecture, fil des faits de match — club-hub la lit déjà en écrivain) |
 | Compositions d'équipe | `cms_match_lineups` | `club-hub` | `match-operations` (lecture, verrouillage au coup d'envoi) |
-| Feuille de match électronique | `ms_sheets`, `ms_signatures`, `ms_goals`, `ms_injuries`, `ms_substitutions`, `ms_reservations`, `ms_match_officials`, `ms_player_controls` | `match-operations` | `club-ob` (lecture : buts/cartons/blessures/remplacements pour le live) ; `referee-center`, `federation-hub`, `club-hub` (lecture : `ms_goals`/`ms_injuries`/`ms_substitutions`, fil des faits de match affiché en timeline sur la fiche match / liste des matchs — voir MatchFactsService de chaque app) |
+| Feuille de match électronique | `ms_sheets`, `ms_signatures`, `ms_goals`, `ms_injuries`, `ms_substitutions`, `ms_reservations`, `ms_match_officials`, `ms_player_controls` | `match-operations` | `club-ob` (lecture : buts/cartons/blessures/remplacements pour le live) ; `arbinote`, `federation-hub`, `club-hub` (lecture : `ms_goals`/`ms_injuries`/`ms_substitutions`, fil des faits de match affiché en timeline sur la fiche match / liste des matchs — voir MatchFactsService de chaque app) |
 | Contenu club (actus, médias, académie, staff, historique…) | `cms_*` (~35 tables, préfixe `cms_`) | `club-hub` | `club-ob` (lecture, sous-ensemble public) |
 | Boutique / sponsors (legacy `club-hub`) | `cms_products`, `cms_sponsors`, `shop_*` | `club-hub` | `club-ob` (lecture) |
 | Billetterie — catégories et règles | `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules` | `club-hub` (`/admin/ticketing`) | `ticketing` (lecture) |
 | Billetterie — achats et contrôle | `tk_tickets`, `tk_ticket_scans` | `ticketing` | — |
 | Marketplace vendeur | `sp_*` (préfixe `sp_`) | `seller-portal` | — |
-| Audit | `audit_logs` (arbitrage), `AuditLog` (`club-hub`) | `referee-center`/`federation-hub` et `club-hub` respectivement (deux journaux d'audit distincts, pas un seul) | — |
+| Audit | `audit_logs` (arbitrage), `AuditLog` (`club-hub`) | `federation-hub` et `club-hub` respectivement (deux journaux d'audit distincts, pas un seul) | — |
 | Saga d'annulation/report de match (TASK-P0-003) | `match_saga_cases`, `match_saga_steps` | `federation-hub` | — |
 | Remboursement de billets sur match annulé (TASK-P0-003) | `tk_match_cancellation_refunds` | `ticketing` | — |
 
@@ -75,7 +78,7 @@ déjà dans le schéma (voir `db/foot.sql`) et est déjà lu par trois apps :
 à partir des matchs `FINISHED`), `ticketing` (n'autorise l'achat que sur
 `UPCOMING`/`IN_PROGRESS`), `club-hub` (verrouille la composition une
 fois le match `FINISHED`/`CANCELLED`). **Vérifié : avant ce correctif,
-aucune app n'écrivait jamais cette colonne** — `federation-hub`/`referee-center` ne
+aucune app n'écrivait jamais cette colonne** — `federation-hub`/`arbinote` ne
 la déclarent même pas dans leur entité `Match`, et aucun `.save()`/
 `.update()` dessus n'existait ailleurs. Conséquence concrète : chaque
 match restait `UPCOMING` pour toujours (confirmé dans `db/foot.sql`, où
@@ -116,7 +119,7 @@ destructive, des convocations de ce match) — voir `MatchSagaCase`/
 `MatchSagaStep` dans `federation-hub/src/lib/matchSaga.ts`. `match-operations` bloque
 lui-même toute saisie live sur un match `CANCELLED`
 (`sheetGuard.ts#assertSheetEditable`) sans appel réseau (table `matches`
-partagée) ; `referee-center` n'a nécessité aucun changement, son garde-fou de
+partagée) ; `arbinote` n'a nécessité aucun changement, son garde-fou de
 vote existant excluait déjà `CANCELLED`. Un échec d'étape (ticketing/
 club-hub indisponibles) laisse un dossier `MANUAL_REVIEW` — rejouable
 par un opérateur (`POST /api/admin/match-sagas/:id/retry`) ou convergé
@@ -158,24 +161,24 @@ reste inchangée — cas différent, toujours géré directement.
 
 ## Ce que ce document corrige
 
-`referee-center` et `federation-hub` déclarent toutes les deux des entités TypeORM
+`arbinote` et `federation-hub` déclarent toutes les deux des entités TypeORM
 complètes pour `federations`/`ligues`/`saisons`/`journees`/`teams`/`matches`/
 `arbitres`/`votes`, et ont chacune leur propre copie, fichier pour fichier,
-des mêmes migrations historiques (`referee-center/mysql/*.sql` ≈
-`federation-hub/mysql/*.sql`). En pratique, `referee-center` n'a **aucune route
+des mêmes migrations historiques (`arbinote/mysql/*.sql` ≈
+`federation-hub/mysql/*.sql`). En pratique, `arbinote` n'a **aucune route
 d'écriture** sur ces tables référentielles (vérifié : aucun `.save()`/
 `.update()`/`.delete()` sur `Federation`/`League`/`Team` dans
-`referee-center/src/app/api`) — ses entités ne servent qu'à lire/joindre ces
+`arbinote/src/app/api`) — ses entités ne servent qu'à lire/joindre ces
 tables depuis ses propres écrans (vote, classement). `federation-hub` est donc
-la seule source de vérité réelle pour ce domaine ; les entités d'`referee-center`
+la seule source de vérité réelle pour ce domaine ; les entités d'`arbinote`
 sont un résidu de l'époque où `federation-hub` n'existait pas encore comme app
-séparée. Ne pas les prendre comme un signal qu'`referee-center` peut/doit écrire
+séparée. Ne pas les prendre comme un signal qu'`arbinote` peut/doit écrire
 ce référentiel.
 
 **Non traité ici, à faire séparément si jugé utile** : consolider les
-migrations dupliquées (`referee-center/mysql/*.sql` vs `federation-hub/mysql/*.sql`)
+migrations dupliquées (`arbinote/mysql/*.sql` vs `federation-hub/mysql/*.sql`)
 vers un seul emplacement canonique. Risque réel si fait sans précaution :
-`referee-center` pourrait s'appuyer sur ses propres fichiers pour bootstrapper un
+`arbinote` pourrait s'appuyer sur ses propres fichiers pour bootstrapper un
 environnement local isolé de la base partagée — à vérifier avant de
 supprimer quoi que ce soit.
 

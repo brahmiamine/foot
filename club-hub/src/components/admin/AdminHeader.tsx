@@ -6,7 +6,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nProvider";
 
 /**
- * Admin Header — même structure qu'referee-center (bg-white, border-b, shadow-sm).
+ * Admin Header — même structure qu'arbinote (bg-white, border-b, shadow-sm).
  * Fusionne l'ancien AdminSidebarToggle + LogoutButton.
  */
 export function AdminHeader({ userName }: { userName: string }) {

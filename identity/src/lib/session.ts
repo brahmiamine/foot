@@ -7,7 +7,7 @@ import { findVerificationKey, getLegacyHs256Secret, getSigningKey } from "./jwtK
 
 /**
  * Émission et vérification du cookie de session partagé entre les 6 apps
- * (match-operations, referee-center, federation-hub, club-hub, ob, sso). Le SSO est le
+ * (match-operations, arbinote, federation-hub, club-hub, ob, sso). Le SSO est le
  * seul endroit qui signe ; les 5 autres apps ne font que vérifier (voir leur
  * propre src/lib/ssoSession.ts, copie en lecture seule de la partie
  * vérification de ce fichier).

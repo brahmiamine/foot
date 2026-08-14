@@ -1,7 +1,7 @@
 import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
 /**
- * Mappée sur la table `User` partagée par match-operations/referee-center/federation-hub/
+ * Mappée sur la table `User` partagée par match-operations/arbinote/federation-hub/
  * club-hub (même base "foot"). Le SSO est le seul endroit qui vérifie un
  * mot de passe : les 5 autres apps (dont `ob`, pour l'espace membre) ne
  * font que valider le cookie de session qu'il émet.
@@ -107,7 +107,7 @@ export class User {
    * changement de mot de passe, activation/désactivation MFA, ou
    * déconnexion explicite "partout" ; embarqué dans le JWT à l'émission et
    * comparé à cette valeur en base à chaque vérification de session côté
-   * `sso`. Les apps clientes (referee-center/match-operations/federation-hub/club-hub/
+   * `sso`. Les apps clientes (arbinote/match-operations/federation-hub/club-hub/
    * ob/ticketing) ne font PAS encore cette vérification — voir
    * avancement.md rang 8 pour la limite assumée.
    */

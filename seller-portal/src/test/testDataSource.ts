@@ -23,7 +23,7 @@ import { TeamBranding } from "@/entities/TeamBranding";
  * (même celles non seedées par un test donné) : plusieurs relations sont
  * déclarées par nom de classe (ex. Seller.users -> "SellerUser"), TypeORM
  * exige leur métadonnée même sans les utiliser. Même pattern que
- * referee-center/src/test/testDataSource.ts et les autres apps du dépôt.
+ * arbinote/src/test/testDataSource.ts et les autres apps du dépôt.
  */
 export async function createTestDataSource(): Promise<DataSource> {
   const dataSource = new DataSource({

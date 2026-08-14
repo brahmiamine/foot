@@ -14,7 +14,7 @@ export type SecurityEventType =
  * Journal de sécurité — voir src/lib/securityLog.ts. Table propre à `sso`,
  * aucune autre app n'y touche (voir db/OWNERSHIP.md). `email`/`ip` sont des
  * valeurs figées au moment de l'événement (comme `audit_logs` côté
- * referee-center/federation-hub) : pas de clé étrangère vers `User`, un échec de
+ * arbinote/federation-hub) : pas de clé étrangère vers `User`, un échec de
  * connexion avec un email inconnu ne correspond à aucun compte.
  */
 @Entity("security_events")

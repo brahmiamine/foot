@@ -13,7 +13,7 @@ interface AdminLayoutProps {
 }
 
 /**
- * Admin Layout — même assemblage qu'referee-center/federation-hub : sidebar sombre +
+ * Admin Layout — même assemblage qu'arbinote/federation-hub : sidebar sombre +
  * colonne de contenu claire (bg-gray-50) avec header puis contenu padded.
  */
 export function AdminLayout({ children, teamName, teamLogoUrl, userName, access }: AdminLayoutProps) {

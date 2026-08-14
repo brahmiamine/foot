@@ -20,7 +20,7 @@ import { TeamBranding } from "@/entities/TeamBranding";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
- * apps du monorepo (referee-center/federation-hub/club-hub/...). Les tables de
+ * apps du monorepo (arbinote/federation-hub/club-hub/...). Les tables de
  * cette app sont préfixées `sp_` (Seller Portal) pour rester isolées.
  *
  * Comme dans club-hub, on mémorise la promesse d'initialisation pour que

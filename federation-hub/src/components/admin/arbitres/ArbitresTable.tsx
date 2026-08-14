@@ -53,6 +53,8 @@ export default function ArbitresTable({
                     <th>Nom (anglais)</th>
                     <th>Nom (arabe)</th>
                     <th>Naissance</th>
+                    <th>Catégorie / grade</th>
+                    <th>Statut</th>
                     <th>Photo</th>
                     <th className="text-end">Actions</th>
                   </tr>
@@ -60,7 +62,7 @@ export default function ArbitresTable({
                 <tbody>
                   {arbitres.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-5">
+                      <td colSpan={8} className="text-center text-muted py-5">
                         {searchQuery.trim() ? 'Aucun arbitre trouvé pour cette recherche' : 'Aucun arbitre'}
                       </td>
                     </tr>
@@ -79,6 +81,12 @@ export default function ArbitresTable({
                           {arbitre.date_naissance
                             ? new Date(arbitre.date_naissance).toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'fr-FR')
                             : '—'}
+                        </td>
+                        <td>{[arbitre.categorie, arbitre.grade].filter(Boolean).join(' · ') || '—'}</td>
+                        <td>
+                          <span className={`badge ${arbitre.is_active === false ? 'bg-secondary' : 'bg-success'}`}>
+                            {arbitre.status || (arbitre.is_active === false ? 'INACTIVE' : 'ACTIVE')}
+                          </span>
                         </td>
                         <td>
                           {arbitre.photo_url ? (
@@ -131,7 +139,7 @@ export default function ArbitresTable({
                               }}
                               className="btn btn-sm btn-outline-danger"
                             >
-                              Supprimer
+                              Désactiver
                             </button>
                           </div>
                         </td>

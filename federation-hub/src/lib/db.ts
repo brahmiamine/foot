@@ -26,6 +26,8 @@ import {
   User,
   Vote,
   VoteAlert,
+  RefereeOfficialEvaluation,
+  OfficialRefereeCriterion,
 } from './entities'
 
 const globalForDataSource = globalThis as unknown as {
@@ -60,7 +62,7 @@ function createDataSource() {
     // le schéma sur les seules entités TypeORM et pourrait supprimer les colonnes/
     // tables ajoutées pour ob.
     synchronize: false,
-    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, Player, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert],
+    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeOfficialEvaluation, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert],
     extra: {
       decimalNumbers: true,
     },
@@ -76,7 +78,15 @@ function createDataSource() {
 // (TypeORM compare par référence de classe, pas par nom, quand la cible est
 // une classe). `dataSource.hasMetadata(EntityClass)` reproduit la même
 // comparaison par référence que `getRepository`, donc détecte ce cas précis.
-const REQUIRED_ENTITY_CLASSES = [Contact, VoteAlert, AuditLog, User, Team]
+const REQUIRED_ENTITY_CLASSES = [
+  Contact,
+  VoteAlert,
+  AuditLog,
+  User,
+  Team,
+  RefereeOfficialEvaluation,
+  OfficialRefereeCriterion,
+]
 
 function hasAllRequiredEntities(dataSource: DataSource): boolean {
   return REQUIRED_ENTITY_CLASSES.every((entityClass) => dataSource.hasMetadata(entityClass))

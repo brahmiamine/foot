@@ -15,7 +15,7 @@ import { MatchCancellationRefund } from "@/entities/MatchCancellationRefund";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
- * apps du monorepo (referee-center/federation-hub/club-hub/identity/ob/seller-portal/...).
+ * apps du monorepo (arbinote/federation-hub/club-hub/identity/ob/seller-portal/...).
  * Les tables propres à cette app sont préfixées `tk_` (Ticketing) ; `teams`
  * et `matches` sont lues en lecture seule, jamais dupliquées ni écrites ici.
  */

@@ -14,7 +14,6 @@ const navItems = [
   { label: 'Joueurs', href: '/admin/joueurs', icon: 'bx bx-run' },
   { label: 'Clubs', href: '/admin/club', icon: 'bx bx-shield-quarter' },
   { label: 'Matchs', href: '/admin/matches', icon: 'bx bx-football' },
-  { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },
   { label: 'Invitations staff', href: '/admin/staff-invitations', icon: 'bx bx-envelope' },
   { label: 'Clubs affiliés', href: '/admin/clubs-affilies', icon: 'bx bx-link' },
   { label: 'Officiels de match', href: '/admin/officiels-matchs', icon: 'bx bx-badge-check' },
@@ -23,7 +22,19 @@ const navItems = [
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
 ]
 
-export default function AdminSidebar() {
+const arbitrationNavItems = [
+  { label: 'Arbitres', href: '/admin/arbitres', icon: 'bx bx-user-check' },
+  { label: 'Observateurs', href: '/admin/staff-invitations', icon: 'bx bx-id-card' },
+  { label: 'Évaluations', href: '/admin/arbitrage/evaluations', icon: 'bx bx-clipboard' },
+  { label: 'Analytics', href: '/admin/arbitrage/evaluations#analytics', icon: 'bx bx-line-chart' },
+  { label: 'ArbiNote · Votes', href: '/admin/arbitrage/arbinote/votes', icon: 'bx bx-message-square-check', platformOnly: true },
+  { label: 'ArbiNote · Anomalies', href: '/admin/arbitrage/arbinote/anomalies', icon: 'bx bx-error', platformOnly: true },
+  { label: 'ArbiNote · Alertes', href: '/admin/arbitrage/arbinote/alerts', icon: 'bx bx-bell', platformOnly: true },
+  { label: 'ArbiNote · Signalements', href: '/admin/arbitrage/arbinote/contact', icon: 'bx bx-envelope', platformOnly: true },
+  { label: 'ArbiNote · Critères', href: '/admin/arbitrage/arbinote/criteres', icon: 'bx bx-list-check', platformOnly: true },
+]
+
+export default function AdminSidebar({ role }: { role?: string }) {
   const pathname = usePathname()
   const { isOpen, isCollapsed, toggleCollapse, closeSidebar } = useAdminSidebar()
 
@@ -50,7 +61,7 @@ export default function AdminSidebar() {
           <div id="sidebar-menu">
             <ul className="metismenu list-unstyled" id="side-menu">
               <li className="menu-title">Navigation</li>
-              {navItems.map((item) => {
+              {(role === 'REFEREE_OBSERVER' ? [] : navItems).map((item) => {
                 const linkPath = item.href.split('#')[0]
                 const isActive = pathname === linkPath
                 return (
@@ -66,6 +77,25 @@ export default function AdminSidebar() {
                   </li>
                 )
               })}
+              <li className="menu-title">Arbitrage</li>
+              {arbitrationNavItems
+                .filter((item) => {
+                  if (role === 'REFEREE_OBSERVER') return item.href === '/admin/arbitrage/evaluations'
+                  if (item.platformOnly) return role === 'SUPERADMIN' || role === 'PLATFORM_SUPERADMIN'
+                  return true
+                })
+                .map((item) => {
+                  const linkPath = item.href.split('#')[0]
+                  const isActive = pathname === linkPath
+                  return (
+                    <li key={item.href} className={isActive ? 'mm-active' : undefined}>
+                      <Link href={item.href} className={isActive ? 'active' : undefined} onClick={closeSidebar}>
+                        <i className={item.icon} />
+                        <span>{item.label}</span>
+                      </Link>
+                    </li>
+                  )
+                })}
             </ul>
           </div>
         </div>

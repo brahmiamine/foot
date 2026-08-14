@@ -2,7 +2,11 @@ import { unstable_cache } from 'next/cache'
 import { getDataSource } from '../db'
 import { Federation, League } from '../entities'
 
-async function fetchFederationsWithLeaguesUncached() {
+export interface FederationWithLeagues extends Federation {
+  leagues: League[]
+}
+
+async function fetchFederationsWithLeaguesUncached(): Promise<FederationWithLeagues[]> {
   const dataSource = await getDataSource()
   // Récupérer uniquement les fédérations actives
   const federations = await dataSource.query(

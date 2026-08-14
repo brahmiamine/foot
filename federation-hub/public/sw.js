@@ -1,5 +1,5 @@
 // Service Worker minimal pour PWA
-const CACHE_NAME = 'referee-center-v1';
+const CACHE_NAME = 'arbinote-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',

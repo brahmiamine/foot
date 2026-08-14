@@ -14,9 +14,9 @@ const MENU_KEYS: Record<string, TranslationKey> = {
 
 /**
  * Admin Sidebar Navigation Component
- * Même structure/couleurs que referee-center/federation-hub (sidebar sombre, Bootstrap 5
+ * Même structure/couleurs que arbinote/federation-hub (sidebar sombre, Bootstrap 5
  * + skote-admin.css), avec support des sous-menus et du mode compact desktop
- * (spécifiques à club-hub, qui a plus de sections qu'referee-center). Chaque
+ * (spécifiques à club-hub, qui a plus de sections qu'arbinote). Chaque
  * item peut déclarer une `permission` requise : un compte OBSERVATEUR ne
  * voit que les sections couvertes par ses rôles (ADMIN voit toujours tout).
  */

@@ -5,17 +5,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 # ── Base de données partagée (mariadb_container) ────────────────────────────
-# Identifiants stockés dans referee-center/.env.local (base "foot" partagée par
-# referee-center, federation-hub, club-hub et identity).
-if [ -f "$ROOT_DIR/referee-center/.env.local" ]; then
+# Identifiants stockés dans arbinote/.env.local (base "foot" partagée par
+# arbinote, federation-hub, club-hub et identity).
+if [ -f "$ROOT_DIR/arbinote/.env.local" ]; then
   set -a
-  source "$ROOT_DIR/referee-center/.env.local"
+  source "$ROOT_DIR/arbinote/.env.local"
   set +a
 fi
 
-: "${DB_USER:?DB_USER manquant dans referee-center/.env.local}"
-: "${DB_PASSWORD:?DB_PASSWORD manquant dans referee-center/.env.local}"
-: "${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans referee-center/.env.local}"
+: "${DB_USER:?DB_USER manquant dans arbinote/.env.local}"
+: "${DB_PASSWORD:?DB_PASSWORD manquant dans arbinote/.env.local}"
+: "${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans arbinote/.env.local}"
 
 echo "🔍 Vérification de Docker..."
 if ! docker info >/dev/null 2>&1; then
@@ -111,10 +111,10 @@ else
   echo "⚠️  identity/.env.local absent : identity n’est pas démarré (copier identity/env.example → identity/.env.local pour l'activer). Les autres apps ne pourront pas authentifier tant qu'il ne tourne pas."
 fi
 
-# ── referee-center sur le port 3000 (site public de notation des arbitres : votes,
+# ── arbinote sur le port 3000 (site public de notation des arbitres : votes,
 # critères, anomalies, alertes, messages — remplace l'ancien ArbiNote) ───────
-echo "🚀 Lancement d'referee-center sur http://localhost:3000 ..."
-(cd "$ROOT_DIR/referee-center" && PORT=3000 pnpm run dev 2>&1 | sed -u 's/^/[referee-center]   /') &
+echo "🚀 Lancement d'arbinote sur http://localhost:3000 ..."
+(cd "$ROOT_DIR/arbinote" && PORT=3000 pnpm run dev 2>&1 | sed -u 's/^/[arbinote]   /') &
 
 # ── match-operations sur le port 3001 (feuille de match électronique : avant-match,
 # live, après-match, signatures et événements) ───────────────────────────────

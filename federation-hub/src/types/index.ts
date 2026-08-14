@@ -14,6 +14,12 @@ export interface Arbitre {
   categorie_ar?: string | null
   photo_url?: string | null
   date_naissance?: string | null
+  federation_id?: string | null
+  league_id?: string | null
+  grade?: string | null
+  status?: string | null
+  is_active?: boolean
+  start_date?: string | null
   created_at?: string
   moyenne_note?: number
   nombre_votes?: number
@@ -174,4 +180,3 @@ export interface CritereDefinition {
   description_ar?: string | null
   created_at?: string
 }
-
