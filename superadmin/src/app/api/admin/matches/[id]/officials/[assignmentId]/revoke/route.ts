@@ -27,7 +27,7 @@ export async function POST(
       ? canAccessPlatform(session) ||
         canAccessLeague(session, scope.leagueId, scope.federationId) ||
         canAccessFederation(session, scope.federationId)
-      : false
+      : canAccessPlatform(session)
     if (!authorized) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
