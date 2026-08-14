@@ -47,11 +47,12 @@ contrôler le rôle et, si nécessaire, le `teamId` attendu.
 
 ## Projets consommateurs
 
-Six applications importent directement ce module : `arbinote`, `match-operations`,
-`federation-hub`, `club-hub`, `ob` et `ticketing`. Leurs wrappers
-`src/lib/ssoSession.ts` ajoutent les unions de rôles et, selon le runtime, les
-helpers Server Components. Les middlewares d'`arbinote`, `federation-hub` et
-`club-hub` l'importent aussi directement. `notifications` valide le même
+Neuf applications importent directement ce module : `arbinote`, `match-operations`,
+`federation-hub`, `club-hub`, `ob`, `ticketing`, `player-hub`, `staff-hub` et
+`medical-hub`. Leurs wrappers `src/lib/ssoSession.ts` ajoutent les unions de
+rôles et, selon le runtime, les helpers Server Components. Les middlewares
+d'`arbinote`, `federation-hub`, `club-hub`, `player-hub`, `staff-hub` et
+`medical-hub` l'importent aussi directement. `notifications` valide le même
 contrat dans son service NestJS, mais ne dépend pas de ce module TypeScript.
 
 ## Exemple minimal dans une application du monorepo
