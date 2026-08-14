@@ -10,11 +10,11 @@ procédure cross-app sont dans [`OWNERSHIP.md`](./OWNERSHIP.md).
 
 | Base | Projets / accès | Tables |
 |---|---|---|
-| **`foot` partagée** | `arbinote`, `matchsheet`, `superadmin`, `teamManager`, `sso`, `sellerPortal`, `billetterie`; `ob` en lecture | Référentiel, matchs, arbitrage, comptes, effectif, CMS, feuille de match, billetterie et marketplace (`sp_*`). |
-| **base propre à `payment-api`** (`DB_DATABASE`) | `payment-api` seulement | `payments`. Aucune table de paiement n'appartient à `foot`. |
-| **base propre à `notification-api`** (`DB_DATABASE`) | `notification-api` seulement | `notifications`, `notification_deliveries`, `notification_events`, `notification_preferences`, `notification_user_locales`, `notification_templates`, `push_subscriptions`. |
+| **`foot` partagée** | `referee-center`, `match-operations`, `federation-hub`, `club-hub`, `identity`, `seller-portal`, `ticketing`; `ob` en lecture | Référentiel, matchs, arbitrage, comptes, effectif, CMS, feuille de match, ticketing et marketplace (`sp_*`). |
+| **base propre à `payments`** (`DB_DATABASE`) | `payments` seulement | `payments`. Aucune table de paiement n'appartient à `foot`. |
+| **base propre à `notifications`** (`DB_DATABASE`) | `notifications` seulement | `notifications`, `notification_deliveries`, `notification_events`, `notification_preferences`, `notification_user_locales`, `notification_templates`, `push_subscriptions`. |
 
-`notification-api` ouvre en plus une connexion **lecture seule** vers `foot`
+`notifications` ouvre en plus une connexion **lecture seule** vers `foot`
 (`DIRECTORY_DB_*`) pour résoudre des destinataires ; cela ne transfère aucune
 de ses tables dans la base partagée.
 
@@ -33,14 +33,14 @@ La comparaison avec les scripts présents montre qu'il est **en retard** :
 
 | Projet / emplacement | Écart par rapport à `foot.sql` |
 |---|---|
-| `arbinote/migrations`, `arbinote/mysql` | Les tables historiques d'arbitrage sont dans le dump ; des évolutions de colonnes/index de `federations`, `ligues`, `teams`, `saisons`, `votes` peuvent rester à appliquer. |
-| `superadmin/migrations`, `superadmin/mysql` | `team_branding` et `staff_invitations` manquent au dump ; les migrations modifient aussi `matches` et les tables référentielles/arbitrage. |
-| `sso/sql` | `member_team_affiliations`, `password_reset_tokens`, `security_events` et `mfa_enrollment_challenges` manquent ; plusieurs claims/profils/MFA modifient `User`. |
-| `matchsheet/sql` | Toutes les tables `ms_*` manquent : `ms_sheets`, `ms_signatures`, `ms_goals`, `ms_injuries`, `ms_substitutions`, `ms_reservations`, `ms_match_officials`, `ms_player_controls`; les scripts modifient aussi `Card`. |
-| `teamManager/sql` | Les tables `cms_*` et `shop_*` issues des migrations courantes manquent presque toutes, ainsi que leurs évolutions de `Player`, `Card`, `teams` et `matches`. `olympique_beja_db_complete.sql` est un ancien schéma/bootstrap, pas la liste canonique à fusionner aveuglément. |
-| `billetterie/sql` | `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules`, `tk_tickets` et `tk_ticket_scans` manquent. |
-| `sellerPortal/sql` | Toutes les tables marketplace `sp_*` manquent (vendeurs, utilisateurs, catégories, produits/images/variantes, stocks, commandes/lignes, retours, payouts, notifications). |
-| `payment-api`, `notification-api` | Aucun dossier de migrations versionnées. Les entités TypeORM créent leurs tables dans leurs **bases propres** avec `synchronize` hors production ; ce mécanisme ne doit jamais servir à compléter `foot`. |
+| `referee-center/migrations`, `referee-center/mysql` | Les tables historiques d'arbitrage sont dans le dump ; des évolutions de colonnes/index de `federations`, `ligues`, `teams`, `saisons`, `votes` peuvent rester à appliquer. |
+| `federation-hub/migrations`, `federation-hub/mysql` | `team_branding` et `staff_invitations` manquent au dump ; les migrations modifient aussi `matches` et les tables référentielles/arbitrage. |
+| `identity/sql` | `member_team_affiliations`, `password_reset_tokens`, `security_events` et `mfa_enrollment_challenges` manquent ; plusieurs claims/profils/MFA modifient `User`. |
+| `match-operations/sql` | Toutes les tables `ms_*` manquent : `ms_sheets`, `ms_signatures`, `ms_goals`, `ms_injuries`, `ms_substitutions`, `ms_reservations`, `ms_match_officials`, `ms_player_controls`; les scripts modifient aussi `Card`. |
+| `club-hub/sql` | Les tables `cms_*` et `shop_*` issues des migrations courantes manquent presque toutes, ainsi que leurs évolutions de `Player`, `Card`, `teams` et `matches`. `olympique_beja_db_complete.sql` est un ancien schéma/bootstrap, pas la liste canonique à fusionner aveuglément. |
+| `ticketing/sql` | `tk_ticket_categories`, `tk_match_ticket_categories`, `tk_ticket_sale_rules`, `tk_tickets` et `tk_ticket_scans` manquent. |
+| `seller-portal/sql` | Toutes les tables marketplace `sp_*` manquent (vendeurs, utilisateurs, catégories, produits/images/variantes, stocks, commandes/lignes, retours, payouts, notifications). |
+| `payments`, `notifications` | Aucun dossier de migrations versionnées. Les entités TypeORM créent leurs tables dans leurs **bases propres** avec `synchronize` hors production ; ce mécanisme ne doit jamais servir à compléter `foot`. |
 
 Ainsi, la rubrique ne prétend pas que les 23 tables du dump représentent la
 production. Pour connaître le schéma attendu, lire ensemble le dump, les

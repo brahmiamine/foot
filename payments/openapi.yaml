@@ -1,0 +1,705 @@
+openapi: 3.0.3
+info:
+  title: payments
+  description: >
+    API de paiement provider-agnostique (Konnect, Flouci, Paymee) pour
+    l'écosystème foot. Toutes les routes d'initiation de paiement et de
+    lecture sont réservées aux applications backend de l'écosystème
+    (jamais appelées directement par un client final) et protégées par
+    ServiceAuthGuard (header `x-api-key`, voir TASK-P0-003 pour la
+    rotation). Les routes `*/webhook` sont appelées par les fournisseurs
+    de paiement eux-mêmes et ne portent jamais cette clé — elles sont
+    authentifiées par re-vérification serveur-à-serveur ou checksum, pas
+    par un secret partagé côté requête entrante.
+
+    TASK-P0-019 (portion scopée) : ce document décrit les routes telles
+    qu'elles existent réellement aujourd'hui (non versionnées, `/payments/*`).
+    Le versioning d'URL (`/v1/payments`, `/v2/payments`) suggéré par le
+    todo n'a pas été implémenté dans cette passe : c'est un changement
+    cassant pour toutes les applications appelantes actuelles
+    (ob, club-hub, seller-portal, ticketing, marketplace) et
+    nécessite une décision produit/coordination de déploiement, pas
+    seulement un renommage de route. Recommandation si le versioning est
+    adopté plus tard : introduire `/v1/*` comme alias des routes actuelles
+    (sans les retirer) pour que la transition des appelants soit
+    progressive.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:3000
+    description: Développement local
+
+security:
+  - ServiceApiKey: []
+
+paths:
+  /health:
+    get:
+      summary: Sonde de santé (infra, non authentifiée)
+      operationId: getHealth
+      tags: [Santé]
+      security: []
+      responses:
+        "200":
+          description: Service et base de données disponibles.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+                  service: { type: string, example: payments }
+                  database: { type: string, enum: [ok] }
+                  responseTimeMs: { type: number }
+                  timestamp: { type: string, format: date-time }
+        "503":
+          description: Base de données inaccessible.
+
+  /health/outbox:
+    get:
+      summary: Profondeur de la file outbox (webhooks sortants) — sonde ops
+      operationId: getOutboxHealth
+      tags: [Santé]
+      security: []
+      description: >
+        TASK-P0-006. `status` passe à `degraded` dès qu'au moins un
+        événement est en dead-letter queue (DLQ) — à brancher sur un
+        moniteur ops externe, aucune alerte push/Slack n'existe dans ce
+        repo.
+      responses:
+        "200":
+          description: Statistiques de la file outbox.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  pending: { type: integer }
+                  dlq: { type: integer }
+                  timestamp: { type: string, format: date-time }
+
+  /health/reconciliation:
+    get:
+      summary: Dernier rapport de réconciliation périodique — sonde ops
+      operationId: getReconciliationHealth
+      tags: [Santé]
+      security: []
+      description: >
+        TASK-P0-015. Réconciliation horaire des paiements PENDING de plus
+        d'1h pour Konnect/Flouci uniquement — Paymee n'a pas d'API de
+        statut serveur-à-serveur exploitable, exclu de la réconciliation
+        automatique (voir README § Sécurité / Réconciliation).
+      responses:
+        "200":
+          description: Dernier rapport (peut être `null` si aucun cycle n'a encore tourné).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  lastReport:
+                    type: object
+                    nullable: true
+
+  /payments/{id}:
+    get:
+      summary: Lit un paiement par son id interne
+      operationId: getPaymentById
+      tags: [Paiements]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Le paiement.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Aucun paiement avec cet id.
+
+  /payments/{paymentId}/refunds:
+    post:
+      summary: Demande un remboursement total ou partiel d'un paiement PAID
+      operationId: createRefund
+      tags: [Remboursements]
+      description: >
+        TASK-P0-001. Seul Flouci expose une API de remboursement
+        automatisée (vérifié contre la documentation officielle des trois
+        fournisseurs) et uniquement pour le montant total du paiement — un
+        remboursement partiel, ou tout remboursement Konnect/Paymee, passe
+        par le statut MANUAL_REVIEW plutôt que de simuler un succès. Le
+        montant restant remboursable est recalculé côté serveur sous
+        verrou, jamais fait confiance au client.
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRefundDto"
+      responses:
+        "201":
+          description: Remboursement créé (statut REQUESTED/PROCESSING/SUCCEEDED/FAILED/MANUAL_REVIEW selon le fournisseur).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+        "400":
+          description: Paiement non PAID, ou montant demandé supérieur au montant restant remboursable.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Aucun paiement avec cet id.
+    get:
+      summary: Liste les remboursements d'un paiement
+      operationId: listRefundsForPayment
+      tags: [Remboursements]
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Remboursements du paiement, plus récents en premier.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Refund" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /payments/{paymentId}/refunds/remaining:
+    get:
+      summary: Montant restant remboursable pour un paiement
+      operationId: getRemainingRefundable
+      tags: [Remboursements]
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Montant restant, calculé côté serveur.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paymentId: { type: string, format: uuid }
+                  paymentAmount: { type: string }
+                  currency: { type: string }
+                  remainingRefundable: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Aucun paiement avec cet id.
+
+  /refunds:
+    get:
+      summary: File d'attente opérateur (défaut MANUAL_REVIEW)
+      operationId: listRefunds
+      tags: [Remboursements]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [REQUESTED, PROCESSING, SUCCEEDED, FAILED, MANUAL_REVIEW]
+      responses:
+        "200":
+          description: Remboursements dans le statut demandé (MANUAL_REVIEW par défaut).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Refund" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /refunds/{id}:
+    get:
+      summary: Détail d'un remboursement et son historique de statuts
+      operationId: getRefundById
+      tags: [Remboursements]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Remboursement et historique append-only de ses transitions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  refund: { $ref: "#/components/schemas/Refund" }
+                  history:
+                    type: array
+                    items: { $ref: "#/components/schemas/RefundStatusHistoryEntry" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Aucun remboursement avec cet id.
+
+  /refunds/{id}/retry:
+    post:
+      summary: Rejoue un remboursement automatisé FAILED (Flouci)
+      operationId: retryRefund
+      tags: [Remboursements]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Résultat de la nouvelle tentative.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Aucun remboursement avec cet id.
+        "409":
+          description: Le remboursement n'est pas dans le statut FAILED.
+
+  /refunds/{id}/confirm:
+    post:
+      summary: Opérateur confirme un remboursement MANUAL_REVIEW effectué manuellement (ex. virement bancaire)
+      operationId: confirmManualRefund
+      tags: [Remboursements]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveRefundDto"
+      responses:
+        "201":
+          description: Remboursement passé à SUCCEEDED (idempotent si déjà SUCCEEDED).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Aucun remboursement avec cet id.
+        "409":
+          description: Le remboursement n'est ni MANUAL_REVIEW ni FAILED.
+
+  /refunds/{id}/reject:
+    post:
+      summary: Opérateur rejette un remboursement MANUAL_REVIEW (ne sera pas payé)
+      operationId: rejectManualRefund
+      tags: [Remboursements]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveRefundDto"
+      responses:
+        "201":
+          description: Remboursement passé à FAILED, terminal (idempotent si déjà FAILED).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Aucun remboursement avec cet id.
+        "409":
+          description: Le remboursement n'est pas MANUAL_REVIEW.
+
+  /payments/konnect/init:
+    post:
+      summary: Initie un paiement via Konnect
+      operationId: initKonnectPayment
+      tags: [Konnect]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitPaymentDto"
+      responses:
+        "201":
+          description: Paiement initié.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InitPaymentResultDto"
+        "400":
+          description: Requête invalide (montant, orderId, ou rejet Konnect en amont) — voir konnect.exceptions.ts pour le détail des codes d'erreur.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Le paiement Konnect existant ne correspond pas au montant/devise/orderId attendu (KONNECT_PAYMENT_MISMATCH).
+        "502":
+          description: Konnect indisponible ou en erreur serveur (retryable).
+        "503":
+          description: Konnect a limité le débit (rate limit, retryable).
+        "504":
+          description: Konnect n'a pas répondu à temps (retryable).
+
+  /payments/konnect/webhook:
+    get:
+      summary: Webhook entrant Konnect (appelé par Konnect, pas par les apps de l'écosystème)
+      operationId: handleKonnectWebhook
+      tags: [Konnect]
+      security: []
+      description: >
+        Le `payment_ref` reçu n'est jamais source de vérité : le paiement
+        est toujours re-vérifié serveur-à-serveur auprès de l'endpoint
+        get-payment-details de Konnect avant toute mise à jour d'état.
+        Répond toujours 200 une fois la notification traitée (ou ignorée
+        comme doublon) pour que Konnect arrête de réessayer.
+      parameters:
+        - name: payment_ref
+          in: query
+          required: true
+          schema: { type: string, pattern: "^[a-f0-9]{24}$" }
+      responses:
+        "200":
+          description: Notification acquittée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: { type: boolean, enum: [true] }
+        "400":
+          description: payment_ref absent du côté Konnect ou requête rejetée.
+        "404":
+          description: Paiement introuvable côté Konnect.
+
+  /payments/providers/flouci/init:
+    post:
+      summary: Initie un paiement via Flouci
+      operationId: initFlouciPayment
+      tags: [Flouci]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitPaymentDto"
+      responses:
+        "201":
+          description: Paiement initié.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InitPaymentResultDto"
+        "400":
+          description: Requête invalide — voir flouci.exceptions.ts.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: Flouci indisponible ou en erreur (retryable).
+
+  /payments/providers/flouci/webhook:
+    post:
+      summary: Webhook entrant Flouci (appelé par Flouci, pas par les apps de l'écosystème)
+      operationId: handleFlouciWebhook
+      tags: [Flouci]
+      security: []
+      description: >
+        Le schéma du webhook n'est pas figé par la documentation publique
+        de Flouci — seul `payment_id` est requis ; le statut/montant réels
+        proviennent toujours d'un appel verify_payment frais, jamais de ce
+        payload. Répond toujours 200 une fois traité (ou ignoré comme
+        doublon).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlouciWebhookDto"
+      responses:
+        "200":
+          description: Notification acquittée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: { type: boolean, enum: [true] }
+        "400":
+          description: payment_id absent du corps de la requête.
+
+  /payments/providers/paymee/init:
+    post:
+      summary: Initie un paiement via Paymee
+      operationId: initPaymeePayment
+      tags: [Paymee]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitPaymeePaymentDto"
+      responses:
+        "201":
+          description: Paiement initié.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InitPaymeePaymentResultDto"
+        "400":
+          description: Requête invalide (les champs identité sont obligatoires chez Paymee, contrairement aux autres fournisseurs) — voir paymee.exceptions.ts.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: Paymee indisponible ou en erreur (retryable).
+
+  /payments/providers/paymee/webhook:
+    post:
+      summary: Webhook entrant Paymee (appelé par Paymee, pas par les apps de l'écosystème)
+      operationId: handlePaymeeWebhook
+      tags: [Paymee]
+      security: []
+      description: >
+        Le `check_sum` du payload est vérifié avant toute recherche
+        interne de paiement — le payload seul n'est jamais fait confiance.
+        Répond toujours 200 une fois traité (ou ignoré comme doublon).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymeeWebhookDto"
+      responses:
+        "200":
+          description: Notification acquittée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: { type: boolean, enum: [true] }
+        "400":
+          description: Champs obligatoires absents (token, check_sum, payment_status, order_id, amount).
+
+components:
+  securitySchemes:
+    ServiceApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: >
+        Clé service-à-service par application appelante (registre
+        SERVICE_API_KEYS, voir service-clients.config.ts). Rotation sans
+        interruption via SERVICE_API_KEYS_PREVIOUS (TASK-P0-003).
+
+  parameters:
+    IdempotencyKey:
+      name: idempotency-key
+      in: header
+      required: false
+      description: >
+        TASK-P0-005. Rejouer le même appel avec la même clé (scopée par
+        application appelante) renvoie le paiement déjà initié plutôt que
+        d'en créer un second / de facturer deux fois.
+      schema: { type: string, maxLength: 255 }
+
+  responses:
+    Unauthorized:
+      description: x-api-key absent ou invalide.
+
+  schemas:
+    InitPaymentDto:
+      type: object
+      required: [orderId, amount]
+      properties:
+        orderId: { type: string, maxLength: 100 }
+        amount: { type: number, description: "Montant en unité principale (TND), 3 décimales max." }
+        currency: { type: string, enum: [TND], default: TND }
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        email: { type: string, format: email }
+        phoneNumber: { type: string, maxLength: 30 }
+        userId:
+          type: string
+          maxLength: 36
+          description: User.id `foot` du payeur, si connu — active la notification PAYMENT_SUCCEEDED.
+
+    InitPaymentResultDto:
+      type: object
+      properties:
+        paymentId: { type: string, format: uuid }
+        payUrl: { type: string, format: uri }
+        providerRef: { type: string }
+
+    InitPaymeePaymentDto:
+      type: object
+      required: [orderId, amount, firstName, lastName, email, phoneNumber]
+      description: >
+        Contrairement à InitPaymentDto, Paymee documente l'identité comme
+        obligatoire sur chaque appel create-payment.
+      properties:
+        orderId: { type: string, maxLength: 100 }
+        amount: { type: number }
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        email: { type: string, format: email }
+        phoneNumber: { type: string, maxLength: 30 }
+        mode: { type: string, enum: [redirect, iframe], default: redirect }
+        userId: { type: string, maxLength: 36 }
+
+    InitPaymeePaymentResultDto:
+      type: object
+      properties:
+        paymentId: { type: string, format: uuid }
+        token:
+          type: string
+          description: Pour charger la passerelle Paymee en iframe (mode `iframe`).
+        payUrl:
+          type: string
+          format: uri
+          description: Présent uniquement en mode `redirect`.
+
+    FlouciWebhookDto:
+      type: object
+      required: [payment_id]
+      properties:
+        payment_id: { type: string }
+        developer_tracking_id: { type: string }
+        status: { type: string }
+        amount: { type: number }
+
+    PaymeeWebhookDto:
+      type: object
+      required: [token, check_sum, payment_status, order_id, amount]
+      properties:
+        token: { type: string }
+        check_sum: { type: string }
+        payment_status: { type: boolean }
+        order_id: { type: string }
+        amount: { type: number }
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        note: { type: string }
+        transaction_id: { type: integer }
+        received_amount: { type: number }
+        cost: { type: number }
+
+    Payment:
+      type: object
+      description: Enregistrement interne provider-agnostique.
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string }
+        userId: { type: string, nullable: true }
+        callerApplication: { type: string, nullable: true }
+        idempotencyKey: { type: string, nullable: true }
+        provider: { type: string, enum: [konnect, paymee, flouci] }
+        amount: { type: string, description: "Décimal en chaîne (precision 12, scale 3)." }
+        currency: { type: string, example: TND }
+        status: { type: string, enum: [PENDING, PAID, FAILED, EXPIRED, UNKNOWN] }
+        providerRef: { type: string, nullable: true }
+        payUrl: { type: string, nullable: true }
+        lastProviderStatus: { type: string, nullable: true }
+        paidAt: { type: string, format: date-time, nullable: true }
+        receivedAmount: { type: string, nullable: true, description: "Renseigné seulement pour les fournisseurs qui déclarent des frais séparément (ex. Paymee)." }
+        providerFee: { type: string, nullable: true }
+        lastWebhookAt: { type: string, format: date-time, nullable: true }
+        webhookReceivedCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateRefundDto:
+      type: object
+      required: [reason]
+      properties:
+        amount:
+          type: number
+          description: Omis = rembourse tout le montant restant remboursable (calculé côté serveur).
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        initiatedByUser:
+          type: string
+          maxLength: 100
+          description: Identité opérateur/utilisateur ayant demandé le remboursement, pour audit uniquement.
+
+    ResolveRefundDto:
+      type: object
+      required: [resolvedByUser, note]
+      properties:
+        resolvedByUser: { type: string, maxLength: 100 }
+        note: { type: string, minLength: 3, maxLength: 500 }
+
+    Refund:
+      type: object
+      description: Une opération de remboursement contre un Payment. Plusieurs Refund peuvent exister pour un même paiement (remboursements partiels).
+      properties:
+        id: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        provider: { type: string, enum: [konnect, paymee, flouci] }
+        idempotencyKey: { type: string, nullable: true }
+        amount: { type: string }
+        currency: { type: string, example: TND }
+        status: { type: string, enum: [REQUESTED, PROCESSING, SUCCEEDED, FAILED, MANUAL_REVIEW] }
+        reason: { type: string }
+        initiatedByApplication: { type: string }
+        initiatedByUser: { type: string, nullable: true }
+        providerRefundRef: { type: string, nullable: true, description: "Identifiant fournisseur (Flouci refund_id) — jamais renseigné pour Konnect/Paymee." }
+        lastProviderStatus: { type: string, nullable: true }
+        failureReason: { type: string, nullable: true }
+        manualReviewReason: { type: string, nullable: true, description: "Pourquoi ce remboursement n'a pas pu être automatisé." }
+        resolvedByUser: { type: string, nullable: true }
+        resolutionNote: { type: string, nullable: true }
+        succeededAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    RefundStatusHistoryEntry:
+      type: object
+      description: Une ligne append-only de l'historique de transitions d'un Refund.
+      properties:
+        id: { type: string, format: uuid }
+        refundId: { type: string, format: uuid }
+        fromStatus: { type: string, nullable: true, enum: [REQUESTED, PROCESSING, SUCCEEDED, FAILED, MANUAL_REVIEW] }
+        toStatus: { type: string, enum: [REQUESTED, PROCESSING, SUCCEEDED, FAILED, MANUAL_REVIEW] }
+        reason: { type: string, nullable: true }
+        actor: { type: string }
+        createdAt: { type: string, format: date-time }

@@ -1,0 +1,148 @@
+/* Coquille plein écran de l'app match-operations : pas de sidebar, juste une
+ * zone de contenu principale et une barre horizontale de matchs en bas. */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+.match-operations-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: #f8f8fb;
+}
+
+.match-operations-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.match-operations-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+.match-operations-bottombar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  border-top: 1px solid #e9ecef;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.match-operations-bottombar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.match-chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 200px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e9ecef;
+  background: #f8f9fa;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.match-chip:hover {
+  background: #eef2f7;
+}
+
+.match-chip.active {
+  background: #ce1126;
+  border-color: #ce1126;
+  color: #fff;
+}
+
+.match-operations-lang-toggle {
+  position: fixed;
+  top: 0.75rem;
+  inset-inline-end: 0.75rem;
+  z-index: 1050;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #ce1126;
+  background: #fff;
+  color: #ce1126;
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.match-operations-lang-toggle:hover {
+  background: #ce1126;
+  color: #fff;
+}
+
+.match-chip .match-chip-teams {
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-chip .match-chip-meta {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.match-operations-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #74788d;
+}
+
+.signature-pad-canvas {
+  width: 100%;
+  height: 220px;
+  border: 2px dashed #ced4da;
+  border-radius: 0.5rem;
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.signature-pad-canvas.is-signed {
+  border-style: solid;
+  border-color: #34c38f;
+}
+
+/* Direction-aware alignment for Bootstrap utilities and match-sheet surfaces. */
+[dir="rtl"] .match-operations-app .text-end { text-align: end !important; }
+[dir="rtl"] .match-operations-app .ms-1 { margin-inline-start: .25rem !important; margin-left: 0 !important; }
+[dir="rtl"] .match-operations-app .ms-2 { margin-inline-start: .5rem !important; margin-left: 0 !important; }
+[dir="rtl"] .match-operations-app .me-2 { margin-inline-end: .5rem !important; margin-right: 0 !important; }
+[dir="rtl"] .match-operations-app .form-check { padding-inline-start: 1.5em; padding-left: 0; }
+[dir="rtl"] .match-operations-app .form-check-input { float: inline-start; margin-inline-start: -1.5em; margin-left: 0; }
+[dir="rtl"] .match-operations-app .table { text-align: start; }
+[dir="rtl"] .match-operations-app .btn-close { margin-inline-start: auto; margin-left: 0; }
+[dir="rtl"] .match-operations-app .offcanvas,
+[dir="rtl"] .match-operations-app .modal-content,
+[dir="rtl"] .match-operations-app .card,
+[dir="rtl"] .match-operations-app .signature-pad-canvas { text-align: start; }

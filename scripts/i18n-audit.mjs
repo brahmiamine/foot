@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-export const applications = ["arbinote", "billetterie", "matchsheet", "ob", "sellerPortal", "sso", "superadmin", "teamManager"];
+export const applications = ["referee-center", "ticketing", "match-operations", "club-ob", "seller-portal", "identity", "federation-hub", "club-hub"];
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 
 function params(value) {
@@ -12,10 +12,18 @@ function params(value) {
 
 function parseTs(file) {
   const source = fs.readFileSync(file, "utf8");
-  const fr = source.match(/\bfr\s*:\s*\{([\s\S]*?)\}\s*,\s*ar\s*:/)?.[1];
-  const ar = source.match(/\bar\s*:\s*\{([\s\S]*?)\}\s*\}\s*(?:as const)?/)?.[1];
+  const fr = source.match(/\bfr\s*:\s*\{([\s\S]*?)\}\s*,\s*ar\s*:/)?.[1]
+    ?? source.match(/\bconst\s+fr\s*=\s*\{([\s\S]*?)\}\s*(?:as const|satisfies[^;]+)?;/)?.[1];
+  const ar = source.match(/\bar\s*:\s*\{([\s\S]*?)\}\s*\}\s*(?:as const)?/)?.[1]
+    ?? source.match(/\bconst\s+ar\s*=\s*\{([\s\S]*?)\}\s*(?:as const|satisfies[^;]+)?;/)?.[1];
   if (!fr || !ar) throw new Error(`catalogue non analysable: ${path.relative(root, file)}`);
-  const read = (block) => Object.fromEntries([...block.matchAll(/(?:"([^"]+)"|([A-Za-z_$][\w$]*))\s*:\s*"((?:\\.|[^"\\])*)"/g)].map((m) => [m[1] || m[2], JSON.parse(`"${m[3]}"`)]));
+  const read = (block) => Object.fromEntries(
+    [...block.matchAll(/(?:"([^"]+)"|'([^']+)'|([A-Za-z_$][\w$]*))\s*:\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)')/g)]
+      .map((m) => {
+        const value = m[4] ?? m[5];
+        return [m[1] || m[2] || m[3], value.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, "\n")];
+      }),
+  );
   return { fr: read(fr), ar: read(ar) };
 }
 

@@ -1,0 +1,125 @@
+// Skote design system entry point for federation-hub.
+// Ported from Skote_React_v4.4.0 (Vite/Bootstrap edition) and trimmed to the
+// structure/components actually used by this app. See app.scss for details.
+
+@import "./icons.scss";
+@import "./bootstrap.scss";
+@import "./app.scss";
+
+body {
+  * {
+    outline: none;
+  }
+}
+
+#sidebar-menu {
+  ul {
+    li {
+      a {
+        i {
+          min-width: 2rem;
+        }
+      }
+    }
+  }
+}
+
+a:hover {
+  cursor: pointer;
+}
+
+.dropdown-menu-end {
+  left: auto !important;
+  right: 0 !important;
+}
+
+[data-bs-theme=dark] .card {
+  --bs-card-bg: #2a3042;
+}
+
+[data-bs-theme=dark] .btn-close-white {
+  filter: invert(1) grayscale(100%) brightness(0);
+}
+
+// react-toastify container should sit above Skote's modals/overlays
+.Toastify__toast-container {
+  z-index: 9999;
+}
+
+// table container / pagination (from Skote's theme.scss)
+.dataTables_info {
+  justify-content: flex-start;
+  display: flex;
+}
+
+ul.pagination {
+  justify-content: end;
+}
+
+@media screen and (max-width: 767px) {
+  ul.pagination {
+    justify-content: center !important;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Club-branded polish on top of the vendored Skote template — same
+// language as club-hub (Bebas Neue display type, tinted shadows,
+// borderless cards, real hover/press states, active-nav accent bar).
+// Kept as additive overrides so the vendored partials above stay intact.
+// ---------------------------------------------------------------------
+
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
+
+h1, h2, h3, .h1, .h2, .h3, #page-topbar h1 {
+  font-family: "Bebas Neue", "Poppins", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.card {
+  box-shadow: 0 1px 2px rgba(11, 31, 46, 0.04), 0 8px 20px -12px rgba(11, 31, 46, 0.14) !important;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.card.mini-stats-wid:hover {
+  box-shadow: 0 1px 2px rgba(11, 31, 46, 0.05), 0 14px 28px -14px rgba(11, 31, 46, 0.2) !important;
+  transform: translateY(-2px);
+}
+
+.mini-stats-wid h3 {
+  font-size: 2.1rem;
+}
+
+.btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -6px rgba($blue, 0.55);
+}
+
+#sidebar-menu li a {
+  position: relative;
+}
+
+#sidebar-menu li.mm-active > a::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 3px;
+  border-radius: 3px;
+  background: $blue;
+}
+
+#page-topbar {
+  box-shadow: 0 1px 0 rgba(11, 31, 46, 0.03), 0 6px 16px -12px rgba(11, 31, 46, 0.2);
+}

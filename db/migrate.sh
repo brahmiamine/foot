@@ -42,14 +42,14 @@ for arg in "$@"; do
   esac
 done
 
-if [ -f "$ROOT_DIR/arbinote/.env.local" ]; then
+if [ -f "$ROOT_DIR/referee-center/.env.local" ]; then
   set -a
-  source "$ROOT_DIR/arbinote/.env.local"
+  source "$ROOT_DIR/referee-center/.env.local"
   set +a
 fi
 
-: "${DB_USER:?DB_USER manquant dans arbinote/.env.local}"
-: "${DB_PASSWORD:?DB_PASSWORD manquant dans arbinote/.env.local}"
+: "${DB_USER:?DB_USER manquant dans referee-center/.env.local}"
+: "${DB_PASSWORD:?DB_PASSWORD manquant dans referee-center/.env.local}"
 
 if ! docker ps --format '{{.Names}}' | grep -q '^mariadb_container$'; then
   echo "❌ mariadb_container n'est pas démarré. Lancez ./start.sh d'abord."

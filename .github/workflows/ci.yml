@@ -7,7 +7,7 @@ name: CI
 # pour la même logique appliquée à un package partagé).
 #
 # Ce que ce workflow ne fait PAS : il ne masque pas la dette de lint
-# existante. arbinote/superadmin ont des erreurs `no-explicit-any`
+# existante. referee-center/federation-hub ont des erreurs `no-explicit-any`
 # pré-existantes (respectivement ~106 et ~11, voir avancement.md rang 6) —
 # ce job les fait apparaître en rouge intentionnellement plutôt que de les
 # exclure, pour que cette dette reste visible au lieu de rester invisible
@@ -42,48 +42,48 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: arbinote
-            dir: arbinote
+          - name: referee-center
+            dir: referee-center
             pm: pnpm
             test: true
-          - name: matchsheet
-            dir: matchsheet
+          - name: match-operations
+            dir: match-operations
             pm: pnpm
             test: true
-          - name: superadmin
-            dir: superadmin
+          - name: federation-hub
+            dir: federation-hub
             pm: pnpm
             test: true
-          - name: teamManager
-            dir: teamManager
+          - name: club-hub
+            dir: club-hub
             pm: pnpm
             test: true
-          - name: ob
-            dir: ob
+          - name: club-ob
+            dir: club-ob
             pm: pnpm
             test: true
-          - name: sellerPortal
-            dir: sellerPortal
+          - name: seller-portal
+            dir: seller-portal
             pm: pnpm
             test: true
-          - name: billetterie
-            dir: billetterie
+          - name: ticketing
+            dir: ticketing
             pm: pnpm
             test: true
-          - name: sso
-            dir: sso
+          - name: identity
+            dir: identity
             pm: pnpm
             test: true
-          - name: marketplace-api
-            dir: marketplace-api
+          - name: marketplace
+            dir: marketplace
             pm: pnpm
             test: true
-          - name: payment-api
-            dir: payment-api
+          - name: payments
+            dir: payments
             pm: npm
             test: true
-          - name: notification-api
-            dir: notification-api
+          - name: notifications
+            dir: notifications
             pm: npm
             test: true
     steps:
@@ -118,16 +118,16 @@ jobs:
         run: npm run build
 
       - name: Lint (pnpm apps)
-        if: matrix.pm == 'pnpm' && matrix.name != 'marketplace-api'
+        if: matrix.pm == 'pnpm' && matrix.name != 'marketplace'
         working-directory: ${{ matrix.dir }}
         run: pnpm run lint
 
-      # marketplace-api est un Nest app pnpm dont le script `lint` local inclut
-      # --fix (scaffolding Nest par défaut, même chose que payment-api/
-      # notification-api ci-dessous) : on l'invoque directement sans --fix ici
+      # marketplace est un Nest app pnpm dont le script `lint` local inclut
+      # --fix (scaffolding Nest par défaut, même chose que payments/
+      # notifications ci-dessous) : on l'invoque directement sans --fix ici
       # pour que la CI échoue au lieu de corriger silencieusement.
-      - name: Lint (marketplace-api — sans --fix, contrairement au script pnpm run lint local)
-        if: matrix.name == 'marketplace-api'
+      - name: Lint (marketplace — sans --fix, contrairement au script pnpm run lint local)
+        if: matrix.name == 'marketplace'
         working-directory: ${{ matrix.dir }}
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
 

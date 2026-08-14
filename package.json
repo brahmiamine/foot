@@ -2,7 +2,7 @@
   "name": "foot-repo-root",
   "private": true,
   "version": "0.0.0",
-  "description": "Pas un package applicatif : fournit uniquement node_modules à la racine du dépôt pour que packages/auth-shared (importé par chemin relatif par arbinote/matchsheet/superadmin/teamManager/ob/billetterie, voir packages/auth-shared/README.md) puisse résoudre `jose`. N'affecte aucun des lockfiles ni des déploiements indépendants des apps.",
+  "description": "Pas un package applicatif : fournit uniquement node_modules à la racine du dépôt pour que packages/auth-shared (importé par chemin relatif par referee-center/match-operations/federation-hub/club-hub/club-ob/ticketing, voir packages/auth-shared/README.md) puisse résoudre `jose`. N'affecte aucun des lockfiles ni des déploiements indépendants des apps.",
   "scripts": {
     "i18n:check": "node scripts/i18n-audit.mjs"
   },

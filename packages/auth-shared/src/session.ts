@@ -2,13 +2,13 @@ import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
 
 /**
  * Vérification bas niveau du JWT émis par l'app `sso` (voir
- * sso/src/lib/session.ts pour l'émission). Source unique pour l'issuer, la
+ * identity/src/lib/session.ts pour l'émission). Source unique pour l'issuer, la
  * forme du payload, le nom du cookie et le secret — voir README.md de ce
  * dossier pour pourquoi ce module reste importé par chemin relatif plutôt
  * qu'en package pnpm workspace.
  *
  * Edge-safe à dessein (aucun import de `next/headers`) : utilisable depuis
- * un middleware Next.js, comme dans matchsheet/src/middleware.ts.
+ * un middleware Next.js, comme dans match-operations/src/middleware.ts.
  *
  * N'importe volontairement pas `next/server` : ce dossier n'a pas son
  * propre node_modules (voir README.md) et chaque app dépend d'une version
@@ -47,7 +47,7 @@ export interface SsoTokenPayload {
 const ISSUER = "foot-sso";
 
 /**
- * TS-28 : audience du JWT émis par `sso` (voir sso/src/lib/session.ts,
+ * TS-28 : audience du JWT émis par `sso` (voir identity/src/lib/session.ts,
  * `SSO_JWT_AUDIENCE`) — une seule audience partagée, pas une par app (voir
  * README.md de ce dossier).
  */
@@ -94,7 +94,7 @@ function getRemoteJwks(): ReturnType<typeof createRemoteJWKSet> {
  * `aud` vérifié manuellement après `jwtVerify` (pas via son option
  * `audience`, qui rejetterait les jetons pré-migration TS-28 sans ce
  * claim) : un jeton sans `aud` reste accepté (transitoire, voir
- * sso/src/lib/session.ts), un jeton avec un `aud` incorrect est rejeté.
+ * identity/src/lib/session.ts), un jeton avec un `aud` incorrect est rejeté.
  *
  * TASK-P0-001 : jetons RS256 (courants) vérifiés contre le JWKS de `sso` —
  * `jwtVerify` sélectionne lui-même la bonne clé via le `kid` du header,
@@ -166,7 +166,7 @@ function pruneRevocationCacheIfNeeded(now: number) {
  *   pas tout le trafic authentifié des apps clientes.
  * - `"closed"` : on refuse l'accès tant que `sso` n'a pas confirmé
  *   explicitement que la session est toujours active — recommandé pour les
- *   back-offices (matchsheet, superadmin, teamManager, voir
+ *   back-offices (match-operations, federation-hub, club-hub, voir
  *   avancement.md Epic E08/TS-29) où une fenêtre de tolérance en cas de
  *   panne SSO est un risque plus grand qu'une indisponibilité temporaire.
  *
@@ -183,7 +183,7 @@ export function getSsoRevocationFailureMode(): SsoRevocationFailureMode {
 
 /**
  * verifySsoToken() PUIS révocation réelle auprès de `sso`
- * (GET /api/session/introspect, voir sso/src/app/api/session/introspect),
+ * (GET /api/session/introspect, voir identity/src/app/api/session/introspect),
  * avec un cache en mémoire de 30s par jeton pour ne pas appeler `sso` à
  * chaque requête authentifiée — voir avancement.md, "Propagation de la
  * révocation de session (tokenVersion) aux 6 apps clientes". C'est la
