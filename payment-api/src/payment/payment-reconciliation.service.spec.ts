@@ -34,7 +34,7 @@ describe('PaymentReconciliationService', () => {
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago, stale
       updatedAt: new Date(),
       ...overrides,
-    } as Payment;
+    };
   }
 
   beforeEach(() => {
@@ -53,33 +53,55 @@ describe('PaymentReconciliationService', () => {
   });
 
   it('re-verifies a stale Konnect payment via handleKonnectWebhook', async () => {
-    const payment = buildPayment({ provider: PaymentProviderName.KONNECT, providerRef: 'ref-konnect' });
+    const payment = buildPayment({
+      provider: PaymentProviderName.KONNECT,
+      providerRef: 'ref-konnect',
+    });
     repository.find.mockResolvedValue([payment]);
-    repository.findOne.mockResolvedValue({ ...payment, status: PaymentStatus.PAID });
+    repository.findOne.mockResolvedValue({
+      ...payment,
+      status: PaymentStatus.PAID,
+    });
 
     const report = await service.reconcileStalePayments();
 
-    expect(paymentService.handleKonnectWebhook).toHaveBeenCalledWith('ref-konnect');
+    expect(paymentService.handleKonnectWebhook).toHaveBeenCalledWith(
+      'ref-konnect',
+    );
     expect(report.staleCount).toBe(1);
     expect(report.resolvedCount).toBe(1);
     expect(report.stillPendingCount).toBe(0);
   });
 
   it('re-verifies a stale Flouci payment via handleFlouciWebhook', async () => {
-    const payment = buildPayment({ provider: PaymentProviderName.FLOUCI, providerRef: 'ref-flouci' });
+    const payment = buildPayment({
+      provider: PaymentProviderName.FLOUCI,
+      providerRef: 'ref-flouci',
+    });
     repository.find.mockResolvedValue([payment]);
-    repository.findOne.mockResolvedValue({ ...payment, status: PaymentStatus.FAILED });
+    repository.findOne.mockResolvedValue({
+      ...payment,
+      status: PaymentStatus.FAILED,
+    });
 
     const report = await service.reconcileStalePayments();
 
-    expect(paymentService.handleFlouciWebhook).toHaveBeenCalledWith('ref-flouci');
+    expect(paymentService.handleFlouciWebhook).toHaveBeenCalledWith(
+      'ref-flouci',
+    );
     expect(report.resolvedCount).toBe(1);
   });
 
   it('counts a payment still PENDING after verification as unresolved', async () => {
-    const payment = buildPayment({ provider: PaymentProviderName.KONNECT, providerRef: 'ref-konnect' });
+    const payment = buildPayment({
+      provider: PaymentProviderName.KONNECT,
+      providerRef: 'ref-konnect',
+    });
     repository.find.mockResolvedValue([payment]);
-    repository.findOne.mockResolvedValue({ ...payment, status: PaymentStatus.PENDING });
+    repository.findOne.mockResolvedValue({
+      ...payment,
+      status: PaymentStatus.PENDING,
+    });
 
     const report = await service.reconcileStalePayments();
 
@@ -101,19 +123,34 @@ describe('PaymentReconciliationService', () => {
     await service.reconcileStalePayments();
 
     const [[query]] = repository.find.mock.calls;
-    const providerFilter = (query as unknown as { where: { provider: { value: PaymentProviderName[] } } }).where
-      .provider;
-    expect(providerFilter.value).toEqual([PaymentProviderName.KONNECT, PaymentProviderName.FLOUCI]);
+    const providerFilter = (
+      query as unknown as {
+        where: { provider: { value: PaymentProviderName[] } };
+      }
+    ).where.provider;
+    expect(providerFilter.value).toEqual([
+      PaymentProviderName.KONNECT,
+      PaymentProviderName.FLOUCI,
+    ]);
   });
 
   it('continues with the next payment when one verification throws', async () => {
-    const failing = buildPayment({ id: 'payment-fail', providerRef: 'ref-fail' });
-    const succeeding = buildPayment({ id: 'payment-ok', providerRef: 'ref-ok' });
+    const failing = buildPayment({
+      id: 'payment-fail',
+      providerRef: 'ref-fail',
+    });
+    const succeeding = buildPayment({
+      id: 'payment-ok',
+      providerRef: 'ref-ok',
+    });
     repository.find.mockResolvedValue([failing, succeeding]);
     paymentService.handleKonnectWebhook
       .mockRejectedValueOnce(new Error('provider down'))
       .mockResolvedValueOnce(undefined);
-    repository.findOne.mockResolvedValue({ ...succeeding, status: PaymentStatus.PAID });
+    repository.findOne.mockResolvedValue({
+      ...succeeding,
+      status: PaymentStatus.PAID,
+    });
 
     const report = await service.reconcileStalePayments();
 
