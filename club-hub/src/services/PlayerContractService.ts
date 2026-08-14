@@ -5,6 +5,7 @@ import { PlayerRegistration, PlayerRegistrationHistory } from "@/entities/Player
 import { TeamAffiliation } from "@/entities/TeamAffiliation";
 import { getDataSource } from "@/lib/database";
 import { NotificationOutboxService } from "@/services/NotificationOutboxService";
+import { isAgentActive } from "@/services/AgentService";
 import { assertPlayerContractDates, assertPlayerContractFederalTransition, assertPlayerContractSubmittable, assertPlayerContractTransition, canEditPlayerContract, isPlayerContractHomologated, PlayerContractWorkflowError, type PlayerContractType } from "../../../packages/regulatory-shared/src/playerContract";
 
 export interface PlayerContractActor { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null; }
@@ -50,8 +51,14 @@ export async function listPlayerContractOptionsForClub(clubId: string, dataSourc
   return { players: players.map((player) => ({ id: player.id, name: `${player.firstNameFr} ${player.lastNameFr}`, category: player.category })), seasons: seasons.map((season) => ({ ...season, requiresPlayerContract: Boolean(season.requiresPlayerContract) })) };
 }
 
+async function assertAgentIfProvided(agentId: string | null): Promise<void> {
+  // migration-v2.md P1-006 : un agent lié à un contrat doit être un agent fédéral actif.
+  if (agentId && !(await isAgentActive(agentId))) throw new PlayerContractWorkflowError("L'agent lié n'est pas un agent fédéral actif");
+}
+
 export async function createPlayerContractForClub(clubId: string, raw: PlayerContractInput, actor: PlayerContractActor, dataSource?: DataSource): Promise<PlayerContract> {
   const input = normalizeInput(raw); const source = dataSource ?? await getDataSource();
+  await assertAgentIfProvided(input.agentId ?? null);
   return source.transaction(async (manager) => {
     const player = await manager.getRepository(Player).findOne({ where: { id: input.playerId, teamId: clubId, isActive: true } });
     if (!player) throw new PlayerContractWorkflowError("Joueur actif introuvable dans ce club");
@@ -65,6 +72,7 @@ export async function createPlayerContractForClub(clubId: string, raw: PlayerCon
 
 export async function updatePlayerContractForClub(clubId: string, contractId: string, raw: PlayerContractInput, actor: PlayerContractActor, dataSource?: DataSource): Promise<PlayerContract> {
   const input = normalizeInput(raw); const source = dataSource ?? await getDataSource();
+  await assertAgentIfProvided(input.agentId ?? null);
   return source.transaction(async (manager) => {
     const contract = await owned(manager, clubId, contractId, true);
     if (!canEditPlayerContract(contract.status, contract.federationStatus)) throw new PlayerContractWorkflowError("Ce contrat n'est plus modifiable");

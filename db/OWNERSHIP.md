@@ -56,6 +56,7 @@ présence d'une entité.
 | Homologation des stades (migration-v2.md, P1-003) | `stadium_inspections`, `stadium_restrictions`, `stadium_inspection_history` | `federation-hub` (inspection et décision, lit `cms_stadiums` en lecture seule pour le référentiel) | — (pas d'UI `club-hub` dédiée, hors périmètre du document pour ce lot) |
 | Qualifications entraîneurs (migration-v2.md, P1-004) | `coach_qualifications`, `coach_qualification_history`, `saisons.minimum_head_coach_qualification` | `club-hub` (soumission) **et** `federation-hub` (validation/décision) — mêmes tables partagées, lit `cms_staff` en lecture seule côté federation-hub | — |
 | Aptitude médicale fédérale (migration-v2.md, P1-005) | `medical_eligibilities`, `medical_eligibility_history` | `club-hub` (soumission du certificat) **et** `federation-hub` (décision FIT/UNFIT) — mêmes tables partagées. **Aucun diagnostic** : le détail médical reste dans `cms_injuries` (club-hub, hors de ce domaine) | — |
+| Agents / intermédiaires (migration-v2.md, P1-006) | `football_agents`, `representation_agreements`, `football_agent_history` | `federation-hub` (registre et décisions) | `club-hub` (lecture seule, garde serveur lors de la liaison d'un agent à un contrat joueur — voir `AgentService.ts`) |
 
 `payments` et `notifications` ont leur propre base, hors de `foot`
 (`notifications` ne lit `foot` qu'en lecture seule, via

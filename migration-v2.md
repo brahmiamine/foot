@@ -382,6 +382,18 @@ Les validations réglementaires doivent être traçables de bout en bout.
   dernier n'a pas été audité dans cette migration, brancher son propre rôle
   médical comme validateur est un prolongement possible mais hors
   périmètre ici.
+- ✅ **P1-006 — Agents et intermédiaires** : `football_agents` +
+  `representation_agreements` + historique audité. Workflow agent audité
+  (`PENDING → ACTIVE`, `ACTIVE ↔ SUSPENDED`, `→ REVOKED/EXPIRED`) et workflow
+  de mandat de représentation (`DRAFT → ACTIVE → TERMINATED/EXPIRED`),
+  scopes fédération serveur, interface `federation-hub` (registre, décisions,
+  mandats, FR/EN/AR). Intégration effective dans les contrats joueurs
+  (P0-004) : `PlayerContractService.createPlayerContractForClub`/
+  `updatePlayerContractForClub` (club-hub) rejettent désormais tout
+  `agentId` qui ne correspond pas à un agent fédéral `ACTIVE` et non expiré
+  (lecture seule de `football_agents` via `AgentService.isAgentActive`).
+  Pas d'UI `club-hub` pour le registre lui-même (non prévue par le
+  document), uniquement cette garde serveur.
 
 ---
 
