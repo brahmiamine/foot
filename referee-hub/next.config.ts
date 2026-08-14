@@ -19,7 +19,6 @@ const nextConfig: NextConfig = {
   webpack(config) {
     config.resolve = config.resolve || {};
     config.resolve.alias = config.resolve.alias || {};
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     config.resolve.alias.mysql = config.resolve.alias.mysql ?? require.resolve("mysql2");
     optionalDbPackages.forEach((pkg) => {
       config.resolve.alias[pkg] = false;

@@ -23,7 +23,6 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
   const season = match.matchday?.season;
   const league = localize(locale, season?.league?.nom ?? season?.nom, season?.league?.nom_ar);
   const matchOperationsUrl = `${(process.env.MATCH_OPERATIONS_URL || "http://localhost:3001").replace(/\/$/, "")}/${match.id}`;
-  let assistantNumber = 0;
 
   return (
     <>
@@ -50,8 +49,10 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
         <section className="panel-card">
           <div className="panel-title"><FiUsers /><div><span>{locale === "ar" ? "المباراة" : "Match"}</span><h2>{locale === "ar" ? "طاقم التحكيم" : "Équipe arbitrale"}</h2></div></div>
           <div className="official-list">
-            {team.map((official) => {
-              if (official.role === "ASSISTANT_REFEREE") assistantNumber += 1;
+            {team.map((official, index) => {
+              const assistantNumber = team
+                .slice(0, index + 1)
+                .filter((candidate) => candidate.role === "ASSISTANT_REFEREE").length;
               const officialName = official.user?.name || official.referee?.nom || (locale === "ar" ? "حكم" : "Officiel");
               const label = official.role === "ASSISTANT_REFEREE"
                 ? `${roleLabel(official.role, locale)} ${assistantNumber}`
