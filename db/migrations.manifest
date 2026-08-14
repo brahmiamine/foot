@@ -84,6 +84,8 @@ federation-hub/mysql/migration_backfill_team_affiliations.sql
 federation-hub/mysql/migration_add_club_licensing.sql
 # P0-002 migration-v2 : licences individuelles polymorphes.
 federation-hub/mysql/migration_add_person_licensing.sql
+# P0-003 migration-v2 : enregistrement joueur par édition de compétition.
+federation-hub/mysql/migration_add_player_registrations.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

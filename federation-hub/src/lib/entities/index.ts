@@ -35,3 +35,4 @@ export {
   type ClubLicenseDocumentStatus,
 } from './ClubLicense'
 export { PersonLicense, PersonLicenseDocument, PersonLicenseHistory } from './PersonLicense'
+export { PlayerRegistration, PlayerRegistrationHistory } from './PlayerRegistration'

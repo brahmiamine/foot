@@ -11,3 +11,6 @@ application appelante.
 
 `src/personLicensing.ts` définit la machine d'états des licences individuelles,
 leur activité réglementaire et les métadonnées requises à l'approbation.
+
+`src/playerRegistration.ts` définit le workflow d'enregistrement d'un joueur
+et la projection déterministe de son statut d'éligibilité.

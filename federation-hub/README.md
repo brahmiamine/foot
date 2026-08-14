@@ -61,6 +61,15 @@ staffs, personnels médicaux, dirigeants, arbitres et officiels. Les décisions
 sont scopées par fédération/ligue, auditées et notifiées. Une approbation exige
 un numéro unique ainsi que l'acceptation de toutes les pièces courantes.
 
+### Inscriptions joueurs (migration-v2 P0-003)
+
+`/admin/registrations` fournit la file d'examen des inscriptions de joueurs
+par compétition-saison. Les administrateurs fédéraux et de ligue voient
+uniquement leur périmètre, peuvent approuver, rejeter, suspendre, réactiver ou
+annuler une inscription et disposent d'un historique complet. L'approbation
+revérifie que la licence `PLAYER` liée est toujours active ; l'éligibilité et
+les notifications club sont mises à jour avec la décision.
+
 SSO; SMTP pour invitations; notifications; MariaDB partagée par les applications métier; match-operations (réouverture de feuille, HTTP authentifié) ; ticketing et club-hub (saga d'annulation de match, TASK-P0-003 — `TICKETING_URL`/`CLUB_HUB_URL` + clés de service).
 
 ## Variables d’environnement

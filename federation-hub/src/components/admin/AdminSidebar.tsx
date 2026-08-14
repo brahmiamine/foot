@@ -18,6 +18,7 @@ const navItems = [
   { label: 'Clubs affiliés', href: '/admin/clubs-affilies', icon: 'bx bx-link' },
   { label: 'Licences clubs', href: '/admin/club-licensing', icon: 'bx bx-check-shield' },
   { label: 'Licences personnes', href: '/admin/licenses', icon: 'bx bx-id-card' },
+  { label: 'Inscriptions joueurs', href: '/admin/registrations', icon: 'bx bx-user-check' },
   { label: 'Officiels de match', href: '/admin/officiels-matchs', icon: 'bx bx-badge-check' },
   { label: 'Transferts', href: '/admin/player-transfers', icon: 'bx bx-transfer' },
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },

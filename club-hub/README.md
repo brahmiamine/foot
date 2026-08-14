@@ -50,6 +50,14 @@ soumettre le dossier et suivre la décision. Les références sont contrôlées
 côté serveur depuis `Player` et `cms_staff`; le club ne peut jamais approuver
 sa propre demande. Les soumissions utilisent l'outbox de notifications.
 
+### Inscriptions joueurs (migration-v2 P0-003)
+
+`/admin/federation/registrations` permet au club d'inscrire un joueur à une
+compétition-saison uniquement lorsqu'une licence `PLAYER` approuvée et non
+expirée existe pour ce joueur, ce club et cette saison. Le club crée et soumet
+le dossier dans son propre périmètre, consulte l'éligibilité et peut corriger
+un rejet ; les décisions restent réservées à la fédération ou à la ligue.
+
 SSO/profil; notifications; payments pour boutique; marketplace pour publication; SMTP; stockage local des uploads.
 
 ## Variables d’environnement

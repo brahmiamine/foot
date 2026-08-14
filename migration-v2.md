@@ -256,7 +256,13 @@ Les validations réglementaires doivent être traçables de bout en bout.
   référentiels existants, numéro unique, documents versionnés, workflow
   audité, contrôle d'expiration, scopes serveur, notifications et interfaces
   FR/AR dans `club-hub` et `federation-hub`.
-- ⬜ **P0-003 et suivants** : à traiter séquentiellement dans cette migration.
+- ✅ **P0-003 — Enregistrement des joueurs** : rattachement joueur/club à une
+  compétition-saison, licence `PLAYER` active obligatoire, workflow audité,
+  projection d'éligibilité, scopes serveur, notifications et interfaces dans
+  `club-hub` et `federation-hub`. Dans le modèle existant, `saisons` porte déjà
+  l'édition et le type de compétition ; `season_id` est donc le périmètre
+  compétition-saison de l'inscription.
+- ⬜ **P0-004 et suivants** : à traiter séquentiellement dans cette migration.
 
 ---
 
