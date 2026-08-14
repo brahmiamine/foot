@@ -4,4 +4,6 @@ export interface SaisonFormState {
   date_debut: string
   date_fin: string
   league_id: string
+  requiresPlayerContract: boolean
+  requiresStaffQualification: boolean
 }

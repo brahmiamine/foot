@@ -25,9 +25,13 @@ export class Saison {
   @Column({ type: 'date', nullable: true })
   date_fin?: string | null
 
+  @Column({ type: 'boolean', name: 'requires_player_contract', default: false })
+  requiresPlayerContract!: boolean
+
+  @Column({ type: 'boolean', name: 'requires_staff_qualification', default: false })
+  requiresStaffQualification!: boolean
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 
 }
-
-

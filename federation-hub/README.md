@@ -14,6 +14,14 @@ Connexion via SSO et acceptation d'une invitation staff par jeton.
 
 Dashboard/statistiques; fédérations, ligues, saisons, journées, équipes et branding, matchs (annulation/réouverture, saga de compensation), arbitres/import CSV, motifs de carton, clubs/utilisateurs/invitations et audit.
 
+### Licence et conformité des clubs (migration-v2 P0-001)
+
+`/admin/club-licensing` fournit la file d'examen réglementaire scopée par
+fédération ou ligue. Le workflow couvre le démarrage d'examen, la décision de
+chaque exigence, les dérogations motivées, les demandes de correction,
+l'approbation, le rejet et la suspension. Chaque transition conserve auteur,
+rôle, IP, User-Agent, motif et valeurs avant/après.
+
 ### Domaine Arbitrage
 
 - profils officiels des arbitres : fédération, ligue, catégorie, grade, statut et date de début ;
@@ -45,6 +53,31 @@ Base partagée `foot`: référentiels, équipes/branding, matchs, arbitres, moti
 **Migrations réellement présentes :** Dump arbitres et migrations partagées (audit, votes, équipes, tournois); temps réels de match, invitations staff, branding et icônes, activation des fédérations/ligues, unicité des votes; `mysql/migration_add_match_saga.sql` (TASK-P0-003, `match_saga_cases`/`match_saga_steps`), `mysql/migration_extend_referee_profiles.sql` et `mysql/migration_add_official_referee_assessments.sql`.
 
 ## Intégrations
+
+### Licences individuelles fédérales (migration-v2 P0-002)
+
+`/admin/licenses` fournit la file d'examen des licences de joueurs, coachs,
+staffs, personnels médicaux, dirigeants, arbitres et officiels. Les décisions
+sont scopées par fédération/ligue, auditées et notifiées. Une approbation exige
+un numéro unique ainsi que l'acceptation de toutes les pièces courantes.
+
+### Inscriptions joueurs (migration-v2 P0-003)
+
+`/admin/registrations` fournit la file d'examen des inscriptions de joueurs
+par compétition-saison. Les administrateurs fédéraux et de ligue voient
+uniquement leur périmètre, peuvent approuver, rejeter, suspendre, réactiver ou
+annuler une inscription et disposent d'un historique complet. L'approbation
+revérifie que la licence `PLAYER` liée est toujours active ; l'éligibilité et
+les notifications club sont mises à jour avec la décision.
+
+### Contrats joueurs (migration-v2 P0-004)
+
+`/admin/contracts` fournit la file d'homologation des contrats, filtrée par
+scope fédération/ligue, avec accès aux versions du document et à l'historique.
+Le workflow couvre l'examen, l'approbation, le rejet motivé et l'annulation.
+La page `/admin/saisons` permet de rendre le contrat homologué obligatoire pour
+une compétition-saison ; toute annulation ou résiliation suspend alors les
+inscriptions approuvées liées et retire leur éligibilité.
 
 SSO; SMTP pour invitations; notifications; MariaDB partagée par les applications métier; match-operations (réouverture de feuille, HTTP authentifié) ; ticketing et club-hub (saga d'annulation de match, TASK-P0-003 — `TICKETING_URL`/`CLUB_HUB_URL` + clés de service).
 

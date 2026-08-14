@@ -27,7 +27,7 @@ export async function getUserAccess(): Promise<UserAccess> {
   const userId = session.user.id;
   const teamId = session.user.teamId;
 
-  if (session.user.role === "ADMIN") {
+  if (session.user.role === "ADMIN" || session.user.role === "CLUB_ADMIN") {
     return { userId, teamId, isClubAdmin: true, permissions: "ALL", categories: "ALL" };
   }
 

@@ -10,6 +10,8 @@ function buildEdit(saison: Saison): SaisonFormState {
     date_debut: toDateInputValue(saison.date_debut),
     date_fin: toDateInputValue(saison.date_fin),
     league_id: saison.league_id || '',
+    requiresPlayerContract: saison.requiresPlayerContract === true,
+    requiresStaffQualification: saison.requiresStaffQualification === true,
   }
 }
 
@@ -148,6 +150,8 @@ export function useAdminSaisons() {
         date_debut: createForm.date_debut || null,
         date_fin: createForm.date_fin || null,
         league_id: createForm.league_id || null,
+        requiresPlayerContract: createForm.requiresPlayerContract,
+        requiresStaffQualification: createForm.requiresStaffQualification,
       }
 
       const response = await fetch('/api/admin/saisons', {
@@ -185,6 +189,8 @@ export function useAdminSaisons() {
         date_debut: editForm.date_debut || null,
         date_fin: editForm.date_fin || null,
         league_id: editForm.league_id || null,
+        requiresPlayerContract: editForm.requiresPlayerContract,
+        requiresStaffQualification: editForm.requiresStaffQualification,
       }
 
       const response = await fetch(`/api/admin/saisons/${editingId}`, {

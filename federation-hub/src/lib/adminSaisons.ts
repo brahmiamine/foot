@@ -9,6 +9,8 @@ export interface SaisonCreateInput {
   date_debut?: string | null
   date_fin?: string | null
   league_id?: string | null
+  requiresPlayerContract?: boolean
+  requiresStaffQualification?: boolean
 }
 
 export interface SaisonUpdateInput {
@@ -17,6 +19,8 @@ export interface SaisonUpdateInput {
   date_debut?: string | null
   date_fin?: string | null
   league_id?: string | null
+  requiresPlayerContract?: boolean
+  requiresStaffQualification?: boolean
 }
 
 /** Valide `value` et le normalise en `YYYY-MM-DD`, format de la colonne `date` (voir Saison.date_debut/date_fin). */
@@ -82,6 +86,8 @@ export async function createSaisonAdmin(payload: SaisonCreateInput, leagueId?: s
     date_debut: parseDate(payload.date_debut),
     date_fin: parseDate(payload.date_fin),
     league_id: payload.league_id || null,
+    requiresPlayerContract: payload.requiresPlayerContract === true,
+    requiresStaffQualification: payload.requiresStaffQualification === true,
   }
   const newSaison = repo.create(newSaisonData)
   const saved = await repo.save(newSaison)
@@ -101,7 +107,7 @@ export async function createSaisonAdmin(payload: SaisonCreateInput, leagueId?: s
   return toPlain(saison)
 }
 
-export async function updateSaisonAdmin(id: string, payload: SaisonUpdateInput, leagueId?: string | null) {
+export async function updateSaisonAdmin(id: string, payload: SaisonUpdateInput) {
   const dataSource = await getDataSource()
   const repo = dataSource.getRepository<Saison>('saisons')
   const saison = await repo.findOne({
@@ -169,6 +175,14 @@ export async function updateSaisonAdmin(id: string, payload: SaisonUpdateInput, 
     updateData.league_id = payload.league_id || null
   }
 
+  if (payload.requiresPlayerContract !== undefined) {
+    updateData.requiresPlayerContract = payload.requiresPlayerContract === true
+  }
+
+  if (payload.requiresStaffQualification !== undefined) {
+    updateData.requiresStaffQualification = payload.requiresStaffQualification === true
+  }
+
   // Mettre à jour directement dans la base de données
   if (Object.keys(updateData).length > 0) {
     await repo.update(id, updateData)
@@ -189,7 +203,7 @@ export async function updateSaisonAdmin(id: string, payload: SaisonUpdateInput, 
   return toPlain(updated)
 }
 
-export async function deleteSaisonAdmin(id: string, leagueId?: string | null) {
+export async function deleteSaisonAdmin(id: string) {
   const dataSource = await getDataSource()
   const repo = dataSource.getRepository<Saison>('saisons')
   
@@ -217,4 +231,3 @@ export async function deleteSaisonAdmin(id: string, leagueId?: string | null) {
   await repo.delete(id)
   return { success: true }
 }
-

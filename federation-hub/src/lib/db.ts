@@ -30,6 +30,21 @@ import {
   OfficialRefereeCriterion,
   RefereeMatchReport,
   RefereeUnavailability,
+  ClubLicenseApplication,
+  ClubLicenseRequirement,
+  ClubLicenseDocument,
+  ClubLicenseHistory,
+  PersonLicense,
+  PersonLicenseDocument,
+  PersonLicenseHistory,
+  PlayerRegistration,
+  PlayerRegistrationHistory,
+  PlayerContract,
+  PlayerContractDocument,
+  PlayerContractHistory,
+  StaffContract,
+  StaffContractDocument,
+  StaffContractHistory,
 } from './entities'
 
 const globalForDataSource = globalThis as unknown as {
@@ -64,7 +79,7 @@ function createDataSource() {
     // le schéma sur les seules entités TypeORM et pourrait supprimer les colonnes/
     // tables ajoutées pour ob.
     synchronize: false,
-    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert],
+    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory],
     extra: {
       decimalNumbers: true,
     },
@@ -90,6 +105,21 @@ const REQUIRED_ENTITY_CLASSES = [
   OfficialRefereeCriterion,
   RefereeMatchReport,
   RefereeUnavailability,
+  ClubLicenseApplication,
+  ClubLicenseRequirement,
+  ClubLicenseDocument,
+  ClubLicenseHistory,
+  PersonLicense,
+  PersonLicenseDocument,
+  PersonLicenseHistory,
+  PlayerRegistration,
+  PlayerRegistrationHistory,
+  PlayerContract,
+  PlayerContractDocument,
+  PlayerContractHistory,
+  StaffContract,
+  StaffContractDocument,
+  StaffContractHistory,
 ]
 
 function hasAllRequiredEntities(dataSource: DataSource): boolean {

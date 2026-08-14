@@ -17,7 +17,7 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
     // Permettre la modification de saisons de n'importe quelle ligue
-    const saison = await updateSaisonAdmin(id, body, null)
+    const saison = await updateSaisonAdmin(id, body)
     await logAdminAction({ request, action: 'update', entityType: 'saison', entityId: id, summary: saison.nom })
     return NextResponse.json(saison)
   } catch (error) {
@@ -39,7 +39,7 @@ export async function DELETE(
   try {
     const { id } = await params
     // Permettre la suppression de saisons de n'importe quelle ligue
-    await deleteSaisonAdmin(id, null)
+    await deleteSaisonAdmin(id)
     await logAdminAction({ request, action: 'delete', entityType: 'saison', entityId: id })
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -50,4 +50,3 @@ export async function DELETE(
     )
   }
 }
-

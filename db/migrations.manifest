@@ -79,6 +79,16 @@ federation-hub/mysql/migration_widen_staff_invitations_scope.sql
 federation-hub/mysql/migration_add_team_affiliations.sql
 # Backfill idempotent des clubs historiques depuis teams.federation_id.
 federation-hub/mysql/migration_backfill_team_affiliations.sql
+# P0-001 migration-v2 : licence et conformité du club. Dépend de
+# teams/federations/ligues/saisons/User et de team_affiliations.
+federation-hub/mysql/migration_add_club_licensing.sql
+# P0-002 migration-v2 : licences individuelles polymorphes.
+federation-hub/mysql/migration_add_person_licensing.sql
+# P0-003 migration-v2 : enregistrement joueur par édition de compétition.
+federation-hub/mysql/migration_add_player_registrations.sql
+# P0-004 migration-v2 : contrats joueurs et homologation fédérale.
+federation-hub/mysql/migration_add_player_contracts.sql
+federation-hub/mysql/migration_add_staff_contracts.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

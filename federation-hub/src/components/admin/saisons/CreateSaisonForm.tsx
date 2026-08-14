@@ -91,6 +91,18 @@ export default function CreateSaisonForm({
             />
           </div>
           <div className="col-12">
+            <div className="form-check">
+              <input id="create-requires-player-contract" className="form-check-input" type="checkbox" checked={createForm.requiresPlayerContract} onChange={(e) => setCreateForm({ ...createForm, requiresPlayerContract: e.target.checked })} />
+              <label className="form-check-label" htmlFor="create-requires-player-contract">Contrat joueur homologué obligatoire pour l’inscription</label>
+            </div>
+          </div>
+          <div className="col-12">
+            <div className="form-check">
+              <input id="create-requires-staff-qualification" className="form-check-input" type="checkbox" checked={createForm.requiresStaffQualification} onChange={(e) => setCreateForm({ ...createForm, requiresStaffQualification: e.target.checked })} />
+              <label className="form-check-label" htmlFor="create-requires-staff-qualification">Qualification technique valide obligatoire pour le staff</label>
+            </div>
+          </div>
+          <div className="col-12">
             <button type="submit" className="btn btn-success" disabled={creating}>
               {creating ? (
                 <>

@@ -14,6 +14,14 @@ Formulaires contact/sponsor/inscription/recrutement par équipe; boutique, comma
 
 Académie (infos/candidatures), annonces, ticketing (catégories et matchs), club (histoire, chiffres, palmarès, contact/messages), convocations, exports CSV/PDF, discipline (cartons, suspensions, amendes, notes), matchs et compositions dont amicaux, blessures, marketplace, médias/galeries/actualités, recrutement, boutique, tactiques, entraînements/invitations et déplacements/participants/véhicules; aussi joueurs/stats, staff, sponsors, stades, rôles, utilisateurs, notifications, audit et réglages.
 
+### Dossier fédéral (migration-v2 P0-001)
+
+`/admin/federation/compliance` permet au club connecté de créer son dossier de
+licence pour une saison, joindre une version de chaque pièce obligatoire,
+soumettre le dossier et suivre les observations et décisions. Toutes les APIs
+relisent le `teamId` depuis la session SSO : aucun identifiant de club fourni
+par le navigateur n'est utilisé comme scope d'autorisation.
+
 ## API
 
 `/api/admin/media-items`, `/api/exports/cards`, `/api/exports/fines`, `/api/exports/players`, `/api/exports/sponsor-contract/[id]`, `/api/exports/suspensions`, `/api/health`, `/api/internal/matches/[matchId]/cancel-convocations` (service-à-service, TASK-P0-003), `/api/internal/outbox/process`, `/api/internal/outbox/status`, `/api/logout`, `/api/payments/webhook`, `/api/stadiums/[id]`, `/api/stadiums`, `/api/teams`, `/api/upload/application-document`, `/api/upload/media/chunked/complete`, `/api/upload/media/chunked/init`, `/api/upload/media/chunked`, `/api/upload/media`, `/api/upload/news`, `/api/upload/players`, `/api/upload/product`, `/api/upload`, `/api/upload/sponsor-logo`, `/api/upload/stadium`, `/api/upload/staff`
@@ -33,6 +41,31 @@ Base `foot`: possède les données club listées par les entités (effectif, dis
 **Migrations réellement présentes :** Scripts réels pour CMS, joueurs, blessures, compositions, stats, rôles/planification/formations, boutique/sponsors/notifications, tactiques, entraînements, déplacements, académie et ticketing; exemples/seeds séparés et non migrations.
 
 ## Intégrations
+
+### Licences individuelles fédérales (migration-v2 P0-002)
+
+`/admin/federation/licenses` permet au club de créer une demande pour un
+joueur ou un membre de son propre staff, joindre des pièces versionnées,
+soumettre le dossier et suivre la décision. Les références sont contrôlées
+côté serveur depuis `Player` et `cms_staff`; le club ne peut jamais approuver
+sa propre demande. Les soumissions utilisent l'outbox de notifications.
+
+### Inscriptions joueurs (migration-v2 P0-003)
+
+`/admin/federation/registrations` permet au club d'inscrire un joueur à une
+compétition-saison uniquement lorsqu'une licence `PLAYER` approuvée et non
+expirée existe pour ce joueur, ce club et cette saison. Le club crée et soumet
+le dossier dans son propre périmètre, consulte l'éligibilité et peut corriger
+un rejet ; les décisions restent réservées à la fédération ou à la ligue.
+
+### Contrats joueurs (migration-v2 P0-004)
+
+`/admin/federation/contracts` permet au club de préparer un contrat, renseigner
+sa période et ses conditions, conserver chaque version du document signé,
+signer, soumettre, corriger un rejet et résilier sans suppression physique.
+Les transitions et résiliations sont auditées et notifiées. Lorsqu'une saison
+exige un contrat, seule une homologation active permet de créer, soumettre puis
+faire approuver l'inscription P0-003 correspondante.
 
 SSO/profil; notifications; payments pour boutique; marketplace pour publication; SMTP; stockage local des uploads.
 

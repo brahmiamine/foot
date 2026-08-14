@@ -1,0 +1,8 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getAdminSession } from '@/lib/adminAuth'
+import { getDataSource } from '@/lib/db'
+import { listStaffContracts } from '@/lib/staffContracts'
+import { STAFF_CONTRACT_FEDERAL_STATUSES, STAFF_CONTRACT_STATUSES, type StaffContractFederalStatus, type StaffContractStatus } from '../../../../../../packages/regulatory-shared/src/staffContract'
+import { toPlain } from '@/lib/serialization'
+export const runtime = 'nodejs'
+export async function GET(request: NextRequest) { const session = await getAdminSession(request); if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); const { searchParams } = new URL(request.url); const statusValue = searchParams.get('status'); const federalValue = searchParams.get('federalStatus'); const status = statusValue && STAFF_CONTRACT_STATUSES.includes(statusValue as StaffContractStatus) ? statusValue as StaffContractStatus : undefined; const federalStatus = federalValue && STAFF_CONTRACT_FEDERAL_STATUSES.includes(federalValue as StaffContractFederalStatus) ? federalValue as StaffContractFederalStatus : undefined; try { return NextResponse.json(toPlain(await listStaffContracts(await getDataSource(), session, { status, federalStatus, seasonId: searchParams.get('seasonId') || undefined, federationId: searchParams.get('federationId') || undefined, leagueId: searchParams.get('leagueId') || undefined, clubId: searchParams.get('clubId') || undefined }))) } catch (error) { console.error('Error listing staff contracts:', error); return NextResponse.json({ error: 'Erreur lors du chargement des contrats staff' }, { status: 500 }) } }

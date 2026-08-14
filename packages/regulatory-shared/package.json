@@ -1,0 +1,6 @@
+{
+  "name": "regulatory-shared",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Règles métier pures des workflows réglementaires partagées par federation-hub et club-hub. Importé par chemin relatif, sans créer une nouvelle application déployable."
+}

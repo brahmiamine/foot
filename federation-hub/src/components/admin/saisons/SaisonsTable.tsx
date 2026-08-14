@@ -111,13 +111,15 @@ export default function SaisonsTable({
                     <th>Ligue</th>
                     <th>Date début</th>
                     <th>Date fin</th>
+                    <th>Contrat requis</th>
+                    <th>Qualification staff</th>
                     <th className="text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {saisons.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-5">
+                      <td colSpan={8} className="text-center text-muted py-5">
                         {searchQuery.trim()
                           ? 'Aucune saison trouvée pour cette recherche'
                           : 'Aucune saison'}
@@ -160,6 +162,8 @@ export default function SaisonsTable({
                             ? new Date(saison.date_fin).toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'fr-FR')
                             : '—'}
                         </td>
+                        <td><span className={`badge ${saison.requiresPlayerContract ? 'bg-success-subtle text-success' : 'bg-light text-muted'}`}>{saison.requiresPlayerContract ? 'Oui' : 'Non'}</span></td>
+                        <td><span className={`badge ${saison.requiresStaffQualification ? 'bg-success-subtle text-success' : 'bg-light text-muted'}`}>{saison.requiresStaffQualification ? 'Oui' : 'Non'}</span></td>
                         <td className="text-end">
                           <div className="d-flex gap-2 justify-content-end">
                             <button
