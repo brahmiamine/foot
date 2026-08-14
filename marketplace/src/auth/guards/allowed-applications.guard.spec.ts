@@ -34,9 +34,9 @@ describe('AllowedApplicationsGuard', () => {
   it('allows an application present in the declared list', () => {
     const guard = guardWithMetadata(['club-hub', 'federation-hub']);
 
-    expect(
-      guard.canActivate(contextWithService('club-hub', undefined)),
-    ).toBe(true);
+    expect(guard.canActivate(contextWithService('club-hub', undefined))).toBe(
+      true,
+    );
   });
 
   it('rejects an application absent from the declared list (e.g. seller-portal on a moderation route)', () => {
