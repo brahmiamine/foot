@@ -23,7 +23,7 @@ export class EligibilityService {
     const reasons:EligibilityBlockingReason[]=[];
     if(![match.equipeHome,match.equipeAway].includes(input.clubId))reasons.push("NOT_MATCH_TEAM");
     const [membership,license,registration,season,entry,player,team,suspension,transfer,medical]=await Promise.all([
-      ds.getRepository(TeamMembership).createQueryBuilder("m").where("m.playerId=:p AND m.teamId=:c",{p:input.playerId,c:input.clubId}).andWhere("m.status='ACTIVE'").andWhere("m.startDate<=:d",{d:matchDate}).andWhere("(m.endDate IS NULL OR m.endDate>=:d)",{d:matchDate}).getOne(),
+      ds.getRepository(TeamMembership).createQueryBuilder("m").where("m.playerId=:p AND m.teamId=:c",{p:input.playerId,c:input.clubId}).andWhere("m.status IN ('ACTIVE','ENDED')").andWhere("m.startDate<=:d",{d:matchDate}).andWhere("(m.endDate IS NULL OR m.endDate>=:d)",{d:matchDate}).getOne(),
       ds.getRepository(PersonLicenseRead).createQueryBuilder("l").where("l.personReferenceId=:p AND l.clubId=:c AND l.seasonId=:s AND l.personType='PLAYER' AND l.status='APPROVED'",{p:input.playerId,c:input.clubId,s:seasonId}).andWhere("(l.expiresAt IS NULL OR l.expiresAt>=:d)",{d:matchDate}).getOne(),
       ds.getRepository(PlayerRegistrationRead).findOne({where:{playerId:input.playerId,clubId:input.clubId,seasonId}}),
       ds.getRepository(SeasonRegulation).findOne({where:{id:seasonId}}),

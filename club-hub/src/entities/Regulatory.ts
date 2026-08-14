@@ -94,3 +94,16 @@ export class EligibilityCheck {
   @Column({type:"varchar",length:512,nullable:true,name:"user_agent"}) userAgent?: string|null;
   @CreateDateColumn({type:"datetime",name:"checked_at"}) checkedAt!: Date;
 }
+
+@Entity("regulatory_bans")
+export class RegulatoryBan {
+  @PrimaryGeneratedColumn("uuid") id!: string;
+  @Column({type:"char",length:36,name:"club_id"}) clubId!: string;
+  @Column({type:"char",length:36,nullable:true,name:"season_id"}) seasonId?: string|null;
+  @Column({type:"enum",enum:["COMPETITION_BAN","REGISTRATION_BAN","TRANSFER_BAN"]}) type!: "COMPETITION_BAN"|"REGISTRATION_BAN"|"TRANSFER_BAN";
+  @Column({type:"enum",enum:["ACTIVE","SUSPENDED","LIFTED","EXPIRED","CANCELLED"],default:"ACTIVE"}) status!: string;
+  @Column({type:"text"}) reason!: string;
+  @Column({type:"datetime",name:"starts_at"}) startsAt!: Date;
+  @Column({type:"datetime",nullable:true,name:"ends_at"}) endsAt?: Date|null;
+  @CreateDateColumn({type:"datetime",name:"created_at"}) createdAt!: Date;
+}

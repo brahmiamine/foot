@@ -8,6 +8,7 @@ import { TeamMember } from "@/entities/TeamMember";
 import { PlayerTransfer, type PlayerTransferType, type PlayerTransferStatus } from "@/entities/PlayerTransfer";
 import { findOpenTransferWindow } from "@/services/TransferWindowService";
 import { assertTransferException } from "../../../packages/regulatory-shared/src/transferWindow";
+import { RegulatoryBan } from "@/entities/Regulatory";
 
 export class PlayerTransferError extends Error {
   constructor(message: string) {
@@ -86,8 +87,12 @@ export async function createTransfer(input: CreateTransferInput): Promise<Player
   if (!input.seasonId) throw new PlayerTransferError("seasonId est obligatoire pour contrôler la fenêtre de transfert");
   const openWindow = await findOpenTransferWindow(dataSource, { teamId: input.fromTeamId, seasonId: input.seasonId });
   if (!openWindow) throw new PlayerTransferError("TRANSFER_WINDOW_CLOSED");
-  const bans = await dataSource.query("SELECT id FROM regulatory_bans WHERE club_id = ? AND type = 'TRANSFER_BAN' AND status = 'ACTIVE' AND starts_at <= NOW() AND (ends_at IS NULL OR ends_at >= NOW()) LIMIT 1", [input.fromTeamId]);
-  if (bans.length) throw new PlayerTransferError("TRANSFER_BAN");
+  const ban = await dataSource.getRepository(RegulatoryBan).createQueryBuilder("ban")
+    .where("ban.clubId = :clubId AND ban.type = 'TRANSFER_BAN' AND ban.status = 'ACTIVE'", { clubId: input.fromTeamId })
+    .andWhere("ban.startsAt <= CURRENT_TIMESTAMP")
+    .andWhere("(ban.endsAt IS NULL OR ban.endsAt >= CURRENT_TIMESTAMP)")
+    .getOne();
+  if (ban) throw new PlayerTransferError("TRANSFER_BAN");
 
   if (input.fromTeamId === input.toTeamId) {
     throw new PlayerTransferError("Le club source et le club destination doivent être différents");
