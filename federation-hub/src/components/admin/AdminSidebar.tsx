@@ -20,6 +20,7 @@ const navItems = [
   { label: 'Licences personnes', href: '/admin/licenses', icon: 'bx bx-id-card' },
   { label: 'Inscriptions joueurs', href: '/admin/registrations', icon: 'bx bx-user-check' },
   { label: 'Contrats joueurs', href: '/admin/contracts', icon: 'bx bx-file' },
+  { label: 'Contrats staff', href: '/admin/staff-contracts', icon: 'bx bx-briefcase' },
   { label: 'Officiels de match', href: '/admin/officiels-matchs', icon: 'bx bx-badge-check' },
   { label: 'Transferts', href: '/admin/player-transfers', icon: 'bx bx-transfer' },
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },

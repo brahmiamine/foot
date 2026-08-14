@@ -84,6 +84,7 @@ export interface Saison {
   league_id?: string | null
   league?: League
   requiresPlayerContract?: boolean
+  requiresStaffQualification?: boolean
 }
 
 export interface Journee {

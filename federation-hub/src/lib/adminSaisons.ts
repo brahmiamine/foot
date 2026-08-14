@@ -10,6 +10,7 @@ export interface SaisonCreateInput {
   date_fin?: string | null
   league_id?: string | null
   requiresPlayerContract?: boolean
+  requiresStaffQualification?: boolean
 }
 
 export interface SaisonUpdateInput {
@@ -19,6 +20,7 @@ export interface SaisonUpdateInput {
   date_fin?: string | null
   league_id?: string | null
   requiresPlayerContract?: boolean
+  requiresStaffQualification?: boolean
 }
 
 /** Valide `value` et le normalise en `YYYY-MM-DD`, format de la colonne `date` (voir Saison.date_debut/date_fin). */
@@ -85,6 +87,7 @@ export async function createSaisonAdmin(payload: SaisonCreateInput, leagueId?: s
     date_fin: parseDate(payload.date_fin),
     league_id: payload.league_id || null,
     requiresPlayerContract: payload.requiresPlayerContract === true,
+    requiresStaffQualification: payload.requiresStaffQualification === true,
   }
   const newSaison = repo.create(newSaisonData)
   const saved = await repo.save(newSaison)
@@ -174,6 +177,10 @@ export async function updateSaisonAdmin(id: string, payload: SaisonUpdateInput) 
 
   if (payload.requiresPlayerContract !== undefined) {
     updateData.requiresPlayerContract = payload.requiresPlayerContract === true
+  }
+
+  if (payload.requiresStaffQualification !== undefined) {
+    updateData.requiresStaffQualification = payload.requiresStaffQualification === true
   }
 
   // Mettre à jour directement dans la base de données

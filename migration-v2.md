@@ -267,7 +267,12 @@ Les validations réglementaires doivent être traçables de bout en bout.
   résiliation sans suppression et interfaces club/fédération. L'exigence de
   contrat est configurable par compétition-saison et bloque l'inscription
   P0-003 lorsque l'homologation est absente, annulée ou expirée.
-- ⬜ **P0-005 et suivants** : à traiter séquentiellement dans cette migration.
+- ✅ **P0-005 — Contrats entraîneurs et staff** : contrats versionnés et audités,
+  signature, soumission, homologation, résiliation sans suppression et contrôle
+  d’éligibilité. Lorsque la saison l’exige, le contrat ne peut être soumis ni
+  homologué sans une qualification `COACH`, `STAFF`, `MEDICAL` ou `DIRECTOR`
+  approuvée, non expirée et rattachée au même staff, club et saison.
+- ⬜ **P0-006 et suivants** : à traiter séquentiellement dans cette migration.
 
 ---
 
