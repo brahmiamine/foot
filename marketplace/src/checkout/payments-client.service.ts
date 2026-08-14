@@ -101,9 +101,7 @@ export class PaymentApiClientService {
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      this.logger.error(
-        `payments init failed (${response.status}): ${text}`,
-      );
+      this.logger.error(`payments init failed (${response.status}): ${text}`);
       throw new ServiceUnavailableException(
         "Échec de l'initialisation du paiement.",
       );
