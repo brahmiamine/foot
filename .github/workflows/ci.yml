@@ -50,6 +50,10 @@ jobs:
             dir: match-operations
             pm: pnpm
             test: true
+          - name: referee-hub
+            dir: referee-hub
+            pm: pnpm
+            test: true
           - name: federation-hub
             dir: federation-hub
             pm: pnpm

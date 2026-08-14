@@ -31,7 +31,7 @@ présence d'une entité.
 | Référentiel officiel des arbitres | `arbitres` | `federation-hub` | `arbinote`, `match-operations` |
 | Perception publique ArbiNote | `votes`, `vote_alerts`, `critere_definitions` | `arbinote` (création des votes/alertes) ; `federation-hub` (modération, invalidation et administration des critères) | `arbinote` et `federation-hub` selon leurs écrans |
 | Évaluations officielles privées | `referee_official_evaluations`, `official_referee_criteria` | `federation-hub` | aucune route publique ArbiNote |
-| Désignations d'officiels | `match_official_assignments` | `match-operations` | `federation-hub` via API de service et lecture de sélection |
+| Désignations d'officiels | `match_official_assignments` | `match-operations` | `federation-hub` via API de service et lecture de sélection ; `referee-hub` en lecture personnelle (`user_id` issu du JWT) |
 | Comptes et sessions | `User`, `member_team_affiliations`, `password_reset_tokens`, `security_events`, `staff_invitations` | `identity` (authentification, `SUPERADMIN`/`MEMBER`) ; `federation-hub` (provisioning des comptes club `ADMIN`/`OBSERVATEUR` uniquement — voir alerte ci-dessous) | `arbinote`, `club-hub` (lecture/jointures) |
 | Effectif / discipline club | `Player`, `CardReason`, `Suspension`, `Fine`, `Note` | `club-hub` | `match-operations`, `club-ob` (lecture) ; `arbinote`, `federation-hub` (lecture de `Player` uniquement — noms de joueurs dans le fil des faits de match) |
 | **Cartons (`Card`) — écriture partagée, voir alerte ci-dessous** | `Card` | `club-hub` **et** `match-operations` | `club-ob` (lecture) ; `arbinote`, `federation-hub` (lecture, fil des faits de match — club-hub la lit déjà en écrivain) |

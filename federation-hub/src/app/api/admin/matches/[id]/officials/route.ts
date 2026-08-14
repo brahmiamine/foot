@@ -5,6 +5,7 @@ import { getDataSource } from '@/lib/db'
 import { getMatchScope } from '@/lib/matchFederationScope'
 import { assignMatchOfficial, listMatchOfficials, MatchOfficialClientError } from '@/lib/matchOfficialClient'
 import { logAdminAction } from '@/lib/auditLog'
+import { notify } from '@/lib/notificationClient'
 
 export const runtime = 'nodejs'
 
@@ -84,6 +85,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       entityType: 'match_official_assignment',
       entityId: String(assignment.id),
       summary: `Officiel ${user_id} affecté au match ${matchId} (${role})`,
+    })
+
+    await notify({
+      eventId: `match-official-assigned:${assignment.id}`,
+      type: 'MATCH_OFFICIAL_ASSIGNED',
+      userId: assignment.userId,
+      title: 'Nouvelle désignation officielle',
+      body: `Vous avez été affecté à un match en tant que ${assignment.role}.`,
+      data: { matchId, assignmentId: assignment.id, role: assignment.role, url: `${process.env.REFEREE_HUB_URL || 'http://localhost:3007'}/assignments/${assignment.id}` },
     })
 
     return NextResponse.json(assignment, { status: 201 })
