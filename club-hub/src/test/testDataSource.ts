@@ -6,6 +6,7 @@ import { Federation } from "@/entities/Federation";
 import { FinancialCompliance, FinancialComplianceHistory } from "@/entities/FinancialCompliance";
 import { BoardMandate, BoardMandateHistory, BoardMember } from "@/entities/Governance";
 import { LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing } from "@/entities/LegalCase";
+import { MedicalEligibility, MedicalEligibilityHistory } from "@/entities/MedicalEligibility";
 import { News } from "@/entities/News";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
 import { Player } from "@/entities/Player";
@@ -37,7 +38,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, ClubSanctionHistory, CoachQualification, CoachQualificationHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
+    entities: [BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, ClubSanctionHistory, CoachQualification, CoachQualificationHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, MedicalEligibility, MedicalEligibilityHistory, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
   });
 
   await dataSource.initialize();

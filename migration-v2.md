@@ -369,6 +369,19 @@ Les validations réglementaires doivent être traçables de bout en bout.
   la désignation d'un entraîneur principal : aucun domaine "responsable
   technique de match" n'existe dans ce dépôt pour porter ce contrôle
   (P0-006/P0-008 hors périmètre de cette migration, voir note P0-009).
+- ✅ **P1-005 — Aptitude médicale fédérale** : `medical_eligibilities` +
+  historique audité, un dossier par joueur/saison (contrainte d'unicité,
+  réouverture explicite `UNFIT → PENDING` pour une nouvelle visite). Statut
+  d'aptitude uniquement (`PENDING`/`FIT`/`UNFIT`/`EXPIRED`/`SUSPENDED`) —
+  **aucun champ diagnostic** dans le schéma ni dans les interfaces,
+  conformément à §3.3 : le détail médical reste dans `cms_injuries`
+  (club-hub). Workflow audité, scopes fédération/ligue serveur,
+  notifications et interfaces `club-hub` (dépôt du certificat, FR/AR) +
+  `federation-hub` (décision FIT/UNFIT, FR/EN/AR). La validation est portée
+  par `federation-hub` (rôle fédéral) plutôt que par `medical-hub` : ce
+  dernier n'a pas été audité dans cette migration, brancher son propre rôle
+  médical comme validateur est un prolongement possible mais hors
+  périmètre ici.
 
 ---
 

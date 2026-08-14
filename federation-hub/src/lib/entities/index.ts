@@ -45,3 +45,4 @@ export { FinancialCompliance, FinancialComplianceHistory } from './FinancialComp
 export { BoardMandate, BoardMember, BoardMandateHistory } from './Governance'
 export { StadiumInspection, StadiumRestriction, StadiumInspectionHistory } from './StadiumInspection'
 export { CoachQualification, CoachQualificationHistory } from './CoachQualification'
+export { MedicalEligibility, MedicalEligibilityHistory } from './MedicalEligibility'

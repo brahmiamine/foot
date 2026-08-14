@@ -55,6 +55,7 @@ présence d'une entité.
 | Gouvernance / comité directeur (migration-v2.md, P1-002) | `club_board_mandates`, `club_board_members`, `club_board_mandate_history` | `club-hub` (création du mandat, ajout des membres, soumission) **et** `federation-hub` (validation/rejet du mandat, approbation individuelle des membres) — mêmes tables partagées | — |
 | Homologation des stades (migration-v2.md, P1-003) | `stadium_inspections`, `stadium_restrictions`, `stadium_inspection_history` | `federation-hub` (inspection et décision, lit `cms_stadiums` en lecture seule pour le référentiel) | — (pas d'UI `club-hub` dédiée, hors périmètre du document pour ce lot) |
 | Qualifications entraîneurs (migration-v2.md, P1-004) | `coach_qualifications`, `coach_qualification_history`, `saisons.minimum_head_coach_qualification` | `club-hub` (soumission) **et** `federation-hub` (validation/décision) — mêmes tables partagées, lit `cms_staff` en lecture seule côté federation-hub | — |
+| Aptitude médicale fédérale (migration-v2.md, P1-005) | `medical_eligibilities`, `medical_eligibility_history` | `club-hub` (soumission du certificat) **et** `federation-hub` (décision FIT/UNFIT) — mêmes tables partagées. **Aucun diagnostic** : le détail médical reste dans `cms_injuries` (club-hub, hors de ce domaine) | — |
 
 `payments` et `notifications` ont leur propre base, hors de `foot`
 (`notifications` ne lit `foot` qu'en lecture seule, via
