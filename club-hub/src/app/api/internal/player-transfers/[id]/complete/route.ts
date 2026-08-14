@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const approvedBy = typeof body?.approvedBy === "string" ? body.approvedBy : null;
 
   try {
-    const transfer = await completeTransfer(id, approvedBy);
+    const transfer = await completeTransfer(id, approvedBy, body?.exception ? { reason: body.exception.reason, legalReference: body.exception.legalReference, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent") } : undefined);
     return NextResponse.json(transfer);
   } catch (error) {
     if (error instanceof PlayerTransferError) {
