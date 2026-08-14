@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { getActiveAffiliation } from '@/lib/teamAffiliations'
-import { completePlayerTransfer, listPlayerTransfers, PlayerTransferClientError } from '@/lib/playerTransferClient'
+import { completePlayerTransfer, getPlayerTransfer, PlayerTransferClientError } from '@/lib/playerTransferClient'
 import { logAdminAction } from '@/lib/auditLog'
 
 export const runtime = 'nodejs'
@@ -13,8 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id } = await params
   try {
-    const transfer = (await listPlayerTransfers()).find((item) => item.id === id)
-    if (!transfer) return NextResponse.json({ error: 'Transfert introuvable' }, { status: 404 })
+    const transfer = await getPlayerTransfer(id)
     if (transfer.status !== 'APPROVED') {
       return NextResponse.json({ error: 'Le club destination doit approuver le transfert avant homologation.' }, { status: 409 })
     }
