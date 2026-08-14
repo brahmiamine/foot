@@ -54,6 +54,13 @@ Base partagée `foot`: référentiels, équipes/branding, matchs, arbitres, moti
 
 ## Intégrations
 
+### Licences individuelles fédérales (migration-v2 P0-002)
+
+`/admin/licenses` fournit la file d'examen des licences de joueurs, coachs,
+staffs, personnels médicaux, dirigeants, arbitres et officiels. Les décisions
+sont scopées par fédération/ligue, auditées et notifiées. Une approbation exige
+un numéro unique ainsi que l'acceptation de toutes les pièces courantes.
+
 SSO; SMTP pour invitations; notifications; MariaDB partagée par les applications métier; match-operations (réouverture de feuille, HTTP authentifié) ; ticketing et club-hub (saga d'annulation de match, TASK-P0-003 — `TICKETING_URL`/`CLUB_HUB_URL` + clés de service).
 
 ## Variables d’environnement

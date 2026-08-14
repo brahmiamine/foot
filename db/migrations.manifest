@@ -82,6 +82,8 @@ federation-hub/mysql/migration_backfill_team_affiliations.sql
 # P0-001 migration-v2 : licence et conformité du club. Dépend de
 # teams/federations/ligues/saisons/User et de team_affiliations.
 federation-hub/mysql/migration_add_club_licensing.sql
+# P0-002 migration-v2 : licences individuelles polymorphes.
+federation-hub/mysql/migration_add_person_licensing.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

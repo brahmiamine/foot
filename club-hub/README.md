@@ -42,6 +42,14 @@ Base `foot`: possède les données club listées par les entités (effectif, dis
 
 ## Intégrations
 
+### Licences individuelles fédérales (migration-v2 P0-002)
+
+`/admin/federation/licenses` permet au club de créer une demande pour un
+joueur ou un membre de son propre staff, joindre des pièces versionnées,
+soumettre le dossier et suivre la décision. Les références sont contrôlées
+côté serveur depuis `Player` et `cms_staff`; le club ne peut jamais approuver
+sa propre demande. Les soumissions utilisent l'outbox de notifications.
+
 SSO/profil; notifications; payments pour boutique; marketplace pour publication; SMTP; stockage local des uploads.
 
 ## Variables d’environnement

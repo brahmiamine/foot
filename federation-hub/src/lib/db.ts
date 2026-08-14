@@ -34,6 +34,9 @@ import {
   ClubLicenseRequirement,
   ClubLicenseDocument,
   ClubLicenseHistory,
+  PersonLicense,
+  PersonLicenseDocument,
+  PersonLicenseHistory,
 } from './entities'
 
 const globalForDataSource = globalThis as unknown as {
@@ -68,7 +71,7 @@ function createDataSource() {
     // le schéma sur les seules entités TypeORM et pourrait supprimer les colonnes/
     // tables ajoutées pour ob.
     synchronize: false,
-    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory],
+    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory],
     extra: {
       decimalNumbers: true,
     },
@@ -98,6 +101,9 @@ const REQUIRED_ENTITY_CLASSES = [
   ClubLicenseRequirement,
   ClubLicenseDocument,
   ClubLicenseHistory,
+  PersonLicense,
+  PersonLicenseDocument,
+  PersonLicenseHistory,
 ]
 
 function hasAllRequiredEntities(dataSource: DataSource): boolean {

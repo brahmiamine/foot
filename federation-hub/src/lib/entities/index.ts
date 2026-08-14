@@ -34,3 +34,4 @@ export {
   ClubLicenseHistory,
   type ClubLicenseDocumentStatus,
 } from './ClubLicense'
+export { PersonLicense, PersonLicenseDocument, PersonLicenseHistory } from './PersonLicense'

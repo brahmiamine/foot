@@ -252,7 +252,11 @@ Les validations réglementaires doivent être traçables de bout en bout.
   contrôle des scopes club/fédération/ligue, documents versionnés, APIs,
   notifications de transition et interfaces FR/AR dans `club-hub` et
   `federation-hub`.
-- ⬜ **P0-002 et suivants** : à traiter séquentiellement dans cette migration.
+- ✅ **P0-002 — Licences individuelles** : modèle polymorphe réutilisant les
+  référentiels existants, numéro unique, documents versionnés, workflow
+  audité, contrôle d'expiration, scopes serveur, notifications et interfaces
+  FR/AR dans `club-hub` et `federation-hub`.
+- ⬜ **P0-003 et suivants** : à traiter séquentiellement dans cette migration.
 
 ---
 
