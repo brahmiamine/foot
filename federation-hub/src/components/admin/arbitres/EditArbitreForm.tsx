@@ -90,7 +90,7 @@ export default function EditArbitreForm({
               <input className="form-control" value={editForm.grade} onChange={(e) => setEditForm((prev) => ({ ...prev, grade: e.target.value }))} />
             </div>
             <div className="col-6">
-              <label className="form-label">Début d'activité</label>
+              <label className="form-label">Début d&apos;activité</label>
               <input type="date" className="form-control" value={editForm.start_date} onChange={(e) => setEditForm((prev) => ({ ...prev, start_date: e.target.value }))} />
             </div>
             <div className="col-6">

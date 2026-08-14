@@ -87,7 +87,7 @@ export default function CreateArbitreForm({
             <input className="form-control" value={createForm.grade} onChange={(e) => setCreateForm((prev) => ({ ...prev, grade: e.target.value }))} />
           </div>
           <div className="col-md-3">
-            <label className="form-label">Début d'activité</label>
+            <label className="form-label">Début d&apos;activité</label>
             <input type="date" className="form-control" value={createForm.start_date} onChange={(e) => setCreateForm((prev) => ({ ...prev, start_date: e.target.value }))} />
           </div>
           <div className="col-md-3">
