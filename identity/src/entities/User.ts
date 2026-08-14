@@ -57,6 +57,7 @@ export class User {
       "REFEREE",
       "MATCH_OFFICIAL",
       "REFEREE_OBSERVER",
+      "PLAYER",
     ],
     default: "OBSERVATEUR",
   })
@@ -70,13 +71,24 @@ export class User {
     | "LEAGUE_ADMIN"
     | "REFEREE"
     | "MATCH_OFFICIAL"
-    | "REFEREE_OBSERVER";
+    | "REFEREE_OBSERVER"
+    | "PLAYER";
 
   @Column({ type: "tinyint" })
   isActive!: boolean;
 
   @Column({ type: "varchar", length: 191, nullable: true })
   teamId?: string | null;
+
+  /**
+   * Joueur (club-hub `Player.id`, même base "foot") lié à ce compte —
+   * uniquement pour role: "PLAYER", `null` sinon. Permet à player-hub de
+   * résoudre l'identité sportive du joueur connecté sans table de liaison
+   * séparée (relation 1:1 compte ↔ joueur). Provisionné par le club via
+   * scripts/create-player-account.ts, jamais en auto-inscription.
+   */
+  @Column({ type: "varchar", length: 191, nullable: true, name: "player_id" })
+  playerId?: string | null;
 
   /** Fédération administrée par un compte FEDERATION_ADMIN (migration.md §7-8). `null` pour tout autre rôle. */
   @Column({ type: "varchar", length: 191, nullable: true, name: "federation_id" })

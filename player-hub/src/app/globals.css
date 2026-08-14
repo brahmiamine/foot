@@ -1,0 +1,61 @@
+:root {
+  --ph-bg: #f4f6f9;
+  --ph-surface: #ffffff;
+  --ph-surface-alt: #f8fafc;
+  --ph-border: #e2e8f0;
+  --ph-text: #0f172a;
+  --ph-text-muted: #64748b;
+  --ph-text-subtle: #94a3b8;
+
+  /* Palette alignée sur les autres apps du dépôt (identity/club-hub/seller-portal) —
+     rouge OB par défaut, écrasé par le branding du club connecté (voir lib/clubBranding.ts). */
+  --ph-primary: #c8102e;
+  --ph-primary-dark: #a10d25;
+  --ph-primary-soft: #ffd9de;
+  --ph-accent: #b8860b;
+  --ph-danger: #dc2626;
+  --ph-danger-soft: #fee2e2;
+  --ph-warning: #d97706;
+  --ph-warning-soft: #fef3c7;
+  --ph-success: #16a34a;
+  --ph-success-soft: #dcfce7;
+  --ph-info: #2563eb;
+  --ph-info-soft: #dbeafe;
+  --ph-neutral-soft: #f1f5f9;
+
+  --ph-sidebar-bg: #0d0d0d;
+  --ph-sidebar-text: #c9c4bd;
+  --ph-sidebar-text-active: #ffffff;
+  --ph-sidebar-active-bg: #2a0a0f;
+
+  --ph-radius-sm: 6px;
+  --ph-radius-md: 10px;
+  --ph-radius-lg: 14px;
+
+  --ph-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --ph-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  --ph-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--ph-bg);
+  color: var(--ph-text);
+  font-family: var(--ph-font);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}

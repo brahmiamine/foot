@@ -13,8 +13,8 @@ export interface Credentials {
 /**
  * Vérifie les identifiants contre la table `User` partagée. Règles reprises
  * de club-hub (src/lib/auth.ts) :
- * - un compte ADMIN/OBSERVATEUR n'est valide que pour SON club (teamId doit
- *   correspondre au club sélectionné à l'écran de connexion) ;
+ * - un compte ADMIN/OBSERVATEUR/PLAYER n'est valide que pour SON club (teamId
+ *   doit correspondre au club sélectionné à l'écran de connexion) ;
  * - SUPERADMIN n'a pas de club (teamId doit être absent) ;
  * - MEMBER (espace membre public de `ob`) n'est pas scopé par club non plus.
  */
@@ -40,6 +40,7 @@ export async function authenticate(credentials: Credentials): Promise<SsoUser | 
     name: user.name,
     role: user.role,
     teamId: user.teamId ?? null,
+    playerId: user.playerId ?? null,
     tokenVersion: user.tokenVersion,
   };
 }

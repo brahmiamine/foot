@@ -25,7 +25,7 @@ export interface SsoUser {
   // middleware (/admin/*, /api/admin/*) reste inchangé et continue
   // d'exiger un teamId de staff — /boutique fait sa propre vérification de
   // rôle, comme /espace-membre côté ob/ticketing.
-  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER" | "PLATFORM_SUPERADMIN" | "FEDERATION_ADMIN" | "LEAGUE_ADMIN" | "REFEREE" | "MATCH_OFFICIAL" | "REFEREE_OBSERVER";
+  role: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN" | "MEMBER" | "PLATFORM_SUPERADMIN" | "FEDERATION_ADMIN" | "LEAGUE_ADMIN" | "REFEREE" | "MATCH_OFFICIAL" | "REFEREE_OBSERVER" | "PLAYER";
   teamId: string | null;
 }
 

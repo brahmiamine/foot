@@ -25,6 +25,7 @@ export const PLATFORM_ROLES = [
   "REFEREE_OBSERVER",
   "MEMBER",
   "SELLER",
+  "PLAYER",
 ] as const;
 
 export type PlatformRole = (typeof PLATFORM_ROLES)[number];
