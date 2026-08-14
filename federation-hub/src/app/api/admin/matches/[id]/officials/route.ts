@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       userId: assignment.userId,
       title: 'Nouvelle désignation officielle',
       body: `Vous avez été affecté à un match en tant que ${assignment.role}.`,
-      data: { matchId, assignmentId: assignment.id, role: assignment.role, url: `${process.env.REFEREE_HUB_URL || 'http://localhost:3007'}/assignments/${assignment.id}` },
+      data: { matchId, assignmentId: assignment.id, role: assignment.role, url: `${process.env.REFEREE_HUB_URL || 'http://localhost:3008'}/assignments/${assignment.id}` },
     })
 
     return NextResponse.json(assignment, { status: 201 })

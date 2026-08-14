@@ -9,6 +9,7 @@
     "lint": "eslint",
     "seed:federation-hub": "tsx scripts/seed-federation-hub.ts",
     "jwt:generate-keypair": "tsx scripts/generate-jwt-keypair.ts",
+    "create-player-account": "tsx scripts/create-player-account.ts",
     "test": "node --test test/*.test.mjs && vitest run",
     "test:watch": "vitest",
     "test:i18n": "node --test test/*.test.mjs"

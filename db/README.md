@@ -10,7 +10,7 @@ procédure cross-app sont dans [`OWNERSHIP.md`](./OWNERSHIP.md).
 
 | Base | Projets / accès | Tables |
 |---|---|---|
-| **`foot` partagée** | `arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `identity`, `seller-portal`, `ticketing`; `ob` en lecture | Référentiel, matchs, arbitrage, comptes, effectif, CMS, feuille de match, ticketing et marketplace (`sp_*`). |
+| **`foot` partagée** | `arbinote`, `match-operations`, `referee-hub`, `player-hub`, `federation-hub`, `club-hub`, `identity`, `seller-portal`, `ticketing`; `ob` en lecture | Référentiel, matchs, arbitrage, comptes, effectif, CMS, feuille de match, ticketing et marketplace (`sp_*`). |
 | **base propre à `payments`** (`DB_DATABASE`) | `payments` seulement | `payments`. Aucune table de paiement n'appartient à `foot`. |
 | **base propre à `notifications`** (`DB_DATABASE`) | `notifications` seulement | `notifications`, `notification_deliveries`, `notification_events`, `notification_preferences`, `notification_user_locales`, `notification_templates`, `push_subscriptions`. |
 

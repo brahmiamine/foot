@@ -107,4 +107,15 @@ describe("authenticate", () => {
     expect(result?.teamId).toBeNull();
     expect(withClub).toBeNull();
   });
+
+  it("keeps PLAYER accounts scoped to their club", async () => {
+    const { authenticate } = await import("./authenticate");
+    await seedUser(dataSource, { email: "player@example.com", password: "s3cret!", role: "PLAYER", teamId: "team-1", playerId: "player-1" });
+
+    const withoutClub = await authenticate({ email: "player@example.com", password: "s3cret!" });
+    const rightClub = await authenticate({ email: "player@example.com", password: "s3cret!", teamId: "team-1" });
+
+    expect(withoutClub).toBeNull();
+    expect(rightClub?.playerId).toBe("player-1");
+  });
 });

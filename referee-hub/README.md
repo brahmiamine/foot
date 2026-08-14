@@ -30,7 +30,7 @@ pnpm install
 pnpm dev
 ```
 
-Port conventionnel dans le script racine : `3007`.
+Port conventionnel dans le script racine : `3008`.
 
 ## Validation
 

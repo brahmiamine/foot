@@ -49,7 +49,7 @@ export async function POST(
       userId: assignment.userId,
       title: 'Désignation modifiée',
       body: 'Une de vos désignations officielles a été révoquée.',
-      data: { matchId, assignmentId: assignment.id, role: assignment.role, url: `${process.env.REFEREE_HUB_URL || 'http://localhost:3007'}/assignments/${assignment.id}` },
+      data: { matchId, assignmentId: assignment.id, role: assignment.role, url: `${process.env.REFEREE_HUB_URL || 'http://localhost:3008'}/assignments/${assignment.id}` },
     })
 
     return NextResponse.json(assignment)

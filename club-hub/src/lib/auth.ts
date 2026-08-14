@@ -13,7 +13,9 @@ import type { SessionUser } from "@/types/auth";
  * MEMBER (ajouté pour /boutique, voir ssoSession.ts) n'a pas non plus sa
  * place ici : ce sont des clients, jamais du staff back-office — /boutique
  * fait sa propre vérification de rôle (getSsoSession() directement), sans
- * passer par auth()/requireTeamId().
+ * passer par auth()/requireTeamId(). Même exclusion pour PLAYER (voir
+ * player-hub) : un joueur n'a par construction aucune ligne cms_user_roles
+ * ici, mais reste explicitement exclu plutôt que de dépendre de ça.
  */
 export async function auth(): Promise<{ user: SessionUser } | null> {
   const session = await getSsoSession();
@@ -22,6 +24,7 @@ export async function auth(): Promise<{ user: SessionUser } | null> {
     session.role === "SUPERADMIN" ||
     session.role === "PLATFORM_SUPERADMIN" ||
     session.role === "MEMBER" ||
+    session.role === "PLAYER" ||
     !session.teamId
   ) {
     return null;
