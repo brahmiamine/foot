@@ -10,6 +10,9 @@ export class Matchday {
   @PrimaryColumn({ type: "char", length: 36 })
   id!: string;
 
+  @Column({ type: "char", length: 36, name: "saison_id" })
+  seasonId!: string;
+
   @Column({ type: "int", name: "numero" })
   number!: number;
 }

@@ -31,6 +31,18 @@ export class Saison {
   @Column({ type: 'boolean', name: 'requires_staff_qualification', default: false })
   requiresStaffQualification!: boolean
 
+  @Column({ type: 'boolean', name: 'requires_stadium_approval', default: false })
+  requiresStadiumApproval!: boolean
+
+  @Column({ type: 'boolean', name: 'requires_financial_compliance', default: false })
+  requiresFinancialCompliance!: boolean
+
+  @Column({ type: 'boolean', name: 'requires_medical_clearance', default: false })
+  requiresMedicalClearance!: boolean
+
+  @Column({ type: 'decimal', precision: 12, scale: 3, nullable: true, name: 'competition_entry_fee' })
+  competitionEntryFee?: string | null
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 
