@@ -1,0 +1,61 @@
+:root {
+  --mh-bg: #f4f6f9;
+  --mh-surface: #ffffff;
+  --mh-surface-alt: #f8fafc;
+  --mh-border: #e2e8f0;
+  --mh-text: #0f172a;
+  --mh-text-muted: #64748b;
+  --mh-text-subtle: #94a3b8;
+
+  /* Palette alignée sur les autres apps du dépôt (identity/club-hub/seller-portal) —
+     rouge OB par défaut, écrasé par le branding du club connecté (voir lib/clubBranding.ts). */
+  --mh-primary: #c8102e;
+  --mh-primary-dark: #a10d25;
+  --mh-primary-soft: #ffd9de;
+  --mh-accent: #b8860b;
+  --mh-danger: #dc2626;
+  --mh-danger-soft: #fee2e2;
+  --mh-warning: #d97706;
+  --mh-warning-soft: #fef3c7;
+  --mh-success: #16a34a;
+  --mh-success-soft: #dcfce7;
+  --mh-info: #2563eb;
+  --mh-info-soft: #dbeafe;
+  --mh-neutral-soft: #f1f5f9;
+
+  --mh-sidebar-bg: #0d0d0d;
+  --mh-sidebar-text: #c9c4bd;
+  --mh-sidebar-text-active: #ffffff;
+  --mh-sidebar-active-bg: #2a0a0f;
+
+  --mh-radius-sm: 6px;
+  --mh-radius-md: 10px;
+  --mh-radius-lg: 14px;
+
+  --mh-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --mh-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  --mh-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--mh-bg);
+  color: var(--mh-text);
+  font-family: var(--mh-font);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}

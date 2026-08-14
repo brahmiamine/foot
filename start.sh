@@ -139,4 +139,22 @@ echo "🚀 Lancement de federation-hub sur http://localhost:3002 ..."
 echo "🚀 Lancement de club-hub sur http://localhost:3003 ..."
 (cd "$ROOT_DIR/club-hub" && PORT=3003 pnpm run dev 2>&1 | sed -u 's/^/[club-hub] /') &
 
+# ── player-hub sur le port 3007 (espace joueur : calendrier, convocations,
+# entraînements, matchs, statistiques, discipline, déplacements,
+# disponibilité et notifications — lecture sur les données déjà gérées par
+# club-hub, écriture limitée aux réponses du joueur connecté) ───────────────
+echo "🚀 Lancement de player-hub sur http://localhost:3007 ..."
+(cd "$ROOT_DIR/player-hub" && pnpm run dev 2>&1 | sed -u 's/^/[player-hub] /') &
+
+# ── staff-hub sur le port 3008 (espace staff technique : effectif,
+# entraînements, convocations, composition, planches tactiques,
+# statistiques, déplacements — même RBAC que club-hub, cms_roles/cms_user_roles) ─
+echo "🚀 Lancement de staff-hub sur http://localhost:3008 ..."
+(cd "$ROOT_DIR/staff-hub" && pnpm run dev 2>&1 | sed -u 's/^/[staff-hub] /') &
+
+# ── medical-hub sur le port 3012 (espace médical : blessures, disponibilité,
+# alertes, documents, historique — accès réservé à la permission medical.*) ──
+echo "🚀 Lancement de medical-hub sur http://localhost:3012 ..."
+(cd "$ROOT_DIR/medical-hub" && pnpm run dev 2>&1 | sed -u 's/^/[medical-hub] /') &
+
 wait
