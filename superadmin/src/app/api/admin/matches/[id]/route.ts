@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { safeErrorMessage } from '@/lib/apiError'
-import { getAdminSession, canAccessLeague } from '@/lib/adminAuth'
+import { getAdminSession, canAccessLeague, canAccessPlatform } from '@/lib/adminAuth'
 import { updateMatchAdmin, deleteMatchAdmin } from '@/lib/adminMatches'
 import { logAdminAction } from '@/lib/auditLog'
 import { ScheduleConflictError } from '@/lib/scheduleConflicts'
@@ -21,16 +21,22 @@ export async function PATCH(
     const body = await request.json()
     const dataSource = await getDataSource()
     const currentScope = await getMatchScope(dataSource, id)
-    if (!currentScope || !canAccessLeague(session, currentScope.leagueId, currentScope.federationId)) {
+    if (
+      !canAccessPlatform(session) &&
+      (!currentScope || !canAccessLeague(session, currentScope.leagueId, currentScope.federationId))
+    ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     if (body.journee_id) {
       const targetScope = await getJourneeScope(dataSource, body.journee_id)
-      if (!targetScope || !canAccessLeague(session, targetScope.leagueId, targetScope.federationId)) {
+      if (
+        !canAccessPlatform(session) &&
+        (!targetScope || !canAccessLeague(session, targetScope.leagueId, targetScope.federationId))
+      ) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
-    const { match, overriddenConflicts } = await updateMatchAdmin(id, body, currentScope.leagueId)
+    const { match, overriddenConflicts } = await updateMatchAdmin(id, body, currentScope?.leagueId ?? null)
     await logAdminAction({ request, action: 'update', entityType: 'match', entityId: id })
     if (overriddenConflicts.length > 0) {
       await logAdminAction({
@@ -65,10 +71,10 @@ export async function DELETE(
     const { id } = await params
     const dataSource = await getDataSource()
     const scope = await getMatchScope(dataSource, id)
-    if (!scope || !canAccessLeague(session, scope.leagueId, scope.federationId)) {
+    if (!canAccessPlatform(session) && (!scope || !canAccessLeague(session, scope.leagueId, scope.federationId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    await deleteMatchAdmin(id, scope.leagueId)
+    await deleteMatchAdmin(id, scope?.leagueId ?? null)
     await logAdminAction({ request, action: 'delete', entityType: 'match', entityId: id })
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -79,5 +85,4 @@ export async function DELETE(
     )
   }
 }
-
 
