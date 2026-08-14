@@ -42,6 +42,8 @@ export interface SsoTokenPayload {
    */
   federationId: string | null;
   leagueId: string | null;
+  /** Scope PLAYER (club-hub `Player.id`, même base "foot") — `null` pour tout rôle autre que PLAYER. Voir identity/src/entities/User.ts. */
+  playerId: string | null;
 }
 
 const ISSUER = "foot-sso";
@@ -128,6 +130,7 @@ export async function verifySsoToken(token: string): Promise<SsoTokenPayload | n
       teamId: typeof payload.teamId === "string" ? payload.teamId : null,
       federationId: typeof payload.federationId === "string" ? payload.federationId : null,
       leagueId: typeof payload.leagueId === "string" ? payload.leagueId : null,
+      playerId: typeof payload.playerId === "string" ? payload.playerId : null,
     };
   } catch {
     return null;

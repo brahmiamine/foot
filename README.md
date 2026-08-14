@@ -13,6 +13,7 @@ Les ports ci-dessous sont ceux des scripts `package.json` (ou la valeur par déf
 | [`match-operations`](./match-operations) | Feuille de match électronique en kiosque : avant-match, live, événements, après-match et signatures. | 3000 par défaut (3001 via `start.sh`) | Aucune session utilisateur ; preuve par signature sur place |
 | [`federation-hub`](./federation-hub) | Référentiels, administration de l'arbitrage, évaluations officielles privées et modération ArbiNote. | 3000 par défaut (3002 via `start.sh`) | SSO avec scopes plateforme/fédération/ligue et affectations observateur |
 | [`club-hub`](./club-hub) | Gestion d’un club : effectif, staff, discipline, contenus, boutique, sponsors, académie, billetterie admin et réglages. | 3000 par défaut (3003 via `start.sh`) | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
+| [`player-hub`](./player-hub) | Espace joueur multi-clubs : calendrier, convocations, entraînements, matchs, statistiques, discipline, déplacements, disponibilité et notifications — en lecture sur les données déjà gérées par `club-hub` (`cms_convocations`, `cms_trainings`, `cms_player_stats`, `Card`/`Suspension`/`Fine`, `cms_trips`...), écriture limitée aux réponses du joueur connecté. | 3007 | `PLAYER` via SSO (scopé à un club ET à un joueur, voir `identity/src/entities/User.ts`) |
 | [`club-ob`](./club-ob) | Site public **custom** de l'Olympique de Béja et espace membre, consommateur de `notifications`. | 3000 | Public ; `MEMBER` via SSO |
 | [`ticketing`](./ticketing) | Vente générique multi-clubs, catégories/règles/quota par match et espace « mes billets » ; paiement via `payments`. | 3000 | Public en consultation ; `MEMBER` via SSO pour acheter et consulter ses billets |
 | [`seller-portal`](./seller-portal) | UI vendeur marketplace : catalogue, variantes, stock, commandes, retours, payouts et notifications. | 3006 | Cookie vendeur propre (`SP_JWT_SECRET`), indépendant du SSO |
@@ -41,7 +42,7 @@ La règle de contribution est : **aucun composant générique ne connaît un clu
 ```text
 GENERIC PLATFORM (multi-clubs)
 ├── Frontends Next.js
-│   ├── identity, arbinote, match-operations, federation-hub, club-hub
+│   ├── identity, arbinote, match-operations, federation-hub, club-hub, player-hub
 │   ├── seller-portal
 │   └── ticketing
 ├── APIs NestJS
@@ -60,7 +61,7 @@ CUSTOM APPLICATIONS
 | Projet | Type | Portée |
 |---|---|---|
 | `identity`, `federation-hub`, `payments`, `notifications`, `marketplace` | Générique | Services plateforme |
-| `club-hub`, `seller-portal`, `ticketing`, `arbinote`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
+| `club-hub`, `player-hub`, `seller-portal`, `ticketing`, `arbinote`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
 | `packages/auth-shared`, `db` | Interne partagé | Code d'authentification et schéma de référence |
 | `club-ob` | Custom | Olympique de Béja uniquement |
 
@@ -86,7 +87,7 @@ flowchart TB
   Notification[(Base notifications)]
   Redis[(Redis / BullMQ)]
 
-  Next[Next.js : identity, arbinote, match-operations, federation-hub, club-hub, club-ob, ticketing]
+  Next[Next.js : identity, arbinote, match-operations, federation-hub, club-hub, player-hub, club-ob, ticketing]
   Seller[seller-portal]
   Market[marketplace]
   Pay[payments]
@@ -116,6 +117,7 @@ Aucun domaine DNS/SSL/reverse proxy ci-dessous n'est configuré par ce dépôt.
 | `www.ob.tn` | `club-ob` custom |
 | `sso.platform.tn` | `identity` |
 | `admin.platform.tn` | `club-hub` multi-clubs |
+| `joueur.platform.tn` | `player-hub` multi-clubs |
 | `sellers.platform.tn` | `seller-portal` multi-clubs |
 | `tickets.platform.tn` | `ticketing` multi-clubs |
 | `federation-hub.platform.tn` | `federation-hub` |
