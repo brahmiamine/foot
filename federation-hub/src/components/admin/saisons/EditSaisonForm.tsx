@@ -94,6 +94,12 @@ export default function EditSaisonForm({
               />
             </div>
             <div className="col-12">
+              <div className="form-check">
+                <input id="edit-requires-player-contract" className="form-check-input" type="checkbox" checked={editForm.requiresPlayerContract} onChange={(e) => setEditForm({ ...editForm, requiresPlayerContract: e.target.checked })} />
+                <label className="form-check-label" htmlFor="edit-requires-player-contract">Contrat joueur homologué obligatoire</label>
+              </div>
+            </div>
+            <div className="col-12">
               <button type="submit" className="btn btn-primary" disabled={savingId === editingId}>
                 {savingId === editingId ? (
                   <>

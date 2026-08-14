@@ -14,3 +14,6 @@ leur activité réglementaire et les métadonnées requises à l'approbation.
 
 `src/playerRegistration.ts` définit le workflow d'enregistrement d'un joueur
 et la projection déterministe de son statut d'éligibilité.
+
+`src/playerContract.ts` définit les cycles métier et fédéral des contrats
+joueurs, les invariants de dates, de soumission et d'homologation.

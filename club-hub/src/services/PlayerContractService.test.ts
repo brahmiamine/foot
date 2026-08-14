@@ -1,0 +1,10 @@
+import { describe, expect, it } from "vitest";
+import { assertPlayerContractDates, assertPlayerContractFederalTransition, assertPlayerContractSubmittable, assertPlayerContractTransition, canEditPlayerContract, isPlayerContractHomologated } from "../../../packages/regulatory-shared/src/playerContract";
+
+describe("player contract domain", () => {
+  it("accepts the club and federal happy paths", () => { expect(() => assertPlayerContractTransition("DRAFT", "SIGNED")).not.toThrow(); expect(() => assertPlayerContractFederalTransition("NOT_SUBMITTED", "SUBMITTED")).not.toThrow(); expect(() => assertPlayerContractFederalTransition("SUBMITTED", "UNDER_REVIEW")).not.toThrow(); expect(() => assertPlayerContractFederalTransition("UNDER_REVIEW", "APPROVED")).not.toThrow(); });
+  it("rejects invalid transitions", () => { expect(() => assertPlayerContractTransition("DRAFT", "TERMINATED")).toThrow(); expect(() => assertPlayerContractFederalTransition("SUBMITTED", "APPROVED")).toThrow(); });
+  it("validates dates and submission prerequisites", () => { expect(() => assertPlayerContractDates("2026-08-01", "2026-07-31")).toThrow(); expect(() => assertPlayerContractSubmittable("DRAFT", true)).toThrow(); expect(() => assertPlayerContractSubmittable("SIGNED", false)).toThrow(); expect(() => assertPlayerContractSubmittable("SIGNED", true)).not.toThrow(); });
+  it("only considers a live signed approved contract homologated", () => { expect(isPlayerContractHomologated("SIGNED", "APPROVED", "2027-06-30", new Date("2026-08-14"))).toBe(true); expect(isPlayerContractHomologated("SIGNED", "APPROVED", "2026-06-30", new Date("2026-08-14"))).toBe(false); expect(isPlayerContractHomologated("TERMINATED", "APPROVED", "2027-06-30", new Date("2026-08-14"))).toBe(false); });
+  it("locks editing outside the local correction state", () => { expect(canEditPlayerContract("DRAFT", "NOT_SUBMITTED")).toBe(true); expect(canEditPlayerContract("SIGNED", "NOT_SUBMITTED")).toBe(true); expect(canEditPlayerContract("SIGNED", "SUBMITTED")).toBe(false); });
+});

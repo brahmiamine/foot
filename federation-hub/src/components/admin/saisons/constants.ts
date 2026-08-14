@@ -6,6 +6,7 @@ export const emptyForm: SaisonFormState = {
   date_debut: '',
   date_fin: '',
   league_id: '',
+  requiresPlayerContract: false,
 }
 
 export function toDateInputValue(value: string | null | undefined) {

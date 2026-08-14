@@ -3,8 +3,9 @@ import { isPersonLicenseActive } from '../../../packages/regulatory-shared/src/p
 import { assertPlayerRegistrationTransition, eligibilityForRegistrationStatus, PlayerRegistrationWorkflowError, type PlayerRegistrationStatus } from '../../../packages/regulatory-shared/src/playerRegistration'
 import { canAccessFederation, canAccessLeague, canAccessPlatform } from './adminAuth'
 import type { SsoUser } from './ssoSession'
-import { PersonLicense, Player, PlayerRegistration, PlayerRegistrationHistory, Saison, Team } from './entities'
+import { PersonLicense, Player, PlayerContract, PlayerRegistration, PlayerRegistrationHistory, Saison, Team } from './entities'
 import { notify } from './notificationClient'
+import { isPlayerContractHomologated } from '../../../packages/regulatory-shared/src/playerContract'
 
 export interface PlayerRegistrationAuditContext { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null }
 export interface PlayerRegistrationFilters { seasonId?: string; federationId?: string; leagueId?: string; clubId?: string; status?: PlayerRegistrationStatus; eligibilityStatus?: string }
@@ -79,6 +80,13 @@ export async function transitionPlayerRegistration(dataSource: DataSource, sessi
     if (targetStatus === 'APPROVED') {
       const license = await manager.getRepository(PersonLicense).findOne({ where: { id: registration.licenseId, personType: 'PLAYER', personReferenceId: registration.playerId, clubId: registration.clubId, seasonId: registration.seasonId } })
       if (!license || !isPersonLicenseActive(license.status, license.expiresAt)) throw new PlayerRegistrationWorkflowError("La licence PLAYER liée n'est plus active")
+      const season = await manager.getRepository(Saison).findOne({ where: { id: registration.seasonId } })
+      if (!season) throw new PlayerRegistrationWorkflowError('Compétition-saison introuvable')
+      if (season.requiresPlayerContract || registration.contractId) {
+        if (!registration.contractId) throw new PlayerRegistrationWorkflowError('Un contrat joueur homologué est obligatoire pour cette compétition-saison')
+        const contract = await manager.getRepository(PlayerContract).findOne({ where: { id: registration.contractId, playerId: registration.playerId, clubId: registration.clubId, seasonId: registration.seasonId } })
+        if (!contract || !isPlayerContractHomologated(contract.status, contract.federationStatus, contract.endDate)) throw new PlayerRegistrationWorkflowError("Le contrat joueur lié n'est pas homologué ou n'est plus valide")
+      }
     }
     const previous = registration.status
     registration.status = targetStatus

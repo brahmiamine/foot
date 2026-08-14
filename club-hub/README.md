@@ -58,6 +58,15 @@ expirée existe pour ce joueur, ce club et cette saison. Le club crée et soumet
 le dossier dans son propre périmètre, consulte l'éligibilité et peut corriger
 un rejet ; les décisions restent réservées à la fédération ou à la ligue.
 
+### Contrats joueurs (migration-v2 P0-004)
+
+`/admin/federation/contracts` permet au club de préparer un contrat, renseigner
+sa période et ses conditions, conserver chaque version du document signé,
+signer, soumettre, corriger un rejet et résilier sans suppression physique.
+Les transitions et résiliations sont auditées et notifiées. Lorsqu'une saison
+exige un contrat, seule une homologation active permet de créer, soumettre puis
+faire approuver l'inscription P0-003 correspondante.
+
 SSO/profil; notifications; payments pour boutique; marketplace pour publication; SMTP; stockage local des uploads.
 
 ## Variables d’environnement

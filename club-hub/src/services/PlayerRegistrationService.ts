@@ -1,10 +1,12 @@
 import type { DataSource, EntityManager } from "typeorm";
 import { PersonLicense } from "@/entities/PersonLicense";
+import { PlayerContract } from "@/entities/PlayerContract";
 import { Player } from "@/entities/Player";
 import { PlayerRegistration, PlayerRegistrationHistory } from "@/entities/PlayerRegistration";
 import { getDataSource } from "@/lib/database";
 import { NotificationOutboxService } from "@/services/NotificationOutboxService";
 import { isPersonLicenseActive } from "../../../packages/regulatory-shared/src/personLicensing";
+import { isPlayerContractHomologated } from "../../../packages/regulatory-shared/src/playerContract";
 import { assertPlayerRegistrationTransition, eligibilityForRegistrationStatus, PlayerRegistrationWorkflowError } from "../../../packages/regulatory-shared/src/playerRegistration";
 
 export interface PlayerRegistrationActor { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null; }
@@ -30,29 +32,42 @@ async function activePlayerLicense(manager: EntityManager, clubId: string, playe
   return license;
 }
 
+async function requiredPlayerContract(manager: EntityManager, clubId: string, playerId: string, seasonId: string, contractId?: string | null): Promise<PlayerContract | null> {
+  const rows = await manager.query("SELECT requires_player_contract AS required FROM saisons WHERE id = ? LIMIT 1", [seasonId]) as Array<{ required: boolean }>;
+  if (!rows[0]) throw new PlayerRegistrationWorkflowError("Compétition-saison introuvable");
+  if (!rows[0].required && !contractId) return null;
+  if (!contractId) throw new PlayerRegistrationWorkflowError("Un contrat joueur homologué est obligatoire pour cette compétition-saison");
+  const contract = await manager.getRepository(PlayerContract).findOne({ where: { id: contractId, clubId, playerId, seasonId } });
+  if (!contract || !isPlayerContractHomologated(contract.status, contract.federationStatus, contract.endDate)) throw new PlayerRegistrationWorkflowError("Le contrat joueur lié n'est pas homologué ou n'est plus valide");
+  return contract;
+}
+
 export async function listRegistrationCandidates(clubId: string, dataSource?: DataSource) {
   const source = dataSource ?? await getDataSource();
-  const [players, licenses] = await Promise.all([
+  const [players, licenses, contracts] = await Promise.all([
     source.getRepository(Player).find({ where: { teamId: clubId, isActive: true }, order: { lastNameFr: "ASC", firstNameFr: "ASC" } }),
     source.getRepository(PersonLicense).find({ where: { clubId, personType: "PLAYER", status: "APPROVED" }, order: { createdAt: "DESC" } }),
+    source.getRepository(PlayerContract).find({ where: { clubId, status: "SIGNED", federationStatus: "APPROVED" }, order: { approvedAt: "DESC" } }),
   ]);
   return {
     players: players.map((player) => ({ id: player.id, name: `${player.firstNameFr} ${player.lastNameFr}`, category: player.category })),
     licenses: licenses.filter((license) => isPersonLicenseActive(license.status, license.expiresAt)).map((license) => ({ id: license.id, playerId: license.personReferenceId, seasonId: license.seasonId, number: license.licenseNumber, expiresAt: license.expiresAt })),
+    contracts: contracts.filter((contract) => isPlayerContractHomologated(contract.status, contract.federationStatus, contract.endDate)).map((contract) => ({ id: contract.id, playerId: contract.playerId, seasonId: contract.seasonId, contractType: contract.contractType, endDate: contract.endDate })),
   };
 }
 
-export async function createPlayerRegistrationForClub(clubId: string, input: { playerId: string; seasonId: string; licenseId: string }, actor: PlayerRegistrationActor, dataSource?: DataSource): Promise<PlayerRegistration> {
+export async function createPlayerRegistrationForClub(clubId: string, input: { playerId: string; seasonId: string; licenseId: string; contractId?: string | null }, actor: PlayerRegistrationActor, dataSource?: DataSource): Promise<PlayerRegistration> {
   const source = dataSource ?? await getDataSource();
   return source.transaction(async (manager) => {
     const player = await manager.getRepository(Player).findOne({ where: { id: input.playerId, teamId: clubId, isActive: true } });
     if (!player) throw new PlayerRegistrationWorkflowError("Joueur actif introuvable dans ce club");
     const license = await activePlayerLicense(manager, clubId, input.playerId, input.seasonId, input.licenseId);
+    const contract = await requiredPlayerContract(manager, clubId, input.playerId, input.seasonId, input.contractId);
     const repo = manager.getRepository(PlayerRegistration);
     const existing = await repo.findOne({ where: { playerId: input.playerId, clubId, seasonId: input.seasonId } });
     if (existing) return existing;
-    const registration = await repo.save(repo.create({ playerId: input.playerId, clubId, seasonId: input.seasonId, federationId: license.federationId, leagueId: license.leagueId ?? null, licenseId: license.id, contractId: null, status: "DRAFT", eligibilityStatus: "PENDING", registeredAt: null, validatedBy: null, validatedAt: null, rejectionReason: null }));
-    await addHistory(manager, registration.id, actor, { action: "REGISTRATION_CREATED", toStatus: "DRAFT", afterValue: { playerId: input.playerId, clubId, seasonId: input.seasonId, licenseId: license.id } });
+    const registration = await repo.save(repo.create({ playerId: input.playerId, clubId, seasonId: input.seasonId, federationId: license.federationId, leagueId: license.leagueId ?? null, licenseId: license.id, contractId: contract?.id ?? null, status: "DRAFT", eligibilityStatus: "PENDING", registeredAt: null, validatedBy: null, validatedAt: null, rejectionReason: null }));
+    await addHistory(manager, registration.id, actor, { action: "REGISTRATION_CREATED", toStatus: "DRAFT", afterValue: { playerId: input.playerId, clubId, seasonId: input.seasonId, licenseId: license.id, contractId: contract?.id ?? null } });
     return registration;
   });
 }
@@ -89,6 +104,7 @@ export async function submitPlayerRegistration(clubId: string, registrationId: s
     const registration = await ownedRegistration(manager, clubId, registrationId, true);
     assertPlayerRegistrationTransition(registration.status, "SUBMITTED");
     await activePlayerLicense(manager, clubId, registration.playerId, registration.seasonId, registration.licenseId);
+    await requiredPlayerContract(manager, clubId, registration.playerId, registration.seasonId, registration.contractId);
     const previous = registration.status;
     registration.status = "SUBMITTED"; registration.eligibilityStatus = "PENDING"; registration.registeredAt = new Date(); registration.rejectionReason = null;
     await manager.getRepository(PlayerRegistration).save(registration);

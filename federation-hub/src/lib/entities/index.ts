@@ -36,3 +36,4 @@ export {
 } from './ClubLicense'
 export { PersonLicense, PersonLicenseDocument, PersonLicenseHistory } from './PersonLicense'
 export { PlayerRegistration, PlayerRegistrationHistory } from './PlayerRegistration'
+export { PlayerContract, PlayerContractDocument, PlayerContractHistory } from './PlayerContract'

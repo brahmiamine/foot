@@ -262,7 +262,12 @@ Les validations réglementaires doivent être traçables de bout en bout.
   `club-hub` et `federation-hub`. Dans le modèle existant, `saisons` porte déjà
   l'édition et le type de compétition ; `season_id` est donc le périmètre
   compétition-saison de l'inscription.
-- ⬜ **P0-004 et suivants** : à traiter séquentiellement dans cette migration.
+- ✅ **P0-004 — Contrats joueurs** : contrats financiers et sportifs, documents
+  versionnés, signature, homologation fédérale, audit, notifications,
+  résiliation sans suppression et interfaces club/fédération. L'exigence de
+  contrat est configurable par compétition-saison et bloque l'inscription
+  P0-003 lorsque l'homologation est absente, annulée ou expirée.
+- ⬜ **P0-005 et suivants** : à traiter séquentiellement dans cette migration.
 
 ---
 

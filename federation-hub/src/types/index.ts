@@ -83,6 +83,7 @@ export interface Saison {
   date_fin?: string | null
   league_id?: string | null
   league?: League
+  requiresPlayerContract?: boolean
 }
 
 export interface Journee {

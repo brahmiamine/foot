@@ -86,6 +86,8 @@ federation-hub/mysql/migration_add_club_licensing.sql
 federation-hub/mysql/migration_add_person_licensing.sql
 # P0-003 migration-v2 : enregistrement joueur par édition de compétition.
 federation-hub/mysql/migration_add_player_registrations.sql
+# P0-004 migration-v2 : contrats joueurs et homologation fédérale.
+federation-hub/mysql/migration_add_player_contracts.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

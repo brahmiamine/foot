@@ -70,6 +70,15 @@ annuler une inscription et disposent d'un historique complet. L'approbation
 revérifie que la licence `PLAYER` liée est toujours active ; l'éligibilité et
 les notifications club sont mises à jour avec la décision.
 
+### Contrats joueurs (migration-v2 P0-004)
+
+`/admin/contracts` fournit la file d'homologation des contrats, filtrée par
+scope fédération/ligue, avec accès aux versions du document et à l'historique.
+Le workflow couvre l'examen, l'approbation, le rejet motivé et l'annulation.
+La page `/admin/saisons` permet de rendre le contrat homologué obligatoire pour
+une compétition-saison ; toute annulation ou résiliation suspend alors les
+inscriptions approuvées liées et retire leur éligibilité.
+
 SSO; SMTP pour invitations; notifications; MariaDB partagée par les applications métier; match-operations (réouverture de feuille, HTTP authentifié) ; ticketing et club-hub (saga d'annulation de match, TASK-P0-003 — `TICKETING_URL`/`CLUB_HUB_URL` + clés de service).
 
 ## Variables d’environnement
