@@ -14,7 +14,7 @@ interface TeamOption {
 
 export default function LoginForm({ redirectTo }: { redirectTo: string }) {
   const { locale, t } = useI18n();
-  const [mode, setMode] = useState<"club" | "federation-hub">("club");
+  const [mode, setMode] = useState<"club" | "federation-hub" | "official">("club");
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [selectedTeamId, setSelectedTeamId] = useState("");
@@ -193,6 +193,11 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="sso-form">
+      <div className="sso-mode-selector" aria-label={t("auth.login.accountType")}>
+        <button type="button" className={mode === "club" ? "active" : ""} onClick={() => { setMode("club"); setError(null); }}>{t("auth.login.club")}</button>
+        <button type="button" className={mode === "federation-hub" ? "active" : ""} onClick={() => { setMode("federation-hub"); setError(null); }}>{t("auth.login.federation")}</button>
+        <button type="button" className={mode === "official" ? "active" : ""} onClick={() => { setMode("official"); setError(null); }}>{t("auth.login.official")}</button>
+      </div>
       {mode === "club" && (
         <div className="sso-field">
           <label htmlFor="teamId">{t("auth.clubSelection.label")}</label>
@@ -248,17 +253,6 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         {t("auth.password.forgot")}
       </Link>
 
-      <button
-        type="button"
-        className="sso-switch"
-        onClick={() => {
-          setMode(mode === "club" ? "federation-hub" : "club");
-          setError(null);
-        }}
-      >
-        {mode === "club" ? t("auth.login.federation-hub") : t("auth.login.clubBack")}
-      </button>
-
       <style jsx>{`
         .sso-form {
           display: flex;
@@ -269,6 +263,30 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
           display: flex;
           flex-direction: column;
           gap: 6px;
+        }
+        .sso-mode-selector {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 4px;
+          padding: 4px;
+          border: 1px solid var(--sso-border);
+          border-radius: 9px;
+          background: var(--sso-bg);
+        }
+        .sso-mode-selector button {
+          border: 0;
+          border-radius: 6px;
+          padding: 8px 4px;
+          background: transparent;
+          color: var(--sso-muted);
+          font-size: 0.72rem;
+          cursor: pointer;
+        }
+        .sso-mode-selector button.active {
+          background: var(--sso-card);
+          color: var(--sso-accent);
+          font-weight: 700;
+          box-shadow: 0 2px 7px rgba(0, 0, 0, 0.08);
         }
         .sso-field label {
           font-size: 0.8125rem;

@@ -47,13 +47,14 @@ contrôler le rôle et, si nécessaire, le `teamId` attendu.
 
 ## Projets consommateurs
 
-Neuf applications importent directement ce module : `arbinote`, `match-operations`,
-`federation-hub`, `club-hub`, `ob`, `ticketing`, `player-hub`, `staff-hub` et
-`medical-hub`. Leurs wrappers `src/lib/ssoSession.ts` ajoutent les unions de
-rôles et, selon le runtime, les helpers Server Components. Les middlewares
-d'`arbinote`, `federation-hub`, `club-hub`, `player-hub`, `staff-hub` et
-`medical-hub` l'importent aussi directement. `notifications` valide le même
-contrat dans son service NestJS, mais ne dépend pas de ce module TypeScript.
+Dix applications importent directement ce module : `arbinote`, `match-operations`,
+`referee-hub`, `federation-hub`, `club-hub`, `ob`, `ticketing`, `player-hub`,
+`staff-hub` et `medical-hub`. Leurs wrappers `src/lib/ssoSession.ts` ajoutent
+les unions de rôles et, selon le runtime, les helpers Server Components. Les
+middlewares d'`arbinote`, `federation-hub`, `club-hub`, `referee-hub`,
+`player-hub`, `staff-hub` et `medical-hub` l'importent aussi directement.
+`notifications` valide le même contrat dans son service NestJS, mais ne
+dépend pas de ce module TypeScript.
 
 ## Exemple minimal dans une application du monorepo
 
@@ -114,6 +115,8 @@ Matrice de sensibilité et mode recommandé par app :
 | `ticketing` | Élevée | `closed` | Argent — un incident réseau transitoire sur `identity` ne doit jamais laisser passer une session révoquée sur un parcours de paiement |
 | `club-hub` | Élevée | `closed` | Données métier club |
 | `match-operations` | Élevée | `closed` | Match en direct, feuille de match officielle |
+| `referee-hub` | Élevée | `closed` | Désignations officielles personnelles |
+| `player-hub` | Élevée | `closed` | Données personnelles et réponses du joueur |
 | `federation-hub` | Élevée | `closed` | Gestion critique de la plateforme |
 
 Chaque app définit sa propre valeur dans son `.env` — voir

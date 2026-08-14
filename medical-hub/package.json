@@ -4,9 +4,9 @@
   "private": true,
   "description": "Espace médical du club (médecin, kiné) — blessures, disponibilité, protocoles de reprise, alertes et historique, sur les mêmes données que club-hub, avec un accès strictement réservé (permission medical.*).",
   "scripts": {
-    "dev": "next dev --webpack -p 3009",
+    "dev": "next dev --webpack -p 3012",
     "build": "next build --webpack",
-    "start": "next start -p 3009",
+    "start": "next start -p 3012",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest"

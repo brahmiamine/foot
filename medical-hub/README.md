@@ -36,7 +36,7 @@ club-hub si l'un des rôles standards ne l'a pas déjà (aucun des presets
 ```bash
 cp .env.example .env.local   # puis renseigner DB_*, SSO_URL, NOTIFICATION_API_URL
 pnpm install
-pnpm dev   # http://localhost:3009
+pnpm dev   # http://localhost:3012
 ```
 
 ## Périmètre de cette implémentation

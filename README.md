@@ -4,13 +4,14 @@ Plateforme de gestion d'une ligue de football (fédérations, ligues, clubs, mat
 
 ## Applications
 
-Les ports ci-dessous sont ceux des scripts `package.json` (ou la valeur par défaut du serveur lorsque le script ne passe pas de port). Les huit applications orchestrées par `start.sh` reçoivent explicitement les ports 3000 à 3004 et 3007 à 3009, indiqués entre parenthèses lorsqu'ils diffèrent.
+Les ports ci-dessous sont ceux des scripts `package.json` (ou la valeur par défaut du serveur lorsque le script ne passe pas de port). Les neuf applications orchestrées par `start.sh` reçoivent explicitement les ports 3000 à 3004, 3007 à 3009 et 3012, indiqués entre parenthèses lorsqu'ils diffèrent.
 
 | Projet | Rôle | Port local | Authentification |
 |---|---|---:|---|
 | [`identity`](./identity) | Identité centralisée staff/club et membre public, connexion Google comprise ; émet le cookie JWT partagé. | 3000 par défaut (3004 via `start.sh`) | Émetteur SSO ; identifiants ou Google |
 | [`arbinote`](./arbinote) | Perception publique des arbitres : profils, matchs, votes, statistiques et classement. Aucun back-office fédéral. | 3000 | Public anonyme/fingerprint ; SSO membre facultatif pour les votes |
 | [`match-operations`](./match-operations) | Feuille de match électronique en kiosque : avant-match, live, événements, après-match et signatures. | 3000 par défaut (3001 via `start.sh`) | Aucune session utilisateur ; preuve par signature sur place |
+| [`referee-hub`](./referee-hub) | Espace personnel privé des arbitres : désignations, équipe arbitrale, profil et accès à la feuille de match. | 3000 par défaut (3009 via `start.sh`) | `REFEREE`, `MATCH_OFFICIAL` ou `REFEREE_OBSERVER` via SSO et affectation personnelle |
 | [`federation-hub`](./federation-hub) | Référentiels, administration de l'arbitrage, évaluations officielles privées et modération ArbiNote. | 3000 par défaut (3002 via `start.sh`) | SSO avec scopes plateforme/fédération/ligue et affectations observateur |
 | [`club-hub`](./club-hub) | Gestion d’un club : effectif, staff, discipline, contenus, boutique, sponsors, académie, billetterie admin et réglages. | 3000 par défaut (3003 via `start.sh`) | Rôles club (`ADMIN`, `SOUS-ADMIN`, `COACH`, …) via SSO |
 | [`player-hub`](./player-hub) | Espace joueur multi-clubs : calendrier, convocations, entraînements, matchs, statistiques, discipline, déplacements, disponibilité et notifications — en lecture sur les données déjà gérées par `club-hub` (`cms_convocations`, `cms_trainings`, `cms_player_stats`, `Card`/`Suspension`/`Fine`, `cms_trips`...), écriture limitée aux réponses du joueur connecté. | 3007 | `PLAYER` via SSO (scopé à un club ET à un joueur, voir `identity/src/entities/User.ts`) |
@@ -30,7 +31,7 @@ Le dépôt ne contient aucun dossier `skote` : il ne s'agit donc pas d'une appli
 
 | Package | Statut et consommateurs | Exports / responsabilité |
 |---|---|---|
-| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les six applications clientes (`arbinote`, `match-operations`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
+| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les applications clientes (`arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`, `player-hub`, `staff-hub`, `medical-hub`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
 
 ## Composants partagés non déployables
 
@@ -44,7 +45,7 @@ La règle de contribution est : **aucun composant générique ne connaît un clu
 ```text
 GENERIC PLATFORM (multi-clubs)
 ├── Frontends Next.js
-│   ├── identity, arbinote, match-operations, federation-hub, club-hub, player-hub, staff-hub, medical-hub
+│   ├── identity, arbinote, match-operations, referee-hub, federation-hub, club-hub, player-hub, staff-hub, medical-hub
 │   ├── seller-portal
 │   └── ticketing
 ├── APIs NestJS
@@ -63,7 +64,7 @@ CUSTOM APPLICATIONS
 | Projet | Type | Portée |
 |---|---|---|
 | `identity`, `federation-hub`, `payments`, `notifications`, `marketplace` | Générique | Services plateforme |
-| `club-hub`, `player-hub`, `staff-hub`, `medical-hub`, `seller-portal`, `ticketing`, `arbinote`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
+| `club-hub`, `player-hub`, `staff-hub`, `medical-hub`, `referee-hub`, `seller-portal`, `ticketing`, `arbinote`, `match-operations` | Générique | Multi-clubs (le portail vendeur reste en transition vers une API entièrement découplée) |
 | `packages/auth-shared`, `db` | Interne partagé | Code d'authentification et schéma de référence |
 | `club-ob` | Custom | Olympique de Béja uniquement |
 
@@ -89,7 +90,7 @@ flowchart TB
   Notification[(Base notifications)]
   Redis[(Redis / BullMQ)]
 
-  Next[Next.js : identity, arbinote, match-operations, federation-hub, club-hub, player-hub, staff-hub, medical-hub, club-ob, ticketing]
+  Next[Next.js : identity, arbinote, match-operations, referee-hub, federation-hub, club-hub, player-hub, staff-hub, medical-hub, club-ob, ticketing]
   Seller[seller-portal]
   Market[marketplace]
   Pay[payments]
@@ -120,6 +121,7 @@ Aucun domaine DNS/SSL/reverse proxy ci-dessous n'est configuré par ce dépôt.
 | `sso.platform.tn` | `identity` |
 | `admin.platform.tn` | `club-hub` multi-clubs |
 | `joueur.platform.tn` | `player-hub` multi-clubs |
+| `arbitre.platform.tn` | `referee-hub` privé |
 | `sellers.platform.tn` | `seller-portal` multi-clubs |
 | `tickets.platform.tn` | `ticketing` multi-clubs |
 | `federation-hub.platform.tn` | `federation-hub` |
@@ -142,7 +144,7 @@ Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparé
 ### Prérequis
 
 - Bash, Docker actif et les images `mariadb:latest` / `phpmyadmin/phpmyadmin` disponibles ;
-- `pnpm` et les dépendances déjà installées dans chacun de `identity`, `arbinote`, `match-operations`, `federation-hub`, `club-hub`, `player-hub`, `staff-hub` et `medical-hub` ;
+- `pnpm` et les dépendances déjà installées dans chacun de `identity`, `arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `player-hub`, `staff-hub` et `medical-hub` ;
 - `arbinote/.env.local`, créé depuis `arbinote/.env.example`, avec au minimum `DB_USER`, `DB_PASSWORD` et `DB_ROOT_PASSWORD` : le script s'arrête immédiatement si l'un manque ;
 - pour activer le SSO, `identity/.env.local`, créé avec `cp identity/.env.example identity/.env.local` puis complété. Son absence n'arrête pas le script, mais `identity` n'est pas lancé (et aucune autre app ne peut authentifier tant qu'il ne tourne pas — `player-hub`/`staff-hub`/`medical-hub` démarrent quand même, mais toute page renvoie une redirection SSO qui ne peut pas aboutir) ;
 - `player-hub/.env.local`, `staff-hub/.env.local` et `medical-hub/.env.local`, créés depuis leur `.env.example` respectif (`DB_*`, `SSO_URL`) : comme pour les autres apps Next.js, le script ne les crée ni ne les valide, il lance quand même le process — sans ce fichier, la connexion base de données échoue à la première requête ;
@@ -161,15 +163,16 @@ Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparé
 | `federation-hub` | 3002 |
 | `club-hub` | 3003 |
 | `identity` (seulement si `identity/.env.local` existe) | 3004 |
+| `referee-hub` | 3009 |
 | `player-hub` | 3007 (fixé par son propre script `dev`, pas injecté par `start.sh`) |
 | `staff-hub` | 3008 (idem) |
-| `medical-hub` | 3009 (idem) |
+| `medical-hub` | 3012 (idem) |
 
 `club-ob`, `ticketing`, `seller-portal`, `marketplace`, `payments` et `notifications` ne sont pas lancés. Démarrez-les depuis leur dossier, après copie de leur `.env.example` vers le fichier demandé par l'application (`.env.local` pour Next.js, `.env` pour les APIs NestJS). Attention : plusieurs scripts Next.js et `payments` utilisent 3000 par défaut ; choisissez `PORT` ou l'option du framework pour éviter une collision. `seller-portal`, `notifications` et `marketplace` fixent respectivement 3006, 3010 et 3011.
 
 ## Architecture partagée
 
-- **Authentification** : `identity` émet le cookie `foot_sso_session` (nom configurable), JWT RS256 issuer `foot-sso` (JWKS public, voir `packages/auth-shared`). `packages/auth-shared` centralise sa vérification et sa révocation dans les neuf clients (`arbinote`, `match-operations`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`, `player-hub`, `staff-hub`, `medical-hub`). `match-operations` conserve un fonctionnement kiosque sans exigence de connexion malgré la disponibilité du helper partagé.
+- **Authentification** : `identity` émet le cookie `foot_sso_session` (nom configurable), JWT RS256 issuer `foot-sso` (JWKS public, voir `packages/auth-shared`). `packages/auth-shared` centralise sa vérification et sa révocation dans les dix clients (`arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`, `player-hub`, `staff-hub`, `medical-hub`). `match-operations` conserve un fonctionnement kiosque sans exigence de connexion malgré la disponibilité du helper partagé.
 - **Billetterie** : l'identité `MEMBER` est globale ; le `teamId` d'un billet désigne l'organisateur, pas le club favori de l'acheteur. Les catégories et `TicketSaleRule` sont configurées par club dans `club-hub`, puis vendues par `ticketing`.
 - **PWA** : `club-hub` et `match-operations` fournissent manifest et service worker ; la synchronisation offline des écritures reste à faire. Le suivi correspondant est dans [`avancement.md`](./avancement.md).
 - **État détaillé** : les fonctionnalités et processus encore incomplets, notamment l'unification marketplace et les intégrations inter-services, sont suivis dans [`avancement.md`](./avancement.md), seul document de suivi présent à la racine.
