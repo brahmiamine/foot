@@ -27,20 +27,35 @@ export default async function ConvocationsPage() {
     staffPortalService.getRoster(teamId, access.categories),
   ]);
 
-  const upcomingMatches = matches.filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED");
-  const withMatchInfo = await Promise.all(convocations.slice(0, 50).map(async (c) => ({ convocation: c, match: await staffPortalService.resolveConvocationMatch(c) })));
-  const rosterById = new Map(roster.map((p) => [p.id, `${p.number} — ${p.firstNameFr} ${p.lastNameFr}`]));
+  const upcomingMatches = matches.filter((match) => match.status !== "FINISHED" && match.status !== "CANCELLED");
+  const displayedConvocations = convocations.slice(0, 50);
+  const matchesByConvocation = await staffPortalService.resolveConvocationMatches(displayedConvocations);
+  const withMatchInfo = displayedConvocations.map((convocation) => ({
+    convocation,
+    match: matchesByConvocation.get(convocation.id) ?? null,
+  }));
+  const rosterById = new Map(
+    roster.map((player) => [player.id, `${player.number} — ${player.firstNameFr} ${player.lastNameFr}`]),
+  );
 
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <h1 style={{ fontSize: "1.2rem", margin: 0 }}>Convocations</h1>
         {can(access, "convocations.send") && (
-          <CreateConvocationForm matches={upcomingMatches} roster={roster.map((p) => ({ id: p.id, label: `${p.number} — ${p.firstNameFr} ${p.lastNameFr}` }))} />
+          <CreateConvocationForm
+            matches={upcomingMatches}
+            roster={roster.map((player) => ({
+              id: player.id,
+              label: `${player.number} — ${player.firstNameFr} ${player.lastNameFr}`,
+            }))}
+          />
         )}
       </div>
 
-      {withMatchInfo.length === 0 && <EmptyState title="Aucune convocation" description="Aucune convocation envoyée pour l'instant." />}
+      {withMatchInfo.length === 0 && (
+        <EmptyState title="Aucune convocation" description="Aucune convocation envoyée pour l'instant." />
+      )}
 
       {withMatchInfo.map(({ convocation, match }) => (
         <Card key={convocation.id}>
@@ -51,7 +66,10 @@ export default async function ConvocationsPage() {
                 {match ? `${match.isHome ? "vs " : "@ "}${match.opponentName} — ${formatDateTime(match.date)}` : "Match"}
               </div>
             </div>
-            <Badge label={RESPONSE_LABEL[convocation.response]?.label ?? convocation.response} tone={RESPONSE_LABEL[convocation.response]?.tone ?? "neutral"} />
+            <Badge
+              label={RESPONSE_LABEL[convocation.response]?.label ?? convocation.response}
+              tone={RESPONSE_LABEL[convocation.response]?.tone ?? "neutral"}
+            />
           </div>
         </Card>
       ))}
