@@ -26,39 +26,83 @@ export default async function TripsPage() {
     playerService.findAll(teamId, access.categories),
   ]);
 
-  const [vehiclesByTrip, participantsByTrip] = await Promise.all([
-    Promise.all(tripsData.map(async (t) => ({ tripId: t.id, vehicles: await tripService.findVehicles(t.id) }))),
-    Promise.all(tripsData.map(async (t) => ({ tripId: t.id, participants: await tripService.findParticipants(t.id) }))),
+  const tripIds = tripsData.map((trip) => trip.id);
+  const [vehicles, participants] = await Promise.all([
+    tripService.findVehiclesByTripIds(tripIds),
+    tripService.findParticipantsByTripIds(tripIds),
   ]);
-  const vehiclesMap = new Map(vehiclesByTrip.map((e) => [e.tripId, e.vehicles]));
-  const participantsMap = new Map(participantsByTrip.map((e) => [e.tripId, e.participants]));
 
-  const trips = tripsData.map((t) => ({
-    id: t.id,
-    category: t.category,
-    matchLabel: t.matchType === "FRIENDLY" ? `Amical @ ${t.friendlyMatch?.opponentTeam?.nom ?? t.friendlyMatch?.opponentName ?? "Adversaire"}` : t.matchType === "OFFICIAL" ? `${t.match?.homeTeam?.nom ?? "?"} vs ${t.match?.awayTeam?.nom ?? "?"}` : "Déplacement",
-    departureTime: t.departureTime.toISOString(),
-    meetingPoint: t.meetingPoint ?? null,
-    notes: t.notes ?? null,
-    vehicles: (vehiclesMap.get(t.id) ?? []).map((v) => ({ id: v.id, vehicleType: v.vehicleType, label: v.label ?? null, driverName: v.driverName ?? null, seats: v.seats })),
-    participants: (participantsMap.get(t.id) ?? []).map((p) => ({
-      id: p.id,
-      participantType: p.participantType,
-      label: p.participantType === "PLAYER" ? (p.player ? `#${p.player.number} ${p.player.firstNameFr} ${p.player.lastNameFr}` : "Joueur inconnu") : (p.name ?? "—"),
-      transportOffer: p.transportOffer,
-      offeredSeats: p.offeredSeats ?? null,
-      confirmed: p.confirmed,
+  const vehiclesMap = new Map<number, typeof vehicles>();
+  for (const vehicle of vehicles) {
+    const current = vehiclesMap.get(vehicle.tripId) ?? [];
+    current.push(vehicle);
+    vehiclesMap.set(vehicle.tripId, current);
+  }
+
+  const participantsMap = new Map<number, typeof participants>();
+  for (const participant of participants) {
+    const current = participantsMap.get(participant.tripId) ?? [];
+    current.push(participant);
+    participantsMap.set(participant.tripId, current);
+  }
+
+  const trips = tripsData.map((trip) => ({
+    id: trip.id,
+    category: trip.category,
+    matchLabel:
+      trip.matchType === "FRIENDLY"
+        ? `Amical @ ${trip.friendlyMatch?.opponentTeam?.nom ?? trip.friendlyMatch?.opponentName ?? "Adversaire"}`
+        : trip.matchType === "OFFICIAL"
+          ? `${trip.match?.homeTeam?.nom ?? "?"} vs ${trip.match?.awayTeam?.nom ?? "?"}`
+          : "Déplacement",
+    departureTime: trip.departureTime.toISOString(),
+    meetingPoint: trip.meetingPoint ?? null,
+    notes: trip.notes ?? null,
+    vehicles: (vehiclesMap.get(trip.id) ?? []).map((vehicle) => ({
+      id: vehicle.id,
+      vehicleType: vehicle.vehicleType,
+      label: vehicle.label ?? null,
+      driverName: vehicle.driverName ?? null,
+      seats: vehicle.seats,
+    })),
+    participants: (participantsMap.get(trip.id) ?? []).map((participant) => ({
+      id: participant.id,
+      participantType: participant.participantType,
+      label:
+        participant.participantType === "PLAYER"
+          ? participant.player
+            ? `#${participant.player.number} ${participant.player.firstNameFr} ${participant.player.lastNameFr}`
+            : "Joueur inconnu"
+          : (participant.name ?? "—"),
+      transportOffer: participant.transportOffer,
+      offeredSeats: participant.offeredSeats ?? null,
+      confirmed: participant.confirmed,
     })),
   }));
 
   const awayOfficialMatches = matchesData
-    .filter((m) => m.equipeAway === teamId)
-    .map((m) => ({ value: `OFFICIAL:${m.id}`, label: `${m.homeTeam?.nom ?? "?"} vs ${m.awayTeam?.nom ?? "?"} — ${m.date ? new Date(m.date).toLocaleDateString("fr-FR") : ""}` }));
+    .filter((match) => match.equipeAway === teamId)
+    .map((match) => ({
+      value: `OFFICIAL:${match.id}`,
+      label: `${match.homeTeam?.nom ?? "?"} vs ${match.awayTeam?.nom ?? "?"} — ${
+        match.date ? new Date(match.date).toLocaleDateString("fr-FR") : ""
+      }`,
+    }));
   const awayFriendlyMatches = friendlyMatchesData
-    .filter((m) => !m.isHome)
-    .map((m) => ({ value: `FRIENDLY:${m.id}`, label: `Amical @ ${m.opponentTeam?.nom ?? m.opponentName ?? "Adversaire"} — ${new Date(m.date).toLocaleDateString("fr-FR")}` }));
+    .filter((match) => !match.isHome)
+    .map((match) => ({
+      value: `FRIENDLY:${match.id}`,
+      label: `Amical @ ${match.opponentTeam?.nom ?? match.opponentName ?? "Adversaire"} — ${new Date(
+        match.date
+      ).toLocaleDateString("fr-FR")}`,
+    }));
 
-  const players = playersData.filter((p) => p.isActive).map((p) => ({ id: p.id, label: `#${p.number} ${p.firstNameFr} ${p.lastNameFr}` }));
+  const players = playersData
+    .filter((player) => player.isActive)
+    .map((player) => ({
+      id: player.id,
+      label: `#${player.number} ${player.firstNameFr} ${player.lastNameFr}`,
+    }));
 
   return (
     <TripsManagement
