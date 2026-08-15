@@ -6,14 +6,22 @@ import { Matchday } from "@/entities/Matchday";
 import { Player } from "@/entities/Player";
 import { Team } from "@/entities/Team";
 import { TeamMembership } from "@/entities/TeamMembership";
-import { eligibilityResult, fitsAgeCategory, type EligibilityBlockingReason, type EligibilityResult } from "../../../packages/regulatory-shared/src/eligibility";
+import { eligibilityResult, fitsAgeCategory } from "../../../packages/regulatory-shared/src/eligibility";
+import type {
+  EligibilityBlockingReason,
+  EligibilityCheckRequest,
+  EligibilityContext,
+  EligibilityResult,
+  EligibilityServicePort,
+} from "../../../packages/domain-contracts/src/eligibility";
 
-export interface EligibilityContext { actorUserId?:string|null;actorRole?:string;ipAddress?:string|null;userAgent?:string|null }
+export type { EligibilityContext } from "../../../packages/domain-contracts/src/eligibility";
+
 export class LineupEligibilityError extends Error {
   constructor(public readonly failures:Array<{playerId:string;reasons:string[]}>){super(failures.map(f=>`${f.playerId}: ${f.reasons.join(", ")}`).join(" | "));this.name="LineupEligibilityError"}
 }
-export class EligibilityService {
-  async checkPlayerEligibility(input:{playerId:string;clubId:string;matchId:string;seasonId?:string},context:EligibilityContext={}):Promise<EligibilityResult>{
+export class EligibilityService implements EligibilityServicePort {
+  async checkPlayerEligibility(input:EligibilityCheckRequest,context:EligibilityContext={}):Promise<EligibilityResult>{
     const ds=await getDataSource();
     const match=await ds.getRepository(Match).findOne({where:{id:input.matchId}});
     if(!match)throw new Error("Match introuvable");
