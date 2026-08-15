@@ -60,9 +60,6 @@ const federationRefereeAvailabilityAllowlist = new Set([
   'federation-hub/src/adapters/referee/SharedDatabaseRefereeAvailabilityDirectoryAdapter.ts',
 ])
 
-// Identity owns the User table. Federation may keep the entity registered in
-// its transitional DataSource, but application services/routes must consume
-// Identity's authenticated service API instead of reading/writing User.
 const federationIdentityUserAllowlist = new Set([
   'federation-hub/src/lib/db.ts',
   'federation-hub/src/test/testDataSource.ts',
@@ -70,13 +67,22 @@ const federationIdentityUserAllowlist = new Set([
   'federation-hub/src/lib/entities/User.ts',
 ])
 
-// Same rule for referee-hub: User may remain registered for the transitional
-// shared DB adapter/bootstrap, but profile services must consume Identity.
 const refereeIdentityUserAllowlist = new Set([
   'referee-hub/src/lib/db.ts',
   'referee-hub/src/test/testDataSource.ts',
   'referee-hub/src/entities/User.ts',
   'referee-hub/src/adapters/identity/SharedDatabaseIdentityProfileAdapter.ts',
+])
+
+// Club owns cms_roles/cms_user_roles but Identity owns User. Direct account
+// storage access is confined to the transitional adapter and ORM bootstrap.
+const clubIdentityUserAllowlist = new Set([
+  'club-hub/src/lib/database.ts',
+  'club-hub/src/test/testDataSource.ts',
+  'club-hub/src/test/fixtures.ts',
+  'club-hub/src/entities/User.ts',
+  'club-hub/src/entities/UserRole.ts',
+  'club-hub/src/adapters/identity/SharedDatabaseClubIdentityAdapter.ts',
 ])
 
 async function walk(directory) {
@@ -227,6 +233,22 @@ for (const file of await walk(path.join(root, 'referee-hub', 'src'))) {
   if (importsOf(source).includes('@/entities/User')) {
     errors.push(
       `${relativeFile} imports Identity-owned User storage directly; use IdentityProfilePort instead`,
+    )
+  }
+}
+
+for (const file of await walk(path.join(root, 'club-hub', 'src'))) {
+  const relativeFile = path.relative(root, file).split(path.sep).join('/')
+  if (clubIdentityUserAllowlist.has(relativeFile) || relativeFile.endsWith('.test.ts')) continue
+  const source = await readFile(file, 'utf8')
+  const imports = importsOf(source)
+  if (
+    imports.includes('@/entities/User') ||
+    imports.includes('../entities/User') ||
+    imports.includes('./entities/User')
+  ) {
+    errors.push(
+      `${relativeFile} imports Identity-owned User storage directly; use the Club Identity port instead`,
     )
   }
 }
