@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS ms_match_staff_assignments (
   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  UNIQUE KEY uq_match_staff_role (match_id, team_id, role),
   UNIQUE KEY uq_match_staff_person_role (match_id, team_id, staff_id, role),
-  KEY idx_match_staff_role (match_id, team_id, role),
   CONSTRAINT fk_match_staff_match FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
   CONSTRAINT fk_match_staff_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
   CONSTRAINT fk_match_staff_staff FOREIGN KEY (staff_id) REFERENCES cms_staff(id) ON DELETE RESTRICT
