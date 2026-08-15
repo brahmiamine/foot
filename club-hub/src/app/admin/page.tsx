@@ -9,10 +9,7 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Admin Dashboard Page — accueil du club + résumé disciplinaire, port de
- * cardManager/app/[locale]/admin/dashboard (stats + alertes).
- */
+/** Admin Dashboard Page — accueil du club + résumé disciplinaire. */
 export default async function AdminDashboardPage() {
   const teamId = await requireTeamId();
   const teamService = new TeamService();
@@ -24,47 +21,44 @@ export default async function AdminDashboardPage() {
   const fineRepo = dataSource.getRepository(Fine);
   const playerRepo = dataSource.getRepository(Player);
 
-  const [yellowCards, redCards, activeSuspensions, pendingFines, fineBlockedPlayers, atRiskRows] = await Promise.all([
-    cardRepo.count({ where: { isNeutralized: false, type: "YELLOW", player: { teamId } } }),
-    cardRepo
-      .createQueryBuilder("card")
-      .innerJoin("card.player", "player")
-      .where("player.teamId = :teamId", { teamId })
-      .andWhere("card.type IN ('RED', 'DOUBLE_YELLOW')")
-      .getCount(),
-    suspensionRepo.find({ where: { status: "ACTIVE", teamId }, relations: { player: true }, take: 10 }),
-    fineRepo.count({ where: [{ teamId, status: "PENDING" }, { teamId, status: "OVERDUE" }] }),
-    playerRepo
-      .createQueryBuilder("player")
-      .innerJoin(Fine, "fine", "fine.playerId = player.id")
-      .where("player.teamId = :teamId", { teamId })
-      .andWhere("player.isActive = true")
-      .andWhere("fine.status = 'OVERDUE'")
-      .select(["player.id", "player.firstNameFr", "player.lastNameFr"])
-      .distinct(true)
-      .getMany(),
-    // À risque : 2 jaunes cumulés non-neutralisés, sans suspension liée (un 3e déclenchera l'auto-suspension)
-    cardRepo
-      .createQueryBuilder("card")
-      .innerJoin("card.player", "player")
-      .leftJoin(Suspension, "suspension", "suspension.cardId = card.id")
-      .where("player.teamId = :teamId", { teamId })
-      .andWhere("card.type = 'YELLOW'")
-      .andWhere("card.isNeutralized = false")
-      .andWhere("suspension.id IS NULL")
-      .groupBy("card.playerId")
-      .select("card.playerId", "playerId")
-      .addSelect("COUNT(*)", "count")
-      .having("COUNT(*) = 2")
-      .getRawMany<{ playerId: string; count: string }>(),
-  ]);
-
-  const atRiskPlayers = await Promise.all(
-    atRiskRows.map(async (row) => {
-      const player = await playerRepo.findOne({ where: { id: row.playerId } });
-      return player ? `${player.firstNameFr} ${player.lastNameFr}` : null;
-    })
-  ).then((names) => names.filter((n): n is string => !!n));
+  const [yellowCards, redCards, activeSuspensions, pendingFines, fineBlockedPlayers, atRiskPlayers] =
+    await Promise.all([
+      cardRepo.count({ where: { isNeutralized: false, type: "YELLOW", player: { teamId } } }),
+      cardRepo
+        .createQueryBuilder("card")
+        .innerJoin("card.player", "player")
+        .where("player.teamId = :teamId", { teamId })
+        .andWhere("card.type IN ('RED', 'DOUBLE_YELLOW')")
+        .getCount(),
+      suspensionRepo.find({ where: { status: "ACTIVE", teamId }, relations: { player: true }, take: 10 }),
+      fineRepo.count({ where: [{ teamId, status: "PENDING" }, { teamId, status: "OVERDUE" }] }),
+      playerRepo
+        .createQueryBuilder("player")
+        .innerJoin(Fine, "fine", "fine.playerId = player.id")
+        .where("player.teamId = :teamId", { teamId })
+        .andWhere("player.isActive = true")
+        .andWhere("fine.status = 'OVERDUE'")
+        .select(["player.id", "player.firstNameFr", "player.lastNameFr"])
+        .distinct(true)
+        .getMany(),
+      cardRepo
+        .createQueryBuilder("card")
+        .innerJoin("card.player", "player")
+        .leftJoin(Suspension, "suspension", "suspension.cardId = card.id")
+        .where("player.teamId = :teamId", { teamId })
+        .andWhere("card.type = 'YELLOW'")
+        .andWhere("card.isNeutralized = false")
+        .andWhere("suspension.id IS NULL")
+        .groupBy("player.id")
+        .addGroupBy("player.firstNameFr")
+        .addGroupBy("player.lastNameFr")
+        .select("player.id", "playerId")
+        .addSelect("player.firstNameFr", "firstNameFr")
+        .addSelect("player.lastNameFr", "lastNameFr")
+        .addSelect("COUNT(*)", "count")
+        .having("COUNT(*) = 2")
+        .getRawMany<{ playerId: string; firstNameFr: string; lastNameFr: string; count: string }>(),
+    ]);
 
   return (
     <div className="container-fluid px-0">
@@ -103,19 +97,20 @@ export default async function AdminDashboardPage() {
                 <p className="text-muted mb-0">Aucune alerte</p>
               ) : (
                 <ul className="admin-alert-list">
-                  {fineBlockedPlayers.map((p) => (
-                    <li key={p.id} className="text-danger small">
-                      ⛔ {p.firstNameFr} {p.lastNameFr} — bloqué (amende en retard)
+                  {fineBlockedPlayers.map((player) => (
+                    <li key={player.id} className="text-danger small">
+                      ⛔ {player.firstNameFr} {player.lastNameFr} — bloqué (amende en retard)
                     </li>
                   ))}
-                  {atRiskPlayers.map((name) => (
-                    <li key={name} className="text-warning small">
-                      ⚠️ {name} — 2 jaunes cumulés (à risque)
+                  {atRiskPlayers.map((player) => (
+                    <li key={player.playerId} className="text-warning small">
+                      ⚠️ {player.firstNameFr} {player.lastNameFr} — 2 jaunes cumulés (à risque)
                     </li>
                   ))}
-                  {activeSuspensions.map((s) => (
-                    <li key={s.id} className="text-body-secondary small">
-                      🚫 {s.player?.firstNameFr} {s.player?.lastNameFr} — suspendu ({s.matchesCount - s.matchesPurged} match(s) restant(s))
+                  {activeSuspensions.map((suspension) => (
+                    <li key={suspension.id} className="text-body-secondary small">
+                      🚫 {suspension.player?.firstNameFr} {suspension.player?.lastNameFr} — suspendu (
+                      {suspension.matchesCount - suspension.matchesPurged} match(s) restant(s))
                     </li>
                   ))}
                 </ul>
@@ -131,9 +126,10 @@ export default async function AdminDashboardPage() {
                 <p className="text-muted mb-0">Aucune suspension active</p>
               ) : (
                 <ul className="admin-alert-list mb-3">
-                  {activeSuspensions.map((s) => (
-                    <li key={s.id} className="text-body-secondary small">
-                      {s.player?.firstNameFr} {s.player?.lastNameFr} — {s.matchesPurged}/{s.matchesCount} match(s) purgé(s)
+                  {activeSuspensions.map((suspension) => (
+                    <li key={suspension.id} className="text-body-secondary small">
+                      {suspension.player?.firstNameFr} {suspension.player?.lastNameFr} — {suspension.matchesPurged}/
+                      {suspension.matchesCount} match(s) purgé(s)
                     </li>
                   ))}
                 </ul>
