@@ -1,0 +1,45 @@
+:root {
+  /* Brand */
+  --foot-color-primary: #c8102e;
+  --foot-color-primary-rgb: 200, 16, 46;
+  --foot-color-primary-dark: #a10d25;
+  --foot-color-secondary: #64748b;
+
+  /* Semantic */
+  --foot-color-success: #3fa772;
+  --foot-color-info: #4a90a4;
+  --foot-color-warning: #d99a3d;
+  --foot-color-danger: #d6455a;
+
+  /* Surfaces and text */
+  --foot-color-background: #f4f6f8;
+  --foot-color-surface: #ffffff;
+  --foot-color-text: #3d4650;
+  --foot-color-text-muted: #64748b;
+  --foot-color-border: #e7ebf0;
+  --foot-color-dark: #0d0d0d;
+
+  /* Typography */
+  --foot-font-ui: "Manrope", "Segoe UI", sans-serif;
+  --foot-font-display: "Bebas Neue", "Manrope", sans-serif;
+
+  /* Radius */
+  --foot-radius-sm: 0.4rem;
+  --foot-radius-md: 0.65rem;
+  --foot-radius-lg: 1rem;
+
+  /* Shadows */
+  --foot-shadow-card: 0 1px 2px rgba(11, 31, 46, 0.04), 0 8px 20px -12px rgba(11, 31, 46, 0.14);
+  --foot-shadow-card-hover: 0 1px 2px rgba(11, 31, 46, 0.05), 0 14px 28px -14px rgba(11, 31, 46, 0.2);
+
+  /* Layout */
+  --foot-topbar-height: 70px;
+}
+
+:root.dark {
+  --foot-color-background: #2a3042;
+  --foot-color-surface: #32394e;
+  --foot-color-text: #e9ecef;
+  --foot-color-text-muted: #adb5bd;
+  --foot-color-border: #3f465b;
+}
