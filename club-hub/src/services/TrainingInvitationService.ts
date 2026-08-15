@@ -1,6 +1,6 @@
 import { getDataSource } from "@/lib/database";
 import { TrainingInvitation, TrainingInvitationResponse } from "@/entities/TrainingInvitation";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 /** Service for TrainingInvitation operations (joueurs invités à une séance). */
 export class TrainingInvitationService {
@@ -14,6 +14,16 @@ export class TrainingInvitationService {
     return repository.find({ where: { trainingId }, relations: ["player"], order: { createdAt: "ASC" } });
   }
 
+  async findByTrainingIds(trainingIds: number[]): Promise<TrainingInvitation[]> {
+    if (trainingIds.length === 0) return [];
+    const repository = await this.getRepository();
+    return repository.find({
+      where: { trainingId: In(trainingIds) },
+      relations: ["player"],
+      order: { trainingId: "ASC", createdAt: "ASC" },
+    });
+  }
+
   async findById(id: number): Promise<TrainingInvitation | null> {
     const repository = await this.getRepository();
     return repository.findOne({ where: { id }, relations: ["player", "training"] });
@@ -23,7 +33,7 @@ export class TrainingInvitationService {
   async inviteBulk(trainingId: number, playerIds: string[]): Promise<TrainingInvitation[]> {
     const repository = await this.getRepository();
     const existing = await repository.find({ where: { trainingId } });
-    const existingPlayerIds = new Set(existing.map((i) => i.playerId));
+    const existingPlayerIds = new Set(existing.map((invitation) => invitation.playerId));
 
     const toCreate = playerIds
       .filter((playerId) => !existingPlayerIds.has(playerId))
@@ -33,12 +43,6 @@ export class TrainingInvitationService {
     return repository.save(toCreate);
   }
 
-  /**
-   * TASK-P0-012 (todo.md): `findById` alone doesn't scope by team, so
-   * `updateResponse`/`remove` used to trust any numeric invitation id
-   * regardless of which club's training it belonged to — any staff member
-   * of any club could respond to or delete another club's invitations.
-   */
   private async findByIdForTeam(id: number, teamId: string): Promise<TrainingInvitation | null> {
     const invitation = await this.findById(id);
     if (!invitation || invitation.training?.teamId !== teamId) {
