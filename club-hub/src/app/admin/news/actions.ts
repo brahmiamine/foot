@@ -2,7 +2,8 @@
 
 import { NewsService } from "@/services/NewsService";
 import { NotificationOutboxService } from "@/services/NotificationOutboxService";
-import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, requirePermission } from "@/lib/access";
+import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { createNewsSchema, updateNewsSchema } from "@/types/news";
 import { revalidatePath } from "next/cache";
 import { getDataSource } from "@/lib/database";
@@ -13,15 +14,6 @@ import type { EntityManager } from "typeorm";
 const newsService = new NewsService();
 const notificationOutbox = new NotificationOutboxService();
 
-/**
- * TS-25 (avancement.md, Epic E07) : la publication (au sens large — voir
- * appelants) et la mise en file de la notification s'engagent dans la
- * MÊME transaction, remplaçant l'ancien `notify(...)` best-effort appelé
- * après coup (perdu si le process crashait entre le commit News et
- * l'appel réseau, ou si notifications était injoignable au même
- * instant). `NotificationOutboxService.processDue()` livre effectivement
- * l'événement (voir /api/internal/outbox/process, TS-26).
- */
 function newsPublishedPayload(newsId: number, title: string, teamId: string): NotifyPayload {
   return {
     eventId: `news-published:${newsId}`,
@@ -35,13 +27,6 @@ function newsPublishedPayload(newsId: number, title: string, teamId: string): No
   };
 }
 
-/**
- * Server Actions for News CRUD operations
- */
-
-/**
- * Create a new news article
- */
 export async function createNews(formData: FormData) {
   try {
     const data = {
@@ -54,8 +39,14 @@ export async function createNews(formData: FormData) {
       publishedAt: formData.get("publishedAt") ? new Date(formData.get("publishedAt") as string) : null,
     };
 
-    const validatedData = createNewsSchema.parse(data);
-    const teamId = await requireTeamId();
+    const parsed = createNewsSchema.parse(data);
+    const validatedData = { ...parsed, contentHtml: sanitizeRichTextHtml(parsed.contentHtml) };
+    const access = await getUserAccess();
+    requirePermission(access, "news.create");
+    if (validatedData.status === "PUBLISHED" || validatedData.isPublished) {
+      requirePermission(access, "news.publish");
+    }
+    const teamId = access.teamId;
 
     let news: News;
     if (validatedData.status === "PUBLISHED") {
@@ -72,7 +63,6 @@ export async function createNews(formData: FormData) {
       news = await newsService.create(validatedData, teamId);
     }
 
-    // Associate media items if provided
     const mediaIdsStr = formData.get("mediaIds") as string | null;
     if (mediaIdsStr) {
       try {
@@ -81,7 +71,6 @@ export async function createNews(formData: FormData) {
           await newsService.addMediaToNews(news.id, mediaIds[i], teamId, i);
         }
       } catch (parseError) {
-        // If mediaIds parsing fails, continue without media association
         console.error("Error parsing mediaIds:", parseError);
       }
     }
@@ -96,9 +85,6 @@ export async function createNews(formData: FormData) {
   }
 }
 
-/**
- * Update a news article
- */
 export async function updateNews(id: number, formData: FormData) {
   try {
     const data = {
@@ -111,14 +97,27 @@ export async function updateNews(id: number, formData: FormData) {
       publishedAt: formData.get("publishedAt") ? new Date(formData.get("publishedAt") as string) : null,
     };
 
-    // Remove undefined values
     const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+    const parsed = updateNewsSchema.parse(cleanData);
+    const validatedData = {
+      ...parsed,
+      ...(parsed.contentHtml !== undefined
+        ? { contentHtml: sanitizeRichTextHtml(parsed.contentHtml) }
+        : {}),
+    };
 
-    const validatedData = updateNewsSchema.parse(cleanData);
-    const teamId = await requireTeamId();
+    const access = await getUserAccess();
+    requirePermission(access, "news.edit");
+    const teamId = access.teamId;
     const before = await newsService.findById(id, teamId);
-    const justPublished = before?.status !== "PUBLISHED" && validatedData.status === "PUBLISHED";
+    if (!before) throw new Error("Actualité non trouvée");
 
+    const publicationChanged =
+      (validatedData.status !== undefined && validatedData.status !== before.status) ||
+      (validatedData.isPublished !== undefined && validatedData.isPublished !== before.isPublished);
+    if (publicationChanged) requirePermission(access, "news.publish");
+
+    const justPublished = before.status !== "PUBLISHED" && validatedData.status === "PUBLISHED";
     if (justPublished) {
       const dataSource = await getDataSource();
       await dataSource.transaction(async (manager: EntityManager) => {
@@ -139,14 +138,11 @@ export async function updateNews(id: number, formData: FormData) {
   }
 }
 
-/**
- * Delete a news article
- */
 export async function deleteNews(id: number) {
   try {
-    const teamId = await requireTeamId();
-    const newsService = new NewsService();
-    await newsService.delete(id, teamId);
+    const access = await getUserAccess();
+    requirePermission(access, "news.delete");
+    await newsService.delete(id, access.teamId);
 
     revalidatePath("/admin/news");
     return { success: true, message: "Actualité supprimée avec succès" };
@@ -158,14 +154,11 @@ export async function deleteNews(id: number) {
   }
 }
 
-/**
- * Add a media item to a news article
- */
 export async function addMediaToNews(newsId: number, mediaItemId: number, displayOrder: number = 0) {
   try {
-    const teamId = await requireTeamId();
-    const newsService = new NewsService();
-    await newsService.addMediaToNews(newsId, mediaItemId, teamId, displayOrder);
+    const access = await getUserAccess();
+    requirePermission(access, "news.edit");
+    await newsService.addMediaToNews(newsId, mediaItemId, access.teamId, displayOrder);
 
     revalidatePath("/admin/news");
     revalidatePath(`/admin/news/${newsId}/edit`);
@@ -178,14 +171,11 @@ export async function addMediaToNews(newsId: number, mediaItemId: number, displa
   }
 }
 
-/**
- * Remove a media item from a news article
- */
 export async function removeMediaFromNews(newsId: number, mediaItemId: number) {
   try {
-    const teamId = await requireTeamId();
-    const newsService = new NewsService();
-    await newsService.removeMediaFromNews(newsId, mediaItemId, teamId);
+    const access = await getUserAccess();
+    requirePermission(access, "news.edit");
+    await newsService.removeMediaFromNews(newsId, mediaItemId, access.teamId);
 
     revalidatePath("/admin/news");
     revalidatePath(`/admin/news/${newsId}/edit`);
@@ -198,14 +188,14 @@ export async function removeMediaFromNews(newsId: number, mediaItemId: number) {
   }
 }
 
-/**
- * Update display order of media items in a news article
- */
-export async function updateNewsMediaOrder(newsId: number, items: Array<{ mediaItemId: number; displayOrder: number }>) {
+export async function updateNewsMediaOrder(
+  newsId: number,
+  items: Array<{ mediaItemId: number; displayOrder: number }>
+) {
   try {
-    const teamId = await requireTeamId();
-    const newsService = new NewsService();
-    await newsService.updateNewsMediaOrder(newsId, items, teamId);
+    const access = await getUserAccess();
+    requirePermission(access, "news.edit");
+    await newsService.updateNewsMediaOrder(newsId, items, access.teamId);
 
     revalidatePath("/admin/news");
     revalidatePath(`/admin/news/${newsId}/edit`);

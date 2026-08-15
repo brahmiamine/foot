@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { PublicAnnouncementService } from "@/services/PublicAnnouncementService";
 import { formatShortDate } from "@/lib/format";
 import { PageChrome } from "@/components/PageChrome";
@@ -36,8 +37,10 @@ export default async function CommuniquesPage() {
                     {announcement.publishedAt && <span className={styles.date}>{formatShortDate(announcement.publishedAt, locale)}</span>}
                   </div>
                   <div className={styles.title}>{announcement.title}</div>
-                  {/* Contenu HTML rédigé par le club via l'éditeur riche de club-hub (Tiptap) — CMS interne, pas une saisie publique. */}
-                  <div className={styles.content} dangerouslySetInnerHTML={{ __html: announcement.contentHtml }} />
+                  <div
+                    className={styles.content}
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(announcement.contentHtml) }}
+                  />
                 </div>
               ))}
             </div>
