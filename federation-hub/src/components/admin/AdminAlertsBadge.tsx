@@ -1,30 +1,70 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
+const POLL_INTERVAL_MS = 60_000;
 
 export default function AdminAlertsBadge() {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let disposed = false;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const clearScheduledPoll = () => {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+    };
+
+    const scheduleNext = () => {
+      clearScheduledPoll();
+      if (!disposed && document.visibilityState === "visible") {
+        timeout = setTimeout(fetchCount, POLL_INTERVAL_MS);
+      }
+    };
+
     const fetchCount = async () => {
+      if (disposed || document.visibilityState !== "visible") return;
+
       try {
-        const response = await fetch("/api/admin/arbitrage/arbinote/alerts/stats");
-        if (response.ok) {
+        const response = await fetch("/api/admin/arbitrage/arbinote/alerts/stats", {
+          cache: "no-store",
+        });
+        if (response.ok && !disposed) {
           const data = await response.json();
           setCount(data.unresolved || 0);
         }
       } catch (error) {
-        console.error("Error fetching alerts count:", error);
+        if (!disposed) {
+          console.error("Error fetching alerts count:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!disposed) {
+          setLoading(false);
+          scheduleNext();
+        }
       }
     };
 
-    fetchCount();
-    // Rafraîchir toutes les 30 secondes
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void fetchCount();
+      } else {
+        clearScheduledPoll();
+      }
+    };
+
+    void fetchCount();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+      clearScheduledPoll();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   if (loading || count === null || count === 0) {
@@ -37,4 +77,3 @@ export default function AdminAlertsBadge() {
     </span>
   );
 }
-
