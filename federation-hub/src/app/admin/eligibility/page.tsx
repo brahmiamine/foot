@@ -1,0 +1,1 @@
+import AdminLogin from "@/components/admin/AdminLogin";import AdminEligibilityManager from "@/components/admin/AdminEligibilityManager";import { getCompetitionAdminPageSession } from "@/lib/adminAuth";export default async function Page(){return await getCompetitionAdminPageSession()?<AdminEligibilityManager/>:<AdminLogin/>}

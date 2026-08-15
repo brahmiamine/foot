@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
+import { getAdminSession, canAccessFederation, canAccessLeague, canAccessPlatform } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { getActiveAffiliation } from '@/lib/teamAffiliations'
 import { completePlayerTransfer, getPlayerTransfer, PlayerTransferClientError } from '@/lib/playerTransferClient'
@@ -22,11 +22,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const affiliation = await getActiveAffiliation(dataSource, transfer.fromTeamId)
     if (!affiliation) {
       if (!canAccessPlatform(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    } else if (!canAccessFederation(session, affiliation.federationId)) {
+    } else if (!(canAccessFederation(session, affiliation.federationId) || (affiliation.leagueId && canAccessLeague(session, affiliation.leagueId, affiliation.federationId)))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const completed = await completePlayerTransfer(id, session.email)
+    const body = await request.json().catch(() => ({}))
+    const exception = body?.exceptionReason || body?.legalReference ? { reason: String(body.exceptionReason ?? ''), legalReference: String(body.legalReference ?? '') } : undefined
+    const completed = await completePlayerTransfer(id, session.email, exception)
     await logAdminAction({
       request,
       action: 'update',

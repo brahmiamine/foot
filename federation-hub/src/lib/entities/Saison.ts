@@ -34,6 +34,18 @@ export class Saison {
   @Column({ type: 'enum', enum: ['CAF_PRO', 'CAF_A', 'CAF_B', 'CAF_C', 'NATIONAL', 'OTHER'], name: 'minimum_head_coach_qualification', nullable: true })
   minimumHeadCoachQualification?: 'CAF_PRO' | 'CAF_A' | 'CAF_B' | 'CAF_C' | 'NATIONAL' | 'OTHER' | null
 
+  @Column({ type: 'boolean', name: 'requires_stadium_approval', default: false })
+  requiresStadiumApproval!: boolean
+
+  @Column({ type: 'boolean', name: 'requires_financial_compliance', default: false })
+  requiresFinancialCompliance!: boolean
+
+  @Column({ type: 'boolean', name: 'requires_medical_clearance', default: false })
+  requiresMedicalClearance!: boolean
+
+  @Column({ type: 'decimal', precision: 12, scale: 3, nullable: true, name: 'competition_entry_fee' })
+  competitionEntryFee?: string | null
+
   @Column({ type: 'timestamp', nullable: true })
   created_at?: Date
 

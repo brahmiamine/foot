@@ -8,6 +8,7 @@ import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
 import { MatchOfficialService } from "@/services/MatchOfficialService";
 import type { ActorRole, SignaturePhase } from "@/entities/Signature";
+import { EligibilityService, LineupEligibilityError } from "@/services/EligibilityService";
 
 /**
  * Enregistre (ou remplace) la signature d'un acteur pour une phase donnée.
@@ -111,6 +112,9 @@ export async function confirmPreMatch(sheetId: number, matchId: string, expected
     const signatureService = new SignatureService();
     const officialService = new MatchOfficialService();
 
+    const requestHeaders = await headers();
+    await new EligibilityService().assertLineupEligible(matchId, { actorUserId: requestHeaders.get("x-sso-user-id"), actorRole: requestHeaders.get("x-sso-role") ?? "MATCH_OFFICIAL", ipAddress: requestHeaders.get("x-forwarded-for"), userAgent: requestHeaders.get("user-agent") });
+
     const officialsConfirmed = await officialService.areMandatoryRolesConfirmed(sheetId);
     if (!officialsConfirmed) {
       return {
@@ -137,6 +141,9 @@ export async function confirmPreMatch(sheetId: number, matchId: string, expected
     revalidatePath(`/${matchId}`);
     return { success: true, message: "actions.preMatch.messages.confirmed" };
   } catch (error) {
+    if (error instanceof LineupEligibilityError) {
+      return { success: false, error: "actions.preMatch.errors.ineligibleLineup", errorParams: { reasons: error.message } };
+    }
     if (error instanceof SheetVersionConflictError) {
       return { success: false, error: "actions.sheet.errors.conflict", conflict: true };
     }

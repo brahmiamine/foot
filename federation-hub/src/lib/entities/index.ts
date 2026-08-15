@@ -49,3 +49,5 @@ export { MedicalEligibility, MedicalEligibilityHistory } from './MedicalEligibil
 export { FootballAgent, RepresentationAgreement, FootballAgentHistory } from './Agent'
 export { DisciplinaryCase, DisciplinaryCaseEvidence, DisciplinaryCaseHearing, DisciplinaryCaseDecision, DisciplinaryCaseEvent } from './DisciplinaryCase'
 export { Appeal, AppealDocument, AppealEvent } from './Appeal'
+
+export { CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory, EligibilityCheck } from './Regulatory'

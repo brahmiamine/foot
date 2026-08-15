@@ -112,8 +112,8 @@ export async function approvePlayerTransfer(transferId: string, approvedBy: stri
   return postJsonWithRetries<RemotePlayerTransfer>(`/api/internal/player-transfers/${transferId}/approve`, { approvedBy })
 }
 
-export async function completePlayerTransfer(transferId: string, homologatedBy?: string | null): Promise<RemotePlayerTransfer> {
-  return postJsonWithRetries<RemotePlayerTransfer>(`/api/internal/player-transfers/${transferId}/complete`, { approvedBy: homologatedBy })
+export async function completePlayerTransfer(transferId: string, homologatedBy?: string | null, exception?: { reason: string; legalReference: string }): Promise<RemotePlayerTransfer> {
+  return postJsonWithRetries<RemotePlayerTransfer>(`/api/internal/player-transfers/${transferId}/complete`, { approvedBy: homologatedBy, exception })
 }
 
 export async function closePlayerTransfer(

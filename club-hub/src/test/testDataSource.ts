@@ -24,6 +24,7 @@ import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
 import { Team } from "@/entities/Team";
 import { TeamAffiliation } from "@/entities/TeamAffiliation";
 import { TeamMember } from "@/entities/TeamMember";
+import { TransferWindow } from "@/entities/Regulatory";
 
 /**
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
@@ -40,7 +41,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Appeal, AppealDocument, AppealEvent, BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, FootballAgent, RepresentationAgreement, ClubSanctionHistory, CoachQualification, CoachQualificationHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, MedicalEligibility, MedicalEligibilityHistory, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember],
+    entities: [Appeal, AppealDocument, AppealEvent, BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, FootballAgent, RepresentationAgreement, ClubSanctionHistory, CoachQualification, CoachQualificationHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, MedicalEligibility, MedicalEligibilityHistory, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember, TransferWindow],
   });
 
   await dataSource.initialize();

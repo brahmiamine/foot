@@ -7,6 +7,8 @@ import { Team } from "@/entities/Team";
 import { TeamMember } from "@/entities/TeamMember";
 import { PlayerTransfer, type PlayerTransferType, type PlayerTransferStatus } from "@/entities/PlayerTransfer";
 import { hasActiveTransferBan } from "@/services/ClubSanctionService";
+import { findOpenTransferWindow } from "@/services/TransferWindowService";
+import { assertTransferException } from "../../../packages/regulatory-shared/src/transferWindow";
 
 export class PlayerTransferError extends Error {
   constructor(message: string) {
@@ -82,6 +84,10 @@ async function emitTransferNotification(
 export async function createTransfer(input: CreateTransferInput): Promise<PlayerTransfer> {
   const dataSource = await getDataSource();
 
+  if (!input.seasonId) throw new PlayerTransferError("seasonId est obligatoire pour contrôler la fenêtre de transfert");
+  const openWindow = await findOpenTransferWindow(dataSource, { teamId: input.fromTeamId, seasonId: input.seasonId });
+  if (!openWindow) throw new PlayerTransferError("TRANSFER_WINDOW_CLOSED");
+
   if (input.fromTeamId === input.toTeamId) {
     throw new PlayerTransferError("Le club source et le club destination doivent être différents");
   }
@@ -117,6 +123,7 @@ export async function createTransfer(input: CreateTransferInput): Promise<Player
       loanEndDate: input.loanEndDate ?? null,
       notes: input.notes ?? null,
       createdBy: input.createdBy ?? null,
+      transferWindowId: openWindow.id,
     }),
   );
 
@@ -154,7 +161,7 @@ async function closeCurrentMembership(manager: EntityManager, teamId: string, pl
 }
 
 /** Fédération : homologue uniquement un transfert déjà APPROVED. */
-export async function completeTransfer(transferId: string, homologatedBy?: string | null): Promise<PlayerTransfer> {
+export async function completeTransfer(transferId: string, homologatedBy?: string | null, exception?: { reason?: string|null; legalReference?: string|null; ipAddress?: string|null; userAgent?: string|null }): Promise<PlayerTransfer> {
   const dataSource = await getDataSource();
 
   const completed = await dataSource.transaction(async (manager) => {
@@ -171,6 +178,18 @@ export async function completeTransfer(transferId: string, homologatedBy?: strin
     const transferBan = await hasActiveTransferBan(transfer.toTeamId);
     if (transferBan) {
       throw new PlayerTransferError("Le club destination fait l'objet d'une interdiction de recrutement (sanction fédérale active)");
+    }
+
+    if (!transfer.seasonId) throw new PlayerTransferError("seasonId manquant");
+    const openWindow = await findOpenTransferWindow(dataSource, { teamId: transfer.fromTeamId, seasonId: transfer.seasonId });
+    if (!openWindow) {
+      try { assertTransferException(exception); } catch { throw new PlayerTransferError("TRANSFER_WINDOW_CLOSED"); }
+      if (!homologatedBy) throw new PlayerTransferError("Auteur fédéral obligatoire pour l'exception");
+      const exceptionId = randomUUID();
+      await manager.query("INSERT INTO transfer_window_exceptions (id, transfer_id, reason, legal_reference, approved_by, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)", [exceptionId, transfer.id, exception!.reason!.trim(), exception!.legalReference!.trim(), homologatedBy, exception?.ipAddress ?? null, exception?.userAgent ?? null]);
+      transfer.transferWindowExceptionId = exceptionId;
+    } else {
+      transfer.transferWindowId = openWindow.id;
     }
 
     const playerRepo = manager.getRepository(Player);

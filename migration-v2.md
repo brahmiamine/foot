@@ -272,15 +272,21 @@ Les validations réglementaires doivent être traçables de bout en bout.
   d’éligibilité. Lorsque la saison l’exige, le contrat ne peut être soumis ni
   homologué sans une qualification `COACH`, `STAFF`, `MEDICAL` ou `DIRECTOR`
   approuvée, non expirée et rattachée au même staff, club et saison.
-- ⬜ **P0-006 — Engagement des clubs aux compétitions**, **P0-007 — Fenêtres de
-  transfert** et **P0-008 — Qualification/éligibilité** : non traités dans
-  cette migration, sur demande explicite (reprise directement à P0-009).
-  `player_transfers` (préexistant, `club-hub`) reste donc utilisé sans notion
-  de fenêtre, et il n'existe pas de `EligibilityService` central : les
-  contrôles d'éligibilité restent ceux déjà en place au niveau de chaque
-  domaine (licence, contrat, sanction) plus `LineupService.filterEligibleAtMatchDate`
-  côté `match-operations`. À traiter avant toute activation stricte des
-  blocages de fenêtre de transfert ou d'engagement compétition.
+- ✅ **P0-006 — Engagements clubs aux compétitions** : modèle adossé aux
+  éditions existantes dans `saisons`, dépôt club, contrôle fédération/ligue,
+  licence club, dossier, stade/finance/frais configurables, interdiction de
+  participation, audit, notifications et UI dans les deux hubs. Implémenté par
+  une PR concurrente (#73) pendant cette migration, pas par les lots ci-dessous.
+- ✅ **P0-007 — Fenêtres de transfert** : périodes fédération/ligue auditées,
+  refus `TRANSFER_WINDOW_CLOSED` à la création et à l'homologation,
+  interdictions de recrutement, exception fédérale avec motif et référence
+  réglementaire obligatoires, notifications et vues club/fédération. Idem,
+  PR #73 — fusionné avec le `TRANSFER_BAN` de P0-009 ci-dessous dans
+  `PlayerTransferService.completeTransfer` (les deux contrôles cohabitent).
+- ✅ **P0-008 — Qualification et éligibilité** : `EligibilityService` central
+  dans `match-operations`, contrôles serveur complets, journal des tentatives,
+  API fédérale et blocage réel de la transition `DRAFT -> PRE_MATCH_SIGNED`
+  lorsque la composition contient un joueur inéligible. Idem, PR #73.
 - ✅ **P0-009 — Sanctions clubs** : `club_sanctions` + historique audité,
   scopes fédération/ligue serveur, création/suspension/réactivation/levée
   avec motif obligatoire, notifications `CLUB_SANCTION_CREATED`/
@@ -290,8 +296,9 @@ Les validations réglementaires doivent être traçables de bout en bout.
   `REGISTRATION_BAN` bloque l'approbation d'une inscription joueur
   (`playerRegistrations.transitionPlayerRegistration`). `COMPETITION_BAN`/
   `COMPETITION_EXCLUSION` sont modélisés et exposés mais non appliqués
-  automatiquement (aucun workflow d'engagement compétition en base, voir
-  P0-006 ci-dessus) : à brancher lorsque ce lot sera traité.
+  automatiquement : `CompetitionRegistrationService` (P0-006, PR #73) ne
+  consulte pas `club_sanctions` — brancher ce contrôle reste un
+  prolongement possible, hors périmètre de cette migration.
 - ✅ **P0-010 — Litiges** : `legal_cases` + `legal_case_documents`/`legal_case_hearings`/
   `legal_case_decisions`/`legal_case_events`, parties polymorphes (club,
   joueur, coach, staff, agent, fédération), numéro de dossier unique généré
@@ -366,8 +373,7 @@ Les validations réglementaires doivent être traçables de bout en bout.
   `federation-hub` (validation/décision, FR/EN/AR). Le niveau minimum par
   saison est modélisé et exposé mais pas encore appliqué automatiquement à
   la désignation d'un entraîneur principal : aucun domaine "responsable
-  technique de match" n'existe dans ce dépôt pour porter ce contrôle
-  (P0-006/P0-008 hors périmètre de cette migration, voir note P0-009).
+  technique de match" n'existe dans ce dépôt pour porter ce contrôle.
 - ✅ **P1-005 — Aptitude médicale fédérale** : `medical_eligibilities` +
   historique audité, un dossier par joueur/saison (contrainte d'unicité,
   réouverture explicite `UNFIT → PENDING` pour une nouvelle visite). Statut
@@ -428,20 +434,34 @@ Les validations réglementaires doivent être traçables de bout en bout.
 
 ## Bilan de cette migration
 
-Tous les lots P0 et P1 demandés sont terminés (P0-001 à P0-005 déjà acquis en
-entrée de cette migration ; P0-009, P0-010, P0-011 puis P1-001 à P1-008
-implémentés ici, séquentiellement, chacun avec migration SQL, workflow
-audité, scopes fédération/ligue serveur, API, UI FR/AR ou FR/EN/AR dans
-`federation-hub` et/ou `club-hub`, notifications et tests). **P0-006
-(engagement des clubs aux compétitions), P0-007 (fenêtres de transfert) et
-P0-008 (service d'éligibilité central) n'ont volontairement pas été traités**
-dans cette migration, sur demande explicite reprenant directement à P0-009 —
-voir la note détaillée sous P0-006/007/008 ci-dessus pour les conséquences
-(pas de fenêtre de transfert, `COMPETITION_BAN`/`COMPETITION_EXCLUSION`
-modélisés mais non appliqués, `minimumHeadCoachQualification` non vérifié à
-la désignation d'un entraîneur). P2 reste uniquement préparé
+Tous les lots P0 et P1 demandés sont terminés. P0-001 à P0-005 étaient déjà
+acquis en entrée de cette migration. P0-006 (engagements clubs aux
+compétitions), P0-007 (fenêtres de transfert) et P0-008 (service
+d'éligibilité central) ont été implémentés en parallèle par une PR
+concurrente (#73), fusionnée dans `main` pendant cette migration — ils
+n'ont donc pas été traités par les lots ci-dessous mais sont bien présents.
+P0-009, P0-010, P0-011 puis P1-001 à P1-008 ont été implémentés ici,
+séquentiellement, chacun avec migration SQL, workflow audité, scopes
+fédération/ligue serveur, API, UI FR/AR ou FR/EN/AR dans `federation-hub`
+et/ou `club-hub`, notifications et tests. P2 reste uniquement préparé
 architecturalement (§24), comme demandé : aucune table de ce périmètre n'a
 été créée.
+
+La fusion de #73 dans cette branche a nécessité de résoudre deux collisions
+de schéma invisibles à `git` (fichiers différents, pas de conflit texte) :
+`RegulatoryBan` (PR #73, table `regulatory_bans`) était un sous-ensemble
+sans écrivain (aucune route ni service ne l'alimentait) du `club_sanctions`
+déjà construit ici pour P0-009 — supprimé au profit de `club_sanctions`,
+seule source de vérité pour les interdictions de recrutement/participation.
+`medical_eligibilities` était défini indépendamment par les deux branches
+avec des colonnes différentes ; le schéma de P1-005 (plus complet :
+`federation_id`, `league_id`, `created_by`, `document_url`,
+`expires_at` nullable) a été conservé comme canonique et la définition
+dupliquée retirée de la migration de #73 (voir
+`federation-hub/mysql/migration_add_competition_entries_transfer_windows_eligibility.sql`).
+`match-operations/src/services/EligibilityService.ts` a été adapté pour
+tolérer un `expiresAt` nul (aptitude sans date d'expiration, permise par le
+schéma canonique).
 
 Les deux applications compilent (`next build`) sans erreur, `tsc --noEmit`
 est vert, `pnpm lint`/`eslint` ne relève aucune erreur sur le code de cette

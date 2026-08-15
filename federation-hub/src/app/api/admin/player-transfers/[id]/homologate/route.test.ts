@@ -61,5 +61,9 @@ it('loads the transfer directly by id before homologation', async () => {
 
   expect(response.status).toBe(200)
   expect(mockGetTransfer).toHaveBeenCalledWith('transfer-older-than-page-limit')
-  expect(mockComplete).toHaveBeenCalledWith('transfer-older-than-page-limit', 'platform@example.com')
+  expect(mockComplete).toHaveBeenCalledWith(
+    'transfer-older-than-page-limit',
+    'platform@example.com',
+    undefined,
+  )
 })

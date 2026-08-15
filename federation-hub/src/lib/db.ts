@@ -77,6 +77,11 @@ import {
   Appeal,
   AppealDocument,
   AppealEvent,
+  CompetitionRegistration,
+  CompetitionRegistrationHistory,
+  TransferWindow,
+  TransferWindowHistory,
+  EligibilityCheck,
 } from './entities'
 
 const globalForDataSource = globalThis as unknown as {
@@ -111,7 +116,7 @@ function createDataSource() {
     // le schéma sur les seules entités TypeORM et pourrait supprimer les colonnes/
     // tables ajoutées pour ob.
     synchronize: false,
-    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent, SeasonRegulatoryCycle, SeasonRegulatoryCycleHistory, FinancialCompliance, FinancialComplianceHistory, BoardMandate, BoardMember, BoardMandateHistory, StadiumInspection, StadiumRestriction, StadiumInspectionHistory, CoachQualification, CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory, FootballAgent, RepresentationAgreement, FootballAgentHistory, DisciplinaryCase, DisciplinaryCaseEvidence, DisciplinaryCaseHearing, DisciplinaryCaseDecision, DisciplinaryCaseEvent, Appeal, AppealDocument, AppealEvent],
+    entities: [Arbitre, AuditLog, Card, CardReason, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, MatchSagaCase, MatchSagaStep, OfficialRefereeCriterion, Player, RefereeMatchReport, RefereeOfficialEvaluation, RefereeUnavailability, Saison, Sheet, StaffInvitation, Substitution, Team, TeamAffiliation, TeamBranding, User, Vote, VoteAlert, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent, SeasonRegulatoryCycle, SeasonRegulatoryCycleHistory, FinancialCompliance, FinancialComplianceHistory, BoardMandate, BoardMember, BoardMandateHistory, StadiumInspection, StadiumRestriction, StadiumInspectionHistory, CoachQualification, CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory, FootballAgent, RepresentationAgreement, FootballAgentHistory, DisciplinaryCase, DisciplinaryCaseEvidence, DisciplinaryCaseHearing, DisciplinaryCaseDecision, DisciplinaryCaseEvent, Appeal, AppealDocument, AppealEvent, CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory, EligibilityCheck],
     extra: {
       decimalNumbers: true,
     },
@@ -184,6 +189,11 @@ const REQUIRED_ENTITY_CLASSES = [
   Appeal,
   AppealDocument,
   AppealEvent,
+  CompetitionRegistration,
+  CompetitionRegistrationHistory,
+  TransferWindow,
+  TransferWindowHistory,
+  EligibilityCheck,
 ]
 
 function hasAllRequiredEntities(dataSource: DataSource): boolean {
