@@ -8,6 +8,7 @@ import { TeamMember } from "@/entities/TeamMember";
 import { PlayerTransfer, type PlayerTransferType, type PlayerTransferStatus } from "@/entities/PlayerTransfer";
 import { hasActiveTransferBan } from "@/services/ClubSanctionService";
 import { findOpenTransferWindow } from "@/services/TransferWindowService";
+import { assertTransferRepresentation } from "@/services/AgentService";
 import { assertTransferException } from "../../../packages/regulatory-shared/src/transferWindow";
 
 export class PlayerTransferError extends Error {
@@ -29,6 +30,9 @@ export interface CreateTransferInput {
   loanStartDate?: string | null;
   loanEndDate?: string | null;
   notes?: string | null;
+  agentId?: string | null;
+  representationAgreementId?: string | null;
+  intermediaryDeclaration?: string | null;
   createdBy?: string | null;
 }
 
@@ -44,6 +48,8 @@ async function emitTransferNotification(
     transferType: transfer.transferType,
     effectiveDate: transfer.effectiveDate,
     status: transfer.status,
+    agentId: transfer.agentId ?? null,
+    representationAgreementId: transfer.representationAgreementId ?? null,
   };
 
   const titleByType: Record<typeof type, string> = {
@@ -60,12 +66,8 @@ async function emitTransferNotification(
     PLAYER_TRANSFER_COMPLETED: `Le transfert du joueur ${transfer.playerId} vers ${transfer.toTeamId} est homologué.`,
   };
 
-  const targets = type === "PLAYER_TRANSFER_REQUESTED"
-    ? [transfer.fromTeamId, transfer.toTeamId]
-    : [transfer.fromTeamId, transfer.toTeamId];
-
   await Promise.all(
-    targets.map((teamId) =>
+    [transfer.fromTeamId, transfer.toTeamId].map((teamId) =>
       notify({
         eventId: `player-transfer:${transfer.id}:${type}:${teamId}`,
         type,
@@ -88,44 +90,34 @@ export async function createTransfer(input: CreateTransferInput): Promise<Player
   const openWindow = await findOpenTransferWindow(dataSource, { teamId: input.fromTeamId, seasonId: input.seasonId });
   if (!openWindow) throw new PlayerTransferError("TRANSFER_WINDOW_CLOSED");
 
-  if (input.fromTeamId === input.toTeamId) {
-    throw new PlayerTransferError("Le club source et le club destination doivent être différents");
-  }
+  if (input.fromTeamId === input.toTeamId) throw new PlayerTransferError("Le club source et le club destination doivent être différents");
 
   const player = await dataSource.getRepository(Player).findOne({ where: { id: input.playerId } });
   if (!player) throw new PlayerTransferError("Joueur introuvable");
-  if (player.teamId !== input.fromTeamId) {
-    throw new PlayerTransferError("Le club source ne correspond pas au club actuel du joueur");
-  }
+  if (player.teamId !== input.fromTeamId) throw new PlayerTransferError("Le club source ne correspond pas au club actuel du joueur");
 
   const toTeam = await dataSource.getRepository(Team).findOne({ where: { id: input.toTeamId } });
   if (!toTeam) throw new PlayerTransferError("Club destination introuvable");
 
+  try {
+    await assertTransferRepresentation(dataSource, input);
+  } catch (error) {
+    throw new PlayerTransferError(error instanceof Error ? error.message : "Mandat de représentation invalide");
+  }
+
   const repo = dataSource.getRepository(PlayerTransfer);
-  const existing = await repo.findOne({
-    where: { playerId: input.playerId, fromTeamId: input.fromTeamId, toTeamId: input.toTeamId, status: "PENDING" },
-  });
+  const existing = await repo.findOne({ where: { playerId: input.playerId, fromTeamId: input.fromTeamId, toTeamId: input.toTeamId, status: "PENDING" } });
   if (existing) throw new PlayerTransferError("Une demande de transfert identique est déjà en attente");
 
-  const transfer = await repo.save(
-    repo.create({
-      id: randomUUID(),
-      playerId: input.playerId,
-      fromTeamId: input.fromTeamId,
-      toTeamId: input.toTeamId,
-      transferType: input.transferType,
-      status: "PENDING",
-      effectiveDate: input.effectiveDate,
-      seasonId: input.seasonId ?? null,
-      fee: input.fee ?? null,
-      currency: input.currency ?? null,
-      loanStartDate: input.loanStartDate ?? null,
-      loanEndDate: input.loanEndDate ?? null,
-      notes: input.notes ?? null,
-      createdBy: input.createdBy ?? null,
-      transferWindowId: openWindow.id,
-    }),
-  );
+  const transfer = await repo.save(repo.create({
+    id: randomUUID(), playerId: input.playerId, fromTeamId: input.fromTeamId, toTeamId: input.toTeamId,
+    transferType: input.transferType, status: "PENDING", effectiveDate: input.effectiveDate,
+    seasonId: input.seasonId ?? null, fee: input.fee ?? null, currency: input.currency ?? null,
+    loanStartDate: input.loanStartDate ?? null, loanEndDate: input.loanEndDate ?? null, notes: input.notes ?? null,
+    agentId: input.agentId ?? null, representationAgreementId: input.representationAgreementId ?? null,
+    intermediaryDeclaration: input.intermediaryDeclaration?.trim() || null,
+    createdBy: input.createdBy ?? null, transferWindowId: openWindow.id,
+  }));
 
   await emitTransferNotification(transfer, "PLAYER_TRANSFER_REQUESTED");
   return transfer;
@@ -137,10 +129,7 @@ export async function approveDestinationTransfer(transferId: string, approvedBy:
   const repo = dataSource.getRepository(PlayerTransfer);
   const transfer = await repo.findOne({ where: { id: transferId } });
   if (!transfer) throw new PlayerTransferError("Transfert introuvable");
-  if (transfer.status !== "PENDING") {
-    throw new PlayerTransferError("Seul un transfert PENDING peut être approuvé par le club destination");
-  }
-
+  if (transfer.status !== "PENDING") throw new PlayerTransferError("Seul un transfert PENDING peut être approuvé par le club destination");
   transfer.status = "APPROVED";
   transfer.approvedBy = approvedBy;
   transfer.destinationApprovedBy = approvedBy;
@@ -163,21 +152,20 @@ async function closeCurrentMembership(manager: EntityManager, teamId: string, pl
 /** Fédération : homologue uniquement un transfert déjà APPROVED. */
 export async function completeTransfer(transferId: string, homologatedBy?: string | null, exception?: { reason?: string|null; legalReference?: string|null; ipAddress?: string|null; userAgent?: string|null }): Promise<PlayerTransfer> {
   const dataSource = await getDataSource();
-
   const completed = await dataSource.transaction(async (manager) => {
     const transferRepo = manager.getRepository(PlayerTransfer);
-    const transfer = await transferRepo.findOne({ where: { id: transferId } });
+    const transfer = await transferRepo.createQueryBuilder("transfer").setLock("pessimistic_write").where("transfer.id=:id", { id: transferId }).getOne();
     if (!transfer) throw new PlayerTransferError("Transfert introuvable");
     if (transfer.status === "COMPLETED") throw new PlayerTransferError("Ce transfert est déjà complété");
-    if (transfer.status !== "APPROVED") {
-      throw new PlayerTransferError("Le club destination doit approuver le transfert avant homologation fédérale");
-    }
+    if (transfer.status !== "APPROVED") throw new PlayerTransferError("Le club destination doit approuver le transfert avant homologation fédérale");
 
-    // migration-v2.md P0-009 : une interdiction de recrutement (TRANSFER_BAN) active
-    // sur le club destination bloque l'homologation fédérale du transfert.
     const transferBan = await hasActiveTransferBan(transfer.toTeamId);
-    if (transferBan) {
-      throw new PlayerTransferError("Le club destination fait l'objet d'une interdiction de recrutement (sanction fédérale active)");
+    if (transferBan) throw new PlayerTransferError("Le club destination fait l'objet d'une interdiction de recrutement (sanction fédérale active)");
+
+    try {
+      await assertTransferRepresentation(manager, transfer);
+    } catch (error) {
+      throw new PlayerTransferError(error instanceof Error ? error.message : "Mandat de représentation invalide");
     }
 
     if (!transfer.seasonId) throw new PlayerTransferError("seasonId manquant");
@@ -195,24 +183,11 @@ export async function completeTransfer(transferId: string, homologatedBy?: strin
     const playerRepo = manager.getRepository(Player);
     const player = await playerRepo.findOne({ where: { id: transfer.playerId } });
     if (!player) throw new PlayerTransferError("Joueur introuvable");
-    if (player.teamId !== transfer.fromTeamId) {
-      throw new PlayerTransferError(
-        "Le joueur n'appartient plus au club source indiqué par ce transfert (déjà transféré ailleurs ?)",
-      );
-    }
+    if (player.teamId !== transfer.fromTeamId) throw new PlayerTransferError("Le joueur n'appartient plus au club source indiqué par ce transfert (déjà transféré ailleurs ?)");
 
     await closeCurrentMembership(manager, transfer.fromTeamId, transfer.playerId, transfer.effectiveDate);
-
     const memberRepo = manager.getRepository(TeamMember);
-    await memberRepo.save(
-      memberRepo.create({
-        teamId: transfer.toTeamId,
-        playerId: transfer.playerId,
-        status: "ACTIVE",
-        startDate: new Date(transfer.effectiveDate),
-      }),
-    );
-
+    await memberRepo.save(memberRepo.create({ teamId: transfer.toTeamId, playerId: transfer.playerId, status: "ACTIVE", startDate: new Date(transfer.effectiveDate) }));
     player.teamId = transfer.toTeamId;
     await playerRepo.save(player);
 
@@ -226,19 +201,14 @@ export async function completeTransfer(transferId: string, homologatedBy?: strin
   return completed;
 }
 
-export interface CloseTransferInput {
-  status: "CANCELLED" | "REJECTED";
-  reason?: string | null;
-}
+export interface CloseTransferInput { status: "CANCELLED" | "REJECTED"; reason?: string | null; }
 
 export async function closeTransfer(transferId: string, input: CloseTransferInput): Promise<PlayerTransfer> {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(PlayerTransfer);
   const transfer = await repo.findOne({ where: { id: transferId } });
   if (!transfer) throw new PlayerTransferError("Transfert introuvable");
-  if (transfer.status === "COMPLETED") {
-    throw new PlayerTransferError("Un transfert déjà complété ne peut pas être annulé/rejeté");
-  }
+  if (transfer.status === "COMPLETED") throw new PlayerTransferError("Un transfert déjà complété ne peut pas être annulé/rejeté");
   transfer.status = input.status;
   transfer.statusReason = input.reason ?? null;
   const saved = await repo.save(transfer);
@@ -253,21 +223,12 @@ export async function getTransferById(transferId: string): Promise<PlayerTransfe
 
 export async function listTransfers(status?: PlayerTransferStatus, limit = 200): Promise<PlayerTransfer[]> {
   const dataSource = await getDataSource();
-  return dataSource.getRepository(PlayerTransfer).find({
-    where: status ? { status } : {},
-    order: { createdAt: "DESC" },
-    take: limit,
-  });
+  return dataSource.getRepository(PlayerTransfer).find({ where: status ? { status } : {}, order: { createdAt: "DESC" }, take: limit });
 }
 
-/** Club : transferts entrants/sortants visibles dans son propre périmètre. */
 export async function listTransfersForTeam(teamId: string, limit = 200): Promise<PlayerTransfer[]> {
   const dataSource = await getDataSource();
-  return dataSource
-    .getRepository(PlayerTransfer)
-    .createQueryBuilder("transfer")
+  return dataSource.getRepository(PlayerTransfer).createQueryBuilder("transfer")
     .where("transfer.fromTeamId = :teamId OR transfer.toTeamId = :teamId", { teamId })
-    .orderBy("transfer.createdAt", "DESC")
-    .take(limit)
-    .getMany();
+    .orderBy("transfer.createdAt", "DESC").take(limit).getMany();
 }
