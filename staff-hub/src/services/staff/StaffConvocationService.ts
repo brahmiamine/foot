@@ -1,3 +1,4 @@
+import { In } from "typeorm";
 import { Convocation } from "@/entities/Convocation";
 import { FriendlyMatch } from "@/entities/FriendlyMatch";
 import { StaffTrainingService } from "./StaffTrainingService";
@@ -30,6 +31,60 @@ export class StaffConvocationService extends StaffTrainingService {
     }
     if (convocation.matchId) return this.resolveMatch(convocation.teamId, convocation.matchId);
     return null;
+  }
+
+  async resolveConvocationMatches(convocations: Convocation[]): Promise<Map<number, MatchInfo | null>> {
+    const result = new Map<number, MatchInfo | null>();
+    if (convocations.length === 0) return result;
+
+    const teamId = convocations[0].teamId;
+    const officialIds = [
+      ...new Set(
+        convocations
+          .filter((convocation) => convocation.matchType !== "FRIENDLY" && convocation.matchId)
+          .map((convocation) => convocation.matchId as string),
+      ),
+    ];
+    const friendlyIds = [
+      ...new Set(
+        convocations
+          .filter((convocation) => convocation.matchType === "FRIENDLY" && convocation.friendlyMatchId)
+          .map((convocation) => convocation.friendlyMatchId as number),
+      ),
+    ];
+
+    const ds = await this.ds();
+    const [officialById, friendlyMatches] = await Promise.all([
+      this.resolveMatchesByIds(teamId, officialIds),
+      friendlyIds.length
+        ? ds.getRepository(FriendlyMatch).find({ where: { id: In(friendlyIds) } })
+        : Promise.resolve([] as FriendlyMatch[]),
+    ]);
+    const friendlyById = new Map(friendlyMatches.map((match) => [Number(match.id), match]));
+
+    for (const convocation of convocations) {
+      if (convocation.matchType === "FRIENDLY" && convocation.friendlyMatchId) {
+        const match = friendlyById.get(Number(convocation.friendlyMatchId));
+        result.set(
+          convocation.id,
+          match
+            ? {
+                kind: "FRIENDLY",
+                id: String(match.id),
+                date: match.date,
+                opponentName: match.opponentName ?? "Adversaire",
+                isHome: match.isHome,
+                status: match.status,
+              }
+            : null,
+        );
+        continue;
+      }
+
+      result.set(convocation.id, convocation.matchId ? (officialById.get(convocation.matchId) ?? null) : null);
+    }
+
+    return result;
   }
 
   async getConvocationsForMatch(
