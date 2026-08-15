@@ -1,5 +1,6 @@
 export * from './club-access'
 export * from './club-lineup'
+export * from './club-player-facts'
 export * from './eligibility'
 export * from './events'
 export * from './identity'
