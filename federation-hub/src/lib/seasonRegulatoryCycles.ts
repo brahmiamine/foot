@@ -136,7 +136,8 @@ export async function prepareSeasonRegulatoryCycle(dataSource: DataSource, sessi
     financialCompliance: parseWindow(input.financialCompliance, 'la conformité financière'),
     transfer: parseWindow({ opensAt: input.transferWindow.opensAt, closesAt: input.transferWindow.closesAt }, 'la fenêtre de transfert'),
   }
-  if (!windows.transfer.close) throw new SeasonRegulatoryCycleWorkflowError('La fenêtre de transfert doit avoir une date de fermeture')
+  const transferClose = windows.transfer.close
+  if (!transferClose) throw new SeasonRegulatoryCycleWorkflowError('La fenêtre de transfert doit avoir une date de fermeture')
 
   return dataSource.transaction(async manager => {
     const repo = manager.getRepository(SeasonRegulatoryCycle)
@@ -152,18 +153,25 @@ export async function prepareSeasonRegulatoryCycle(dataSource: DataSource, sessi
     cycle.registrationOpenAt=windows.registration.open; cycle.registrationCloseAt=windows.registration.close
     cycle.competitionEntryOpenAt=windows.competitionEntry.open; cycle.competitionEntryCloseAt=windows.competitionEntry.close
     cycle.financialComplianceOpenAt=windows.financialCompliance.open; cycle.financialComplianceCloseAt=windows.financialCompliance.close
-    cycle.transferWindowOpenAt=windows.transfer.open; cycle.transferWindowCloseAt=windows.transfer.close
+    cycle.transferWindowOpenAt=windows.transfer.open; cycle.transferWindowCloseAt=transferClose
     cycle.seasonPreparedAt=new Date()
 
     const windowRepo=manager.getRepository(TransferWindow)
-    let transferWindow=await windowRepo.findOne({where:{federationId:cycle.federationId,leagueId:cycle.leagueId??null,seasonId:cycle.seasonId,type:'SUMMER'}})
+    const lookup=windowRepo.createQueryBuilder('window')
+      .where('window.federation_id=:federationId',{federationId:cycle.federationId})
+      .andWhere('window.season_id=:seasonId',{seasonId:cycle.seasonId})
+      .andWhere('window.type=:type',{type:'SUMMER'})
+    if(cycle.leagueId) lookup.andWhere('window.league_id=:leagueId',{leagueId:cycle.leagueId})
+    else lookup.andWhere('window.league_id IS NULL')
+    let transferWindow: TransferWindow | null = await lookup.getOne()
     if(!transferWindow){
-      transferWindow=await windowRepo.save(windowRepo.create({federationId:cycle.federationId,leagueId:cycle.leagueId??null,seasonId:cycle.seasonId,type:'SUMMER',opensAt:windows.transfer.open,closesAt:windows.transfer.close,status:'PLANNED',createdBy:audit.userId}))
+      const created=windowRepo.create({federationId:cycle.federationId,leagueId:cycle.leagueId??null,seasonId:cycle.seasonId,type:'SUMMER',opensAt:windows.transfer.open,closesAt:transferClose,status:'PLANNED',createdBy:audit.userId})
+      transferWindow=await windowRepo.save(created)
       const h=manager.getRepository(TransferWindowHistory);await h.save(h.create({windowId:transferWindow.id,action:'CREATED_BY_SEASON_CYCLE',actorUserId:audit.userId,actorRole:audit.role,ipAddress:audit.ipAddress??null,userAgent:audit.userAgent??null}))
     }else{
-      transferWindow.opensAt=windows.transfer.open;transferWindow.closesAt=windows.transfer.close
+      transferWindow.opensAt=windows.transfer.open;transferWindow.closesAt=transferClose
       if(transferWindow.status==='CLOSED')transferWindow.status='PLANNED'
-      await windowRepo.save(transferWindow)
+      transferWindow=await windowRepo.save(transferWindow)
     }
 
     const renewalCutoff=season.date_debut?new Date(season.date_debut):windows.clubLicensing.open
