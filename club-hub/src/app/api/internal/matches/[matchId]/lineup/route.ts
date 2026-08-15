@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureServiceAuth } from '@/lib/serviceAuth'
 import { MatchLineupService } from '@/services/MatchLineupService'
-import type { ClubMatchLineupEntry } from '../../../../../../../packages/domain-contracts/src/club-lineup'
+import type { ClubMatchLineupEntry } from '../../../../../../../../packages/domain-contracts/src/club-lineup'
 
 function toContract(row: Awaited<ReturnType<MatchLineupService['findAllForMatch']>>[number]): ClubMatchLineupEntry {
   return {
