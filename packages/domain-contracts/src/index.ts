@@ -1,3 +1,4 @@
+export * from './club-access'
 export * from './club-lineup'
 export * from './eligibility'
 export * from './events'
