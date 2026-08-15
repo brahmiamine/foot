@@ -11,5 +11,5 @@ ALTER TABLE Suspension
   ADD COLUMN IF NOT EXISTS sourceReason text NULL;
 
 ALTER TABLE Suspension
-  ADD UNIQUE KEY IF NOT EXISTS uq_suspension_disciplinary_decision (sourceDisciplinaryDecisionId),
-  ADD KEY IF NOT EXISTS idx_suspension_disciplinary_case (sourceDisciplinaryCaseId);
+  ADD UNIQUE KEY uq_suspension_disciplinary_decision (sourceDisciplinaryDecisionId),
+  ADD KEY idx_suspension_disciplinary_case (sourceDisciplinaryCaseId);
