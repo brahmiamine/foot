@@ -16,6 +16,7 @@ const publicMethods = [
   "getAttendanceReport",
   "listConvocations",
   "resolveConvocationMatch",
+  "resolveConvocationMatches",
   "getConvocationsForMatch",
   "createConvocations",
   "getFormation",
