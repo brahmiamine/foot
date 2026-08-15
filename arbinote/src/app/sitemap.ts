@@ -1,13 +1,12 @@
 import { MetadataRoute } from 'next'
 import { getDataSource } from '@/lib/db'
-import { Arbitre, Match, Journee, Saison, Team } from '@/lib/entities'
+import { Arbitre, Match, Journee, Team } from '@/lib/entities'
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const dataSource = await getDataSource()
-  
-  // Pages statiques principales
+  // Pages statiques principales — toujours disponibles, y compris pendant un
+  // build CI sans accès à MariaDB.
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
@@ -77,11 +76,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   try {
+    // La connexion doit être dans le try : en CI/build sans configuration DB,
+    // le sitemap retombe proprement sur les routes statiques au lieu de faire
+    // échouer tout le build Next.js.
+    const dataSource = await getDataSource()
+
     // Récupérer les arbitres
     const arbitreRepo = dataSource.getRepository<Arbitre>('arbitres')
     const arbitres = await arbitreRepo.find({
       select: ['id'],
-      take: 1000, // Limiter pour éviter les sitemaps trop volumineux
+      take: 1000,
     })
 
     const arbitrePages: MetadataRoute.Sitemap = arbitres.map((arbitre) => ({
@@ -102,7 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const matchRepo = dataSource.getRepository<Match>('matches')
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-    
+
     const matches = await matchRepo
       .createQueryBuilder('match')
       .select(['match.id'])
@@ -150,7 +154,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const teamRepo = dataSource.getRepository<Team>('teams')
     const teams = await teamRepo.find({
       select: ['id'],
-      take: 1000, // Limiter pour éviter les sitemaps trop volumineux
+      take: 1000,
     })
 
     const teamPages: MetadataRoute.Sitemap = teams.map((team) => ({
@@ -169,9 +173,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [...staticPages, ...arbitrePages, ...matchPages, ...journeePages, ...teamPages]
   } catch (error) {
-    console.error('Error generating sitemap:', error)
-    // En cas d'erreur, retourner au moins les pages statiques
+    console.warn('Dynamic sitemap entries unavailable; using static routes only:', error)
     return staticPages
   }
 }
-
