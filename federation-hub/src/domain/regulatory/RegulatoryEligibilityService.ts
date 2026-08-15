@@ -4,7 +4,10 @@ import {
   eligibilityResult,
   fitsAgeCategory,
 } from '../../../../packages/regulatory-shared/src/eligibility'
-import { meetsMinimumQualification } from '../../../../packages/regulatory-shared/src/coachQualification'
+import {
+  meetsMinimumQualification,
+  type CoachQualificationType,
+} from '../../../../packages/regulatory-shared/src/coachQualification'
 import type {
   EligibilityBlockingReason,
   EligibilityCheckRequest,
@@ -26,15 +29,19 @@ type MatchContextRow = {
 }
 
 type SeasonRow = {
-  requiresPlayerContract: number | boolean
-  requiresMedicalClearance: number | boolean
-  minimumHeadCoachQualification: string | null
+  requiresPlayerContract: number | boolean | string
+  requiresMedicalClearance: number | boolean | string
+  minimumHeadCoachQualification: CoachQualificationType | null
 }
 
 type PlayerRow = { birthDate: Date | string | null }
 type TeamRow = { ageCategory: string | null }
 type SourceRow = { source: string }
-type QualificationRow = { qualificationType: string }
+type QualificationRow = { qualificationType: CoachQualificationType }
+
+function databaseBoolean(value: number | boolean | string | null | undefined): boolean {
+  return value === true || value === 1 || value === '1'
+}
 
 async function exists(query: string, parameters: unknown[]): Promise<boolean> {
   const ds = await getDataSource()
@@ -183,7 +190,7 @@ export class RegulatoryEligibilityService
     if (!registration && !legacyAdministrativeFallback) reasons.push('REGISTRATION_NOT_APPROVED')
     if (!competitionEntry && !legacyAdministrativeFallback) reasons.push('CLUB_NOT_REGISTERED')
 
-    if (Boolean(season?.requiresPlayerContract)) {
+    if (databaseBoolean(season?.requiresPlayerContract)) {
       const contract = await exists(
         `SELECT EXISTS(
            SELECT 1 FROM player_contracts
@@ -198,7 +205,11 @@ export class RegulatoryEligibilityService
 
     if (suspension) reasons.push('ACTIVE_SUSPENSION')
     if (transfer) reasons.push('TRANSFER_PENDING_OR_EFFECTIVE')
-    if (Boolean(season?.requiresMedicalClearance) && !medical && !legacyAdministrativeFallback) {
+    if (
+      databaseBoolean(season?.requiresMedicalClearance) &&
+      !medical &&
+      !legacyAdministrativeFallback
+    ) {
       reasons.push('MEDICAL_CLEARANCE_REQUIRED')
     }
 
