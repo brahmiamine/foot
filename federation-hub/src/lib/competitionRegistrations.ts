@@ -2,9 +2,10 @@ import type { DataSource, EntityManager, SelectQueryBuilder } from "typeorm";
 import { assertCompetitionRegistrationApproval, assertCompetitionRegistrationTransition, CompetitionRegistrationWorkflowError, type CompetitionRegistrationStatus } from "../../../packages/regulatory-shared/src/competitionRegistration";
 import { canAccessFederation, canAccessLeague, canAccessPlatform } from "./adminAuth";
 import type { SsoUser } from "./ssoSession";
-import { ClubLicenseApplication, CompetitionRegistration, CompetitionRegistrationHistory, Saison } from "./entities";
+import { ClubLicenseApplication, CompetitionRegistration, CompetitionRegistrationHistory, FinancialCompliance, Saison, StadiumInspection } from "./entities";
 import { notify } from "./notificationClient";
 import { hasActiveCompetitionBan } from "./clubSanctions";
+import { getRegulatoryPayment } from "./paymentApiClient";
 
 export interface RegulatoryAudit { userId: string; role: string; ipAddress?: string|null; userAgent?: string|null }
 export class CompetitionRegistrationAuthorizationError extends Error { constructor(){super("Forbidden");this.name="CompetitionRegistrationAuthorizationError"} }
@@ -23,6 +24,30 @@ async function history(manager:EntityManager,item:CompetitionRegistration,audit:
   const repo=manager.getRepository(CompetitionRegistrationHistory);
   await repo.save(repo.create({registrationId:item.id,action:`STATUS_${to}`,fromStatus:from,toStatus:to,actorUserId:audit.userId,actorRole:audit.role,reason:reason??null,beforeValue:{status:from},afterValue:{status:to},ipAddress:audit.ipAddress??null,userAgent:audit.userAgent??null}));
 }
+
+export async function assertRealApprovalPrerequisites(manager:EntityManager,item:CompetitionRegistration,season:Saison):Promise<void>{
+  const now=new Date();
+  const requiredFee=Number(item.feesAmount??season.competitionEntryFee??0);
+  if(season.requiresStadiumApproval){
+    if(!item.stadiumApprovalId) throw new CompetitionRegistrationWorkflowError("Une homologation de stade est obligatoire");
+    const inspection=await manager.getRepository(StadiumInspection).findOne({where:{id:item.stadiumApprovalId,clubId:item.clubId,seasonId:item.seasonId}});
+    const approved=inspection&&["APPROVED","APPROVED_WITH_RESTRICTIONS"].includes(inspection.status)&&(!inspection.expiresAt||new Date(inspection.expiresAt)>=now);
+    if(!approved) throw new CompetitionRegistrationWorkflowError("L'homologation de stade référencée n'est pas approuvée, appartient à un autre périmètre ou est expirée");
+  }
+  if(season.requiresFinancialCompliance){
+    if(!item.financialComplianceId) throw new CompetitionRegistrationWorkflowError("La conformité financière est obligatoire");
+    const compliance=await manager.getRepository(FinancialCompliance).findOne({where:{id:item.financialComplianceId,clubId:item.clubId,seasonId:item.seasonId,status:"COMPLIANT"}});
+    if(!compliance) throw new CompetitionRegistrationWorkflowError("Le dossier de conformité financière référencé n'est pas COMPLIANT pour ce club et cette saison");
+  }
+  if(requiredFee>0){
+    if(!item.feesPaymentId) throw new CompetitionRegistrationWorkflowError("Les droits d'engagement ne sont pas réglés");
+    const payment=await getRegulatoryPayment(item.feesPaymentId);
+    if(!payment||payment.status!=="PAID") throw new CompetitionRegistrationWorkflowError("Le paiement des droits d'engagement n'est pas confirmé");
+    if(payment.currency!=="TND") throw new CompetitionRegistrationWorkflowError("La devise du paiement des droits d'engagement est invalide");
+    if(Number(payment.amount)+Number.EPSILON<requiredFee) throw new CompetitionRegistrationWorkflowError("Le montant payé est inférieur aux droits d'engagement exigés");
+  }
+}
+
 export async function listCompetitionRegistrations(ds:DataSource,session:SsoUser,filters:{seasonId?:string;clubId?:string;status?:string}={}){
   const q=ds.getRepository(CompetitionRegistration).createQueryBuilder("entry").orderBy("entry.updated_at","DESC");
   applyScope(q,session);
@@ -47,6 +72,7 @@ export async function transitionCompetitionRegistration(ds:DataSource,session:Ss
       ]);
       if(!season)throw new CompetitionRegistrationWorkflowError("Compétition-saison introuvable");
       assertCompetitionRegistrationApproval({clubLicenseApproved:!!license,clubLicenseExpiresAt:license?.expiresAt,documentsComplete:item.documentsComplete,participationBlocked:!!ban,stadiumRequired:season.requiresStadiumApproval,stadiumApprovalId:item.stadiumApprovalId,financialComplianceRequired:season.requiresFinancialCompliance,financialComplianceId:item.financialComplianceId,feesAmount:item.feesAmount??season.competitionEntryFee,feesPaymentId:item.feesPaymentId});
+      await assertRealApprovalPrerequisites(manager,item,season);
     }
     const from=item.status; item.status=target;
     item.rejectionReason=["CHANGES_REQUESTED","REJECTED","SUSPENDED"].includes(target)?reason??null:null;

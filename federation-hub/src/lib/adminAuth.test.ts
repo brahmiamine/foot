@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import type { SsoUser } from "./ssoSession";
 
 const mockGetSsoSessionFromRequest = vi.fn<() => Promise<SsoUser | null>>();
@@ -12,7 +12,7 @@ vi.mock("./ssoSession", () => ({
 
 const { ensureAdminAuth, ensureFederationAccess, ensureLeagueAccess } = await import("./adminAuth");
 
-const fakeRequest = {} as NextRequest;
+const fakeRequest = new NextRequest("http://localhost/api/admin/federations", { method: "GET" });
 
 function session(overrides: Partial<SsoUser>): SsoUser {
   return {

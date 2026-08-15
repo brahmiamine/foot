@@ -133,3 +133,13 @@ Très large monolithe et schéma SQL appliqué manuellement. Uploads locaux/chun
 ## Engagements et fenêtres réglementaires
 
 Le club dépose ses engagements dans `/admin/federation/competition-entries` et consulte les fenêtres et demandes de transfert dans `/admin/federation/transfers`. Les contrôles sont recalculés côté serveur à partir du club de la session.
+
+## Finalisation migration-v2
+
+Les campagnes fédérales du cycle saisonnier contrôlent désormais aussi la soumission des licences individuelles, engagements compétition et dossiers de conformité financière, en complément des licences club et inscriptions joueurs. Une saison préparée par `federation-hub` reçoit également sa fenêtre de transfert SUMMER.
+
+Pour un engagement compétition, le club renseigne l'homologation stade, la conformité financière et le paiement des droits. Ces références ne sont pas considérées comme valides par leur seule présence : la fédération relit le statut réel du stade et de la conformité, et interroge `payments` pour exiger un paiement `PAID` avec le montant et la devise attendus.
+
+Les transferts peuvent déclarer `agentId`, `representationAgreementId` et une déclaration d'intermédiaire. `AgentService.assertTransferRepresentation` valide l'agent fédéral, le mandat, sa période et son rattachement au joueur ou à l'un des clubs au dépôt puis à nouveau lors de l'homologation.
+
+`/admin/federation/match-staff` permet au club d'affecter le staff officiel d'un match via `match-operations`. Le `teamId` provient exclusivement de la session SSO. Si la saison impose un niveau CAF minimal, le `HEAD_COACH` est contrôlé côté serveur avant la signature officielle de la feuille de match.

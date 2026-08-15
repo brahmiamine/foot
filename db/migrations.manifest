@@ -56,6 +56,9 @@ identity/sql/migration_add_federation_league_scope.sql
 identity/sql/migration_add_match_official_roles.sql
 # Rôle PLAYER et liaison vers Player pour l'espace personnel player-hub.
 identity/sql/migration_add_player_role.sql
+# migration-v2 §25 : permissions réglementaires fines ; les scopes rôle /
+# fédération / ligue restent obligatoires et cette table affine les actions.
+identity/sql/migration_add_regulatory_permissions.sql
 
 # --- federation-hub (référentiel fédérations/ligues/saisons/journées/matchs/équipes/arbitres) ---
 federation-hub/mysql/migration_add_audit_logs.sql
@@ -91,6 +94,9 @@ federation-hub/mysql/migration_add_player_contracts.sql
 federation-hub/mysql/migration_add_staff_contracts.sql
 # P0-006/P0-007/P0-008 migration-v2 : engagements, fenêtres et éligibilité.
 federation-hub/mysql/migration_add_competition_entries_transfer_windows_eligibility.sql
+# §36 migration-v2 : transition legacy bornée à la saison pour les anciens
+# joueurs, sans contourner les suspensions/transferts/appartenance sportive.
+federation-hub/mysql/migration_add_regulatory_legacy_confirmations.sql
 # P0-009 migration-v2 : sanctions clubs et interdictions de recrutement.
 # Dépend de teams/saisons/federations/ligues/User (déjà en base).
 federation-hub/mysql/migration_add_club_sanctions.sql
@@ -101,6 +107,9 @@ federation-hub/mysql/migration_add_legal_cases.sql
 # P0-011 migration-v2 : assistant de renouvellement saisonnier. Dépend de
 # saisons/federations/ligues/User (déjà en base).
 federation-hub/mysql/migration_add_season_regulatory_cycles.sql
+# P0-011 : complète l'assistant annuel (licences personnes, engagements,
+# finance, fenêtre transferts et marqueur de préparation).
+federation-hub/mysql/migration_extend_season_regulatory_cycles.sql
 # P1-001 migration-v2 : contrôle financier réglementaire. Dépend de
 # teams/saisons/federations/ligues/User (déjà en base).
 federation-hub/mysql/migration_add_financial_compliance.sql
@@ -123,6 +132,10 @@ federation-hub/mysql/migration_add_agents.sql
 # club_sanctions (P0-009, décision -> sanction club), teams/federations/
 # ligues/User (déjà en base).
 federation-hub/mysql/migration_add_disciplinary_cases.sql
+# P1-007 : décision disciplinaire individuelle -> vraie Suspension utilisée
+# par EligibilityService ; dépend de disciplinary_cases et Suspension.
+federation-hub/mysql/migration_extend_suspensions_for_disciplinary_decisions.sql
+federation-hub/mysql/migration_link_disciplinary_decision_suspension.sql
 # P1-008 migration-v2 : appels. Référence polymorphe sans FK vers la
 # décision contestée (legal_cases/disciplinary_cases/etc.), dépend de
 # federations/ligues/User (déjà en base).
@@ -167,6 +180,9 @@ club-hub/sql/migration_add_processed_webhook_events.sql
 club-hub/sql/migration_add_player_transfers.sql
 # Étend le workflow : approbation club destination puis homologation fédérale.
 club-hub/sql/migration_extend_player_transfer_workflow.sql
+# P1-006 migration-v2 : agent + mandat fédéral contrôlés à la création et
+# revalidés lors de l'homologation. Dépend de federation-hub migration agents.
+club-hub/sql/migration_extend_player_transfers_agents.sql
 club-hub/sql/migration_add_convocation_cancellation.sql
 
 # --- match-operations (feuille de match électronique, dépend de Player/Card/Match) ---
@@ -186,6 +202,9 @@ match-operations/sql/migration_add_event_client_request_id.sql
 # Identité officielle de match (migration.md §11, Phase 4). Dépend de
 # matches (déjà en base).
 match-operations/sql/migration_add_match_official_assignments.sql
+# P1-004 migration-v2 : staff officiel du match ; HEAD_COACH contrôlé au
+# niveau CAF minimal de la saison avant PRE_MATCH_SIGNED.
+match-operations/sql/migration_add_match_staff_assignments.sql
 
 # --- referee-hub (données privées personnelles des officiels) ---
 # Dépend de match_official_assignments et matches pour les rapports.

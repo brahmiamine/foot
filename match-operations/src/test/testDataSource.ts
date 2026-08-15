@@ -10,6 +10,7 @@ import { Matchday } from "@/entities/Matchday";
 import { MatchEventCorrection } from "@/entities/MatchEventCorrection";
 import { MatchOfficialAssignment } from "@/entities/MatchOfficialAssignment";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
+import { MatchStaffAssignment, MatchStaffRead, CoachQualificationRead } from "@/entities/MatchStaffAssignment";
 import { Player } from "@/entities/Player";
 import { Sheet } from "@/entities/Sheet";
 import { Signature } from "@/entities/Signature";
@@ -18,14 +19,8 @@ import { Team } from "@/entities/Team";
 import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
 import { MatchLineup } from "@/entities/MatchLineup";
 import { TeamMembership } from "@/entities/TeamMembership";
-import { CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead, SeasonRegulation, SuspensionRead } from "@/entities/Eligibility";
+import { CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead, SeasonRegulation, SuspensionRead } from "@/entities/Eligibility";
 
-/**
- * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
- * TypeORM — utilisée par les tests d'intégration pour exécuter du vrai SQL
- * sans dépendre d'un serveur MySQL. Même pattern que
- * arbinote/src/test/testDataSource.ts et ticketing/src/test/testDataSource.ts.
- */
 export async function createTestDataSource(): Promise<DataSource> {
   const dataSource = new DataSource({
     type: "better-sqlite3",
@@ -33,36 +28,15 @@ export async function createTestDataSource(): Promise<DataSource> {
     dropSchema: true,
     synchronize: true,
     entities: [
-      Card,
-      CardReason,
-      Federation,
-      Goal,
-      Injury,
-      Match,
-      Matchday,
-      MatchEventCorrection,
-      MatchOfficialAssignment,
-      MatchReopenLog,
-      Player,
-      Sheet,
-      Signature,
-      Substitution,
-      Team,
-      RefereeUnavailability,
-      MatchLineup,
-      TeamMembership,
-      CompetitionRegistrationRead,
-      EligibilityCheckWrite,
-      MedicalEligibilityRead,
-      PersonLicenseRead,
-      PlayerContractRead,
-      PlayerRegistrationRead,
-      PlayerTransferRead,
-      SeasonRegulation,
-      SuspensionRead,
+      Card, CardReason, Federation, Goal, Injury, Match, Matchday, MatchEventCorrection,
+      MatchOfficialAssignment, MatchReopenLog, MatchStaffAssignment, MatchStaffRead,
+      CoachQualificationRead, Player, Sheet, Signature, Substitution, Team,
+      RefereeUnavailability, MatchLineup, TeamMembership, CompetitionRegistrationRead,
+      EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead,
+      PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead,
+      SeasonRegulation, SuspensionRead,
     ],
   });
-
   await dataSource.initialize();
   return dataSource;
 }

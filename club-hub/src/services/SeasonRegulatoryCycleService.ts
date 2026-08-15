@@ -1,23 +1,35 @@
+import type { DataSource, EntityManager } from "typeorm";
 import { SeasonRegulatoryCycle } from "@/entities/SeasonRegulatoryCycle";
 import { getDataSource } from "@/lib/database";
 import { isRegulatoryWindowOpen } from "../../../packages/regulatory-shared/src/seasonRegulatoryCycle";
 
-/**
- * Lecture seule : la fédération est seule source de vérité du cycle
- * réglementaire (voir federation-hub/src/lib/seasonRegulatoryCycles.ts).
- * Absence de cycle pour une saison = comportement historique inchangé
- * (fenêtre considérée ouverte), voir migration-v2.md §36.
- */
-export async function isClubLicensingWindowOpen(seasonId: string): Promise<boolean> {
-  const dataSource = await getDataSource();
-  const cycle = await dataSource.getRepository(SeasonRegulatoryCycle).findOne({ where: { seasonId } });
+type WindowName = "clubLicensing" | "personLicensing" | "registration" | "competitionEntry" | "financialCompliance";
+type RepositorySource = DataSource | EntityManager;
+
+async function isWindowOpen(seasonId: string, name: WindowName, repositorySource?: RepositorySource): Promise<boolean> {
+  const source = repositorySource ?? await getDataSource();
+  const cycle = await source.getRepository(SeasonRegulatoryCycle).findOne({ where: { seasonId } });
   if (!cycle) return true;
-  return isRegulatoryWindowOpen(cycle.status, cycle.clubLicensingOpenAt, cycle.clubLicensingCloseAt);
+  const open = {
+    clubLicensing: cycle.clubLicensingOpenAt,
+    personLicensing: cycle.personLicensingOpenAt,
+    registration: cycle.registrationOpenAt,
+    competitionEntry: cycle.competitionEntryOpenAt,
+    financialCompliance: cycle.financialComplianceOpenAt,
+  }[name];
+  const close = {
+    clubLicensing: cycle.clubLicensingCloseAt,
+    personLicensing: cycle.personLicensingCloseAt,
+    registration: cycle.registrationCloseAt,
+    competitionEntry: cycle.competitionEntryCloseAt,
+    financialCompliance: cycle.financialComplianceCloseAt,
+  }[name];
+  return isRegulatoryWindowOpen(cycle.status, open, close);
 }
 
-export async function isRegistrationWindowOpen(seasonId: string): Promise<boolean> {
-  const dataSource = await getDataSource();
-  const cycle = await dataSource.getRepository(SeasonRegulatoryCycle).findOne({ where: { seasonId } });
-  if (!cycle) return true;
-  return isRegulatoryWindowOpen(cycle.status, cycle.registrationOpenAt, cycle.registrationCloseAt);
-}
+/** Absence de cycle = comportement historique ouvert ; présence d'un cycle = garde fédérale stricte. */
+export const isClubLicensingWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "clubLicensing", source);
+export const isPersonLicensingWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "personLicensing", source);
+export const isRegistrationWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "registration", source);
+export const isCompetitionEntryWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "competitionEntry", source);
+export const isFinancialComplianceWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "financialCompliance", source);

@@ -5,6 +5,7 @@ export class SeasonRegulation {
   @PrimaryColumn({type:"char",length:36}) id!: string;
   @Column({type:"boolean",name:"requires_player_contract",default:false}) requiresPlayerContract!: boolean;
   @Column({type:"boolean",name:"requires_medical_clearance",default:false}) requiresMedicalClearance!: boolean;
+  @Column({type:"varchar",length:32,nullable:true,name:"minimum_head_coach_qualification"}) minimumHeadCoachQualification?: "CAF_PRO"|"CAF_A"|"CAF_B"|"CAF_C"|"NATIONAL"|"OTHER"|null;
 }
 @Entity("competition_registrations")
 export class CompetitionRegistrationRead {
@@ -70,6 +71,15 @@ export class MedicalEligibilityRead {
   @Column({type:"char",length:36,name:"season_id"}) seasonId!: string;
   @Column({type:"date",name:"expires_at",nullable:true}) expiresAt?: string|null;
   @Column({type:"varchar",length:32}) status!: string;
+}
+@Entity("regulatory_legacy_confirmations")
+export class RegulatoryLegacyConfirmationRead {
+  @PrimaryColumn({type:"char",length:36}) id!: string;
+  @Column({type:"varchar",length:191,name:"player_id"}) playerId!: string;
+  @Column({type:"char",length:36,name:"club_id"}) clubId!: string;
+  @Column({type:"char",length:36,name:"season_id"}) seasonId!: string;
+  @Column({type:"varchar",length:32}) source!: "LEGACY_BACKFILL"|"MANUAL";
+  @Column({type:"date",nullable:true,name:"expires_at"}) expiresAt?: string|null;
 }
 @Entity("eligibility_checks")
 export class EligibilityCheckWrite {
