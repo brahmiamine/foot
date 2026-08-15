@@ -1,43 +1,67 @@
-import { getDataSource } from "@/lib/db";
-import { Match } from "@/entities/Match";
-import { Matchday } from "@/entities/Matchday";
-import { SeasonRegulation } from "@/entities/Eligibility";
-import { CoachQualificationRead, MatchStaffAssignment } from "@/entities/MatchStaffAssignment";
-import { meetsMinimumQualification } from "../../../packages/regulatory-shared/src/coachQualification";
+import { createStaffQualificationPort } from '@/adapters/regulatory/createRegulatoryAdapters'
+import { Match } from '@/entities/Match'
+import { Matchday } from '@/entities/Matchday'
+import { MatchStaffAssignment } from '@/entities/MatchStaffAssignment'
+import { getDataSource } from '@/lib/db'
+import type { StaffQualificationServicePort } from '../../../packages/domain-contracts/src/staff-eligibility'
 
 export class StaffEligibilityError extends Error {
   constructor(public readonly failures: Array<{ teamId: string; reason: string }>) {
-    super(failures.map(item => `${item.teamId}: ${item.reason}`).join(" | "));
-    this.name = "StaffEligibilityError";
+    super(failures.map((item) => `${item.teamId}: ${item.reason}`).join(' | '))
+    this.name = 'StaffEligibilityError'
   }
 }
 
+/**
+ * Match-owned orchestration for head-coach assignments. Federation-owned
+ * qualification rules are delegated through StaffQualificationServicePort.
+ * The default remains shared-DB until the federation regulatory HTTP boundary
+ * is explicitly configured.
+ */
 export class StaffEligibilityService {
-  async assertHeadCoachesEligible(matchId: string): Promise<void> {
-    const ds = await getDataSource();
-    const match = await ds.getRepository(Match).findOne({ where: { id: matchId } });
-    if (!match) throw new StaffEligibilityError([{ teamId: "MATCH", reason: "MATCH_NOT_FOUND" }]);
-    const matchday = await ds.getRepository(Matchday).findOne({ where: { id: match.journeeId } });
-    if (!matchday?.seasonId) throw new StaffEligibilityError([{ teamId: "MATCH", reason: "SEASON_NOT_FOUND" }]);
-    const season = await ds.getRepository(SeasonRegulation).findOne({ where: { id: matchday.seasonId } });
-    const minimum = season?.minimumHeadCoachQualification;
-    if (!minimum) return;
+  constructor(
+    private readonly staffQualification: StaffQualificationServicePort =
+      createStaffQualificationPort(),
+  ) {}
 
-    const failures: Array<{ teamId: string; reason: string }> = [];
-    for (const teamId of [match.equipeHome, match.equipeAway]) {
-      const assignment = await ds.getRepository(MatchStaffAssignment).findOne({ where: { matchId, teamId, role: "HEAD_COACH" } });
-      if (!assignment) {
-        failures.push({ teamId, reason: "HEAD_COACH_NOT_ASSIGNED" });
-        continue;
-      }
-      const qualifications = await ds.getRepository(CoachQualificationRead)
-        .createQueryBuilder("qualification")
-        .where("qualification.staffId=:staffId AND qualification.clubId=:teamId AND qualification.status='VALID'", { staffId: assignment.staffId, teamId })
-        .andWhere("(qualification.expiresAt IS NULL OR qualification.expiresAt>=:matchDate)", { matchDate: match.date ?? new Date() })
-        .getMany();
-      const valid = qualifications.some(item => meetsMinimumQualification(item.qualificationType, minimum));
-      if (!valid) failures.push({ teamId, reason: `HEAD_COACH_QUALIFICATION_REQUIRED:${minimum}` });
+  async assertHeadCoachesEligible(matchId: string): Promise<void> {
+    const ds = await getDataSource()
+    const match = await ds.getRepository(Match).findOne({ where: { id: matchId } })
+    if (!match) {
+      throw new StaffEligibilityError([{ teamId: 'MATCH', reason: 'MATCH_NOT_FOUND' }])
     }
-    if (failures.length) throw new StaffEligibilityError(failures);
+
+    const matchday = await ds.getRepository(Matchday).findOne({ where: { id: match.journeeId } })
+    if (!matchday?.seasonId) {
+      throw new StaffEligibilityError([{ teamId: 'MATCH', reason: 'SEASON_NOT_FOUND' }])
+    }
+
+    const failures: Array<{ teamId: string; reason: string }> = []
+    const matchDate = match.date ?? new Date()
+
+    for (const teamId of [match.equipeHome, match.equipeAway]) {
+      const assignment = await ds.getRepository(MatchStaffAssignment).findOne({
+        where: { matchId, teamId, role: 'HEAD_COACH' },
+      })
+      if (!assignment) {
+        failures.push({ teamId, reason: 'HEAD_COACH_NOT_ASSIGNED' })
+        continue
+      }
+
+      const qualification = await this.staffQualification.checkHeadCoachQualification({
+        staffId: assignment.staffId,
+        clubId: teamId,
+        seasonId: matchday.seasonId,
+        matchDate,
+      })
+      if (!qualification.eligible) {
+        failures.push({
+          teamId,
+          reason: `HEAD_COACH_QUALIFICATION_REQUIRED:${qualification.requiredQualification ?? 'UNKNOWN'}`,
+        })
+      }
+    }
+
+    if (failures.length) throw new StaffEligibilityError(failures)
   }
 }

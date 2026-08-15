@@ -1,112 +1,132 @@
-import { randomUUID } from "node:crypto";
-import bcrypt from "bcryptjs";
-import { getDataSource } from "@/lib/database";
-import { User } from "@/entities/User";
-import { Repository } from "typeorm";
+import { createClubIdentityAdapter, type ClubIdentityPort } from '@/adapters/identity/createClubIdentityAdapter'
+import type { IdentityUserRecord } from '../../../packages/domain-contracts/src/identity'
+
+export interface ClubAccountUser {
+  id: string
+  name: string
+  email: string
+  role: IdentityUserRecord['role']
+  isActive: boolean
+  teamId: string | null
+  createdAt: Date
+}
+
+function toClubAccount(user: IdentityUserRecord): ClubAccountUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isActive: user.isActive,
+    teamId: user.teamId,
+    createdAt: new Date(user.createdAt),
+  }
+}
 
 /**
- * Service for User operations (authentification + gestion des comptes du
- * club). `User` est la table de comptes partagée avec cardManager : un même
- * compte ADMIN/OBSERVATEUR rattaché à un club sert pour les deux
- * applications. club-hub est l'endroit où le président du club (ADMIN)
- * crée les comptes de son équipe (staff, coachs...) et leur attribue des
- * rôles (voir RoleService) ; tout est scopé par teamId pour ne jamais
- * toucher aux comptes des autres clubs.
+ * Club account orchestration. Identity owns credentials and User persistence;
+ * Club keeps the business guards that scope every operation to the current
+ * team and protect the club administrator account.
  */
 export class UserService {
-  private async getRepository(): Promise<Repository<User>> {
-    const dataSource = await getDataSource();
-    return dataSource.getRepository(User);
+  constructor(private readonly identity: ClubIdentityPort = createClubIdentityAdapter()) {}
+
+  async findByEmail(email: string): Promise<ClubAccountUser | null> {
+    const user = await this.identity.getUserByEmail(email)
+    return user ? toClubAccount(user) : null
   }
 
-  /**
-   * Find an active user by email, for login.
-   */
-  async findByEmail(email: string): Promise<User | null> {
-    const repository = await this.getRepository();
-    return repository.findOne({ where: { email } });
+  async findAllByTeam(teamId: string): Promise<ClubAccountUser[]> {
+    return (await this.identity.listUsers({ teamId })).map(toClubAccount)
   }
 
-  /** Comptes du club (hors SUPERADMIN, toujours sans teamId). */
-  async findAllByTeam(teamId: string): Promise<User[]> {
-    const repository = await this.getRepository();
-    return repository.find({ where: { teamId }, order: { name: "ASC" } });
+  async findById(id: string, teamId: string): Promise<ClubAccountUser | null> {
+    const user = await this.identity.getUserById(id)
+    if (!user || user.teamId !== teamId) return null
+    return toClubAccount(user)
   }
 
-  async findById(id: string, teamId: string): Promise<User | null> {
-    const repository = await this.getRepository();
-    return repository.findOne({ where: { id, teamId } });
-  }
-
-  /**
-   * Crée un nouveau compte pour le club (staff/coach...). Toujours créé en
-   * rôle OBSERVATEUR : seul un accès direct à la base peut créer un second
-   * ADMIN (le président), pour éviter qu'un compte délégué s'auto-promeuve.
-   */
+  /** New club accounts remain OBSERVATEUR; only the existing ADMIN can manage them. */
   async create(
     data: { name: string; email: string; password: string; isActive?: boolean },
-    teamId: string
-  ): Promise<User> {
-    const repository = await this.getRepository();
-
-    const existing = await repository.findOne({ where: { email: data.email } });
-    if (existing) {
-      throw new Error("Un compte existe déjà avec cet email");
+    teamId: string,
+  ): Promise<ClubAccountUser> {
+    if (await this.identity.getUserByEmail(data.email)) {
+      throw new Error('Un compte existe déjà avec cet email')
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 12);
-    const user = repository.create({
-      id: randomUUID(),
-      name: data.name,
-      email: data.email,
-      password: hashedPassword,
-      role: "OBSERVATEUR",
-      isActive: data.isActive ?? true,
-      teamId,
-    });
-    return repository.save(user);
+    try {
+      return toClubAccount(
+        await this.identity.createUser({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          role: 'OBSERVATEUR',
+          isActive: data.isActive ?? true,
+          teamId,
+        }),
+      )
+    } catch (error) {
+      if (error instanceof Error && error.message === 'email_taken') {
+        throw new Error('Un compte existe déjà avec cet email')
+      }
+      throw error
+    }
   }
 
   async update(
     id: string,
     teamId: string,
-    data: { name?: string; email?: string; password?: string; isActive?: boolean }
-  ): Promise<User> {
-    const repository = await this.getRepository();
-    const user = await this.findById(id, teamId);
-    if (!user) {
-      throw new Error("Compte non trouvé");
-    }
-    if (user.role === "ADMIN" && data.isActive === false) {
-      throw new Error("Impossible de désactiver le compte administrateur du club");
+    data: { name?: string; email?: string; password?: string; isActive?: boolean },
+  ): Promise<ClubAccountUser> {
+    const user = await this.findById(id, teamId)
+    if (!user) throw new Error('Compte non trouvé')
+    if (user.role === 'ADMIN' && data.isActive === false) {
+      throw new Error('Impossible de désactiver le compte administrateur du club')
     }
 
     if (data.email && data.email !== user.email) {
-      const existing = await repository.findOne({ where: { email: data.email } });
+      const existing = await this.identity.getUserByEmail(data.email)
       if (existing && existing.id !== id) {
-        throw new Error("Un compte existe déjà avec cet email");
+        throw new Error('Un compte existe déjà avec cet email')
       }
-      user.email = data.email;
-    }
-    if (data.name !== undefined) user.name = data.name;
-    if (data.isActive !== undefined) user.isActive = data.isActive;
-    if (data.password) {
-      user.password = await bcrypt.hash(data.password, 12);
     }
 
-    return repository.save(user);
+    try {
+      return toClubAccount(
+        await this.identity.updateUser(id, {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          isActive: data.isActive,
+        }),
+      )
+    } catch (error) {
+      if (error instanceof Error && error.message === 'email_taken') {
+        throw new Error('Un compte existe déjà avec cet email')
+      }
+      if (error instanceof Error && error.message === 'not_found') {
+        throw new Error('Compte non trouvé')
+      }
+      throw error
+    }
   }
 
   async delete(id: string, teamId: string): Promise<boolean> {
-    const repository = await this.getRepository();
-    const user = await this.findById(id, teamId);
-    if (!user) {
-      throw new Error("Compte non trouvé");
+    const user = await this.findById(id, teamId)
+    if (!user) throw new Error('Compte non trouvé')
+    if (user.role === 'ADMIN') {
+      throw new Error('Impossible de supprimer le compte administrateur du club')
     }
-    if (user.role === "ADMIN") {
-      throw new Error("Impossible de supprimer le compte administrateur du club");
+
+    try {
+      await this.identity.deleteUser(id)
+      return true
+    } catch (error) {
+      if (error instanceof Error && error.message === 'not_found') {
+        throw new Error('Compte non trouvé')
+      }
+      throw error
     }
-    await repository.remove(user);
-    return true;
   }
 }

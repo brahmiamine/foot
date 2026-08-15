@@ -37,6 +37,17 @@ jobs:
           node-version: 20
       - run: node scripts/validate-frontend-workspace.mjs
 
+  architecture-boundaries:
+    name: application architecture boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/validate-architecture-boundaries.mjs
+      - run: node scripts/validate-club-rbac-boundaries.mjs
+
   check:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest

@@ -4,23 +4,23 @@ import { getDataSource } from "./db";
 import { User } from "@/entities/User";
 
 /**
- * API Identity interne (TS-53/TS-54, Epic E17) : `sso` est l'unique
- * propriétaire de `User` (voir TS-30) — les autres apps qui ont besoin de
- * créer/désactiver/réactiver un compte staff (aujourd'hui : `federation-hub`,
- * voir src/lib/identityClient.ts côté federation-hub) passent par ces
- * fonctions plutôt que d'écrire directement dans la table.
+ * Internal Identity API. Identity is the sole owner of User credentials and
+ * account lifecycle; other deployables consume these functions through
+ * authenticated service APIs.
  */
 
 export interface IdentityUser {
   id: string;
   name: string;
+  firstName: string | null;
+  lastName: string | null;
+  phoneNumber: string | null;
   email: string;
   role: User["role"];
   isActive: boolean;
   teamId: string | null;
-  /** Scope FEDERATION_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
+  playerId: string | null;
   federationId: string | null;
-  /** Scope LEAGUE_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
   leagueId: string | null;
   createdAt: Date;
 }
@@ -29,10 +29,14 @@ function toIdentityUser(user: User): IdentityUser {
   return {
     id: user.id,
     name: user.name,
+    firstName: user.firstName ?? null,
+    lastName: user.lastName ?? null,
+    phoneNumber: user.phoneNumber ?? null,
     email: user.email,
     role: user.role,
-    isActive: user.isActive,
+    isActive: Boolean(user.isActive),
     teamId: user.teamId ?? null,
+    playerId: user.playerId ?? null,
     federationId: user.federationId ?? null,
     leagueId: user.leagueId ?? null,
     createdAt: user.createdAt,
@@ -44,7 +48,9 @@ export interface CreateUserInput {
   email: string;
   password: string;
   role: User["role"];
+  isActive?: boolean;
   teamId: string | null;
+  playerId?: string | null;
   federationId?: string | null;
   leagueId?: string | null;
 }
@@ -53,15 +59,12 @@ export type CreateUserResult =
   | { ok: true; user: IdentityUser }
   | { ok: false; error: "email_taken" };
 
-/** Seul endroit qui hache un mot de passe pour un compte créé par une autre app (ex: acceptation d'invitation côté federation-hub). */
 export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
   const dataSource = await getDataSource();
   const repository = dataSource.getRepository(User);
 
   const existing = await repository.findOne({ where: { email: input.email } });
-  if (existing) {
-    return { ok: false, error: "email_taken" };
-  }
+  if (existing) return { ok: false, error: "email_taken" };
 
   const hashed = await bcrypt.hash(input.password, 12);
   const user = repository.create({
@@ -70,8 +73,9 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
     email: input.email,
     password: hashed,
     role: input.role,
-    isActive: true,
+    isActive: input.isActive ?? true,
     teamId: input.teamId,
+    playerId: input.playerId ?? null,
     federationId: input.federationId ?? null,
     leagueId: input.leagueId ?? null,
     tokenVersion: 0,
@@ -87,21 +91,42 @@ export async function getUserById(id: string): Promise<IdentityUser | null> {
   return user ? toIdentityUser(user) : null;
 }
 
-/**
- * TASK-P0-013 (todo.md) : permet à un appelant (ex: federation-hub,
- * acceptInvitation) de vérifier après un `email_taken` sur `createUser` si
- * le compte existant est celui qu'IL vient de créer (retry après un échec
- * réseau/DB survenu APRÈS le succès de la création côté sso, mais AVANT
- * que l'appelant ait pu persister sa propre confirmation) plutôt qu'un
- * conflit avec un compte tiers.
- */
 export async function getUserByEmail(email: string): Promise<IdentityUser | null> {
   const dataSource = await getDataSource();
   const user = await dataSource.getRepository(User).findOne({ where: { email } });
   return user ? toIdentityUser(user) : null;
 }
 
+export interface ListUsersInput {
+  teamId?: string;
+  roles?: User["role"][];
+  hasTeam?: boolean;
+}
+
+/**
+ * Service-directory read used by federation/admin applications. Filtering is
+ * done inside Identity so callers no longer need read access to the User table.
+ */
+export async function listUsers(input: ListUsersInput = {}): Promise<IdentityUser[]> {
+  const dataSource = await getDataSource();
+  const query = dataSource.getRepository(User).createQueryBuilder("user");
+
+  if (input.teamId) {
+    query.andWhere("user.teamId = :teamId", { teamId: input.teamId });
+  }
+  if (input.roles?.length) {
+    query.andWhere("user.role IN (:...roles)", { roles: input.roles });
+  }
+  if (input.hasTeam === true) query.andWhere("user.teamId IS NOT NULL");
+  if (input.hasTeam === false) query.andWhere("user.teamId IS NULL");
+
+  const users = await query.orderBy("user.name", "ASC").getMany();
+  return users.map(toIdentityUser);
+}
+
 export interface UpdateUserInput {
+  name?: string;
+  email?: string;
   isActive?: boolean;
   role?: User["role"];
   password?: string;
@@ -109,32 +134,23 @@ export interface UpdateUserInput {
 
 export type UpdateUserResult =
   | { ok: true; user: IdentityUser }
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" | "email_taken" };
 
-/**
- * Un changement de mot de passe ou une désactivation invalide toute
- * session déjà émise pour ce compte (voir User.tokenVersion,
- * identity/src/lib/session.ts) — même principe que resetPassword/changePassword
- * (src/lib/passwordReset.ts), appliqué ici pour un compte géré par un
- * administrateur d'une autre app plutôt que par le titulaire du compte.
- */
 export async function updateUser(id: string, input: UpdateUserInput): Promise<UpdateUserResult> {
   const dataSource = await getDataSource();
   const repository = dataSource.getRepository(User);
 
   const user = await repository.findOne({ where: { id } });
-  if (!user) {
-    return { ok: false, error: "not_found" };
+  if (!user) return { ok: false, error: "not_found" };
+
+  if (input.email !== undefined && input.email !== user.email) {
+    const existing = await repository.findOne({ where: { email: input.email } });
+    if (existing && existing.id !== id) return { ok: false, error: "email_taken" };
+    user.email = input.email;
   }
+  if (input.name !== undefined) user.name = input.name;
 
   let bumpTokenVersion = false;
-  // Comparaison par coercition (pas `!==`) : `User.isActive` est un
-  // `tinyint` MySQL (0/1) — TypeORM le renvoie déjà en `boolean` sous
-  // MySQL réel, mais un driver de test SQLite peut le laisser en `number`
-  // (voir src/test/setupSqliteTypes.ts, qui ne réécrit pas `tinyint`). Une
-  // égalité stricte entre `true` et `1` serait toujours fausse et
-  // déclencherait un bump de tokenVersion inutile à chaque appel, même
-  // sans changement réel.
   if (input.isActive !== undefined && Boolean(input.isActive) !== Boolean(user.isActive)) {
     user.isActive = input.isActive;
     bumpTokenVersion = true;
@@ -156,9 +172,7 @@ export async function deleteUser(id: string): Promise<DeleteUserResult> {
   const dataSource = await getDataSource();
   const repository = dataSource.getRepository(User);
   const user = await repository.findOne({ where: { id } });
-  if (!user) {
-    return { ok: false, error: "not_found" };
-  }
+  if (!user) return { ok: false, error: "not_found" };
   await repository.remove(user);
   return { ok: true };
 }

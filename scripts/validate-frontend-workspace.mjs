@@ -20,9 +20,18 @@ const frontendApps = [
 ]
 
 const sharedPackages = {
+  'packages/access-client': '@foot/access-client',
+  'packages/app-shell': '@foot/app-shell',
   'packages/auth-shared': '@foot/auth-shared',
+  'packages/club-client': '@foot/club-client',
   'packages/design-tokens': '@foot/design-tokens',
+  'packages/domain-contracts': '@foot/domain-contracts',
   'packages/i18n': '@foot/i18n',
+  'packages/identity-client': '@foot/identity-client',
+  'packages/notifications-client': '@foot/notifications-client',
+  'packages/referee-client': '@foot/referee-client',
+  'packages/regulatory-client': '@foot/regulatory-client',
+  'packages/regulatory-shared': '@foot/regulatory',
   'packages/tsconfig': '@foot/tsconfig',
   'packages/types': '@foot/types',
   'packages/ui': '@foot/ui',

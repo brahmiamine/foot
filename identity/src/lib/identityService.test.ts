@@ -43,6 +43,22 @@ describe("createUser", () => {
     expect(await bcrypt.compare("s3cret!", stored!.password)).toBe(true);
   });
 
+  it("persists playerId for PLAYER accounts provisioned by another application", async () => {
+    const { createUser } = await import("./identityService");
+
+    const result = await createUser({
+      name: "Player One",
+      email: "player@example.com",
+      password: "s3cret!",
+      role: "PLAYER",
+      teamId: "team-1",
+      playerId: "player-1",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.user.playerId).toBe("player-1");
+  });
+
   it("rejects an email already in use", async () => {
     const { createUser } = await import("./identityService");
     await seedUser(dataSource, { email: "amine@example.com" });
@@ -72,6 +88,38 @@ describe("getUserById", () => {
     const result = await getUserById("user-1");
 
     expect(result?.id).toBe(user.id);
+  });
+});
+
+describe("listUsers", () => {
+  it("filters accounts by teamId", async () => {
+    const { listUsers } = await import("./identityService");
+    await seedUser(dataSource, { id: "team-1-admin", email: "a@example.com", teamId: "team-1", role: "ADMIN" });
+    await seedUser(dataSource, { id: "team-2-admin", email: "b@example.com", teamId: "team-2", role: "ADMIN" });
+
+    const users = await listUsers({ teamId: "team-1" });
+
+    expect(users.map((user) => user.id)).toEqual(["team-1-admin"]);
+  });
+
+  it("filters accounts by one or more roles", async () => {
+    const { listUsers } = await import("./identityService");
+    await seedUser(dataSource, { id: "referee", email: "ref@example.com", role: "REFEREE", teamId: null });
+    await seedUser(dataSource, { id: "official", email: "off@example.com", role: "MATCH_OFFICIAL", teamId: null });
+    await seedUser(dataSource, { id: "member", email: "member@example.com", role: "MEMBER", teamId: null });
+
+    const users = await listUsers({ roles: ["REFEREE", "MATCH_OFFICIAL"] });
+
+    expect(users.map((user) => user.id).sort()).toEqual(["official", "referee"]);
+  });
+
+  it("can distinguish team-scoped accounts from platform accounts", async () => {
+    const { listUsers } = await import("./identityService");
+    await seedUser(dataSource, { id: "club-account", email: "club@example.com", teamId: "team-1", role: "ADMIN" });
+    await seedUser(dataSource, { id: "platform-account", email: "platform@example.com", teamId: null, role: "REFEREE" });
+
+    expect((await listUsers({ hasTeam: true })).map((user) => user.id)).toEqual(["club-account"]);
+    expect((await listUsers({ hasTeam: false })).map((user) => user.id)).toEqual(["platform-account"]);
   });
 });
 

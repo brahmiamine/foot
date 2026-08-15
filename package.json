@@ -11,7 +11,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "i18n:check": "node scripts/i18n-audit.mjs",
-    "workspace:check": "node scripts/validate-frontend-workspace.mjs"
+    "workspace:check": "node scripts/validate-frontend-workspace.mjs",
+    "architecture:check": "node scripts/validate-architecture-boundaries.mjs"
   },
   "devDependencies": {
     "jose": "^5.9.6",

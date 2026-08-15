@@ -7,10 +7,8 @@ import { RolesManagement } from "./RolesManagement";
 export const dynamic = "force-dynamic";
 
 /**
- * Page Rôles & permissions — réservée au président du club (ADMIN). Permet
- * de créer des rôles (ex: Secrétaire, Coach) avec un jeu de permissions, et
- * de les attribuer aux comptes du club (avec une catégorie pour les rôles
- * non globaux, ex: "Coach" attribué à une personne pour U17).
+ * Page Rôles & permissions — RBAC belongs to Club; account display data comes
+ * from Identity through UserService instead of a TypeORM User relation.
  */
 export default async function RolesPage() {
   const teamId = await requireTeamId();
@@ -25,6 +23,8 @@ export default async function RolesPage() {
     userService.findAllByTeam(teamId),
   ]);
 
+  const usersById = new Map(usersData.map((user) => [user.id, user]));
+
   const roles = rolesData.map((r) => ({
     id: r.id,
     name: r.name,
@@ -37,7 +37,7 @@ export default async function RolesPage() {
   const assignments = assignmentsData.map((a) => ({
     id: a.id,
     userId: a.userId,
-    userName: a.user?.name ?? "Compte inconnu",
+    userName: usersById.get(a.userId)?.name ?? "Compte inconnu",
     roleId: a.roleId,
     roleName: a.role?.name ?? "Rôle inconnu",
     category: a.category ?? null,

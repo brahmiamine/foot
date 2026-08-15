@@ -1,30 +1,18 @@
-import { getDataSource } from "@/lib/db";
-import { MatchLineup } from "@/entities/MatchLineup";
-import { Repository } from "typeorm";
+import { createClubLineupAdapter } from '@/adapters/club/createClubLineupAdapter'
+import type {
+  ClubLineupReadPort,
+  ClubMatchLineupEntry,
+} from '../../../packages/domain-contracts/src/club-lineup'
 
+/** Match-facing facade over the club-owned official lineup read boundary. */
 export class LineupService {
-  private async getRepository(): Promise<Repository<MatchLineup>> {
-    const dataSource = await getDataSource();
-    return dataSource.getRepository(MatchLineup);
+  constructor(private readonly lineupReader: ClubLineupReadPort = createClubLineupAdapter()) {}
+
+  findByMatch(matchId: string): Promise<ClubMatchLineupEntry[]> {
+    return this.lineupReader.findByMatch(matchId)
   }
 
-  async findByMatch(matchId: string): Promise<MatchLineup[]> {
-    const repository = await this.getRepository();
-    const lineups = await repository.find({
-      where: { matchId },
-      relations: ["player", "team"],
-      order: { role: "ASC", shirtNumber: "ASC" },
-    });
-    return lineups;
-  }
-
-  async findByMatchAndTeam(matchId: string, teamId: string): Promise<MatchLineup[]> {
-    const repository = await this.getRepository();
-    const lineups = await repository.find({
-      where: { matchId, teamId },
-      relations: ["player"],
-      order: { role: "ASC", shirtNumber: "ASC" },
-    });
-    return lineups;
+  findByMatchAndTeam(matchId: string, teamId: string): Promise<ClubMatchLineupEntry[]> {
+    return this.lineupReader.findByMatchAndTeam(matchId, teamId)
   }
 }

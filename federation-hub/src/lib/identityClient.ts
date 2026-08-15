@@ -1,94 +1,36 @@
-/**
- * Client HTTP vers `sso` (`/api/internal/users/*`). Authentification par clé
- * de service (`x-api-key`), jamais par une session SSO — même pattern que
- * `matchOperationsClient.ts` (TS-31). Remplace les écritures directes TypeORM
- * que `clubAccounts.ts`/`staffInvitations.ts` faisaient jusqu'ici dans
- * `User` (TS-53, avancement.md, Epic E17) : `sso` reste seul propriétaire
- * de cette table (voir TS-30).
- */
+import type {
+  CreateIdentityAccountInput,
+  IdentityRole,
+  IdentityUserRecord,
+  IdentityUserSearch,
+} from '../../../packages/domain-contracts/src/identity'
+import {
+  IdentityClientError,
+  IdentityHttpClient,
+} from '../../../packages/identity-client/src/index'
 
-export type IdentityUserRole =
-  | 'ADMIN'
-  | 'OBSERVATEUR'
-  | 'SUPERADMIN'
-  | 'MEMBER'
-  | 'PLATFORM_SUPERADMIN'
-  | 'FEDERATION_ADMIN'
-  | 'LEAGUE_ADMIN'
-  | 'REFEREE'
-  | 'MATCH_OFFICIAL'
-  | 'REFEREE_OBSERVER'
+export type IdentityUserRole = IdentityRole
+export type IdentityUser = IdentityUserRecord
+export type CreateIdentityUserInput = CreateIdentityAccountInput
 
-export interface IdentityUser {
-  id: string
-  name: string
-  email: string
-  role: IdentityUserRole
-  isActive: boolean
-  teamId: string | null
-  /** Scope FEDERATION_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
-  federationId?: string | null
-  /** Scope LEAGUE_ADMIN (migration.md §0/§7-8), `null` pour tout autre rôle. */
-  leagueId?: string | null
-  createdAt: string
-}
-
-class IdentityClientError extends Error {
-  status: number
-  constructor(message: string, status: number) {
-    super(message)
-    this.status = status
-  }
-}
-
-function getConfig(): { baseUrl: string; apiKey: string } {
+function client(): IdentityHttpClient {
   const baseUrl = process.env.SSO_URL
   const apiKey = process.env.SSO_SERVICE_API_KEY
   if (!baseUrl || !apiKey) {
     throw new Error('SSO_URL et SSO_SERVICE_API_KEY doivent être configurés.')
   }
-  return { baseUrl, apiKey }
-}
-
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const { baseUrl, apiKey } = getConfig()
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}${path}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, ...(init?.headers ?? {}) },
-    signal: AbortSignal.timeout(5000),
-  })
-
-  const isJson = response.headers.get('content-type')?.includes('application/json')
-  const body = isJson ? await response.json().catch(() => null) : null
-
-  if (!response.ok) {
-    const message = (body as { error?: string })?.error ?? `sso a répondu ${response.status}`
-    throw new IdentityClientError(message, response.status)
-  }
-  return body as T
-}
-
-export interface CreateIdentityUserInput {
-  name: string
-  email: string
-  password: string
-  role: IdentityUserRole
-  teamId?: string | null
-  federationId?: string | null
-  leagueId?: string | null
+  return new IdentityHttpClient({ baseUrl, apiKey })
 }
 
 export type CreateIdentityUserResult =
   | { ok: true; user: IdentityUser }
   | { ok: false; error: 'email_taken' }
 
-export async function createIdentityUser(input: CreateIdentityUserInput): Promise<CreateIdentityUserResult> {
+export async function createIdentityUser(
+  input: CreateIdentityUserInput,
+): Promise<CreateIdentityUserResult> {
   try {
-    const user = await call<IdentityUser>('/api/internal/users', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    })
-    return { ok: true, user }
+    return { ok: true, user: await client().createUser(input) }
   } catch (error) {
     if (error instanceof IdentityClientError && error.status === 409) {
       return { ok: false, error: 'email_taken' }
@@ -97,22 +39,12 @@ export async function createIdentityUser(input: CreateIdentityUserInput): Promis
   }
 }
 
-/**
- * TASK-P0-013 (todo.md) : utilisé par `staffInvitations.acceptInvitation`
- * pour distinguer, après un `email_taken` sur `createIdentityUser`, un vrai
- * conflit d'un retry idempotent (le compte a bien été créé côté sso, mais
- * la confirmation locale — `invitation.acceptedAt` — n'a pas pu être
- * persistée avant l'échec).
- */
 export async function getIdentityUserByEmail(email: string): Promise<IdentityUser | null> {
-  try {
-    return await call<IdentityUser>(`/api/internal/users?email=${encodeURIComponent(email)}`)
-  } catch (error) {
-    if (error instanceof IdentityClientError && error.status === 404) {
-      return null
-    }
-    throw error
-  }
+  return client().getUserByEmail(email)
+}
+
+export async function listIdentityUsers(search: IdentityUserSearch = {}): Promise<IdentityUser[]> {
+  return client().listUsers(search)
 }
 
 export interface UpdateIdentityUserInput {
@@ -121,13 +53,13 @@ export interface UpdateIdentityUserInput {
   password?: string
 }
 
-export async function updateIdentityUser(id: string, input: UpdateIdentityUserInput): Promise<IdentityUser> {
-  return call<IdentityUser>(`/api/internal/users/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(input),
-  })
+export async function updateIdentityUser(
+  id: string,
+  input: UpdateIdentityUserInput,
+): Promise<IdentityUser> {
+  return client().updateUser(id, input)
 }
 
 export async function deleteIdentityUser(id: string): Promise<void> {
-  await call<{ success: true }>(`/api/internal/users/${id}`, { method: 'DELETE' })
+  await client().deleteUser(id)
 }
