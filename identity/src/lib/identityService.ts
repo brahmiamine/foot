@@ -124,6 +124,8 @@ export async function listUsers(input: ListUsersInput = {}): Promise<IdentityUse
 }
 
 export interface UpdateUserInput {
+  name?: string;
+  email?: string;
   isActive?: boolean;
   role?: User["role"];
   password?: string;
@@ -131,7 +133,7 @@ export interface UpdateUserInput {
 
 export type UpdateUserResult =
   | { ok: true; user: IdentityUser }
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" | "email_taken" };
 
 export async function updateUser(id: string, input: UpdateUserInput): Promise<UpdateUserResult> {
   const dataSource = await getDataSource();
@@ -139,6 +141,13 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Up
 
   const user = await repository.findOne({ where: { id } });
   if (!user) return { ok: false, error: "not_found" };
+
+  if (input.email !== undefined && input.email !== user.email) {
+    const existing = await repository.findOne({ where: { email: input.email } });
+    if (existing && existing.id !== id) return { ok: false, error: "email_taken" };
+    user.email = input.email;
+  }
+  if (input.name !== undefined) user.name = input.name;
 
   let bumpTokenVersion = false;
   if (input.isActive !== undefined && Boolean(input.isActive) !== Boolean(user.isActive)) {
