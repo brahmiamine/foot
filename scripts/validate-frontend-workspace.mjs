@@ -23,6 +23,7 @@ const sharedPackages = {
   'packages/auth-shared': '@foot/auth-shared',
   'packages/design-tokens': '@foot/design-tokens',
   'packages/i18n': '@foot/i18n',
+  'packages/notifications-client': '@foot/notifications-client',
   'packages/tsconfig': '@foot/tsconfig',
   'packages/types': '@foot/types',
   'packages/ui': '@foot/ui',
