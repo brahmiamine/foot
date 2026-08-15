@@ -28,47 +28,68 @@ export default async function TrainingsPage() {
     tacticsBoardService.findVisible(teamId, access.userId),
   ]);
 
-  const [invitationsByTraining, blocksByTraining] = await Promise.all([
-    Promise.all(trainingsData.map(async (t) => ({ trainingId: t.id, invitations: await invitationService.findByTraining(t.id) }))),
-    Promise.all(trainingsData.map(async (t) => ({ trainingId: t.id, blocks: await trainingService.findBlocks(t.id) }))),
+  const trainingIds = trainingsData.map((training) => training.id);
+  const [invitations, blocks] = await Promise.all([
+    invitationService.findByTrainingIds(trainingIds),
+    trainingService.findBlocksByTrainingIds(trainingIds),
   ]);
-  const invitationsMap = new Map(invitationsByTraining.map((e) => [e.trainingId, e.invitations]));
-  const blocksMap = new Map(blocksByTraining.map((e) => [e.trainingId, e.blocks]));
 
-  const trainings = trainingsData.map((t) => ({
-    id: t.id,
-    category: t.category,
-    title: t.title,
-    objective: t.objective ?? null,
-    trainingType: t.trainingType,
-    intensity: t.intensity ?? null,
-    date: t.date.toISOString(),
-    durationMinutes: t.durationMinutes ?? null,
-    equipment: t.equipment ?? null,
-    stadiumId: t.stadiumId ?? null,
-    stadiumName: t.stadium?.nameFr ?? null,
-    venueName: t.venueName ?? null,
-    notes: t.notes ?? null,
-    status: t.status,
-    blocks: (blocksMap.get(t.id) ?? []).map((b) => ({
-      blockType: b.blockType,
-      label: b.label,
-      durationMinutes: b.durationMinutes,
-      notes: b.notes ?? null,
-      tacticsBoardId: b.tacticsBoardId ?? null,
-      tacticsBoardTitle: b.tacticsBoard?.title ?? null,
+  const invitationsMap = new Map<number, typeof invitations>();
+  for (const invitation of invitations) {
+    const current = invitationsMap.get(invitation.trainingId) ?? [];
+    current.push(invitation);
+    invitationsMap.set(invitation.trainingId, current);
+  }
+
+  const blocksMap = new Map<number, typeof blocks>();
+  for (const block of blocks) {
+    const current = blocksMap.get(block.trainingId) ?? [];
+    current.push(block);
+    blocksMap.set(block.trainingId, current);
+  }
+
+  const trainings = trainingsData.map((training) => ({
+    id: training.id,
+    category: training.category,
+    title: training.title,
+    objective: training.objective ?? null,
+    trainingType: training.trainingType,
+    intensity: training.intensity ?? null,
+    date: training.date.toISOString(),
+    durationMinutes: training.durationMinutes ?? null,
+    equipment: training.equipment ?? null,
+    stadiumId: training.stadiumId ?? null,
+    stadiumName: training.stadium?.nameFr ?? null,
+    venueName: training.venueName ?? null,
+    notes: training.notes ?? null,
+    status: training.status,
+    blocks: (blocksMap.get(training.id) ?? []).map((block) => ({
+      blockType: block.blockType,
+      label: block.label,
+      durationMinutes: block.durationMinutes,
+      notes: block.notes ?? null,
+      tacticsBoardId: block.tacticsBoardId ?? null,
+      tacticsBoardTitle: block.tacticsBoard?.title ?? null,
     })),
-    invitations: (invitationsMap.get(t.id) ?? []).map((i) => ({
-      id: i.id,
-      playerId: i.playerId,
-      playerLabel: i.player ? `#${i.player.number} ${i.player.firstNameFr} ${i.player.lastNameFr}` : "Joueur inconnu",
-      response: i.response,
+    invitations: (invitationsMap.get(training.id) ?? []).map((invitation) => ({
+      id: invitation.id,
+      playerId: invitation.playerId,
+      playerLabel: invitation.player
+        ? `#${invitation.player.number} ${invitation.player.firstNameFr} ${invitation.player.lastNameFr}`
+        : "Joueur inconnu",
+      response: invitation.response,
     })),
   }));
 
-  const players = playersData.filter((p) => p.isActive).map((p) => ({ id: p.id, label: `#${p.number} ${p.firstNameFr} ${p.lastNameFr}`, category: p.category }));
-  const stadiums = stadiumsData.map((s) => ({ id: s.id, nameFr: s.nameFr }));
-  const tacticsBoards = tacticsBoardsData.map((b) => ({ id: b.id, title: b.title }));
+  const players = playersData
+    .filter((player) => player.isActive)
+    .map((player) => ({
+      id: player.id,
+      label: `#${player.number} ${player.firstNameFr} ${player.lastNameFr}`,
+      category: player.category,
+    }));
+  const stadiums = stadiumsData.map((stadium) => ({ id: stadium.id, nameFr: stadium.nameFr }));
+  const tacticsBoards = tacticsBoardsData.map((board) => ({ id: board.id, title: board.title }));
 
   return (
     <TrainingsManagement
