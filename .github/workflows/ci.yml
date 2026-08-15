@@ -128,16 +128,20 @@ jobs:
           cache: ${{ matrix.pm }}
           cache-dependency-path: ${{ matrix.dir }}/${{ matrix.pm == 'pnpm' && 'pnpm-lock.yaml' || 'package-lock.json' }}
 
+      - name: Restore Next.js build cache
+        if: matrix.pm == 'pnpm' && matrix.name != 'marketplace'
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.dir }}/.next/cache
+          key: next-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.dir), format('{0}/package.json', matrix.dir)) }}-${{ github.sha }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.dir), format('{0}/package.json', matrix.dir)) }}-
+            next-${{ runner.os }}-${{ matrix.name }}-
+
       - name: Install dependencies
         working-directory: ${{ matrix.dir }}
-        # --ignore-workspace: chaque app garde une installation pnpm independante de
-        # son propre lockfile (voir .npmrc). Sans ce flag, le nouveau pnpm-workspace.yaml
-        # racine fait deux choses : (1) il ignore silencieusement le script natif de
-        # better-sqlite3 (utilise par les tests d'integration SQLite de arbinote,
-        # club-ob, federation-hub, identity, match-operations, club-hub, seller-portal,
-        # ticketing), qui echoue alors avec "Could not locate the bindings file" ; (2)
-        # il fait echouer l'install de marketplace ("No projects matched the filters"),
-        # qui n'est pas un membre du workspace pnpm.
+        # Migration workspace encore progressive : chaque application conserve
+        # temporairement son lockfile autonome jusqu'au lot de consolidation pnpm.
         run: ${{ matrix.pm == 'pnpm' && 'pnpm install --frozen-lockfile --ignore-workspace' || 'npm ci' }}
 
       - name: Typecheck
@@ -145,25 +149,24 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: npx tsc --noEmit
 
-      - name: Build (typecheck + compile)
-        if: matrix.pm == 'npm'
-        working-directory: ${{ matrix.dir }}
-        run: npm run build
-
       - name: Lint (pnpm apps)
         if: matrix.pm == 'pnpm' && matrix.name != 'marketplace'
         working-directory: ${{ matrix.dir }}
         run: pnpm run lint
 
-      - name: Lint (marketplace — sans --fix, contrairement au script pnpm run lint local)
+      - name: Lint (marketplace — sans --fix)
         if: matrix.name == 'marketplace'
         working-directory: ${{ matrix.dir }}
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
-      - name: Lint (npm apps — sans --fix, contrairement au script npm run lint local)
+      - name: Lint (npm apps — sans --fix)
         if: matrix.pm == 'npm'
         working-directory: ${{ matrix.dir }}
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+      - name: Production build
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.pm == 'pnpm' && 'pnpm run build' || 'npm run build' }}
 
       - name: Test
         if: matrix.test
