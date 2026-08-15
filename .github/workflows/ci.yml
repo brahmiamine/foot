@@ -46,6 +46,7 @@ jobs:
         with:
           node-version: 20
       - run: node scripts/validate-architecture-boundaries.mjs
+      - run: node scripts/validate-club-rbac-boundaries.mjs
 
   check:
     name: ${{ matrix.name }}
