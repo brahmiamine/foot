@@ -60,19 +60,10 @@ CREATE TABLE IF NOT EXISTS competition_registration_history (
   CONSTRAINT fk_competition_registration_history FOREIGN KEY (registration_id) REFERENCES competition_registrations(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-CREATE TABLE IF NOT EXISTS regulatory_bans (
-  id char(36) NOT NULL DEFAULT uuid(),
-  club_id char(36) NOT NULL,
-  season_id char(36) DEFAULT NULL,
-  type enum('COMPETITION_BAN','REGISTRATION_BAN','TRANSFER_BAN') NOT NULL,
-  status enum('ACTIVE','SUSPENDED','LIFTED','EXPIRED','CANCELLED') NOT NULL DEFAULT 'ACTIVE',
-  reason text NOT NULL,
-  starts_at datetime NOT NULL,
-  ends_at datetime DEFAULT NULL,
-  created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_regulatory_ban_active (club_id, season_id, type, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+-- regulatory_bans (PR #73 initiale) volontairement absente : ce périmètre
+-- (interdictions de recrutement/participation) est déjà couvert par
+-- `club_sanctions` (migration-v2 P0-009, federation-hub/mysql/migration_add_club_sanctions.sql),
+-- déduplication faite lors de la fusion de cette migration.
 
 CREATE TABLE IF NOT EXISTS transfer_windows (
   id char(36) NOT NULL DEFAULT uuid(),
@@ -127,21 +118,11 @@ ALTER TABLE player_transfers
   ADD COLUMN IF NOT EXISTS transfer_window_id char(36) DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS transfer_window_exception_id char(36) DEFAULT NULL;
 
-CREATE TABLE IF NOT EXISTS medical_eligibilities (
-  id char(36) NOT NULL DEFAULT uuid(),
-  player_id varchar(191) NOT NULL,
-  season_id char(36) NOT NULL,
-  club_id char(36) NOT NULL,
-  examination_date date NOT NULL,
-  expires_at date NOT NULL,
-  status enum('PENDING','FIT','UNFIT','EXPIRED','SUSPENDED') NOT NULL DEFAULT 'PENDING',
-  validated_by_medical_user_id varchar(191) DEFAULT NULL,
-  certificate_reference varchar(191) DEFAULT NULL,
-  created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_medical_eligibility_lookup (player_id, club_id, season_id, status, expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+-- medical_eligibilities (PR #73 initiale) volontairement absente : cette
+-- migration entrait en collision de schéma avec celle de migration-v2 P1-005
+-- (federation-hub/mysql/migration_add_medical_eligibilities.sql, plus complète :
+-- federation_id, league_id, created_by, document_url, expires_at nullable).
+-- Le schéma P1-005 a été conservé comme canonique lors de la fusion.
 
 CREATE TABLE IF NOT EXISTS eligibility_checks (
   id char(36) NOT NULL DEFAULT uuid(),

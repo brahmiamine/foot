@@ -95,15 +95,7 @@ export class EligibilityCheck {
   @CreateDateColumn({type:"datetime",name:"checked_at"}) checkedAt!: Date;
 }
 
-@Entity("regulatory_bans")
-export class RegulatoryBan {
-  @PrimaryGeneratedColumn("uuid") id!: string;
-  @Column({type:"char",length:36,name:"club_id"}) clubId!: string;
-  @Column({type:"char",length:36,nullable:true,name:"season_id"}) seasonId?: string|null;
-  @Column({type:"enum",enum:["COMPETITION_BAN","REGISTRATION_BAN","TRANSFER_BAN"]}) type!: "COMPETITION_BAN"|"REGISTRATION_BAN"|"TRANSFER_BAN";
-  @Column({type:"enum",enum:["ACTIVE","SUSPENDED","LIFTED","EXPIRED","CANCELLED"],default:"ACTIVE"}) status!: string;
-  @Column({type:"text"}) reason!: string;
-  @Column({type:"datetime",name:"starts_at"}) startsAt!: Date;
-  @Column({type:"datetime",nullable:true,name:"ends_at"}) endsAt?: Date|null;
-  @CreateDateColumn({type:"datetime",name:"created_at"}) createdAt!: Date;
-}
+// RegulatoryBan (regulatory_bans) volontairement absente : ce périmètre est
+// déjà couvert par ClubSanction (migration-v2 P0-009, @/entities/ClubSanction),
+// dédupliqué lors de la fusion de la migration P0-006/007/008 (voir
+// migration-v2.md, "Bilan de cette migration").

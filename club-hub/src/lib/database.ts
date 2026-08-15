@@ -82,7 +82,16 @@ import { PersonLicense, PersonLicenseDocument, PersonLicenseHistory } from "@/en
 import { PlayerRegistration, PlayerRegistrationHistory } from "@/entities/PlayerRegistration";
 import { PlayerContract, PlayerContractDocument, PlayerContractHistory } from "@/entities/PlayerContract";
 import { StaffContract, StaffContractDocument, StaffContractHistory } from "@/entities/StaffContract";
-import { CompetitionRegistration, CompetitionRegistrationHistory, RegulatoryBan, TransferWindow, TransferWindowHistory } from "@/entities/Regulatory";
+import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
+import { LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent } from "@/entities/LegalCase";
+import { SeasonRegulatoryCycle } from "@/entities/SeasonRegulatoryCycle";
+import { FinancialCompliance, FinancialComplianceHistory } from "@/entities/FinancialCompliance";
+import { BoardMandate, BoardMember, BoardMandateHistory } from "@/entities/Governance";
+import { CoachQualification, CoachQualificationHistory } from "@/entities/CoachQualification";
+import { MedicalEligibility, MedicalEligibilityHistory } from "@/entities/MedicalEligibility";
+import { FootballAgent, RepresentationAgreement } from "@/entities/Agent";
+import { Appeal, AppealDocument, AppealEvent } from "@/entities/Appeal";
+import { CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory } from "@/entities/Regulatory";
 
 /**
  * Database connection configuration
@@ -116,7 +125,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Never use synchronize in production
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory, CompetitionRegistration, CompetitionRegistrationHistory, RegulatoryBan, TransferWindow, TransferWindowHistory], // Import entities directly instead of using glob patterns
+      entities: [Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent, SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory, BoardMandate, BoardMember, BoardMandateHistory, CoachQualification, CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory, FootballAgent, RepresentationAgreement, Appeal, AppealDocument, AppealEvent, CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory], // Import entities directly instead of using glob patterns
       migrations: [], // Add migrations as needed
       charset: "utf8mb4",
       timezone: "Z",

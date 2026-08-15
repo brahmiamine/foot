@@ -6,9 +6,9 @@ import { Player } from "@/entities/Player";
 import { Team } from "@/entities/Team";
 import { TeamMember } from "@/entities/TeamMember";
 import { PlayerTransfer, type PlayerTransferType, type PlayerTransferStatus } from "@/entities/PlayerTransfer";
+import { hasActiveTransferBan } from "@/services/ClubSanctionService";
 import { findOpenTransferWindow } from "@/services/TransferWindowService";
 import { assertTransferException } from "../../../packages/regulatory-shared/src/transferWindow";
-import { RegulatoryBan } from "@/entities/Regulatory";
 
 export class PlayerTransferError extends Error {
   constructor(message: string) {
@@ -87,12 +87,6 @@ export async function createTransfer(input: CreateTransferInput): Promise<Player
   if (!input.seasonId) throw new PlayerTransferError("seasonId est obligatoire pour contrôler la fenêtre de transfert");
   const openWindow = await findOpenTransferWindow(dataSource, { teamId: input.fromTeamId, seasonId: input.seasonId });
   if (!openWindow) throw new PlayerTransferError("TRANSFER_WINDOW_CLOSED");
-  const ban = await dataSource.getRepository(RegulatoryBan).createQueryBuilder("ban")
-    .where("ban.clubId = :clubId AND ban.type = 'TRANSFER_BAN' AND ban.status = 'ACTIVE'", { clubId: input.fromTeamId })
-    .andWhere("ban.startsAt <= CURRENT_TIMESTAMP")
-    .andWhere("(ban.endsAt IS NULL OR ban.endsAt >= CURRENT_TIMESTAMP)")
-    .getOne();
-  if (ban) throw new PlayerTransferError("TRANSFER_BAN");
 
   if (input.fromTeamId === input.toTeamId) {
     throw new PlayerTransferError("Le club source et le club destination doivent être différents");
@@ -177,6 +171,13 @@ export async function completeTransfer(transferId: string, homologatedBy?: strin
     if (transfer.status === "COMPLETED") throw new PlayerTransferError("Ce transfert est déjà complété");
     if (transfer.status !== "APPROVED") {
       throw new PlayerTransferError("Le club destination doit approuver le transfert avant homologation fédérale");
+    }
+
+    // migration-v2.md P0-009 : une interdiction de recrutement (TRANSFER_BAN) active
+    // sur le club destination bloque l'homologation fédérale du transfert.
+    const transferBan = await hasActiveTransferBan(transfer.toTeamId);
+    if (transferBan) {
+      throw new PlayerTransferError("Le club destination fait l'objet d'une interdiction de recrutement (sanction fédérale active)");
     }
 
     if (!transfer.seasonId) throw new PlayerTransferError("seasonId manquant");

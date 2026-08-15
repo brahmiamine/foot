@@ -91,6 +91,42 @@ federation-hub/mysql/migration_add_player_contracts.sql
 federation-hub/mysql/migration_add_staff_contracts.sql
 # P0-006/P0-007/P0-008 migration-v2 : engagements, fenêtres et éligibilité.
 federation-hub/mysql/migration_add_competition_entries_transfer_windows_eligibility.sql
+# P0-009 migration-v2 : sanctions clubs et interdictions de recrutement.
+# Dépend de teams/saisons/federations/ligues/User (déjà en base).
+federation-hub/mysql/migration_add_club_sanctions.sql
+# P0-010 migration-v2 : litiges (commission juridique fédérale). Dépend de
+# federations/ligues/saisons/User (déjà en base) ; parties polymorphes, pas
+# de FK vers teams (voir en-tête du fichier).
+federation-hub/mysql/migration_add_legal_cases.sql
+# P0-011 migration-v2 : assistant de renouvellement saisonnier. Dépend de
+# saisons/federations/ligues/User (déjà en base).
+federation-hub/mysql/migration_add_season_regulatory_cycles.sql
+# P1-001 migration-v2 : contrôle financier réglementaire. Dépend de
+# teams/saisons/federations/ligues/User (déjà en base).
+federation-hub/mysql/migration_add_financial_compliance.sql
+# P1-002 migration-v2 : gouvernance et comité directeur. Dépend de
+# teams/federations/ligues/User (déjà en base).
+federation-hub/mysql/migration_add_governance.sql
+# P1-003 migration-v2 : homologation des stades. Dépend de cms_stadiums
+# (club-hub, référentiel des stades), teams/saisons/federations/ligues/User.
+federation-hub/mysql/migration_add_stadium_inspections.sql
+# P1-004 migration-v2 : qualifications CAF des entraîneurs. Dépend de
+# cms_staff (club-hub), teams/federations/ligues/User + colonne sur saisons.
+federation-hub/mysql/migration_add_coach_qualifications.sql
+# P1-005 migration-v2 : aptitude médicale fédérale (statut uniquement,
+# aucun diagnostic). Dépend de Player/teams/saisons/federations/ligues/User.
+federation-hub/mysql/migration_add_medical_eligibilities.sql
+# P1-006 migration-v2 : agents et intermédiaires. Dépend de
+# Player/teams/federations/User (déjà en base).
+federation-hub/mysql/migration_add_agents.sql
+# P1-007 migration-v2 : discipline fédérale avancée. Dépend de
+# club_sanctions (P0-009, décision -> sanction club), teams/federations/
+# ligues/User (déjà en base).
+federation-hub/mysql/migration_add_disciplinary_cases.sql
+# P1-008 migration-v2 : appels. Référence polymorphe sans FK vers la
+# décision contestée (legal_cases/disciplinary_cases/etc.), dépend de
+# federations/ligues/User (déjà en base).
+federation-hub/mysql/migration_add_appeals.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

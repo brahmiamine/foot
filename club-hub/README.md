@@ -67,6 +67,31 @@ Les transitions et résiliations sont auditées et notifiées. Lorsqu'une saison
 exige un contrat, seule une homologation active permet de créer, soumettre puis
 faire approuver l'inscription P0-003 correspondante.
 
+### Sanctions, litiges et renouvellement saisonnier (migration-v2 P0-009 à P0-011)
+
+`/admin/federation/sanctions` (lecture seule) et `/admin/federation/legal-cases`
+(lecture des dossiers où le club est partie + dépôt de pièces/réponse)
+affichent l'état réglementaire du club sans dupliquer la logique fédérale de
+décision. Le cycle réglementaire de saison (P0-011) sert de garde serveur,
+invisible pour le club, sur la soumission des licences club et des
+inscriptions joueurs.
+
+### Conformité financière, gouvernance, qualifications et médical (migration-v2 P1-001/002/004/005)
+
+`/admin/federation/financial-compliance`, `/admin/federation/board-mandates`,
+`/admin/federation/coach-qualifications` et `/admin/federation/medical-eligibility`
+permettent au club de déposer respectivement son dossier financier, son
+comité directeur, les diplômes CAF de son staff et les certificats médicaux
+d'aptitude de ses joueurs (statut uniquement, jamais de diagnostic) pour
+décision fédérale.
+
+### Agents et appels (migration-v2 P1-006/P1-008)
+
+Un agent lié à un contrat joueur (P0-004) doit désormais référencer un agent
+fédéral `ACTIVE` non expiré (`AgentService.isAgentActive`, lecture seule de
+`football_agents`). `/admin/federation/appeals` permet au club de déposer un
+appel contre une décision fédérale le concernant.
+
 SSO/profil; notifications; payments pour boutique; marketplace pour publication; SMTP; stockage local des uploads.
 
 ## Variables d’environnement

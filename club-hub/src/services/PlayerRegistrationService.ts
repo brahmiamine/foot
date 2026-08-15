@@ -8,6 +8,7 @@ import { NotificationOutboxService } from "@/services/NotificationOutboxService"
 import { isPersonLicenseActive } from "../../../packages/regulatory-shared/src/personLicensing";
 import { isPlayerContractHomologated } from "../../../packages/regulatory-shared/src/playerContract";
 import { assertPlayerRegistrationTransition, eligibilityForRegistrationStatus, PlayerRegistrationWorkflowError } from "../../../packages/regulatory-shared/src/playerRegistration";
+import { isRegistrationWindowOpen } from "@/services/SeasonRegulatoryCycleService";
 
 export interface PlayerRegistrationActor { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null; }
 
@@ -103,6 +104,10 @@ export async function submitPlayerRegistration(clubId: string, registrationId: s
   return source.transaction(async (manager) => {
     const registration = await ownedRegistration(manager, clubId, registrationId, true);
     assertPlayerRegistrationTransition(registration.status, "SUBMITTED");
+    // migration-v2.md P0-011 : la campagne d'inscription doit être ouverte pour cette saison.
+    if (!(await isRegistrationWindowOpen(registration.seasonId))) {
+      throw new PlayerRegistrationWorkflowError("La campagne d'inscription n'est pas ouverte pour cette saison");
+    }
     await activePlayerLicense(manager, clubId, registration.playerId, registration.seasonId, registration.licenseId);
     await requiredPlayerContract(manager, clubId, registration.playerId, registration.seasonId, registration.contractId);
     const previous = registration.status;

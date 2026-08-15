@@ -68,7 +68,7 @@ export class MedicalEligibilityRead {
   @Column({type:"varchar",length:191,name:"player_id"}) playerId!: string;
   @Column({type:"char",length:36,name:"club_id"}) clubId!: string;
   @Column({type:"char",length:36,name:"season_id"}) seasonId!: string;
-  @Column({type:"date",name:"expires_at"}) expiresAt!: string;
+  @Column({type:"date",name:"expires_at",nullable:true}) expiresAt?: string|null;
   @Column({type:"varchar",length:32}) status!: string;
 }
 @Entity("eligibility_checks")

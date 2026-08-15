@@ -275,16 +275,198 @@ Les validations réglementaires doivent être traçables de bout en bout.
 - ✅ **P0-006 — Engagements clubs aux compétitions** : modèle adossé aux
   éditions existantes dans `saisons`, dépôt club, contrôle fédération/ligue,
   licence club, dossier, stade/finance/frais configurables, interdiction de
-  participation, audit, notifications et UI dans les deux hubs.
+  participation, audit, notifications et UI dans les deux hubs. Implémenté par
+  une PR concurrente (#73) pendant cette migration, pas par les lots ci-dessous.
 - ✅ **P0-007 — Fenêtres de transfert** : périodes fédération/ligue auditées,
   refus `TRANSFER_WINDOW_CLOSED` à la création et à l'homologation,
   interdictions de recrutement, exception fédérale avec motif et référence
-  réglementaire obligatoires, notifications et vues club/fédération.
+  réglementaire obligatoires, notifications et vues club/fédération. Idem,
+  PR #73 — fusionné avec le `TRANSFER_BAN` de P0-009 ci-dessous dans
+  `PlayerTransferService.completeTransfer` (les deux contrôles cohabitent).
 - ✅ **P0-008 — Qualification et éligibilité** : `EligibilityService` central
   dans `match-operations`, contrôles serveur complets, journal des tentatives,
   API fédérale et blocage réel de la transition `DRAFT -> PRE_MATCH_SIGNED`
-  lorsque la composition contient un joueur inéligible.
-- ⬜ **P0-009 et suivants** : à traiter séquentiellement dans cette migration.
+  lorsque la composition contient un joueur inéligible. Idem, PR #73.
+- ✅ **P0-009 — Sanctions clubs** : `club_sanctions` + historique audité,
+  scopes fédération/ligue serveur, création/suspension/réactivation/levée
+  avec motif obligatoire, notifications `CLUB_SANCTION_CREATED`/
+  `CLUB_SANCTION_LIFTED`, interfaces FR/EN/AR (`federation-hub`) et FR/AR en
+  lecture seule (`club-hub`). `TRANSFER_BAN` bloque désormais l'homologation
+  fédérale d'un transfert (`PlayerTransferService.completeTransfer`) et
+  `REGISTRATION_BAN` bloque l'approbation d'une inscription joueur
+  (`playerRegistrations.transitionPlayerRegistration`). `COMPETITION_BAN`/
+  `COMPETITION_EXCLUSION` sont modélisés et exposés mais non appliqués
+  automatiquement : `CompetitionRegistrationService` (P0-006, PR #73) ne
+  consulte pas `club_sanctions` — brancher ce contrôle reste un
+  prolongement possible, hors périmètre de cette migration.
+- ✅ **P0-010 — Litiges** : `legal_cases` + `legal_case_documents`/`legal_case_hearings`/
+  `legal_case_decisions`/`legal_case_events`, parties polymorphes (club,
+  joueur, coach, staff, agent, fédération), numéro de dossier unique généré
+  serveur, workflow audité (recevabilité, instruction, audience, décision,
+  appel, clôture, retrait), scopes fédération/ligue serveur, notifications
+  (`LEGAL_CASE_CREATED`, `LEGAL_CASE_HEARING_SCHEDULED`, `LEGAL_CASE_DECIDED`,
+  `LEGAL_CASE_STATUS_CHANGED`) et interfaces FR/EN/AR (`federation-hub`) et
+  FR/AR (`club-hub`, lecture des dossiers où le club est partie + dépôt de
+  pièces/réponse, jamais de changement de statut). L'ouverture d'un dossier
+  reste un acte fédéral (conforme à la doc : le club ne fait que « déposer
+  une réponse »), pas une auto-saisie par le club.
+- ✅ **P0-011 — Renouvellement saisonnier** : `season_regulatory_cycles` +
+  historique audité, un cycle par saison (`DRAFT → ACTIVE → CLOSED`),
+  fenêtres de licence club et d'inscription joueurs pilotées par dates
+  (ouverture/fermeture indépendantes), expiration automatique et idempotente
+  des licences club/personnes `APPROVED` de la saison précédente à la
+  clôture du cycle, notifications (`CLUB_LICENSING_WINDOW_OPENED`,
+  `REGISTRATION_WINDOW_OPENED`) et interface `federation-hub` (FR/EN/AR).
+  Les fenêtres sont branchées comme garde serveur sur la soumission d'une
+  licence club (`ClubLicenseService.submitClubLicenseApplication`) et d'une
+  inscription joueur (`PlayerRegistrationService.submitPlayerRegistration`)
+  côté `club-hub` : une saison sans cycle reste ouverte (comportement
+  historique inchangé, §36), un cycle `CLOSED` ou une fenêtre non encore
+  ouverte bloque la soumission. Pas d'UI `club-hub` dédiée : c'est un outil
+  interne à la fédération, le club voit seulement l'effet (soumission
+  acceptée ou refusée).
+- ✅ **P1-001 — Conformité financière** : `club_financial_compliance` +
+  historique audité, un dossier par club/saison (contrainte d'unicité),
+  workflow audité (`DRAFT → SUBMITTED → UNDER_REVIEW → COMPLIANT/CONDITIONAL
+  /NON_COMPLIANT`, `NON_COMPLIANT` réouvrable en `DRAFT`), scopes
+  fédération/ligue serveur, notifications (`FINANCIAL_COMPLIANCE_SUBMITTED`,
+  `FINANCIAL_COMPLIANCE_DECIDED`) et interfaces `club-hub` (dépôt/soumission,
+  FR/AR) + `federation-hub` (revue/décision, FR/EN/AR). Volontairement pas
+  un système comptable complet : uniquement les agrégats déclaratifs
+  (budget, masse salariale, dettes par catégorie) nécessaires à la décision
+  fédérale, conformément au périmètre du document.
+- ✅ **P1-002 — Gouvernance et comité directeur** : `club_board_mandates` +
+  `club_board_members` + historique audité, workflow de mandat audité
+  (`DRAFT → SUBMITTED → VALIDATED/REJECTED`, `REJECTED` réouvrable en
+  `DRAFT`, `VALIDATED → ENDED`), validation fédérale globale d'un mandat qui
+  approuve en bloc tous ses membres courants, approbation individuelle pour
+  tout membre ajouté ensuite (remplacement en cours de mandat), scopes
+  fédération/ligue serveur, notifications (`BOARD_MANDATE_SUBMITTED`,
+  `BOARD_MANDATE_VALIDATED`, `BOARD_MANDATE_REJECTED`, `BOARD_MANDATE_ENDED`)
+  et interfaces `club-hub` (dépôt du mandat, ajout de membres, soumission,
+  FR/AR) + `federation-hub` (validation/rejet, approbation des membres,
+  FR/EN/AR).
+- ✅ **P1-003 — Homologation des stades** : `stadium_inspections` +
+  `stadium_restrictions` + historique audité, réutilise `cms_stadiums`
+  (référentiel riche des stades déjà propriété de `club-hub`) sans le
+  dupliquer — lu en lecture seule par `federation-hub` via requête directe,
+  comme le fait déjà `staffContracts.ts` pour `cms_staff`. Sept aspects
+  d'inspection (terrain, éclairage, vestiaires, sécurité, capacité, médical,
+  médias) + VAR optionnel, workflow audité (`PENDING → APPROVED/
+  APPROVED_WITH_RESTRICTIONS/REJECTED`, `APPROVED(_WITH_RESTRICTIONS) →
+  SUSPENDED → APPROVED`), réserves versionnées en cas d'homologation sous
+  réserve, scopes fédération/ligue serveur, notification
+  (`STADIUM_INSPECTION_DECIDED`) et interface `federation-hub` (FR/EN/AR).
+  Pas d'UI `club-hub` : le document ne prévoit cette homologation que côté
+  fédération (§33/§34).
+- ✅ **P1-004 — Qualifications entraîneurs (CAF)** : `coach_qualifications` +
+  historique audité, distinct de `person_licenses` (P0-002, enregistrement
+  administratif saisonnier) — ici un diplôme technique permanent
+  (`CAF_PRO`/`CAF_A`/`CAF_B`/`CAF_C`/`NATIONAL`/`OTHER`) rattaché à la
+  personne. `staff_contracts.qualification_id` (P0-005) continue de
+  référencer `person_licenses` sans changement, aucune donnée migrée entre
+  les deux domaines. Workflow audité (`PENDING → VALID/REVOKED`,
+  `VALID → EXPIRED/SUSPENDED/REVOKED`, `SUSPENDED → VALID/REVOKED`),
+  colonne `saisons.minimum_head_coach_qualification` avec comparateur de
+  niveau (`meetsMinimumQualification`), scopes fédération/ligue serveur,
+  notifications et interfaces `club-hub` (soumission, FR/AR) +
+  `federation-hub` (validation/décision, FR/EN/AR). Le niveau minimum par
+  saison est modélisé et exposé mais pas encore appliqué automatiquement à
+  la désignation d'un entraîneur principal : aucun domaine "responsable
+  technique de match" n'existe dans ce dépôt pour porter ce contrôle.
+- ✅ **P1-005 — Aptitude médicale fédérale** : `medical_eligibilities` +
+  historique audité, un dossier par joueur/saison (contrainte d'unicité,
+  réouverture explicite `UNFIT → PENDING` pour une nouvelle visite). Statut
+  d'aptitude uniquement (`PENDING`/`FIT`/`UNFIT`/`EXPIRED`/`SUSPENDED`) —
+  **aucun champ diagnostic** dans le schéma ni dans les interfaces,
+  conformément à §3.3 : le détail médical reste dans `cms_injuries`
+  (club-hub). Workflow audité, scopes fédération/ligue serveur,
+  notifications et interfaces `club-hub` (dépôt du certificat, FR/AR) +
+  `federation-hub` (décision FIT/UNFIT, FR/EN/AR). La validation est portée
+  par `federation-hub` (rôle fédéral) plutôt que par `medical-hub` : ce
+  dernier n'a pas été audité dans cette migration, brancher son propre rôle
+  médical comme validateur est un prolongement possible mais hors
+  périmètre ici.
+- ✅ **P1-006 — Agents et intermédiaires** : `football_agents` +
+  `representation_agreements` + historique audité. Workflow agent audité
+  (`PENDING → ACTIVE`, `ACTIVE ↔ SUSPENDED`, `→ REVOKED/EXPIRED`) et workflow
+  de mandat de représentation (`DRAFT → ACTIVE → TERMINATED/EXPIRED`),
+  scopes fédération serveur, interface `federation-hub` (registre, décisions,
+  mandats, FR/EN/AR). Intégration effective dans les contrats joueurs
+  (P0-004) : `PlayerContractService.createPlayerContractForClub`/
+  `updatePlayerContractForClub` (club-hub) rejettent désormais tout
+  `agentId` qui ne correspond pas à un agent fédéral `ACTIVE` et non expiré
+  (lecture seule de `football_agents` via `AgentService.isAgentActive`).
+  Pas d'UI `club-hub` pour le registre lui-même (non prévue par le
+  document), uniquement cette garde serveur.
+- ✅ **P1-007 — Discipline fédérale avancée** : `disciplinary_cases` +
+  `disciplinary_case_evidence`/`disciplinary_case_hearings`/
+  `disciplinary_case_decisions`/`disciplinary_case_events`. Ne remplace pas
+  `Card`/`Suspension`/`CardReason` existants (§3.2) : c'est un niveau
+  supérieur d'instruction/décision. Numéro de dossier unique généré
+  serveur, workflow audité (`OPEN → UNDER_REVIEW → HEARING_SCHEDULED/
+  DECIDED → APPEALED/CLOSED`), scopes fédération/ligue serveur, interface
+  `federation-hub` (FR/EN/AR). Intégration concrète avec P0-009 : une
+  décision peut créer directement une ligne `club_sanctions`
+  (`sourceCaseType='DISCIPLINARY_CASE'`, liée via
+  `disciplinary_case_decisions.club_sanction_id`) quand le dossier concerne
+  un club. Pour une sanction individuelle (joueur/staff), le document
+  demande de réutiliser le mécanisme `Suspension` existant : cette
+  création n'est **pas automatisée** ici (le flux d'émission de
+  `Suspension` lié aux cartons n'a pas été audité dans cette migration),
+  seule une `sanctionDescription` texte est enregistrée sur la décision.
+  Pas d'UI `club-hub` : non prévue par le document pour ce domaine.
+- ✅ **P1-008 — Appels** : `appeals` + `appeal_documents` + `appeal_events`,
+  référence polymorphe sans FK vers la décision contestée (`legal_cases`,
+  `disciplinary_cases`, `club_sanctions`, `club_license_applications`,
+  `person_licenses`, `stadium_inspections`, `coach_qualifications`,
+  `club_financial_compliance`, `medical_eligibilities`, `OTHER`). Workflow
+  audité (`SUBMITTED → ADMISSIBILITY_REVIEW → UNDER_REVIEW → HEARING/
+  DECIDED`, `→ REJECTED/WITHDRAWN`), scopes fédération/ligue serveur,
+  notifications (`APPEAL_SUBMITTED`, `APPEAL_DECIDED`) et interfaces
+  `club-hub` (dépôt par le club requérant, FR/AR) + `federation-hub`
+  (instruction/décision, FR/EN/AR). **Un appel ne modifie jamais
+  l'historique de la décision originale** (§23) : le dépôt d'un appel
+  contre un `LEGAL_CASE`/`DISCIPLINARY_CASE` `DECIDED` transitionne
+  uniquement son statut vers `APPEALED` (transition déjà prévue par le
+  workflow de ce domaine, P0-010/P1-007), sans toucher aux lignes de
+  décision/historique déjà enregistrées.
+
+## Bilan de cette migration
+
+Tous les lots P0 et P1 demandés sont terminés. P0-001 à P0-005 étaient déjà
+acquis en entrée de cette migration. P0-006 (engagements clubs aux
+compétitions), P0-007 (fenêtres de transfert) et P0-008 (service
+d'éligibilité central) ont été implémentés en parallèle par une PR
+concurrente (#73), fusionnée dans `main` pendant cette migration — ils
+n'ont donc pas été traités par les lots ci-dessous mais sont bien présents.
+P0-009, P0-010, P0-011 puis P1-001 à P1-008 ont été implémentés ici,
+séquentiellement, chacun avec migration SQL, workflow audité, scopes
+fédération/ligue serveur, API, UI FR/AR ou FR/EN/AR dans `federation-hub`
+et/ou `club-hub`, notifications et tests. P2 reste uniquement préparé
+architecturalement (§24), comme demandé : aucune table de ce périmètre n'a
+été créée.
+
+La fusion de #73 dans cette branche a nécessité de résoudre deux collisions
+de schéma invisibles à `git` (fichiers différents, pas de conflit texte) :
+`RegulatoryBan` (PR #73, table `regulatory_bans`) était un sous-ensemble
+sans écrivain (aucune route ni service ne l'alimentait) du `club_sanctions`
+déjà construit ici pour P0-009 — supprimé au profit de `club_sanctions`,
+seule source de vérité pour les interdictions de recrutement/participation.
+`medical_eligibilities` était défini indépendamment par les deux branches
+avec des colonnes différentes ; le schéma de P1-005 (plus complet :
+`federation_id`, `league_id`, `created_by`, `document_url`,
+`expires_at` nullable) a été conservé comme canonique et la définition
+dupliquée retirée de la migration de #73 (voir
+`federation-hub/mysql/migration_add_competition_entries_transfer_windows_eligibility.sql`).
+`match-operations/src/services/EligibilityService.ts` a été adapté pour
+tolérer un `expiresAt` nul (aptitude sans date d'expiration, permise par le
+schéma canonique).
+
+Les deux applications compilent (`next build`) sans erreur, `tsc --noEmit`
+est vert, `pnpm lint`/`eslint` ne relève aucune erreur sur le code de cette
+migration, et l'intégralité des suites de tests (`vitest run`) passe dans
+`federation-hub` et `club-hub`.
 
 ---
 

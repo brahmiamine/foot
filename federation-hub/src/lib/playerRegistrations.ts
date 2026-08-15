@@ -6,6 +6,7 @@ import type { SsoUser } from './ssoSession'
 import { PersonLicense, Player, PlayerContract, PlayerRegistration, PlayerRegistrationHistory, Saison, Team } from './entities'
 import { notify } from './notificationClient'
 import { isPlayerContractHomologated } from '../../../packages/regulatory-shared/src/playerContract'
+import { hasActiveRegistrationBan } from './clubSanctions'
 
 export interface PlayerRegistrationAuditContext { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null }
 export interface PlayerRegistrationFilters { seasonId?: string; federationId?: string; leagueId?: string; clubId?: string; status?: PlayerRegistrationStatus; eligibilityStatus?: string }
@@ -87,6 +88,9 @@ export async function transitionPlayerRegistration(dataSource: DataSource, sessi
         const contract = await manager.getRepository(PlayerContract).findOne({ where: { id: registration.contractId, playerId: registration.playerId, clubId: registration.clubId, seasonId: registration.seasonId } })
         if (!contract || !isPlayerContractHomologated(contract.status, contract.federationStatus, contract.endDate)) throw new PlayerRegistrationWorkflowError("Le contrat joueur lié n'est pas homologué ou n'est plus valide")
       }
+      // migration-v2.md P0-009 : une interdiction d'inscription (REGISTRATION_BAN) active bloque l'approbation.
+      const registrationBan = await hasActiveRegistrationBan(manager, registration.clubId)
+      if (registrationBan) throw new PlayerRegistrationWorkflowError("Le club fait l'objet d'une interdiction d'inscription (sanction fédérale active)")
     }
     const previous = registration.status
     registration.status = targetStatus

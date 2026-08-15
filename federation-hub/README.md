@@ -50,7 +50,7 @@ Toutes les routes `/api/admin/*` exigent une session SSO. `PLATFORM_SUPERADMIN` 
 
 Base partagée `foot`: référentiels, équipes/branding, matchs, arbitres, motifs, comptes/invitations staff et journal d'audit. Le domaine privé possède `referee_official_evaluations` et `official_referee_criteria`; les votes publics restent dans `votes`.
 
-**Migrations réellement présentes :** Dump arbitres et migrations partagées (audit, votes, équipes, tournois); temps réels de match, invitations staff, branding et icônes, activation des fédérations/ligues, unicité des votes; `mysql/migration_add_match_saga.sql` (TASK-P0-003, `match_saga_cases`/`match_saga_steps`), `mysql/migration_extend_referee_profiles.sql` et `mysql/migration_add_official_referee_assessments.sql`.
+**Migrations réellement présentes :** Dump arbitres et migrations partagées (audit, votes, équipes, tournois); temps réels de match, invitations staff, branding et icônes, activation des fédérations/ligues, unicité des votes; `mysql/migration_add_match_saga.sql` (TASK-P0-003, `match_saga_cases`/`match_saga_steps`), `mysql/migration_extend_referee_profiles.sql` et `mysql/migration_add_official_referee_assessments.sql`. Migration-v2 P0-009 à P1-008 : `migration_add_club_sanctions.sql`, `migration_add_legal_cases.sql`, `migration_add_season_regulatory_cycles.sql`, `migration_add_financial_compliance.sql`, `migration_add_governance.sql`, `migration_add_stadium_inspections.sql`, `migration_add_coach_qualifications.sql`, `migration_add_medical_eligibilities.sql`, `migration_add_agents.sql`, `migration_add_disciplinary_cases.sql`, `migration_add_appeals.sql`.
 
 ## Intégrations
 
@@ -78,6 +78,76 @@ Le workflow couvre l'examen, l'approbation, le rejet motivé et l'annulation.
 La page `/admin/saisons` permet de rendre le contrat homologué obligatoire pour
 une compétition-saison ; toute annulation ou résiliation suspend alors les
 inscriptions approuvées liées et retire leur éligibilité.
+
+### Sanctions clubs (migration-v2 P0-009)
+
+`/admin/sanctions` permet de créer, suspendre, réactiver et lever une sanction
+club (interdiction de recrutement/inscription, exclusion, amende...), motivée
+et auditée. `TRANSFER_BAN` bloque l'homologation de transfert (`club-hub`) et
+`REGISTRATION_BAN` bloque l'approbation d'une inscription joueur.
+
+### Litiges (migration-v2 P0-010)
+
+`/admin/legal-cases` instruit les litiges (numéro de dossier unique, parties
+polymorphes club/joueur/coach/staff/agent/fédération) : recevabilité,
+instruction, audiences, décision, appel ou clôture. `club-hub` consulte les
+dossiers où le club est partie et y dépose pièces/réponse.
+
+### Renouvellement saisonnier (migration-v2 P0-011)
+
+`/admin/season-cycles` pilote l'assistant d'ouverture de saison : un cycle par
+saison, fenêtres de licence club et d'inscription joueurs par dates, clôture
+avec expiration automatique des licences de la saison précédente. Sert de
+garde serveur à la soumission des licences club et inscriptions côté
+`club-hub`.
+
+### Conformité financière (migration-v2 P1-001)
+
+`/admin/financial-compliance` examine les dossiers financiers déposés par les
+clubs (budget, masse salariale, dettes par catégorie) et statue
+`COMPLIANT`/`CONDITIONAL`/`NON_COMPLIANT`. Pas un système comptable complet.
+
+### Gouvernance et comité directeur (migration-v2 P1-002)
+
+`/admin/board-mandates` valide ou rejette un mandat de comité directeur
+déposé par un club et approuve individuellement tout membre ajouté en cours
+de mandat (la validation du mandat approuve ses membres courants en bloc).
+
+### Homologation des stades (migration-v2 P1-003)
+
+`/admin/stadium-licensing` gère l'inspection fédérale des stades (`cms_stadiums`
+en lecture seule) : sept aspects notés, décision homologuée/sous
+réserve/rejetée/suspendue, réserves versionnées.
+
+### Qualifications entraîneurs (migration-v2 P1-004)
+
+`/admin/coach-licenses` valide les diplômes techniques CAF déposés par les
+clubs pour leur staff, distinct des licences administratives saisonnières
+(P0-002).
+
+### Aptitude médicale fédérale (migration-v2 P1-005)
+
+`/admin/medical-eligibility` décide `FIT`/`UNFIT` à partir du certificat déposé
+par le club — aucun diagnostic n'est jamais représenté ni affiché.
+
+### Agents et intermédiaires (migration-v2 P1-006)
+
+`/admin/agents` tient le registre fédéral des agents et de leurs mandats de
+représentation. Un `agentId` de contrat joueur (P0-004) doit désormais
+référencer un agent `ACTIVE` non expiré (contrôle serveur côté `club-hub`).
+
+### Discipline fédérale avancée (migration-v2 P1-007)
+
+`/admin/discipline` instruit les dossiers disciplinaires (preuves, audiences,
+décisions) sans remplacer `Card`/`Suspension` existants ; une décision peut
+créer directement une sanction club liée (P0-009).
+
+### Appels (migration-v2 P1-008)
+
+`/admin/appeals` instruit les appels déposés contre une décision fédérale
+(référence polymorphe). Un appel ne modifie jamais l'historique de la
+décision contestée ; il transitionne seulement son statut vers `APPEALED`
+quand ce domaine le prévoit.
 
 SSO; SMTP pour invitations; notifications; MariaDB partagée par les applications métier; match-operations (réouverture de feuille, HTTP authentifié) ; ticketing et club-hub (saga d'annulation de match, TASK-P0-003 — `TICKETING_URL`/`CLUB_HUB_URL` + clés de service).
 

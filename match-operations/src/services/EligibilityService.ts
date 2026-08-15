@@ -32,7 +32,7 @@ export class EligibilityService {
       ds.getRepository(Team).findOne({where:{id:input.clubId}}),
       ds.getRepository(SuspensionRead).createQueryBuilder("s").where("s.playerId=:p",{p:input.playerId}).andWhere("(s.teamId IS NULL OR s.teamId=:c)",{c:input.clubId}).andWhere("s.status='ACTIVE'").andWhere("s.matchesPurged < COALESCE(s.overrideMatchesCount,s.matchesCount)").getOne(),
       ds.getRepository(PlayerTransferRead).createQueryBuilder("t").where("t.playerId=:p",{p:input.playerId}).andWhere("t.fromTeamId=:c",{c:input.clubId}).andWhere("t.status IN ('PENDING','APPROVED')").andWhere("t.effectiveDate<=:d",{d:matchDate}).getOne(),
-      ds.getRepository(MedicalEligibilityRead).createQueryBuilder("m").where("m.playerId=:p AND m.clubId=:c AND m.seasonId=:s AND m.status='FIT'",{p:input.playerId,c:input.clubId,s:seasonId}).andWhere("m.expiresAt>=:d",{d:matchDate}).getOne(),
+      ds.getRepository(MedicalEligibilityRead).createQueryBuilder("m").where("m.playerId=:p AND m.clubId=:c AND m.seasonId=:s AND m.status='FIT'",{p:input.playerId,c:input.clubId,s:seasonId}).andWhere("(m.expiresAt IS NULL OR m.expiresAt>=:d)",{d:matchDate}).getOne(),
     ]);
     if(!membership)reasons.push("NO_ACTIVE_MEMBERSHIP");
     if(!license)reasons.push("NO_ACTIVE_LICENSE");

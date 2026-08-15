@@ -1,6 +1,14 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
+import { FootballAgent, RepresentationAgreement } from "@/entities/Agent";
+import { Appeal, AppealDocument, AppealEvent } from "@/entities/Appeal";
+import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
+import { CoachQualification, CoachQualificationHistory } from "@/entities/CoachQualification";
 import { Federation } from "@/entities/Federation";
+import { FinancialCompliance, FinancialComplianceHistory } from "@/entities/FinancialCompliance";
+import { BoardMandate, BoardMandateHistory, BoardMember } from "@/entities/Governance";
+import { LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing } from "@/entities/LegalCase";
+import { MedicalEligibility, MedicalEligibilityHistory } from "@/entities/MedicalEligibility";
 import { News } from "@/entities/News";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
 import { Player } from "@/entities/Player";
@@ -8,14 +16,15 @@ import { PlayerTransfer } from "@/entities/PlayerTransfer";
 import { Product } from "@/entities/Product";
 import { ProductCategory } from "@/entities/ProductCategory";
 import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
+import { SeasonRegulatoryCycle } from "@/entities/SeasonRegulatoryCycle";
 import { ShopOrder } from "@/entities/ShopOrder";
 import { ShopOrderItem } from "@/entities/ShopOrderItem";
 import { Staff } from "@/entities/Staff";
 import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
 import { Team } from "@/entities/Team";
-import { TeamMember } from "@/entities/TeamMember";
 import { TeamAffiliation } from "@/entities/TeamAffiliation";
-import { RegulatoryBan, TransferWindow } from "@/entities/Regulatory";
+import { TeamMember } from "@/entities/TeamMember";
+import { TransferWindow } from "@/entities/Regulatory";
 
 /**
  * DataSource SQLite en mémoire, isolée et jetable, avec les vraies entités
@@ -32,7 +41,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     database: ":memory:",
     dropSchema: true,
     synchronize: true,
-    entities: [Federation, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamMember, TeamAffiliation, RegulatoryBan, TransferWindow],
+    entities: [Appeal, AppealDocument, AppealEvent, BoardMandate, BoardMandateHistory, BoardMember, ClubSanction, FootballAgent, RepresentationAgreement, ClubSanctionHistory, CoachQualification, CoachQualificationHistory, Federation, FinancialCompliance, FinancialComplianceHistory, LegalCase, LegalCaseDecision, LegalCaseDocument, LegalCaseEvent, LegalCaseHearing, MedicalEligibility, MedicalEligibilityHistory, News, NotificationOutboxEvent, Player, PlayerTransfer, Product, ProductCategory, ProcessedWebhookEvent, SeasonRegulatoryCycle, ShopOrder, ShopOrderItem, Staff, StockUnavailableRefund, Team, TeamAffiliation, TeamMember, TransferWindow],
   });
 
   await dataSource.initialize();
