@@ -117,7 +117,7 @@ export class RoleService {
   static parsePermissions(role: Role): string[] {
     try {
       const parsed = JSON.parse(role.permissions);
-      return Array.isArray(parsed).filter ? parsed.filter((p): p is string => typeof p === "string") : [];
+      return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : [];
     } catch {
       return [];
     }
