@@ -1,0 +1,21 @@
+name: Ownership boundaries
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ownership-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  club-player-facts:
+    name: Club player facts ownership
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/validate-club-player-facts-boundary.mjs
