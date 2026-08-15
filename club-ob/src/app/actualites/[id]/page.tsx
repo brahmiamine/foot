@@ -2,6 +2,7 @@ import { getTranslator } from "@/i18n/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getObTeam } from "@/lib/ob-team";
+import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { PublicNewsService } from "@/services/PublicNewsService";
 import { PageChrome } from "@/components/PageChrome";
 import { PlaceholderImage } from "@/components/PlaceholderImage";
@@ -30,6 +31,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
   }
 
   const date = article.publishedAt ?? article.createdAt;
+  const safeContentHtml = sanitizeRichTextHtml(article.contentHtml);
 
   return (
     <PageChrome>
@@ -45,8 +47,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
           label={t("common.photoSoon")}
           className={styles.cover}
         />
-        {/* Contenu HTML rédigé par le club via l'éditeur riche de club-hub (Tiptap) — CMS interne, pas une saisie publique. */}
-        <div className={styles.prose} dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+        <div className={styles.prose} dangerouslySetInnerHTML={{ __html: safeContentHtml }} />
       </div>
     </PageChrome>
   );

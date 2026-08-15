@@ -3,28 +3,41 @@ import {
   Controller,
   Get,
   Headers,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Repository } from 'typeorm';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 import { CurrentService } from '../auth/decorators/current-service.decorator';
 import type { AuthenticatedService } from '../auth/interfaces/authenticated-service.interface';
+import { Payment } from '../payment/entities/payment.entity';
 import { RefundService } from './refund.service';
 import { Refund } from './entities/refund.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { RemainingRefundableDto } from './dto/refund-response.dto';
 
-/**
- * TASK-P0-001 (todo.md): refund operations scoped to a single payment.
- * Reserved to backend applications of the ecosystem, same as
- * PaymentController — never called directly by an end-user client.
- */
 @Controller('payments/:paymentId/refunds')
 @UseGuards(ServiceAuthGuard)
 export class PaymentRefundController {
-  constructor(private readonly refundService: RefundService) {}
+  constructor(
+    private readonly refundService: RefundService,
+    @InjectRepository(Payment)
+    private readonly paymentRepository: Repository<Payment>,
+  ) {}
+
+  private async assertPaymentOwnedByCaller(
+    paymentId: string,
+    service: AuthenticatedService,
+  ): Promise<void> {
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId, callerApplication: service.application },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+  }
 
   @Post()
   async create(
@@ -33,6 +46,7 @@ export class PaymentRefundController {
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<Refund> {
+    await this.assertPaymentOwnedByCaller(paymentId, service);
     return this.refundService.createRefund(
       paymentId,
       dto,
@@ -44,14 +58,18 @@ export class PaymentRefundController {
   @Get()
   async list(
     @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @CurrentService() service: AuthenticatedService,
   ): Promise<Refund[]> {
+    await this.assertPaymentOwnedByCaller(paymentId, service);
     return this.refundService.listForPayment(paymentId);
   }
 
   @Get('remaining')
   async remaining(
     @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @CurrentService() service: AuthenticatedService,
   ): Promise<RemainingRefundableDto> {
+    await this.assertPaymentOwnedByCaller(paymentId, service);
     const { payment, remaining } =
       await this.refundService.getRemainingRefundable(paymentId);
     return new RemainingRefundableDto(

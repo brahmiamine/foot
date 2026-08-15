@@ -2,19 +2,22 @@
 
 import { revalidatePath } from "next/cache";
 import { AnnouncementService } from "@/services/AnnouncementService";
-import { requireTeamId } from "@/lib/team-context";
+import { getUserAccess, requirePermission } from "@/lib/access";
+import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { announcementSchema } from "@/types/announcements";
 
 export async function createAnnouncement(formData: FormData) {
   try {
-    const data = announcementSchema.parse({
+    const parsed = announcementSchema.parse({
       title: formData.get("title") as string,
       contentHtml: formData.get("contentHtml") as string,
       category: formData.get("category") as string,
     });
+    const data = { ...parsed, contentHtml: sanitizeRichTextHtml(parsed.contentHtml) };
 
-    const teamId = await requireTeamId();
-    await new AnnouncementService().create(teamId, data);
+    const access = await getUserAccess();
+    requirePermission(access, "announcements.manage");
+    await new AnnouncementService().create(access.teamId, data);
 
     revalidatePath("/admin/announcements");
     return { success: true, message: "Communiqué créé" };
@@ -25,14 +28,16 @@ export async function createAnnouncement(formData: FormData) {
 
 export async function updateAnnouncement(id: number, formData: FormData) {
   try {
-    const data = announcementSchema.parse({
+    const parsed = announcementSchema.parse({
       title: formData.get("title") as string,
       contentHtml: formData.get("contentHtml") as string,
       category: formData.get("category") as string,
     });
+    const data = { ...parsed, contentHtml: sanitizeRichTextHtml(parsed.contentHtml) };
 
-    const teamId = await requireTeamId();
-    await new AnnouncementService().update(id, teamId, data);
+    const access = await getUserAccess();
+    requirePermission(access, "announcements.manage");
+    await new AnnouncementService().update(id, access.teamId, data);
 
     revalidatePath("/admin/announcements");
     return { success: true, message: "Communiqué modifié" };
@@ -43,8 +48,9 @@ export async function updateAnnouncement(id: number, formData: FormData) {
 
 export async function togglePublish(id: number, isPublished: boolean) {
   try {
-    const teamId = await requireTeamId();
-    await new AnnouncementService().setPublished(id, teamId, isPublished);
+    const access = await getUserAccess();
+    requirePermission(access, "announcements.manage");
+    await new AnnouncementService().setPublished(id, access.teamId, isPublished);
     revalidatePath("/admin/announcements");
     return { success: true };
   } catch (error) {
@@ -54,8 +60,9 @@ export async function togglePublish(id: number, isPublished: boolean) {
 
 export async function deleteAnnouncement(id: number) {
   try {
-    const teamId = await requireTeamId();
-    await new AnnouncementService().delete(id, teamId);
+    const access = await getUserAccess();
+    requirePermission(access, "announcements.manage");
+    await new AnnouncementService().delete(id, access.teamId);
     revalidatePath("/admin/announcements");
     return { success: true, message: "Communiqué supprimé" };
   } catch (error) {

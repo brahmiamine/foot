@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -15,24 +17,29 @@ import { RefundStatusHistory } from './entities/refund-status-history.entity';
 import { ResolveRefundDto } from './dto/resolve-refund.dto';
 import { ListRefundsQueryDto } from './dto/list-refunds-query.dto';
 import { RefundStatus } from './enums/refund-status.enum';
+import { RefundOperatorGuard } from './guards/refund-operator.guard';
+
+function requireOperatorUserId(value: string | undefined): string {
+  const operatorUserId = value?.trim();
+  if (!operatorUserId || operatorUserId.length > 100) {
+    throw new BadRequestException(
+      'Missing or invalid x-operator-user-id header',
+    );
+  }
+  return operatorUserId;
+}
 
 /**
- * TASK-P0-001 (todo.md): refund lookup and operator reconciliation
- * ("écran/API de réconciliation opérateur"). Reserved to backend
- * applications — an operator UI (e.g. federation-hub) calls through here with
- * its own service API key, passing the acting operator's identity in the
- * request body (payments has no end-user session of its own).
+ * File de réconciliation opérateur. Contrairement aux routes
+ * /payments/:paymentId/refunds, elle donne une vision globale et peut
+ * confirmer/rejeter des mouvements financiers : elle est donc réservée à
+ * federation-hub après authentification service-à-service.
  */
 @Controller('refunds')
-@UseGuards(ServiceAuthGuard)
+@UseGuards(ServiceAuthGuard, RefundOperatorGuard)
 export class RefundController {
   constructor(private readonly refundService: RefundService) {}
 
-  /**
-   * Operator queue, e.g. GET /refunds?status=MANUAL_REVIEW. Defaults to the
-   * MANUAL_REVIEW queue (this endpoint's primary purpose) rather than every
-   * refund in the system — pass `status` explicitly for any other status.
-   */
   @Get()
   async list(@Query() query: ListRefundsQueryDto): Promise<Refund[]> {
     return this.refundService.listByStatus(
@@ -49,27 +56,38 @@ export class RefundController {
     return { refund, history };
   }
 
-  /** Re-attempts a FAILED automated refund (Flouci). */
   @Post(':id/retry')
-  async retry(@Param('id', ParseUUIDPipe) id: string): Promise<Refund> {
+  async retry(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-operator-user-id') operatorUserHeader?: string,
+  ): Promise<Refund> {
+    requireOperatorUserId(operatorUserHeader);
     return this.refundService.retryRefund(id);
   }
 
-  /** Operator confirms a MANUAL_REVIEW refund was actually paid out (e.g. manual bank transfer). */
   @Post(':id/confirm')
   async confirm(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResolveRefundDto,
+    @Headers('x-operator-user-id') operatorUserHeader?: string,
   ): Promise<Refund> {
-    return this.refundService.confirmManualRefund(id, dto);
+    const operatorUserId = requireOperatorUserId(operatorUserHeader);
+    return this.refundService.confirmManualRefund(id, {
+      ...dto,
+      resolvedByUser: operatorUserId,
+    });
   }
 
-  /** Operator rejects a MANUAL_REVIEW refund: it will not be paid out. */
   @Post(':id/reject')
   async reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResolveRefundDto,
+    @Headers('x-operator-user-id') operatorUserHeader?: string,
   ): Promise<Refund> {
-    return this.refundService.rejectManualRefund(id, dto);
+    const operatorUserId = requireOperatorUserId(operatorUserHeader);
+    return this.refundService.rejectManualRefund(id, {
+      ...dto,
+      resolvedByUser: operatorUserId,
+    });
   }
 }
