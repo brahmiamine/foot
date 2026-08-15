@@ -1,4 +1,4 @@
-import { SharedDatabaseStaffQualificationAdapter } from '@/adapters/regulatory/SharedDatabaseStaffQualificationAdapter'
+import { createStaffQualificationPort } from '@/adapters/regulatory/createRegulatoryAdapters'
 import { Match } from '@/entities/Match'
 import { Matchday } from '@/entities/Matchday'
 import { MatchStaffAssignment } from '@/entities/MatchStaffAssignment'
@@ -15,11 +15,13 @@ export class StaffEligibilityError extends Error {
 /**
  * Match-owned orchestration for head-coach assignments. Federation-owned
  * qualification rules are delegated through StaffQualificationServicePort.
+ * The default remains shared-DB until the federation regulatory HTTP boundary
+ * is explicitly configured.
  */
 export class StaffEligibilityService {
   constructor(
     private readonly staffQualification: StaffQualificationServicePort =
-      new SharedDatabaseStaffQualificationAdapter(),
+      createStaffQualificationPort(),
   ) {}
 
   async assertHeadCoachesEligible(matchId: string): Promise<void> {
