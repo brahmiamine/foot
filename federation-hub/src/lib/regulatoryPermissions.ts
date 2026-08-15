@@ -7,7 +7,7 @@ export const REGULATORY_PERMISSIONS = [
   "player_registration.view", "player_registration.review", "player_registration.approve",
   "contract.view", "contract.review", "contract.approve",
   "competition_registration.view", "competition_registration.review", "competition_registration.approve",
-  "transfer_window.manage", "eligibility.view", "eligibility.override",
+  "transfer.view", "transfer.homologate", "transfer_window.manage", "eligibility.view", "eligibility.override",
   "legal_case.view", "legal_case.manage", "legal_case.decide",
   "discipline.view", "discipline.manage", "discipline.decide",
   "appeal.view", "appeal.manage", "appeal.decide",
@@ -87,6 +87,7 @@ export function resolveRegulatoryPermission(pathname: string, method: string): R
   }
   if (has("/staff-contracts") || has("/contracts")) return write ? (action === "approve" ? "contract.approve" : "contract.review") : "contract.view";
   if (has("/competition-entries")) return write ? (action === "approve" ? "competition_registration.approve" : "competition_registration.review") : "competition_registration.view";
+  if (has("/player-transfers")) return write ? "transfer.homologate" : "transfer.view";
   if (has("/transfer-windows")) return "transfer_window.manage";
   if (has("/eligibility")) return write ? "eligibility.override" : "eligibility.view";
   if (has("/legal-cases")) return write ? (action === "decision" || action === "decide" ? "legal_case.decide" : "legal_case.manage") : "legal_case.view";
