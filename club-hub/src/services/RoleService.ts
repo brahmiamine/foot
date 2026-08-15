@@ -1,20 +1,25 @@
+import { createClubIdentityAdapter } from '@/adapters/identity/createClubIdentityAdapter'
 import { getDataSource } from "@/lib/database";
 import { Role } from "@/entities/Role";
 import { UserRole } from "@/entities/UserRole";
-import { User } from "@/entities/User";
 import { Repository } from "typeorm";
 import { AgeCategory } from "@/types/categories";
 import { ALL_PERMISSION_KEYS, DEFAULT_ROLE_PRESETS, isValidPermissionKey } from "@/lib/permissions";
+import type { IdentityDirectoryPort } from '../../../packages/domain-contracts/src/identity'
 
 export interface RoleWithAssignees extends Role {
   permissionKeys: string[];
 }
 
 /**
- * Service for Role operations (RBAC applicatif par club, catégorie
- * optionnelle par attribution — voir cms_roles / cms_user_roles).
+ * Club-owned RBAC service. cms_roles/cms_user_roles remain in the Club domain;
+ * account existence and team ownership are checked through Identity.
  */
 export class RoleService {
+  constructor(
+    private readonly identity: IdentityDirectoryPort = createClubIdentityAdapter(),
+  ) {}
+
   private async getRoleRepository(): Promise<Repository<Role>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(Role);
@@ -23,11 +28,6 @@ export class RoleService {
   private async getUserRoleRepository(): Promise<Repository<UserRole>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(UserRole);
-  }
-
-  private async getUserRepository(): Promise<Repository<User>> {
-    const dataSource = await getDataSource();
-    return dataSource.getRepository(User);
   }
 
   async findAll(teamId: string): Promise<Role[]> {
@@ -40,11 +40,6 @@ export class RoleService {
     return repository.findOne({ where: { id, teamId } });
   }
 
-  /**
-   * Crée les rôles standards du club au premier accès à la page Rôles, si
-   * aucun rôle n'existe encore pour ce club. N'écrase jamais un rôle déjà
-   * personnalisé — s'exécute une seule fois par club.
-   */
   async ensureDefaultRoles(teamId: string): Promise<void> {
     const repository = await this.getRoleRepository();
     const existing = await repository.count({ where: { teamId } });
@@ -122,7 +117,7 @@ export class RoleService {
   static parsePermissions(role: Role): string[] {
     try {
       const parsed = JSON.parse(role.permissions);
-      return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : [];
+      return Array.isArray(parsed).filter ? parsed.filter((p): p is string => typeof p === "string") : [];
     } catch {
       return [];
     }
@@ -132,7 +127,9 @@ export class RoleService {
 
   async findAssignmentsForTeam(teamId: string): Promise<UserRole[]> {
     const repository = await this.getUserRoleRepository();
-    return repository.find({ where: { teamId }, relations: ["role", "user"], order: { createdAt: "ASC" } });
+    // Deliberately do not join User: Identity owns that table. Caller can use
+    // UserService/Identity directory for display names.
+    return repository.find({ where: { teamId }, relations: ["role"], order: { createdAt: "ASC" } });
   }
 
   async findAssignmentsForUser(teamId: string, userId: string): Promise<UserRole[]> {
@@ -152,13 +149,9 @@ export class RoleService {
       throw new Error("Rôle non trouvé");
     }
 
-    // TASK-P0-012 (todo.md): sans ce garde, un ADMIN d'un club pouvait
-    // attribuer un rôle de son club à l'userId (deviné) d'un compte d'un
-    // AUTRE club — polluant cms_user_roles et exposant le nom du compte
-    // visé sur la page Rôles de l'attaquant.
-    const userRepository = await this.getUserRepository();
-    const targetUser = await userRepository.findOne({ where: { id: userId, teamId } });
-    if (!targetUser) {
+    // TASK-P0-012 remains enforced, but ownership lookup now comes from Identity.
+    const targetUser = await this.identity.getUserById(userId);
+    if (!targetUser || targetUser.teamId !== teamId) {
       throw new Error("Utilisateur non trouvé pour ce club");
     }
     if (!role.isGlobal && !category) {
@@ -194,11 +187,6 @@ export class RoleService {
     return true;
   }
 
-  /**
-   * Permissions + catégories agrégées pour un utilisateur du club (union de
-   * tous ses rôles attribués). `categories: "ALL"` si au moins un rôle
-   * global est attribué.
-   */
   async getEffectiveAccess(
     teamId: string,
     userId: string
