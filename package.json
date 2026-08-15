@@ -10,7 +10,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "i18n:check": "node scripts/i18n-audit.mjs"
+    "i18n:check": "node scripts/i18n-audit.mjs",
+    "workspace:check": "node scripts/validate-frontend-workspace.mjs"
   },
   "devDependencies": {
     "jose": "^5.9.6",
