@@ -35,7 +35,7 @@ const fr = {
 
 export type TranslationKey = keyof typeof fr;
 
-const ar: Record<TranslationKey, string> = {
+const ar = {
   "app.name": "الفضاء الطبي",
   "app.titleWithClub": "الفضاء الطبي — {club}",
   "common.language.label": "اللغة",
@@ -66,7 +66,7 @@ const ar: Record<TranslationKey, string> = {
   "dashboard.unavailable.title": "اللاعبون غير الجاهزين",
   "dashboard.unavailable.empty": "كل اللاعبين جاهزون.",
   "dashboard.unavailable.expectedReturn": "العودة المتوقعة: {date}",
-};
+} satisfies Record<TranslationKey, string>;
 
 export const dictionaries: Record<Locale, Record<TranslationKey, string>> = { fr, ar };
 export function translate(locale: Locale, key: TranslationKey, values: Record<string, string | number> = {}) {
