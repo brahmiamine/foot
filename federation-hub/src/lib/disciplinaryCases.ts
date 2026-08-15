@@ -1,9 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import type { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm'
 import { assertDisciplinaryCaseTransition, DisciplinaryCaseWorkflowError, formatDisciplinaryCaseNumber, type DisciplinaryCaseStatus, type DisciplinaryPersonType } from '../../../packages/regulatory-shared/src/disciplinaryCase'
 import type { ClubSanctionType } from '../../../packages/regulatory-shared/src/clubSanction'
 import { canAccessFederation, canAccessLeague, canAccessPlatform } from './adminAuth'
 import type { SsoUser } from './ssoSession'
-import { ClubSanction, DisciplinaryCase, DisciplinaryCaseDecision, DisciplinaryCaseEvent, DisciplinaryCaseEvidence, DisciplinaryCaseHearing, Team, TeamAffiliation } from './entities'
+import { ClubSanction, DisciplinaryCase, DisciplinaryCaseDecision, DisciplinaryCaseEvent, DisciplinaryCaseEvidence, DisciplinaryCaseHearing, Player, Team, TeamAffiliation } from './entities'
 import { notify } from './notificationClient'
 
 export interface DisciplinaryCaseAuditContext { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null }
@@ -124,6 +125,7 @@ export interface RecordDisciplinaryDecisionInput {
   summary: string
   sanctionDescription?: string | null
   clubSanction?: { type: ClubSanctionType; reason: string; startsAt: string; endsAt?: string | null; amountDue?: string | null; currency?: string | null } | null
+  individualSuspension?: { matchesCount: number; teamId?: string | null } | null
 }
 
 export async function recordDisciplinaryDecision(dataSource: DataSource, session: SsoUser, audit: DisciplinaryCaseAuditContext, id: string, input: RecordDisciplinaryDecisionInput): Promise<DisciplinaryCase> {
@@ -141,13 +143,32 @@ export async function recordDisciplinaryDecision(dataSource: DataSource, session
       const sanction = await sanctionRepo.save(sanctionRepo.create({ clubId: item.clubId, federationId: item.federationId, leagueId: item.leagueId ?? null, sourceCaseType: 'DISCIPLINARY_CASE', sourceCaseId: item.id, type: input.clubSanction.type, reason: input.clubSanction.reason, startsAt: new Date(input.clubSanction.startsAt), endsAt: input.clubSanction.endsAt ? new Date(input.clubSanction.endsAt) : null, amountDue: input.clubSanction.amountDue ?? null, currency: input.clubSanction.currency ?? null, status: 'ACTIVE', createdBy: audit.userId }))
       clubSanctionId = sanction.id
     }
+
     const decisionRepo = manager.getRepository(DisciplinaryCaseDecision)
-    await decisionRepo.save(decisionRepo.create({ caseId: id, summary: input.summary.trim(), sanctionDescription: input.sanctionDescription ?? null, clubSanctionId, decidedBy: audit.userId, decidedAt: new Date() }))
+    const decision = await decisionRepo.save(decisionRepo.create({ caseId: id, summary: input.summary.trim(), sanctionDescription: input.sanctionDescription ?? null, clubSanctionId, suspensionId: null, decidedBy: audit.userId, decidedAt: new Date() }))
+    let suspensionId: string | null = null
+
+    if (input.individualSuspension) {
+      if (item.personType !== 'PLAYER' || !item.personId) throw new DisciplinaryCaseWorkflowError('Une suspension de match automatique ne peut viser qu’un dossier PLAYER avec un joueur identifié')
+      const matchesCount = Number(input.individualSuspension.matchesCount)
+      if (!Number.isInteger(matchesCount) || matchesCount < 1 || matchesCount > 99) throw new DisciplinaryCaseWorkflowError('Le nombre de matchs de suspension doit être compris entre 1 et 99')
+      const player = await manager.getRepository(Player).findOne({ where: { id: item.personId } })
+      if (!player) throw new DisciplinaryCaseWorkflowError('Joueur visé par la décision introuvable')
+      const teamId = item.clubId ?? input.individualSuspension.teamId ?? player.teamId ?? null
+      suspensionId = randomUUID()
+      await manager.query(
+        "INSERT INTO Suspension (id, playerId, cardId, reason, matchesCount, matchesPurged, status, startMatchId, createdAt, teamId, disciplinaryDecision, overrideMatchesCount, sourceDisciplinaryCaseId, sourceDisciplinaryDecisionId, sourceReason) VALUES (?, ?, NULL, 'DISCIPLINARY_DECISION', ?, 0, 'ACTIVE', ?, CURRENT_TIMESTAMP, ?, 'CONFIRMED', NULL, ?, ?, ?)",
+        [suspensionId, item.personId, matchesCount, item.matchId ?? null, teamId, item.id, decision.id, input.sanctionDescription ?? input.summary.trim()],
+      )
+      decision.suspensionId = suspensionId
+      await decisionRepo.save(decision)
+    }
+
     const previous = item.status
     item.status = 'DECIDED'
     item.decisionDate = new Date()
     await repo.save(item)
-    await saveEvent(manager, id, audit, { action: 'CASE_DECIDED', fromStatus: previous, toStatus: 'DECIDED', afterValue: { summary: input.summary.trim(), clubSanctionId } })
+    await saveEvent(manager, id, audit, { action: 'CASE_DECIDED', fromStatus: previous, toStatus: 'DECIDED', afterValue: { summary: input.summary.trim(), clubSanctionId, suspensionId } })
     return item
   })
   await notifyClub(updated, 'DISCIPLINARY_DECISION_ISSUED', `Une décision a été rendue pour le dossier ${updated.caseNumber}.`)
