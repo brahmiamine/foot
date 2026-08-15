@@ -1,0 +1,112 @@
+@import "@foot/design-tokens/tokens.css";
+
+.foot-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--foot-radius-sm);
+  font-family: var(--foot-font-ui);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.foot-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.foot-button--sm {
+  min-height: 2rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.foot-button--md {
+  min-height: 2.5rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+}
+
+.foot-button--lg {
+  min-height: 3rem;
+  padding: 0.8rem 1.25rem;
+  font-size: 1rem;
+}
+
+.foot-button--full {
+  width: 100%;
+}
+
+.foot-button--primary {
+  background: var(--foot-color-primary);
+  border-color: var(--foot-color-primary);
+  color: #fff;
+}
+
+.foot-button--primary:hover:not(:disabled) {
+  background: var(--foot-color-primary-dark);
+  border-color: var(--foot-color-primary-dark);
+}
+
+.foot-button--secondary {
+  background: var(--foot-color-surface);
+  border-color: var(--foot-color-border);
+  color: var(--foot-color-text);
+}
+
+.foot-button--secondary:hover:not(:disabled) {
+  border-color: var(--foot-color-secondary);
+}
+
+.foot-button--danger {
+  background: var(--foot-color-danger);
+  border-color: var(--foot-color-danger);
+  color: #fff;
+}
+
+.foot-button--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--foot-color-primary);
+}
+
+.foot-button--ghost:hover:not(:disabled) {
+  background: rgba(var(--foot-color-primary-rgb), 0.08);
+}
+
+.foot-card {
+  background: var(--foot-color-surface);
+  border: 1px solid var(--foot-color-border);
+  border-radius: var(--foot-radius-md);
+  box-shadow: var(--foot-shadow-card);
+  color: var(--foot-color-text);
+}
+
+.foot-card--none {
+  padding: 0;
+}
+
+.foot-card--sm {
+  padding: 0.75rem;
+}
+
+.foot-card--md {
+  padding: 1rem;
+}
+
+.foot-card--lg {
+  padding: 1.5rem;
+}
+
+.foot-card--interactive {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.foot-card--interactive:hover {
+  box-shadow: var(--foot-shadow-card-hover);
+  transform: translateY(-1px);
+}
