@@ -1,11 +1,13 @@
 /**
- * Scheduler in-process pour la purge des commandes boutique PENDING
- * expirées — même pattern que ticketing/instrumentation.ts (voir ce
- * fichier pour le détail). register() est l'unique point d'entrée garanti
- * par Next.js pour exécuter du code une fois au démarrage du serveur Node.
+ * Schedulers de réconciliation démarrés une fois par process Next.js.
+ *
+ * Plusieurs replicas peuvent exister en production : chaque exécution métier
+ * est donc protégée par un verrou distribué MariaDB pour éviter les doublons.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  const { runWithSchedulerLock } = await import("@/lib/scheduler-lock");
 
   const globalForScheduler = globalThis as unknown as { __shopOrderPurgeScheduler?: NodeJS.Timeout };
   if (globalForScheduler.__shopOrderPurgeScheduler) return;
@@ -15,9 +17,9 @@ export async function register() {
 
   const runPurge = async () => {
     try {
-      const result = await purgeStaleOrders();
-      if (result.releasedOrders > 0) {
-        console.log(`[shop-order-purge-scheduler] ${result.releasedOrders} commande(s) libérée(s).`);
+      const execution = await runWithSchedulerLock("foot:club-hub:shop-order-purge", purgeStaleOrders);
+      if (execution.ran && execution.value && execution.value.releasedOrders > 0) {
+        console.log(`[shop-order-purge-scheduler] ${execution.value.releasedOrders} commande(s) libérée(s).`);
       }
     } catch (error) {
       console.error("[shop-order-purge-scheduler] échec de la purge périodique :", error);
@@ -27,10 +29,6 @@ export async function register() {
   globalForScheduler.__shopOrderPurgeScheduler = setInterval(runPurge, intervalMs);
   void runPurge();
 
-  // TASK-P0-002 : reprend les demandes de remboursement en échec et
-  // rafraîchit/alerte les dossiers PAID_STOCK_UNAVAILABLE ouverts — même
-  // pattern que le scheduler de purge ci-dessus (voir aussi
-  // ticketing/instrumentation.ts).
   const globalForRefundScheduler = globalThis as unknown as { __stockUnavailableRefundScheduler?: NodeJS.Timeout };
   if (!globalForRefundScheduler.__stockUnavailableRefundScheduler) {
     const { processStockUnavailableRefunds } = await import("@/lib/stockUnavailableRefunds");
@@ -38,8 +36,12 @@ export async function register() {
 
     const runRefundReconciliation = async () => {
       try {
-        const report = await processStockUnavailableRefunds();
-        if (report.retriedRequests > 0 || report.refreshed > 0 || report.alerted > 0) {
+        const execution = await runWithSchedulerLock(
+          "foot:club-hub:stock-unavailable-refunds",
+          processStockUnavailableRefunds,
+        );
+        const report = execution.value;
+        if (execution.ran && report && (report.retriedRequests > 0 || report.refreshed > 0 || report.alerted > 0)) {
           console.log(`[stock-unavailable-refund-scheduler] ${JSON.stringify(report)}`);
         }
       } catch (error) {
@@ -51,12 +53,6 @@ export async function register() {
     void runRefundReconciliation();
   }
 
-  // TASK-P0-003 : filet de sécurité pour les matchs CANCELLED — annule les
-  // convocations restées actives (voir ConvocationService.reconcileCancelledMatches).
-  // L'action synchrone déclenchée par federation-hub
-  // (POST /api/internal/matches/:matchId/cancel-convocations) fait déjà ce
-  // travail immédiatement ; ce scheduler rattrape le cas où cet appel a
-  // échoué ou n'a jamais eu lieu.
   const globalForConvocationScheduler = globalThis as unknown as {
     __convocationCancellationScheduler?: NodeJS.Timeout;
   };
@@ -66,8 +62,12 @@ export async function register() {
 
     const runConvocationReconciliation = async () => {
       try {
-        const report = await new ConvocationService().reconcileCancelledMatches();
-        if (report.matchesScanned > 0) {
+        const execution = await runWithSchedulerLock(
+          "foot:club-hub:cancelled-match-convocations",
+          () => new ConvocationService().reconcileCancelledMatches(),
+        );
+        const report = execution.value;
+        if (execution.ran && report && report.matchesScanned > 0) {
           console.log(`[convocation-cancellation-scheduler] ${JSON.stringify(report)}`);
         }
       } catch (error) {
