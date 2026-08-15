@@ -5,6 +5,7 @@ export class SeasonRegulation {
   @PrimaryColumn({type:"char",length:36}) id!: string;
   @Column({type:"boolean",name:"requires_player_contract",default:false}) requiresPlayerContract!: boolean;
   @Column({type:"boolean",name:"requires_medical_clearance",default:false}) requiresMedicalClearance!: boolean;
+  @Column({type:"varchar",length:32,nullable:true,name:"minimum_head_coach_qualification"}) minimumHeadCoachQualification?: "CAF_PRO"|"CAF_A"|"CAF_B"|"CAF_C"|"NATIONAL"|"OTHER"|null;
 }
 @Entity("competition_registrations")
 export class CompetitionRegistrationRead {
