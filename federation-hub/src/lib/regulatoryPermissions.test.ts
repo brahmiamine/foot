@@ -16,6 +16,7 @@ describe("regulatory permissions",()=>{
  it("always allows platform superadmin",async()=>expect(hasRegulatoryPermission(source([]),user("PLATFORM_SUPERADMIN"),"season_cycle.manage")).resolves.toBe(true));
  it("maps critical API actions to distinct permissions",()=>{
   expect(resolveRegulatoryPermission("/api/admin/competition-entries/1/approve","POST")).toBe("competition_registration.approve");
+  expect(resolveRegulatoryPermission("/api/admin/player-transfers/1/homologate","POST")).toBe("transfer.homologate");
   expect(resolveRegulatoryPermission("/api/admin/discipline/1/decision","POST")).toBe("discipline.decide");
   expect(resolveRegulatoryPermission("/api/admin/season-cycles/1/prepare","POST")).toBe("season_cycle.manage");
  });
