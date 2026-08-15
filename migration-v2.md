@@ -272,7 +272,7 @@ Les validations réglementaires doivent être traçables de bout en bout.
   d’éligibilité. Lorsque la saison l’exige, le contrat ne peut être soumis ni
   homologué sans une qualification `COACH`, `STAFF`, `MEDICAL` ou `DIRECTOR`
   approuvée, non expirée et rattachée au même staff, club et saison.
-- ✅ **P0-006 — Engagements clubs aux compétitions** : modèle adossé aux
+- 🟡 **P0-006 — Engagements clubs aux compétitions** : modèle adossé aux
   éditions existantes dans `saisons`, dépôt club, contrôle fédération/ligue,
   licence club, dossier, stade/finance/frais configurables, interdiction de
   participation, audit, notifications et UI dans les deux hubs. Implémenté par
@@ -290,7 +290,13 @@ Les validations réglementaires doivent être traçables de bout en bout.
   types de sanction, jusqu'ici modélisés mais jamais appliqués. Couvert par
   `competitionRegistrations.test.ts` (intégration DB réelle sur le helper) et
   des cas supplémentaires dans `regulatoryWorkflows.test.ts` (règle pure
-  d'approbation).
+  d'approbation). **Statut 🟡, pas ✅ complet** : `assertCompetitionRegistrationApproval`
+  ne vérifie que la *présence* de `stadiumApprovalId`/`financialComplianceId`/
+  `feesPaymentId`, jamais leur statut réel (`stadium_inspections.status IN
+  ('APPROVED','APPROVED_WITH_RESTRICTIONS')` non expiré,
+  `club_financial_compliance.status='COMPLIANT'`, paiement réellement
+  confirmé) — un identifiant inventé suffit actuellement à satisfaire la
+  règle. Reste à corriger avant activation stricte.
 - ✅ **P0-007 — Fenêtres de transfert** : périodes fédération/ligue auditées,
   refus `TRANSFER_WINDOW_CLOSED` à la création et à l'homologation,
   interdictions de recrutement, exception fédérale avec motif et référence
@@ -324,7 +330,7 @@ Les validations réglementaires doivent être traçables de bout en bout.
   pièces/réponse, jamais de changement de statut). L'ouverture d'un dossier
   reste un acte fédéral (conforme à la doc : le club ne fait que « déposer
   une réponse »), pas une auto-saisie par le club.
-- ✅ **P0-011 — Renouvellement saisonnier** : `season_regulatory_cycles` +
+- 🟡 **P0-011 — Renouvellement saisonnier** : `season_regulatory_cycles` +
   historique audité, un cycle par saison (`DRAFT → ACTIVE → CLOSED`),
   fenêtres de licence club et d'inscription joueurs pilotées par dates
   (ouverture/fermeture indépendantes), expiration automatique et idempotente
@@ -338,7 +344,11 @@ Les validations réglementaires doivent être traçables de bout en bout.
   historique inchangé, §36), un cycle `CLOSED` ou une fenêtre non encore
   ouverte bloque la soumission. Pas d'UI `club-hub` dédiée : c'est un outil
   interne à la fédération, le club voit seulement l'effet (soumission
-  acceptée ou refusée).
+  acceptée ou refusée). **Statut 🟡** : ne couvre que licence club et
+  inscription joueur. L'assistant annuel demandé par le document orchestre
+  aussi campagne de licences individuelles, engagements compétition,
+  fenêtres de transfert, contrôle financier et renouvellement des
+  homologations stade/CAF — non fait ici.
 - ✅ **P1-001 — Conformité financière** : `club_financial_compliance` +
   historique audité, un dossier par club/saison (contrainte d'unicité),
   workflow audité (`DRAFT → SUBMITTED → UNDER_REVIEW → COMPLIANT/CONDITIONAL
@@ -373,7 +383,7 @@ Les validations réglementaires doivent être traçables de bout en bout.
   (`STADIUM_INSPECTION_DECIDED`) et interface `federation-hub` (FR/EN/AR).
   Pas d'UI `club-hub` : le document ne prévoit cette homologation que côté
   fédération (§33/§34).
-- ✅ **P1-004 — Qualifications entraîneurs (CAF)** : `coach_qualifications` +
+- 🟡 **P1-004 — Qualifications entraîneurs (CAF)** : `coach_qualifications` +
   historique audité, distinct de `person_licenses` (P0-002, enregistrement
   administratif saisonnier) — ici un diplôme technique permanent
   (`CAF_PRO`/`CAF_A`/`CAF_B`/`CAF_C`/`NATIONAL`/`OTHER`) rattaché à la
@@ -401,7 +411,7 @@ Les validations réglementaires doivent être traçables de bout en bout.
   dernier n'a pas été audité dans cette migration, brancher son propre rôle
   médical comme validateur est un prolongement possible mais hors
   périmètre ici.
-- ✅ **P1-006 — Agents et intermédiaires** : `football_agents` +
+- 🟡 **P1-006 — Agents et intermédiaires** : `football_agents` +
   `representation_agreements` + historique audité. Workflow agent audité
   (`PENDING → ACTIVE`, `ACTIVE ↔ SUSPENDED`, `→ REVOKED/EXPIRED`) et workflow
   de mandat de représentation (`DRAFT → ACTIVE → TERMINATED/EXPIRED`),
@@ -413,7 +423,7 @@ Les validations réglementaires doivent être traçables de bout en bout.
   (lecture seule de `football_agents` via `AgentService.isAgentActive`).
   Pas d'UI `club-hub` pour le registre lui-même (non prévue par le
   document), uniquement cette garde serveur.
-- ✅ **P1-007 — Discipline fédérale avancée** : `disciplinary_cases` +
+- 🟡 **P1-007 — Discipline fédérale avancée** : `disciplinary_cases` +
   `disciplinary_case_evidence`/`disciplinary_case_hearings`/
   `disciplinary_case_decisions`/`disciplinary_case_events`. Ne remplace pas
   `Card`/`Suspension`/`CardReason` existants (§3.2) : c'est un niveau
@@ -448,18 +458,42 @@ Les validations réglementaires doivent être traçables de bout en bout.
 
 ## Bilan de cette migration
 
-Tous les lots P0 et P1 demandés sont terminés. P0-001 à P0-005 étaient déjà
-acquis en entrée de cette migration. P0-006 (engagements clubs aux
-compétitions), P0-007 (fenêtres de transfert) et P0-008 (service
-d'éligibilité central) ont été implémentés en parallèle par une PR
-concurrente (#73), fusionnée dans `main` pendant cette migration — ils
-n'ont donc pas été traités par les lots ci-dessous mais sont bien présents.
-P0-009, P0-010, P0-011 puis P1-001 à P1-008 ont été implémentés ici,
-séquentiellement, chacun avec migration SQL, workflow audité, scopes
-fédération/ligue serveur, API, UI FR/AR ou FR/EN/AR dans `federation-hub`
-et/ou `club-hub`, notifications et tests. P2 reste uniquement préparé
-architecturalement (§24), comme demandé : aucune table de ce périmètre n'a
-été créée.
+**Ce n'est pas un état 100 % terminé.** Tous les domaines P0/P1 ont une
+implémentation en base (schéma, workflow, API, UI, audit), mais plusieurs
+sont marqués 🟡 ci-dessus plutôt que ✅ : le contrôle réel avant approbation
+d'un engagement compétition (P0-006, ID de stade/finance/paiement non
+vérifiés), l'orchestration annuelle complète (P0-011), l'application
+effective du niveau CAF à la désignation d'un coach (P1-004), l'intégration
+des agents aux transferts (P1-006) et l'automatisation de la sanction
+individuelle (`Suspension`) depuis une décision disciplinaire (P1-007). Le
+RBAC métier fin du §25 (permissions comme `transfer_window.manage`,
+`eligibility.override`) n'existe pas non plus : la sécurité repose sur les
+rôles + scopes fédération/ligue, pas sur des permissions granulaires. La
+couverture de tests d'intégration/permissions/concurrence demandée au §37
+est partielle (surtout des tests unitaires de fonctions pures).
+
+**Risque le plus sérieux avant toute mise en production : le backfill (§36)
+n'a pas été fait.** `EligibilityService` (P0-008) bloque réellement
+`confirmPreMatch()` pour tout joueur sans licence/inscription/contrat au
+nouveau modèle — sur une base contenant des joueurs et clubs historiques
+sans backfill (`LEGACY_CONFIRMED`/`LEGACY_BACKFILL` demandés par le
+document), l'activation basculerait potentiellement en masse en
+`NO_ACTIVE_LICENSE`/`REGISTRATION_NOT_APPROVED`. Aucune migration de
+backfill n'a été écrite pour les données réglementaires P0 dans cette
+migration ni dans #73.
+
+P0-001 à P0-005 étaient déjà acquis en entrée de cette migration. P0-006
+(engagements clubs aux compétitions), P0-007 (fenêtres de transfert) et
+P0-008 (service d'éligibilité central) ont été implémentés en parallèle par
+une PR concurrente (#73), fusionnée dans `main` pendant cette migration —
+ils n'ont donc pas été traités par les lots ci-dessous mais sont bien
+présents (avec le correctif décrit sous P0-006 ci-dessus). P0-009, P0-010,
+P0-011 puis P1-001 à P1-008 ont été implémentés ici, séquentiellement,
+chacun avec migration SQL, workflow audité, scopes fédération/ligue serveur,
+API, UI FR/AR ou FR/EN/AR dans `federation-hub` et/ou `club-hub`,
+notifications et tests — avec les réserves 🟡 listées ci-dessus. P2 reste
+uniquement préparé architecturalement (§24), comme demandé : aucune table de
+ce périmètre n'a été créée.
 
 La fusion de #73 dans cette branche a nécessité de résoudre deux collisions
 de schéma invisibles à `git` (fichiers différents, pas de conflit texte) :
