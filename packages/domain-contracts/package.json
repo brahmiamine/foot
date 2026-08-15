@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./club-access": "./src/club-access.ts",
     "./club-lineup": "./src/club-lineup.ts",
+    "./club-player-facts": "./src/club-player-facts.ts",
     "./eligibility": "./src/eligibility.ts",
     "./events": "./src/events.ts",
     "./identity": "./src/identity.ts",
