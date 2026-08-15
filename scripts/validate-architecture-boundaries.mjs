@@ -4,14 +4,17 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-const applications = [
+const deployables = [
   'arbinote',
   'club-hub',
   'club-ob',
   'federation-hub',
   'identity',
+  'marketplace',
   'match-operations',
   'medical-hub',
+  'notifications',
+  'payments',
   'player-hub',
   'referee-hub',
   'seller-portal',
@@ -29,6 +32,13 @@ const serverInfrastructureImports = new Set([
   'better-sqlite3',
   'node:net',
   'node:tls',
+])
+
+const matchRegulatoryReadModelAllowlist = new Set([
+  'match-operations/src/lib/db.ts',
+  'match-operations/src/test/testDataSource.ts',
+  'match-operations/src/adapters/regulatory/SharedDatabaseEligibilityAdapter.ts',
+  'match-operations/src/adapters/regulatory/SharedDatabaseStaffQualificationAdapter.ts',
 ])
 
 async function walk(directory) {
@@ -57,26 +67,24 @@ function isInside(candidate, directory) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
-function referencesAnotherApplication(specifier, currentApp, importingFile) {
-  // `@/...` is the local source alias used inside each Next.js application.
-  // A local file such as `@/types/ticketing` must not be mistaken for the
-  // independently deployable root application named `ticketing`.
+function referencesAnotherDeployable(specifier, currentDeployable, importingFile) {
+  // `@/...` is a local source alias inside the current application.
   if (specifier.startsWith('@/')) return null
 
   if (specifier.startsWith('.')) {
     const resolved = path.resolve(path.dirname(importingFile), specifier)
-    for (const otherApp of applications) {
-      if (otherApp === currentApp) continue
-      if (isInside(resolved, path.join(root, otherApp))) return otherApp
+    for (const otherDeployable of deployables) {
+      if (otherDeployable === currentDeployable) continue
+      if (isInside(resolved, path.join(root, otherDeployable))) return otherDeployable
     }
     return null
   }
 
-  // Bare/root-like application imports are forbidden. Shared code must be
-  // published through packages/* (normally @foot/*) or consumed through APIs.
-  for (const otherApp of applications) {
-    if (otherApp === currentApp) continue
-    if (specifier === otherApp || specifier.startsWith(`${otherApp}/`)) return otherApp
+  for (const otherDeployable of deployables) {
+    if (otherDeployable === currentDeployable) continue
+    if (specifier === otherDeployable || specifier.startsWith(`${otherDeployable}/`)) {
+      return otherDeployable
+    }
   }
 
   return null
@@ -84,25 +92,39 @@ function referencesAnotherApplication(specifier, currentApp, importingFile) {
 
 const errors = []
 
-// Applications are independently deployable boundaries. They may consume
-// packages/*, HTTP APIs and events, but never source code owned by another app.
-for (const app of applications) {
-  const files = await walk(path.join(root, app, 'src'))
+// Deployable units may consume packages/*, HTTP APIs and events, but never
+// source code owned by another independently deployable unit.
+for (const deployable of deployables) {
+  const files = await walk(path.join(root, deployable, 'src'))
   for (const file of files) {
     const source = await readFile(file, 'utf8')
     for (const specifier of importsOf(source)) {
-      const otherApp = referencesAnotherApplication(specifier, app, file)
-      if (otherApp) {
+      const otherDeployable = referencesAnotherDeployable(specifier, deployable, file)
+      if (otherDeployable) {
         errors.push(
-          `${path.relative(root, file)} imports application boundary ${otherApp}: ${specifier}`,
+          `${path.relative(root, file)} imports deployable boundary ${otherDeployable}: ${specifier}`,
         )
       }
     }
   }
 }
 
+// The legacy shared-DB regulatory read models in match-operations are a
+// transitional adapter detail. New services/routes must depend on ports and
+// cannot reintroduce direct imports of those read models.
+for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
+  const relativeFile = path.relative(root, file).split(path.sep).join('/')
+  if (matchRegulatoryReadModelAllowlist.has(relativeFile)) continue
+  const source = await readFile(file, 'utf8')
+  if (importsOf(source).includes('@/entities/Eligibility')) {
+    errors.push(
+      `${relativeFile} imports federation regulatory read models directly; use an adapter/port instead`,
+    )
+  }
+}
+
 // Shared packages must remain reusable building blocks. In particular they
-// cannot become a back door to the shared MariaDB or own deployable-app code.
+// cannot become a back door to MariaDB/TypeORM or deployable-unit source code.
 const packageDirs = await readdir(path.join(root, 'packages'), { withFileTypes: true })
 for (const entry of packageDirs) {
   if (!entry.isDirectory()) continue
@@ -123,19 +145,19 @@ for (const entry of packageDirs) {
 
       if (specifier.startsWith('.')) {
         const resolved = path.resolve(path.dirname(file), specifier)
-        const appReference = applications.find((app) => isInside(resolved, path.join(root, app)))
-        if (appReference) {
+        const deployableReference = deployables.find((app) => isInside(resolved, path.join(root, app)))
+        if (deployableReference) {
           errors.push(
-            `${path.relative(root, file)} imports deployable application ${appReference}: ${specifier}`,
+            `${path.relative(root, file)} imports deployable application ${deployableReference}: ${specifier}`,
           )
         }
       } else {
-        const appReference = applications.find(
+        const deployableReference = deployables.find(
           (app) => specifier === app || specifier.startsWith(`${app}/`),
         )
-        if (appReference) {
+        if (deployableReference) {
           errors.push(
-            `${path.relative(root, file)} imports deployable application ${appReference}: ${specifier}`,
+            `${path.relative(root, file)} imports deployable application ${deployableReference}: ${specifier}`,
           )
         }
       }
@@ -150,5 +172,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `Architecture boundaries valid: ${applications.length} deployable frontend applications and shared packages are isolated.`,
+  `Architecture boundaries valid: ${deployables.length} deployable units and shared packages are isolated.`,
 )
