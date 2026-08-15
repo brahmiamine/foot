@@ -3,6 +3,7 @@ import { getAdminSession } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { getPersonLicenseBundle, PersonLicenseAuthorizationError } from '@/lib/personLicensing'
 import { PersonLicenseWorkflowError } from '../../../../../../../packages/regulatory-shared/src/personLicensing'
+import { getPersonLicenseCardsByIds } from '../../../../../../../packages/regulatory-shared/src/licenseCardLookup'
 import { toPlain } from '@/lib/serialization'
 
 export const runtime = 'nodejs'
@@ -12,7 +13,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { id } = await params
-    return NextResponse.json(toPlain(await getPersonLicenseBundle(await getDataSource(), session, id)))
+    const dataSource = await getDataSource()
+    const bundle = await getPersonLicenseBundle(dataSource, session, id)
+    const [card] = await getPersonLicenseCardsByIds(dataSource, [id])
+    if (card) Object.assign(bundle.license, card)
+    return NextResponse.json(toPlain(bundle))
   } catch (error) {
     if (error instanceof PersonLicenseAuthorizationError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof PersonLicenseWorkflowError) return NextResponse.json({ error: error.message }, { status: 404 })

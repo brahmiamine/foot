@@ -1,18 +1,5 @@
 name: CI
 
-# Rang 6 de avancement.md : aucune CI n'existait avant ce workflow (manquants.md
-# § 3.4 le signalait déjà). Une entrée de matrice par app plutôt qu'un
-# monorepo pnpm workspace : chaque app garde son propre lockfile et son
-# propre cycle de déploiement indépendant (voir packages/auth-shared/README.md
-# pour la même logique appliquée à un package partagé).
-#
-# Ce que ce workflow ne fait PAS : il ne masque pas la dette de lint
-# existante. arbinote/federation-hub ont des erreurs `no-explicit-any`
-# pré-existantes (respectivement ~106 et ~11, voir avancement.md rang 6) —
-# ce job les fait apparaître en rouge intentionnellement plutôt que de les
-# exclure, pour que cette dette reste visible au lieu de rester invisible
-# comme elle l'était sans CI.
-
 on:
   push:
     branches: [main]
@@ -23,11 +10,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # TASK-P0-017 (todo.md) : "CI pré-deploy check conflits migrations" —
-  # détecte une migration ajoutée sous <app>/sql|mysql|migrations/ mais
-  # jamais enregistrée dans db/migrations.manifest (silencieusement absente
-  # de tout déploiement passant par db/migrate.sh). Pur filesystem, pas de
-  # service MySQL requis.
   db-migrations:
     name: db migrations manifest
     runs-on: ubuntu-latest
@@ -62,6 +44,18 @@ jobs:
             dir: club-hub
             pm: pnpm
             test: true
+          - name: player-hub
+            dir: player-hub
+            pm: pnpm
+            test: true
+          - name: staff-hub
+            dir: staff-hub
+            pm: pnpm
+            test: true
+          - name: medical-hub
+            dir: medical-hub
+            pm: pnpm
+            test: true
           - name: club-ob
             dir: club-ob
             pm: pnpm
@@ -93,8 +87,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # setup-node's pnpm cache calls pnpm to locate its store, so pnpm must
-      # already be installed before setup-node restores that cache.
       - name: Setup pnpm
         if: matrix.pm == 'pnpm'
         uses: pnpm/action-setup@v4
@@ -126,10 +118,6 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: pnpm run lint
 
-      # marketplace est un Nest app pnpm dont le script `lint` local inclut
-      # --fix (scaffolding Nest par défaut, même chose que payments/
-      # notifications ci-dessous) : on l'invoque directement sans --fix ici
-      # pour que la CI échoue au lieu de corriger silencieusement.
       - name: Lint (marketplace — sans --fix, contrairement au script pnpm run lint local)
         if: matrix.name == 'marketplace'
         working-directory: ${{ matrix.dir }}

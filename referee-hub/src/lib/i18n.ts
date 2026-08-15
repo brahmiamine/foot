@@ -21,6 +21,7 @@ export function navTranslations(locale: Locale) {
     reports: values["navigation.reports"],
     availability: values["navigation.availability"],
     history: values["navigation.history"],
+    license: values["navigation.license"],
     profile: values["navigation.profile"],
     logout: values["navigation.logout"],
     portal: values["navigation.portal"],
