@@ -132,7 +132,7 @@ export class SharedDatabaseEligibilityAdapter implements EligibilityServicePort 
         .getOne(),
     ])
 
-    const legacyAdministrativeFallback = Boolean(legacy)
+    const legacyAdministrativeFallback = legacy !== null
     if (!membership) reasons.push('NO_ACTIVE_MEMBERSHIP')
     if (!license && !legacyAdministrativeFallback) reasons.push('NO_ACTIVE_LICENSE')
     if (
@@ -171,7 +171,7 @@ export class SharedDatabaseEligibilityAdapter implements EligibilityServicePort 
 
     const warnings: string[] = []
     if (!player?.birthDate) warnings.push('DATE_OF_BIRTH_MISSING')
-    if (legacyAdministrativeFallback) {
+    if (legacy) {
       warnings.push(`LEGACY_REGULATORY_CONFIRMATION:${legacy.source}`)
     }
 
