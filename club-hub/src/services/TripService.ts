@@ -32,12 +32,19 @@ export class TripService {
           : { teamId, category: In(categories) }
         : { teamId };
     if (!where) return [];
-    return repository.find({ where, relations: ["match", "match.homeTeam", "match.awayTeam", "friendlyMatch", "friendlyMatch.opponentTeam"], order: { departureTime: "ASC" } });
+    return repository.find({
+      where,
+      relations: ["match", "match.homeTeam", "match.awayTeam", "friendlyMatch", "friendlyMatch.opponentTeam"],
+      order: { departureTime: "ASC" },
+    });
   }
 
   async findById(id: number, teamId: string): Promise<Trip | null> {
     const repository = await this.getRepository();
-    return repository.findOne({ where: { id, teamId }, relations: ["match", "match.homeTeam", "match.awayTeam", "friendlyMatch", "friendlyMatch.opponentTeam"] });
+    return repository.findOne({
+      where: { id, teamId },
+      relations: ["match", "match.homeTeam", "match.awayTeam", "friendlyMatch", "friendlyMatch.opponentTeam"],
+    });
   }
 
   async findVehicles(tripId: number): Promise<TripVehicle[]> {
@@ -45,12 +52,24 @@ export class TripService {
     return repository.find({ where: { tripId }, order: { id: "ASC" } });
   }
 
+  async findVehiclesByTripIds(tripIds: number[]): Promise<TripVehicle[]> {
+    if (tripIds.length === 0) return [];
+    const repository = await this.getVehicleRepository();
+    return repository.find({ where: { tripId: In(tripIds) }, order: { tripId: "ASC", id: "ASC" } });
+  }
+
   async saveVehicles(tripId: number, vehicles: TripVehicleInput[]): Promise<TripVehicle[]> {
     const repository = await this.getVehicleRepository();
     await repository.delete({ tripId });
     if (vehicles.length === 0) return [];
     const rows = vehicles.map((v) =>
-      repository.create({ tripId, vehicleType: v.vehicleType, label: v.label ?? null, driverName: v.driverName ?? null, seats: v.seats })
+      repository.create({
+        tripId,
+        vehicleType: v.vehicleType,
+        label: v.label ?? null,
+        driverName: v.driverName ?? null,
+        seats: v.seats,
+      })
     );
     return repository.save(rows);
   }
@@ -58,6 +77,16 @@ export class TripService {
   async findParticipants(tripId: number): Promise<TripParticipant[]> {
     const repository = await this.getParticipantRepository();
     return repository.find({ where: { tripId }, relations: ["player"], order: { createdAt: "ASC" } });
+  }
+
+  async findParticipantsByTripIds(tripIds: number[]): Promise<TripParticipant[]> {
+    if (tripIds.length === 0) return [];
+    const repository = await this.getParticipantRepository();
+    return repository.find({
+      where: { tripId: In(tripIds) },
+      relations: ["player"],
+      order: { tripId: "ASC", createdAt: "ASC" },
+    });
   }
 
   async create(
@@ -137,12 +166,6 @@ export class TripService {
     return repository.save(participant);
   }
 
-  /**
-   * TASK-P0-012 (todo.md): `toggleConfirmed`/`removeParticipant` used to
-   * trust any numeric participant id regardless of which club's trip it
-   * belonged to — any staff member with "trips.manage" for their own club
-   * could toggle/remove another club's trip participants.
-   */
   private async findParticipantForTeam(
     participantId: number,
     teamId: string
