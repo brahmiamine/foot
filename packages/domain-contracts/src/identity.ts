@@ -14,11 +14,18 @@ export const IDENTITY_ROLES = [
 
 export type IdentityRole = (typeof IDENTITY_ROLES)[number]
 
-export interface IdentityUserRecord {
+/** Minimal account profile safe to consume from other bounded contexts. */
+export interface IdentityUserProfile {
   id: string
   name: string
   email: string
   role: IdentityRole
+  firstName?: string | null
+  lastName?: string | null
+  phoneNumber?: string | null
+}
+
+export interface IdentityUserRecord extends IdentityUserProfile {
   isActive: boolean
   teamId: string | null
   playerId?: string | null
@@ -43,6 +50,11 @@ export interface CreateIdentityAccountInput {
   playerId?: string | null
   federationId?: string | null
   leagueId?: string | null
+}
+
+/** Narrow lookup used by profile-oriented applications such as referee-hub. */
+export interface IdentityProfilePort {
+  getUserProfile(id: string): Promise<IdentityUserProfile | null>
 }
 
 export interface IdentityDirectoryPort {
