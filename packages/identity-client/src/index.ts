@@ -2,7 +2,9 @@ import type {
   CreateIdentityAccountInput,
   IdentityAccountProvisioningPort,
   IdentityDirectoryPort,
+  IdentityProfilePort,
   IdentityRole,
+  IdentityUserProfile,
   IdentityUserRecord,
   IdentityUserSearch,
 } from '../../domain-contracts/src/identity'
@@ -28,7 +30,7 @@ function normalizeBaseUrl(value: string): string {
 }
 
 export class IdentityHttpClient
-  implements IdentityDirectoryPort, IdentityAccountProvisioningPort
+  implements IdentityDirectoryPort, IdentityAccountProvisioningPort, IdentityProfilePort
 {
   private readonly baseUrl: string
   private readonly timeoutMs: number
@@ -67,6 +69,15 @@ export class IdentityHttpClient
       throw new IdentityClientError(message, response.status)
     }
     return body as T
+  }
+
+  async getUserProfile(id: string): Promise<IdentityUserProfile | null> {
+    try {
+      return await this.call<IdentityUserRecord>(`/api/internal/users/${encodeURIComponent(id)}`)
+    } catch (error) {
+      if (error instanceof IdentityClientError && error.status === 404) return null
+      throw error
+    }
   }
 
   async listUsers(search: IdentityUserSearch = {}): Promise<IdentityUserRecord[]> {
