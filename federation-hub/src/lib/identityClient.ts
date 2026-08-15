@@ -39,11 +39,11 @@ export async function createIdentityUser(
   }
 }
 
-export function getIdentityUserByEmail(email: string): Promise<IdentityUser | null> {
+export async function getIdentityUserByEmail(email: string): Promise<IdentityUser | null> {
   return client().getUserByEmail(email)
 }
 
-export function listIdentityUsers(search: IdentityUserSearch = {}): Promise<IdentityUser[]> {
+export async function listIdentityUsers(search: IdentityUserSearch = {}): Promise<IdentityUser[]> {
   return client().listUsers(search)
 }
 
@@ -53,13 +53,13 @@ export interface UpdateIdentityUserInput {
   password?: string
 }
 
-export function updateIdentityUser(
+export async function updateIdentityUser(
   id: string,
   input: UpdateIdentityUserInput,
 ): Promise<IdentityUser> {
   return client().updateUser(id, input)
 }
 
-export function deleteIdentityUser(id: string): Promise<void> {
-  return client().deleteUser(id)
+export async function deleteIdentityUser(id: string): Promise<void> {
+  await client().deleteUser(id)
 }
