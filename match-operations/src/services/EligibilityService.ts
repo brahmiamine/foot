@@ -1,6 +1,6 @@
+import { createClubLineupAdapter } from '@/adapters/club/createClubLineupAdapter'
 import { createPlayerEligibilityPort } from '@/adapters/regulatory/createRegulatoryAdapters'
-import { MatchLineup } from '@/entities/MatchLineup'
-import { getDataSource } from '@/lib/db'
+import type { ClubLineupReadPort } from '../../../packages/domain-contracts/src/club-lineup'
 import type {
   EligibilityCheckRequest,
   EligibilityContext,
@@ -18,16 +18,13 @@ export class LineupEligibilityError extends Error {
 }
 
 /**
- * Match-facing eligibility facade.
- *
- * Match workflows depend on this class while the regulatory data source is
- * injected through EligibilityServicePort. The composition root keeps the
- * shared MariaDB adapter by default and switches to the federation HTTP
- * boundary only when both regulatory service variables are configured.
+ * Match-facing eligibility facade. Regulatory decisions and club-owned lineup
+ * reads are both injected through explicit domain ports.
  */
 export class EligibilityService implements EligibilityServicePort {
   constructor(
     private readonly playerEligibility: EligibilityServicePort = createPlayerEligibilityPort(),
+    private readonly lineupReader: ClubLineupReadPort = createClubLineupAdapter(),
   ) {}
 
   checkPlayerEligibility(
@@ -38,8 +35,7 @@ export class EligibilityService implements EligibilityServicePort {
   }
 
   async checkLineup(matchId: string, context: EligibilityContext = {}) {
-    const ds = await getDataSource()
-    const lineups = await ds.getRepository(MatchLineup).find({ where: { matchId } })
+    const lineups = await this.lineupReader.findByMatch(matchId)
     if (!lineups.length) {
       throw new LineupEligibilityError([{ playerId: 'LINEUP', reasons: ['EMPTY_LINEUP'] }])
     }
