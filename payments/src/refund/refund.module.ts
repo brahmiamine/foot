@@ -8,6 +8,7 @@ import { RefundStatusHistory } from './entities/refund-status-history.entity';
 import { RefundService } from './refund.service';
 import { PaymentRefundController } from './payment-refund.controller';
 import { RefundController } from './refund.controller';
+import { RefundOperatorGuard } from './guards/refund-operator.guard';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { RefundController } from './refund.controller';
     OutboxModule,
   ],
   controllers: [PaymentRefundController, RefundController],
-  providers: [RefundService],
+  providers: [RefundService, RefundOperatorGuard],
   exports: [RefundService],
 })
 export class RefundModule {}
