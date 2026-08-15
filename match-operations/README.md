@@ -73,3 +73,11 @@ Kiosque volontairement sans session: à isoler réseau/physiquement avant produc
 ## Éligibilité réglementaire
 
 Avant la transition serveur vers `PRE_MATCH_SIGNED`, `EligibilityService` contrôle chaque joueur de la composition. Une licence, une inscription, un contrat requis, une affiliation, un engagement club, une aptitude médicale requise, l'âge, les suspensions et les transferts sont vérifiés ; tout motif bloquant refuse la signature et est audité.
+
+### Finalisation migration-v2
+
+La transition historique utilise désormais `regulatory_legacy_confirmations` : une confirmation `LEGACY_BACKFILL` bornée à la saison peut remplacer temporairement les nouvelles pièces administratives absentes, mais ne neutralise jamais une suspension, un transfert, l'appartenance au club ni les règles d'âge. Chaque usage apparaît dans les warnings du contrôle d'éligibilité.
+
+`ms_match_staff_assignments` porte le staff officiel déclaré pour un match. Lorsqu'une saison définit `minimum_head_coach_qualification`, `StaffEligibilityService` exige un `HEAD_COACH` pour chaque équipe et vérifie une qualification CAF fédérale `VALID`, non expirée et de niveau suffisant avant `PRE_MATCH_SIGNED`. Les affectations sont exposées par `/api/internal/match-staff` avec authentification service-à-service ; le club ne peut agir que sur son propre `teamId` via `club-hub`.
+
+Une suspension créée depuis une décision disciplinaire fédérale utilise la table `Suspension` historique avec la provenance `DISCIPLINARY_DECISION`; elle est donc consommée automatiquement par le même contrôle d'éligibilité qu'une suspension issue d'un carton.
