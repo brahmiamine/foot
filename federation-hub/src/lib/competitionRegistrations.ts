@@ -25,23 +25,20 @@ async function history(manager:EntityManager,item:CompetitionRegistration,audit:
   await repo.save(repo.create({registrationId:item.id,action:`STATUS_${to}`,fromStatus:from,toStatus:to,actorUserId:audit.userId,actorRole:audit.role,reason:reason??null,beforeValue:{status:from},afterValue:{status:to},ipAddress:audit.ipAddress??null,userAgent:audit.userAgent??null}));
 }
 
-async function assertRealApprovalPrerequisites(manager:EntityManager,item:CompetitionRegistration,season:Saison):Promise<void>{
+export async function assertRealApprovalPrerequisites(manager:EntityManager,item:CompetitionRegistration,season:Saison):Promise<void>{
   const now=new Date();
   const requiredFee=Number(item.feesAmount??season.competitionEntryFee??0);
-
   if(season.requiresStadiumApproval){
     if(!item.stadiumApprovalId) throw new CompetitionRegistrationWorkflowError("Une homologation de stade est obligatoire");
     const inspection=await manager.getRepository(StadiumInspection).findOne({where:{id:item.stadiumApprovalId,clubId:item.clubId,seasonId:item.seasonId}});
     const approved=inspection&&["APPROVED","APPROVED_WITH_RESTRICTIONS"].includes(inspection.status)&&(!inspection.expiresAt||new Date(inspection.expiresAt)>=now);
     if(!approved) throw new CompetitionRegistrationWorkflowError("L'homologation de stade référencée n'est pas approuvée, appartient à un autre périmètre ou est expirée");
   }
-
   if(season.requiresFinancialCompliance){
     if(!item.financialComplianceId) throw new CompetitionRegistrationWorkflowError("La conformité financière est obligatoire");
     const compliance=await manager.getRepository(FinancialCompliance).findOne({where:{id:item.financialComplianceId,clubId:item.clubId,seasonId:item.seasonId,status:"COMPLIANT"}});
     if(!compliance) throw new CompetitionRegistrationWorkflowError("Le dossier de conformité financière référencé n'est pas COMPLIANT pour ce club et cette saison");
   }
-
   if(requiredFee>0){
     if(!item.feesPaymentId) throw new CompetitionRegistrationWorkflowError("Les droits d'engagement ne sont pas réglés");
     const payment=await getRegulatoryPayment(item.feesPaymentId);
