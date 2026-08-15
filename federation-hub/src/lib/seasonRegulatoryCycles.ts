@@ -48,7 +48,7 @@ export async function listSeasonRegulatoryCycles(dataSource: DataSource, session
   const query = dataSource.getRepository(SeasonRegulatoryCycle).createQueryBuilder('cycle').orderBy('cycle.created_at', 'DESC')
   applyScope(query, session)
   if (filters.federationId) query.andWhere('cycle.federation_id = :filterFederationId', { filterFederationId: filters.federationId })
-  if (filters.leagueId) query.andWhere('cycle.league_id = :filterLeagueId', { leagueId: filters.leagueId })
+  if (filters.leagueId) query.andWhere('cycle.league_id = :filterLeagueId', { filterLeagueId: filters.leagueId })
   if (filters.status) query.andWhere('cycle.status = :status', { status: filters.status })
   const cycles = await query.getMany()
   const seasonIds = [...new Set(cycles.map((item) => item.seasonId))]
