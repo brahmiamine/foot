@@ -21,6 +21,7 @@ const frontendApps = [
 
 const sharedPackages = {
   'packages/access-client': '@foot/access-client',
+  'packages/app-shell': '@foot/app-shell',
   'packages/auth-shared': '@foot/auth-shared',
   'packages/design-tokens': '@foot/design-tokens',
   'packages/domain-contracts': '@foot/domain-contracts',
