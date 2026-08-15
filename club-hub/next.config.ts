@@ -1,10 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Keep TypeORM and reflection server-only without custom webpack hooks.
-  // This lets Next.js 16 use Turbopack for dev/build while Node resolves the
-  // ORM packages at runtime.
-  serverExternalPackages: ["typeorm", "reflect-metadata", "mysql2", "mariadb"],
+  // External packages for server components (moved from experimental in Next.js 16)
+  serverExternalPackages: ["typeorm", "reflect-metadata"],
+  // Use webpack instead of turbopack for better TypeORM compatibility
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Fix for TypeORM and reflect-metadata
+      config.externals = [...(config.externals || []), "typeorm", "reflect-metadata"];
+    }
+    return config;
+  },
+  // Add headers to preload critical CSS
   async headers() {
     return [
       {
