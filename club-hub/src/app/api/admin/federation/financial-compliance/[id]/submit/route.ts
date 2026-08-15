@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "La campagne de conformité financière est fermée pour cette saison" }, { status: 409 });
     }
     const actor = { userId: session.user.id, role: session.user.role, ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null, userAgent: request.headers.get("user-agent") };
-    return NextResponse.json(await submitFinancialCompliance(session.user.teamId, id, actor, dataSource));
+    return NextResponse.json(await submitFinancialCompliance(session.user.teamId, id, actor));
   } catch (error) {
     if (error instanceof FinancialComplianceWorkflowError) return NextResponse.json({ error: error.message }, { status: 409 });
     console.error("Error submitting financial compliance:", error);
