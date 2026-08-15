@@ -3,10 +3,10 @@ import type {
   IdentityAccountProvisioningPort,
   IdentityDirectoryPort,
   IdentityProfilePort,
-  IdentityRole,
   IdentityUserProfile,
   IdentityUserRecord,
   IdentityUserSearch,
+  UpdateIdentityAccountInput,
 } from '../../domain-contracts/src/identity'
 
 export interface IdentityClientOptions {
@@ -71,13 +71,17 @@ export class IdentityHttpClient
     return body as T
   }
 
-  async getUserProfile(id: string): Promise<IdentityUserProfile | null> {
+  async getUserById(id: string): Promise<IdentityUserRecord | null> {
     try {
       return await this.call<IdentityUserRecord>(`/api/internal/users/${encodeURIComponent(id)}`)
     } catch (error) {
       if (error instanceof IdentityClientError && error.status === 404) return null
       throw error
     }
+  }
+
+  async getUserProfile(id: string): Promise<IdentityUserProfile | null> {
+    return this.getUserById(id)
   }
 
   async listUsers(search: IdentityUserSearch = {}): Promise<IdentityUserRecord[]> {
@@ -110,10 +114,7 @@ export class IdentityHttpClient
     })
   }
 
-  updateUser(
-    id: string,
-    input: { isActive?: boolean; role?: IdentityRole; password?: string },
-  ): Promise<IdentityUserRecord> {
+  updateUser(id: string, input: UpdateIdentityAccountInput): Promise<IdentityUserRecord> {
     return this.call<IdentityUserRecord>(`/api/internal/users/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
