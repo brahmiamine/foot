@@ -7,6 +7,11 @@ import type {
   ClubLineupReadPort,
   ClubMatchLineupEntry,
 } from '../../domain-contracts/src/club-lineup'
+import type {
+  ClubPlayerRegulatoryFacts,
+  ClubPlayerRegulatoryFactsPort,
+  ClubPlayerRegulatoryFactsRequest,
+} from '../../domain-contracts/src/club-player-facts'
 
 export interface ClubClientOptions {
   baseUrl: string
@@ -14,6 +19,7 @@ export interface ClubClientOptions {
   timeoutMs?: number
   lineupPath?: string
   accessPath?: string
+  playerFactsPath?: string
 }
 
 export class ClubClientError extends Error {
@@ -39,11 +45,14 @@ async function readError(response: Response): Promise<string> {
   return `club service responded ${response.status}`
 }
 
-export class ClubHttpClient implements ClubLineupReadPort, ClubRbacReadPort {
+export class ClubHttpClient
+  implements ClubLineupReadPort, ClubRbacReadPort, ClubPlayerRegulatoryFactsPort
+{
   private readonly baseUrl: string
   private readonly timeoutMs: number
   private readonly lineupPath: string
   private readonly accessPath: string
+  private readonly playerFactsPath: string
 
   constructor(private readonly options: ClubClientOptions) {
     if (!options.baseUrl || !options.apiKey) {
@@ -53,6 +62,7 @@ export class ClubHttpClient implements ClubLineupReadPort, ClubRbacReadPort {
     this.timeoutMs = options.timeoutMs ?? 5_000
     this.lineupPath = options.lineupPath ?? '/api/internal/matches'
     this.accessPath = options.accessPath ?? '/api/internal/access'
+    this.playerFactsPath = options.playerFactsPath ?? '/api/internal/regulatory/player-facts'
   }
 
   private async request<T>(path: string): Promise<T> {
@@ -94,5 +104,18 @@ export class ClubHttpClient implements ClubLineupReadPort, ClubRbacReadPort {
   getEffectiveAccess(input: ClubRbacAccessRequest): Promise<ClubRbacAccessResult> {
     const params = new URLSearchParams({ teamId: input.teamId, userId: input.userId })
     return this.request<ClubRbacAccessResult>(`${this.accessPath}?${params.toString()}`)
+  }
+
+  getPlayerRegulatoryFacts(
+    input: ClubPlayerRegulatoryFactsRequest,
+  ): Promise<ClubPlayerRegulatoryFacts> {
+    const params = new URLSearchParams({
+      playerId: input.playerId,
+      clubId: input.clubId,
+      at: input.at,
+    })
+    return this.request<ClubPlayerRegulatoryFacts>(
+      `${this.playerFactsPath}?${params.toString()}`,
+    )
   }
 }
