@@ -1,17 +1,14 @@
-import { randomUUID } from 'node:crypto'
-import bcrypt from 'bcryptjs'
 import { createRefereeAvailabilityDirectory } from '@/adapters/referee/createRefereeAvailabilityDirectory'
+import type { IdentityRole } from '../../../packages/domain-contracts/src/identity'
 import { getDataSource } from './db'
-import { Team, User, type UserRole } from './entities'
+import { Team } from './entities'
+import {
+  createIdentityUser,
+  deleteIdentityUser,
+  listIdentityUsers,
+  updateIdentityUser,
+} from './identityClient'
 import { toPlain, toPlainArray } from './serialization'
-import { deleteIdentityUser, updateIdentityUser } from './identityClient'
-
-/**
- * Gestion des comptes de connexion des clubs (table `User`, partagée avec
- * cardManager/club-hub). Fonctionnalité reprise de l'ancienne app
- * "federation-hub" (supprimée) — un compte ADMIN/OBSERVATEUR appartient à un
- * club et sert à se connecter à cardManager/club-hub, jamais à ArbiNote.
- */
 
 export interface ClubWithAccountCount {
   id: string
@@ -25,28 +22,30 @@ export interface ClubUser {
   id: string
   name: string
   email: string
-  role: UserRole
+  role: IdentityRole
   isActive: boolean
   createdAt: Date
 }
 
+/**
+ * Team is federation-owned, account directory is Identity-owned. The join is
+ * performed in application memory so federation-hub no longer reads User.
+ */
 export async function listClubsWithAccountCounts(): Promise<ClubWithAccountCount[]> {
   const dataSource = await getDataSource()
-  const teams = await dataSource.getRepository(Team).find({
-    where: { team_type: 'club' },
-    order: { nom: 'ASC' },
-  })
+  const [teams, users] = await Promise.all([
+    dataSource.getRepository(Team).find({
+      where: { team_type: 'club' },
+      order: { nom: 'ASC' },
+    }),
+    listIdentityUsers({ hasTeam: true }),
+  ])
 
-  const counts = await dataSource
-    .getRepository(User)
-    .createQueryBuilder('user')
-    .select('user.teamId', 'teamId')
-    .addSelect('COUNT(*)', 'count')
-    .where('user.teamId IS NOT NULL')
-    .groupBy('user.teamId')
-    .getRawMany<{ teamId: string; count: string }>()
-
-  const countByTeam = new Map(counts.map((row) => [row.teamId, Number(row.count)]))
+  const countByTeam = new Map<string, number>()
+  for (const user of users) {
+    if (!user.teamId) continue
+    countByTeam.set(user.teamId, (countByTeam.get(user.teamId) ?? 0) + 1)
+  }
 
   return toPlainArray(
     teams.map((team) => ({
@@ -69,20 +68,18 @@ export async function getClubById(
 }
 
 export async function listUsersForTeam(teamId: string): Promise<ClubUser[]> {
-  const dataSource = await getDataSource()
-  const users = await dataSource.getRepository(User).find({
-    where: { teamId },
-    order: { createdAt: 'DESC' },
-  })
+  const users = await listIdentityUsers({ teamId })
   return toPlainArray(
-    users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      isActive: u.isActive,
-      createdAt: u.createdAt,
-    })),
+    users
+      .map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: new Date(user.createdAt),
+      }))
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
   )
 }
 
@@ -98,16 +95,9 @@ export interface OfficialAccount {
   unavailableReason?: string | null
 }
 
-/**
- * Comptes SSO REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0/§11).
- * Availability is owned by referee-hub and consumed through a batch port so
- * this selector no longer knows the referee_unavailabilities table.
- */
 export async function listOfficialAccounts(matchDate?: Date | null): Promise<OfficialAccount[]> {
-  const dataSource = await getDataSource()
-  const users = await dataSource.getRepository(User).find({
-    where: [{ role: 'REFEREE' }, { role: 'MATCH_OFFICIAL' }, { role: 'REFEREE_OBSERVER' }],
-    order: { name: 'ASC' },
+  const users = await listIdentityUsers({
+    roles: ['REFEREE', 'MATCH_OFFICIAL', 'REFEREE_OBSERVER'],
   })
 
   const availabilityByUser = matchDate
@@ -121,15 +111,15 @@ export async function listOfficialAccounts(matchDate?: Date | null): Promise<Off
 
   return toPlainArray(
     users
-      .map((u) => {
-        const availability = availabilityByUser[u.id]
+      .map((user) => {
+        const availability = availabilityByUser[user.id]
         const period = availability?.blockingPeriod
         return {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: u.role as 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER',
-          isActive: u.isActive,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role as OfficialAccount['role'],
+          isActive: user.isActive,
           unavailable: availability?.available === false,
           unavailableFrom: period?.startDate ?? null,
           unavailableTo: period?.endDate ?? null,
@@ -153,37 +143,25 @@ export interface CreateClubUserInput {
 
 export async function createClubUser(input: CreateClubUserInput): Promise<ClubUser> {
   const dataSource = await getDataSource()
-  const repository = dataSource.getRepository(User)
-
   const team = await dataSource.getRepository(Team).findOne({ where: { id: input.teamId } })
-  if (!team) {
-    throw new Error('Club introuvable')
-  }
+  if (!team) throw new Error('Club introuvable')
 
-  const existing = await repository.findOne({ where: { email: input.email } })
-  if (existing) {
-    throw new Error('Email déjà utilisé')
-  }
-
-  const hashed = await bcrypt.hash(input.password, 12)
-  const user = repository.create({
-    id: randomUUID(),
+  const result = await createIdentityUser({
     name: input.name,
     email: input.email,
-    password: hashed,
+    password: input.password,
     role: input.role,
-    isActive: true,
     teamId: input.teamId,
   })
-  const saved = await repository.save(user)
+  if (!result.ok) throw new Error('Email déjà utilisé')
 
   return toPlain({
-    id: saved.id,
-    name: saved.name,
-    email: saved.email,
-    role: saved.role,
-    isActive: saved.isActive,
-    createdAt: saved.createdAt,
+    id: result.user.id,
+    name: result.user.name,
+    email: result.user.email,
+    role: result.user.role,
+    isActive: result.user.isActive,
+    createdAt: new Date(result.user.createdAt),
   })
 }
 
@@ -193,10 +171,6 @@ export interface UpdateClubUserInput {
   password?: string
 }
 
-/**
- * TS-53 (avancement.md, Epic E17): delegates to identity, owner of User,
- * rather than writing the shared table directly.
- */
 export async function updateClubUser(id: string, input: UpdateClubUserInput): Promise<ClubUser> {
   try {
     const user = await updateIdentityUser(id, input)
@@ -204,7 +178,7 @@ export async function updateClubUser(id: string, input: UpdateClubUserInput): Pr
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role as 'ADMIN' | 'OBSERVATEUR',
+      role: user.role,
       isActive: user.isActive,
       createdAt: new Date(user.createdAt),
     })
