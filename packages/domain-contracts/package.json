@@ -8,6 +8,7 @@
     "./club-lineup": "./src/club-lineup.ts",
     "./eligibility": "./src/eligibility.ts",
     "./events": "./src/events.ts",
+    "./identity": "./src/identity.ts",
     "./referee-availability": "./src/referee-availability.ts",
     "./staff-eligibility": "./src/staff-eligibility.ts"
   }
