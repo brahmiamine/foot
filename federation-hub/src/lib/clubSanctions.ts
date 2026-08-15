@@ -1,5 +1,5 @@
 import type { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm'
-import { assertClubSanctionTransition, blocksRegistrations, ClubSanctionWorkflowError, isClubSanctionEnforceable, requiresLiftMotivation, type ClubSanctionStatus, type ClubSanctionType } from '../../../packages/regulatory-shared/src/clubSanction'
+import { assertClubSanctionTransition, blocksCompetitionEntry, blocksRegistrations, ClubSanctionWorkflowError, isClubSanctionEnforceable, requiresLiftMotivation, type ClubSanctionStatus, type ClubSanctionType } from '../../../packages/regulatory-shared/src/clubSanction'
 import { canAccessFederation, canAccessLeague, canAccessPlatform } from './adminAuth'
 import type { SsoUser } from './ssoSession'
 import { ClubSanction, ClubSanctionHistory, Saison, Team, TeamAffiliation } from './entities'
@@ -119,6 +119,16 @@ export async function transitionClubSanction(dataSource: DataSource, session: Ss
 export async function hasActiveRegistrationBan(source: DataSource | EntityManager, clubId: string): Promise<ClubSanction | null> {
   const sanctions = await source.getRepository(ClubSanction).find({ where: { clubId, status: 'ACTIVE' } })
   return sanctions.find((sanction) => blocksRegistrations(sanction.type) && isClubSanctionEnforceable(sanction.status, sanction.startsAt, sanction.endsAt)) ?? null
+}
+
+/** Sanction COMPETITION_BAN/COMPETITION_EXCLUSION active bloquant l'engagement du club en compétition (portée saison ou toutes saisons), ou `null`. Utilisé comme garde serveur par competitionRegistrations.ts (P0-006). Accepte un DataSource ou l'EntityManager d'une transaction en cours. */
+export async function hasActiveCompetitionBan(source: DataSource | EntityManager, clubId: string, seasonId?: string | null): Promise<ClubSanction | null> {
+  const sanctions = await source.getRepository(ClubSanction).find({ where: { clubId, status: 'ACTIVE' } })
+  return sanctions.find((sanction) =>
+    blocksCompetitionEntry(sanction.type) &&
+    isClubSanctionEnforceable(sanction.status, sanction.startsAt, sanction.endsAt) &&
+    (!sanction.seasonId || sanction.seasonId === seasonId),
+  ) ?? null
 }
 
 /** Marque comme EXPIRED les sanctions ACTIVE/SUSPENDED dont `endsAt` est dépassé. Appelée à la lecture (pas de cron dédié dans ce dépôt), best-effort. */

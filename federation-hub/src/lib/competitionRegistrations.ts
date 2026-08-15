@@ -4,6 +4,7 @@ import { canAccessFederation, canAccessLeague, canAccessPlatform } from "./admin
 import type { SsoUser } from "./ssoSession";
 import { ClubLicenseApplication, CompetitionRegistration, CompetitionRegistrationHistory, Saison } from "./entities";
 import { notify } from "./notificationClient";
+import { hasActiveCompetitionBan } from "./clubSanctions";
 
 export interface RegulatoryAudit { userId: string; role: string; ipAddress?: string|null; userAgent?: string|null }
 export class CompetitionRegistrationAuthorizationError extends Error { constructor(){super("Forbidden");this.name="CompetitionRegistrationAuthorizationError"} }
@@ -39,13 +40,13 @@ export async function transitionCompetitionRegistration(ds:DataSource,session:Ss
     if(!canAccess(session,item))throw new CompetitionRegistrationAuthorizationError();
     assertCompetitionRegistrationTransition(item.status,target);
     if(target==="APPROVED"){
-      const [license,season,bans]=await Promise.all([
+      const [license,season,ban]=await Promise.all([
         manager.getRepository(ClubLicenseApplication).findOne({where:{id:item.clubLicenseId,clubId:item.clubId,seasonId:item.seasonId,status:"APPROVED"}}),
         manager.getRepository(Saison).findOne({where:{id:item.seasonId}}),
-        manager.query("SELECT id FROM regulatory_bans WHERE club_id=? AND type='COMPETITION_BAN' AND status='ACTIVE' AND starts_at<=NOW() AND (ends_at IS NULL OR ends_at>=NOW()) AND (season_id IS NULL OR season_id=?) LIMIT 1",[item.clubId,item.seasonId]),
+        hasActiveCompetitionBan(manager,item.clubId,item.seasonId),
       ]);
       if(!season)throw new CompetitionRegistrationWorkflowError("Compétition-saison introuvable");
-      assertCompetitionRegistrationApproval({clubLicenseApproved:!!license,clubLicenseExpiresAt:license?.expiresAt,documentsComplete:item.documentsComplete,participationBlocked:bans.length>0,stadiumRequired:season.requiresStadiumApproval,stadiumApprovalId:item.stadiumApprovalId,financialComplianceRequired:season.requiresFinancialCompliance,financialComplianceId:item.financialComplianceId,feesAmount:item.feesAmount??season.competitionEntryFee,feesPaymentId:item.feesPaymentId});
+      assertCompetitionRegistrationApproval({clubLicenseApproved:!!license,clubLicenseExpiresAt:license?.expiresAt,documentsComplete:item.documentsComplete,participationBlocked:!!ban,stadiumRequired:season.requiresStadiumApproval,stadiumApprovalId:item.stadiumApprovalId,financialComplianceRequired:season.requiresFinancialCompliance,financialComplianceId:item.financialComplianceId,feesAmount:item.feesAmount??season.competitionEntryFee,feesPaymentId:item.feesPaymentId});
     }
     const from=item.status; item.status=target;
     item.rejectionReason=["CHANGES_REQUESTED","REJECTED","SUSPENDED"].includes(target)?reason??null:null;
