@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { In } from "typeorm";
 import { auth } from "@/lib/auth";
 import { getDataSource } from "@/lib/database";
 import { Player } from "@/entities/Player";
 import { Card } from "@/entities/Card";
 import { Suspension } from "@/entities/Suspension";
 
-/**
- * GET /api/exports/players — export Excel/PDF de la liste des joueurs du
- * club avec leur historique disciplinaire. Port de cardManager/app/api/exports/players.
- */
+/** GET /api/exports/players — export Excel/PDF avec historique disciplinaire. */
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,27 +21,49 @@ export async function GET(req: NextRequest) {
     order: { lastNameFr: "ASC" },
   });
 
-  const cardRepo = dataSource.getRepository(Card);
-  const suspensionRepo = dataSource.getRepository(Suspension);
+  const playerIds = players.map((player) => player.id);
+  const [cards, activeSuspensions] = playerIds.length
+    ? await Promise.all([
+        dataSource.getRepository(Card).find({ where: { playerId: In(playerIds) } }),
+        dataSource.getRepository(Suspension).find({
+          select: { playerId: true },
+          where: { playerId: In(playerIds), status: "ACTIVE" },
+        }),
+      ])
+    : [[], []];
 
-  const rows = await Promise.all(
-    players.map(async (p) => {
-      const cards = await cardRepo.find({ where: { playerId: p.id } });
-      const activeSuspensions = await suspensionRepo.count({ where: { playerId: p.id, status: "ACTIVE" } });
-      return {
-        Numéro: p.number,
-        Prénom: p.firstNameFr,
-        Nom: p.lastNameFr,
-        "Prénom AR": p.firstNameAr ?? "",
-        "Nom AR": p.lastNameAr ?? "",
-        Équipe: p.team?.nom ?? "",
-        Statut: p.status,
-        "Cartons Jaunes": cards.filter((c) => c.type === "YELLOW").length,
-        "Cartons Rouges": cards.filter((c) => c.type !== "YELLOW").length,
-        "Suspensions actives": activeSuspensions,
-      };
-    })
-  );
+  const cardCounts = new Map<string, { yellow: number; red: number }>();
+  for (const card of cards) {
+    const current = cardCounts.get(card.playerId) ?? { yellow: 0, red: 0 };
+    if (card.type === "YELLOW") current.yellow += 1;
+    else current.red += 1;
+    cardCounts.set(card.playerId, current);
+  }
+
+  const activeSuspensionCounts = new Map<string, number>();
+  for (const suspension of activeSuspensions) {
+    if (!suspension.playerId) continue;
+    activeSuspensionCounts.set(
+      suspension.playerId,
+      (activeSuspensionCounts.get(suspension.playerId) ?? 0) + 1,
+    );
+  }
+
+  const rows = players.map((player) => {
+    const counts = cardCounts.get(player.id) ?? { yellow: 0, red: 0 };
+    return {
+      Numéro: player.number,
+      Prénom: player.firstNameFr,
+      Nom: player.lastNameFr,
+      "Prénom AR": player.firstNameAr ?? "",
+      "Nom AR": player.lastNameAr ?? "",
+      Équipe: player.team?.nom ?? "",
+      Statut: player.status,
+      "Cartons Jaunes": counts.yellow,
+      "Cartons Rouges": counts.red,
+      "Suspensions actives": activeSuspensionCounts.get(player.id) ?? 0,
+    };
+  });
 
   if (format === "excel") {
     const ExcelJS = (await import("exceljs")).default;
