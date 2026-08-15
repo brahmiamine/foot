@@ -277,6 +277,20 @@ Les validations réglementaires doivent être traçables de bout en bout.
   licence club, dossier, stade/finance/frais configurables, interdiction de
   participation, audit, notifications et UI dans les deux hubs. Implémenté par
   une PR concurrente (#73) pendant cette migration, pas par les lots ci-dessous.
+  **Correctif post-fusion** : la dédup `regulatory_bans` → `club_sanctions`
+  (voir "Bilan de cette migration") avait initialement laissé passer une
+  référence SQL brute à `regulatory_bans` dans
+  `transitionCompetitionRegistration` (`federation-hub/src/lib/competitionRegistrations.ts`)
+  — sur une base créée avec le manifeste de migrations actuel (qui ne crée
+  plus cette table), toute tentative d'approbation d'engagement échouait.
+  Corrigé via `hasActiveCompetitionBan` (nouveau, `clubSanctions.ts`, même
+  patron que `hasActiveRegistrationBan`/`hasActiveTransferBan`), qui lit
+  `club_sanctions` et applique `blocksCompetitionEntry`
+  (`COMPETITION_BAN`/`COMPETITION_EXCLUSION`) — ce qui raccorde enfin ces deux
+  types de sanction, jusqu'ici modélisés mais jamais appliqués. Couvert par
+  `competitionRegistrations.test.ts` (intégration DB réelle sur le helper) et
+  des cas supplémentaires dans `regulatoryWorkflows.test.ts` (règle pure
+  d'approbation).
 - ✅ **P0-007 — Fenêtres de transfert** : périodes fédération/ligue auditées,
   refus `TRANSFER_WINDOW_CLOSED` à la création et à l'homologation,
   interdictions de recrutement, exception fédérale avec motif et référence
@@ -295,10 +309,10 @@ Les validations réglementaires doivent être traçables de bout en bout.
   fédérale d'un transfert (`PlayerTransferService.completeTransfer`) et
   `REGISTRATION_BAN` bloque l'approbation d'une inscription joueur
   (`playerRegistrations.transitionPlayerRegistration`). `COMPETITION_BAN`/
-  `COMPETITION_EXCLUSION` sont modélisés et exposés mais non appliqués
-  automatiquement : `CompetitionRegistrationService` (P0-006, PR #73) ne
-  consulte pas `club_sanctions` — brancher ce contrôle reste un
-  prolongement possible, hors périmètre de cette migration.
+  `COMPETITION_EXCLUSION` bloquent désormais aussi l'approbation d'un
+  engagement compétition (`competitionRegistrations.transitionCompetitionRegistration`,
+  via `hasActiveCompetitionBan` — voir le correctif documenté sous P0-006
+  ci-dessus).
 - ✅ **P0-010 — Litiges** : `legal_cases` + `legal_case_documents`/`legal_case_hearings`/
   `legal_case_decisions`/`legal_case_events`, parties polymorphes (club,
   joueur, coach, staff, agent, fédération), numéro de dossier unique généré

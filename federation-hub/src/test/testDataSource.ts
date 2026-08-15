@@ -23,6 +23,11 @@ import {
   OfficialRefereeCriterion,
   RefereeMatchReport,
   RefereeUnavailability,
+  ClubLicenseApplication,
+  ClubSanction,
+  ClubSanctionHistory,
+  CompetitionRegistration,
+  CompetitionRegistrationHistory,
 } from '@/lib/entities'
 
 /**
@@ -62,6 +67,11 @@ export async function createTestDataSource(): Promise<DataSource> {
       OfficialRefereeCriterion,
       RefereeMatchReport,
       RefereeUnavailability,
+      ClubLicenseApplication,
+      ClubSanction,
+      ClubSanctionHistory,
+      CompetitionRegistration,
+      CompetitionRegistrationHistory,
     ],
   })
 
