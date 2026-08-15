@@ -4,6 +4,15 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import type { ClubBranding } from "@/lib/clubBranding";
+import {
+  DEFAULT_SHELL_CONTENT,
+  createBrandingVariables,
+  createResponsiveShellCss,
+  createShellClassNames,
+} from "../../../../packages/app-shell/src/index";
+
+const shell = createShellClassNames("ph");
+const responsiveCss = createResponsiveShellCss("ph");
 
 export function AppShell({
   playerName,
@@ -19,39 +28,19 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const brandingVars = {
-    "--ph-primary": clubBranding.primaryColor,
-    "--ph-sidebar-bg": clubBranding.secondaryColor,
-    "--ph-accent": clubBranding.accentColor,
-  } as CSSProperties;
+  const brandingVars = createBrandingVariables("ph", clubBranding) as CSSProperties;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", ...brandingVars }}>
-      <style>{`
-        @media (max-width: 900px) {
-          .ph-sidebar-wrap {
-            position: fixed;
-            inset-block: 0;
-            inset-inline-start: 0;
-            transform: translateX(-100%);
-            transition: transform 0.2s ease;
-            z-index: 40;
-          }
-          [dir="rtl"] .ph-sidebar-wrap { transform: translateX(100%); }
-          .ph-sidebar-wrap.open,
-          [dir="rtl"] .ph-sidebar-wrap.open { transform: translateX(0); }
-          .ph-menu-toggle { display: inline-flex !important; }
-          .ph-overlay { display: block !important; }
-        }
-      `}</style>
+      <style>{responsiveCss}</style>
 
-      <div className={`ph-sidebar-wrap${mobileOpen ? " open" : ""}`}>
+      <div className={`${shell.sidebarWrap}${mobileOpen ? " open" : ""}`}>
         <Sidebar clubName={clubBranding.name} clubLogoUrl={clubBranding.logoUrl} />
       </div>
 
       {mobileOpen && (
         <div
-          className="ph-overlay"
+          className={shell.overlay}
           onClick={() => setMobileOpen(false)}
           style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 30 }}
         />
@@ -64,7 +53,7 @@ export function AppShell({
           userName={userName}
           onToggleMenu={() => setMobileOpen((value) => !value)}
         />
-        <main style={{ padding: "1.5rem", maxWidth: 1280, margin: "0 auto" }}>{children}</main>
+        <main style={{ ...DEFAULT_SHELL_CONTENT }}>{children}</main>
       </div>
     </div>
   );
