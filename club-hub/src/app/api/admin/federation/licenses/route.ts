@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getDataSource } from "@/lib/database";
 import { createPersonLicenseForClub, listPersonLicenseCandidates, listPersonLicensesForClub } from "@/services/PersonLicenseService";
 import { PERSON_LICENSE_TYPES, PersonLicenseWorkflowError, type PersonLicenseType } from "../../../../../../../packages/regulatory-shared/src/personLicensing";
+import { getPersonLicenseCardsByIds } from "../../../../../../../packages/regulatory-shared/src/licenseCardLookup";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,10 @@ export async function GET() {
       listPersonLicenseCandidates(session.user.teamId, dataSource),
       dataSource.query("SELECT id, nom FROM saisons ORDER BY date_debut DESC, nom DESC") as Promise<Array<{ id: string; nom: string }>>,
     ]);
-    return NextResponse.json({ licenses, candidates, seasons, canManage: canManage(session.user.role) });
+    const cards = await getPersonLicenseCardsByIds(dataSource, licenses.map((license) => license.id));
+    const cardById = new Map(cards.map((card) => [card.id, card]));
+    const enrichedLicenses = licenses.map((license) => Object.assign(license, cardById.get(license.id) ?? {}));
+    return NextResponse.json({ licenses: enrichedLicenses, candidates, seasons, canManage: canManage(session.user.role) });
   } catch (error) {
     console.error("Error loading person licenses:", error);
     return NextResponse.json({ error: "Erreur lors du chargement des licences" }, { status: 500 });
