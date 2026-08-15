@@ -19,10 +19,6 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  // Couleurs du club connecté injectées comme variables CSS scopées à ce
-  // wrapper : elles écrasent les valeurs par défaut de globals.css pour tout
-  // le tableau de bord sans affecter la page de connexion (côté identity).
   const brandingVars = {
     "--ph-primary": clubBranding.primaryColor,
     "--ph-sidebar-bg": clubBranding.secondaryColor,
@@ -33,8 +29,17 @@ export function AppShell({
     <div style={{ display: "flex", minHeight: "100vh", ...brandingVars }}>
       <style>{`
         @media (max-width: 900px) {
-          .ph-sidebar-wrap { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 40; }
-          .ph-sidebar-wrap.open { transform: translateX(0); }
+          .ph-sidebar-wrap {
+            position: fixed;
+            inset-block: 0;
+            inset-inline-start: 0;
+            transform: translateX(-100%);
+            transition: transform 0.2s ease;
+            z-index: 40;
+          }
+          [dir="rtl"] .ph-sidebar-wrap { transform: translateX(100%); }
+          .ph-sidebar-wrap.open,
+          [dir="rtl"] .ph-sidebar-wrap.open { transform: translateX(0); }
           .ph-menu-toggle { display: inline-flex !important; }
           .ph-overlay { display: block !important; }
         }
@@ -57,7 +62,7 @@ export function AppShell({
           playerName={playerName}
           playerNumber={playerNumber}
           userName={userName}
-          onToggleMenu={() => setMobileOpen((v) => !v)}
+          onToggleMenu={() => setMobileOpen((value) => !value)}
         />
         <main style={{ padding: "1.5rem", maxWidth: 1280, margin: "0 auto" }}>{children}</main>
       </div>
