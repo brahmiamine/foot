@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import { createRefereeAvailabilityDirectory } from '@/adapters/referee/createRefereeAvailabilityDirectory'
 import { getDataSource } from './db'
-import { RefereeUnavailability, Team, User, type UserRole } from './entities'
+import { Team, User, type UserRole } from './entities'
 import { toPlain, toPlainArray } from './serialization'
 import { deleteIdentityUser, updateIdentityUser } from './identityClient'
 
@@ -54,11 +55,13 @@ export async function listClubsWithAccountCounts(): Promise<ClubWithAccountCount
       nom_ar: team.nom_ar ?? null,
       logo_url: team.logo_url ?? null,
       accountCount: countByTeam.get(team.id) ?? 0,
-    }))
+    })),
   )
 }
 
-export async function getClubById(teamId: string): Promise<{ id: string; nom: string; logo_url?: string | null } | null> {
+export async function getClubById(
+  teamId: string,
+): Promise<{ id: string; nom: string; logo_url?: string | null } | null> {
   const dataSource = await getDataSource()
   const team = await dataSource.getRepository(Team).findOne({ where: { id: teamId } })
   if (!team) return null
@@ -79,7 +82,7 @@ export async function listUsersForTeam(teamId: string): Promise<ClubUser[]> {
       role: u.role,
       isActive: u.isActive,
       createdAt: u.createdAt,
-    }))
+    })),
   )
 }
 
@@ -96,10 +99,9 @@ export interface OfficialAccount {
 }
 
 /**
- * Comptes SSO REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0/§11)
- * — n'ont pas de `teamId`, leur périmètre réel est vérifié match par match
- * (`match_official_assignments`, Phase 4), pas figé à la création du
- * compte. Sert au sélecteur d'affectation d'officiels dans `federation-hub`.
+ * Comptes SSO REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0/§11).
+ * Availability is owned by referee-hub and consumed through a batch port so
+ * this selector no longer knows the referee_unavailabilities table.
  */
 export async function listOfficialAccounts(matchDate?: Date | null): Promise<OfficialAccount[]> {
   const dataSource = await getDataSource()
@@ -107,29 +109,37 @@ export async function listOfficialAccounts(matchDate?: Date | null): Promise<Off
     where: [{ role: 'REFEREE' }, { role: 'MATCH_OFFICIAL' }, { role: 'REFEREE_OBSERVER' }],
     order: { name: 'ASC' },
   })
-  const periods = matchDate
-    ? await dataSource.getRepository(RefereeUnavailability)
-      .createQueryBuilder('period')
-      .where('period.cancelled_at IS NULL')
-      .andWhere(':matchDate BETWEEN period.start_date AND period.end_date', { matchDate: matchDate.toISOString().slice(0, 10) })
-      .getMany()
-    : []
-  const unavailableByUser = new Map(periods.map((period) => [period.userId, period]))
+
+  const availabilityByUser = matchDate
+    ? (
+        await createRefereeAvailabilityDirectory().checkAvailabilityBatch({
+          userIds: users.map((user) => user.id),
+          date: matchDate.toISOString().slice(0, 10),
+        })
+      ).availabilityByUser
+    : {}
+
   return toPlainArray(
-    users.map((u) => {
-      const period = unavailableByUser.get(u.id)
-      return {
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role as 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER',
-        isActive: u.isActive,
-        unavailable: Boolean(period),
-        unavailableFrom: period?.startDate ?? null,
-        unavailableTo: period?.endDate ?? null,
-        unavailableReason: period?.reason ?? null,
-      }
-    }).sort((left, right) => Number(right.unavailable) - Number(left.unavailable) || left.name.localeCompare(right.name))
+    users
+      .map((u) => {
+        const availability = availabilityByUser[u.id]
+        const period = availability?.blockingPeriod
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role as 'REFEREE' | 'MATCH_OFFICIAL' | 'REFEREE_OBSERVER',
+          isActive: u.isActive,
+          unavailable: availability?.available === false,
+          unavailableFrom: period?.startDate ?? null,
+          unavailableTo: period?.endDate ?? null,
+          unavailableReason: period?.reason ?? null,
+        }
+      })
+      .sort(
+        (left, right) =>
+          Number(right.unavailable) - Number(left.unavailable) || left.name.localeCompare(right.name),
+      ),
   )
 }
 
@@ -184,9 +194,8 @@ export interface UpdateClubUserInput {
 }
 
 /**
- * TS-53 (avancement.md, Epic E17) : délègue à `sso` (seul propriétaire de
- * `User`, voir TS-30) plutôt que d'écrire directement dans la table —
- * remplace l'ancienne implémentation TypeORM directe.
+ * TS-53 (avancement.md, Epic E17): delegates to identity, owner of User,
+ * rather than writing the shared table directly.
  */
 export async function updateClubUser(id: string, input: UpdateClubUserInput): Promise<ClubUser> {
   try {
