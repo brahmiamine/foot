@@ -17,22 +17,31 @@ export default async function ConvocationsPage() {
   if (!session) return null;
 
   const convocations = await playerPortalService.getConvocations(session.user.playerId);
-  const withMatch = await Promise.all(
-    convocations.map(async (convocation) => ({
-      convocation,
-      match: await playerPortalService.resolveConvocationMatch(convocation),
-    }))
-  );
+  const matchesByConvocation = await playerPortalService.resolveConvocationMatches(convocations);
+  const withMatch = convocations.map((convocation) => ({
+    convocation,
+    match: matchesByConvocation.get(convocation.id) ?? null,
+  }));
 
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <h1 style={{ fontSize: "1.2rem", margin: 0 }}>Mes convocations</h1>
 
-      {withMatch.length === 0 && <EmptyState title="Aucune convocation" description="Vous n'avez pas encore été convoqué." />}
+      {withMatch.length === 0 && (
+        <EmptyState title="Aucune convocation" description="Vous n'avez pas encore été convoqué." />
+      )}
 
       {withMatch.map(({ convocation, match }) => (
         <Card key={convocation.id}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
             <div>
               <div style={{ fontWeight: 700 }}>{match ? match.opponentName : "Match"}</div>
               <div style={{ color: "var(--ph-text-muted)", fontSize: "0.85rem" }}>{formatDateTime(match?.date)}</div>
@@ -51,7 +60,7 @@ export default async function ConvocationsPage() {
             <ConvocationResponseButtons
               convocationId={convocation.id}
               current={convocation.response}
-              cancelled={!!convocation.cancelledAt}
+              cancelled={Boolean(convocation.cancelledAt)}
             />
           </div>
         </Card>
