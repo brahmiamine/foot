@@ -1,0 +1,11 @@
+{
+  "name": "@foot/domain-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./eligibility": "./src/eligibility.ts",
+    "./events": "./src/events.ts"
+  }
+}
