@@ -40,7 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const payment = await initPayment({
       orderId: `competition-entry:${id}`,
       amount,
-      email: session.user.email,
+      email: session.user.email ?? undefined,
       userId: session.user.id,
       firstName: typeof body.firstName === "string" ? body.firstName : undefined,
       lastName: typeof body.lastName === "string" ? body.lastName : undefined,
