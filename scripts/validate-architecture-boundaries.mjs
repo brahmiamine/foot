@@ -52,18 +52,33 @@ function importsOf(source) {
   return [...source.matchAll(importPattern)].map((match) => match[1])
 }
 
-function referencesAnotherApplication(specifier, currentApp) {
+function isInside(candidate, directory) {
+  const relative = path.relative(directory, candidate)
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+}
+
+function referencesAnotherApplication(specifier, currentApp, importingFile) {
+  // `@/...` is the local source alias used inside each Next.js application.
+  // A local file such as `@/types/ticketing` must not be mistaken for the
+  // independently deployable root application named `ticketing`.
+  if (specifier.startsWith('@/')) return null
+
+  if (specifier.startsWith('.')) {
+    const resolved = path.resolve(path.dirname(importingFile), specifier)
+    for (const otherApp of applications) {
+      if (otherApp === currentApp) continue
+      if (isInside(resolved, path.join(root, otherApp))) return otherApp
+    }
+    return null
+  }
+
+  // Bare/root-like application imports are forbidden. Shared code must be
+  // published through packages/* (normally @foot/*) or consumed through APIs.
   for (const otherApp of applications) {
     if (otherApp === currentApp) continue
-    if (
-      specifier === otherApp ||
-      specifier.startsWith(`${otherApp}/`) ||
-      specifier.includes(`/${otherApp}/`) ||
-      specifier.endsWith(`/${otherApp}`)
-    ) {
-      return otherApp
-    }
+    if (specifier === otherApp || specifier.startsWith(`${otherApp}/`)) return otherApp
   }
+
   return null
 }
 
@@ -76,7 +91,7 @@ for (const app of applications) {
   for (const file of files) {
     const source = await readFile(file, 'utf8')
     for (const specifier of importsOf(source)) {
-      const otherApp = referencesAnotherApplication(specifier, app)
+      const otherApp = referencesAnotherApplication(specifier, app, file)
       if (otherApp) {
         errors.push(
           `${path.relative(root, file)} imports application boundary ${otherApp}: ${specifier}`,
@@ -106,13 +121,23 @@ for (const entry of packageDirs) {
         )
       }
 
-      const appReference = applications.find(
-        (app) => specifier.includes(`/${app}/`) || specifier.endsWith(`/${app}`),
-      )
-      if (appReference) {
-        errors.push(
-          `${path.relative(root, file)} imports deployable application ${appReference}: ${specifier}`,
+      if (specifier.startsWith('.')) {
+        const resolved = path.resolve(path.dirname(file), specifier)
+        const appReference = applications.find((app) => isInside(resolved, path.join(root, app)))
+        if (appReference) {
+          errors.push(
+            `${path.relative(root, file)} imports deployable application ${appReference}: ${specifier}`,
+          )
+        }
+      } else {
+        const appReference = applications.find(
+          (app) => specifier === app || specifier.startsWith(`${app}/`),
         )
+        if (appReference) {
+          errors.push(
+            `${path.relative(root, file)} imports deployable application ${appReference}: ${specifier}`,
+          )
+        }
       }
     }
   }
