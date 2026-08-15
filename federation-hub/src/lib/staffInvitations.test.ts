@@ -175,8 +175,6 @@ describe('acceptInvitation', () => {
   it('TASK-P0-013: treats email_taken as a success when the existing account matches this exact invitation (idempotent retry)', async () => {
     const { acceptInvitation } = await import('./staffInvitations')
     const invitation = await seedInvitation('raw-token-1')
-    // sso already created the account on a previous attempt; only the local
-    // `acceptedAt` write failed, so this retry hits email_taken.
     createIdentityUser.mockResolvedValue({ ok: false, error: 'email_taken' })
     getIdentityUserByEmail.mockResolvedValue({
       id: 'user-1',
@@ -297,22 +295,21 @@ describe('createInvitation', () => {
     },
   )
 
-  it('rejects an invitation when an account already exists for that email', async () => {
+  it('rejects an invitation when Identity reports an existing account for that email', async () => {
     const { createInvitation } = await import('./staffInvitations')
-    const userRepo = dataSource.getRepository((await import('@/lib/entities')).User)
-    await userRepo.save(
-      userRepo.create({
-        id: 'existing-user',
-        name: 'Existant',
-        email: 'taken@example.com',
-        password: 'hash',
-        role: 'OBSERVATEUR',
-        isActive: true,
-      }),
-    )
+    getIdentityUserByEmail.mockResolvedValue({
+      id: 'existing-user',
+      name: 'Existant',
+      email: 'taken@example.com',
+      role: 'OBSERVATEUR',
+      isActive: true,
+      teamId: null,
+      createdAt: new Date().toISOString(),
+    })
 
     await expect(
       createInvitation({ name: 'Sami', email: 'taken@example.com', role: 'REFEREE' }, 'https://x'),
     ).rejects.toThrow('Un compte existe déjà')
+    expect(getIdentityUserByEmail).toHaveBeenCalledWith('taken@example.com')
   })
 })
