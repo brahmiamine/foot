@@ -27,6 +27,7 @@ const sharedPackages = {
   'packages/domain-contracts': '@foot/domain-contracts',
   'packages/i18n': '@foot/i18n',
   'packages/notifications-client': '@foot/notifications-client',
+  'packages/regulatory-client': '@foot/regulatory-client',
   'packages/regulatory-shared': '@foot/regulatory',
   'packages/tsconfig': '@foot/tsconfig',
   'packages/types': '@foot/types',
