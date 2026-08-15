@@ -44,13 +44,15 @@ rôle, IP, User-Agent, motif et valeurs avant/après.
 
 ## Authentification et autorisations
 
-Toutes les routes `/api/admin/*` exigent une session SSO. `PLATFORM_SUPERADMIN` a un accès global, `FEDERATION_ADMIN` et `LEAGUE_ADMIN` sont filtrés côté serveur, et `REFEREE_OBSERVER` n'accède qu'aux évaluations des matchs où il possède une affectation active. Les outils de modération ArbiNote restent réservés à la plateforme tant qu'aucune permission fine n'est persistée dans le SSO.
+Toutes les routes `/api/admin/*` exigent une session SSO. `PLATFORM_SUPERADMIN` a un accès global, `FEDERATION_ADMIN` et `LEAGUE_ADMIN` sont filtrés côté serveur, et `REFEREE_OBSERVER` n'accède qu'aux évaluations des matchs où il possède une affectation active.
+
+Migration-v2 §25 ajoute `regulatory_user_permissions`. Les rôles et scopes plateforme/fédération/ligue restent toujours la limite maximale. Un compte sans ligne conserve les droits historiques pour permettre une migration progressive ; dès qu'au moins une permission réglementaire est configurée, ce compte passe en liste blanche (`competition_registration.approve`, `transfer.homologate`, `discipline.decide`, `season_cycle.manage`, etc.). La gestion de ces permissions est réservée au `PLATFORM_SUPERADMIN` via `/api/admin/regulatory-permissions`.
 
 ## Données possédées
 
 Base partagée `foot`: référentiels, équipes/branding, matchs, arbitres, motifs, comptes/invitations staff et journal d'audit. Le domaine privé possède `referee_official_evaluations` et `official_referee_criteria`; les votes publics restent dans `votes`.
 
-**Migrations réellement présentes :** Dump arbitres et migrations partagées (audit, votes, équipes, tournois); temps réels de match, invitations staff, branding et icônes, activation des fédérations/ligues, unicité des votes; `mysql/migration_add_match_saga.sql` (TASK-P0-003, `match_saga_cases`/`match_saga_steps`), `mysql/migration_extend_referee_profiles.sql` et `mysql/migration_add_official_referee_assessments.sql`. Migration-v2 P0-009 à P1-008 : `migration_add_club_sanctions.sql`, `migration_add_legal_cases.sql`, `migration_add_season_regulatory_cycles.sql`, `migration_add_financial_compliance.sql`, `migration_add_governance.sql`, `migration_add_stadium_inspections.sql`, `migration_add_coach_qualifications.sql`, `migration_add_medical_eligibilities.sql`, `migration_add_agents.sql`, `migration_add_disciplinary_cases.sql`, `migration_add_appeals.sql`.
+**Migrations réellement présentes :** Dump arbitres et migrations partagées (audit, votes, équipes, tournois); temps réels de match, invitations staff, branding et icônes, activation des fédérations/ligues, unicité des votes; `mysql/migration_add_match_saga.sql`, `mysql/migration_extend_referee_profiles.sql` et `mysql/migration_add_official_referee_assessments.sql`. Migration-v2 inclut notamment licensing, inscriptions, contrats, engagements/fenêtres/éligibilité, sanctions, litiges, cycles saisonniers, finance, gouvernance, stades, qualifications CAF, médical, agents, discipline et appels. Les deltas de finalisation ajoutent `migration_add_regulatory_legacy_confirmations.sql`, `migration_extend_season_regulatory_cycles.sql`, `migration_extend_suspensions_for_disciplinary_decisions.sql` et `migration_link_disciplinary_decision_suspension.sql`.
 
 ## Intégrations
 
@@ -79,12 +81,20 @@ La page `/admin/saisons` permet de rendre le contrat homologué obligatoire pour
 une compétition-saison ; toute annulation ou résiliation suspend alors les
 inscriptions approuvées liées et retire leur éligibilité.
 
+### Engagements compétitions (migration-v2 P0-006)
+
+`/admin/competition-entries` ne fait plus confiance à la seule présence d'identifiants. Avant `APPROVED`, la licence club est relue, `COMPETITION_BAN`/`COMPETITION_EXCLUSION` sont appliqués, l'homologation de stade doit appartenir au même club et à la même saison avec un statut `APPROVED`/`APPROVED_WITH_RESTRICTIONS` non expiré, et la conformité financière doit être `COMPLIANT`. Lorsque des droits sont dus, `federation-hub` interroge `payments` avec `PAYMENT_API_URL`/`PAYMENT_API_KEY` et exige un paiement `PAID` en TND d'un montant suffisant.
+
+### Transition historique / backfill (§36)
+
+`regulatory_legacy_confirmations` fournit une passerelle explicite `LEGACY_BACKFILL` bornée à la saison pour les joueurs réellement présents dans l'effectif à la date d'un match historique. Elle remplace temporairement uniquement les nouvelles pièces administratives absentes. Une suspension active, un transfert, une mauvaise appartenance au club ou une règle d'âge restent bloquants dans `match-operations`.
+
 ### Sanctions clubs (migration-v2 P0-009)
 
 `/admin/sanctions` permet de créer, suspendre, réactiver et lever une sanction
-club (interdiction de recrutement/inscription, exclusion, amende...), motivée
-et auditée. `TRANSFER_BAN` bloque l'homologation de transfert (`club-hub`) et
-`REGISTRATION_BAN` bloque l'approbation d'une inscription joueur.
+club motivée et auditée. `TRANSFER_BAN` bloque l'homologation de transfert,
+`REGISTRATION_BAN` bloque l'approbation d'une inscription joueur, et
+`COMPETITION_BAN`/`COMPETITION_EXCLUSION` bloquent l'approbation d'un engagement.
 
 ### Litiges (migration-v2 P0-010)
 
@@ -95,11 +105,7 @@ dossiers où le club est partie et y dépose pièces/réponse.
 
 ### Renouvellement saisonnier (migration-v2 P0-011)
 
-`/admin/season-cycles` pilote l'assistant d'ouverture de saison : un cycle par
-saison, fenêtres de licence club et d'inscription joueurs par dates, clôture
-avec expiration automatique des licences de la saison précédente. Sert de
-garde serveur à la soumission des licences club et inscriptions côté
-`club-hub`.
+`/admin/season-cycles` pilote désormais une préparation complète : fenêtres licences club, licences individuelles, inscriptions joueurs, engagements compétition et conformité financière, plus création/réutilisation de la fenêtre de transfert SUMMER. La préparation expire les homologations stade et qualifications CAF déjà échues au début de la nouvelle saison. Le cycle ne peut pas être activé avant cette préparation, et les fenêtres correspondantes servent de gardes serveur côté `club-hub`.
 
 ### Conformité financière (migration-v2 P1-001)
 
@@ -121,9 +127,7 @@ réserve/rejetée/suspendue, réserves versionnées.
 
 ### Qualifications entraîneurs (migration-v2 P1-004)
 
-`/admin/coach-licenses` valide les diplômes techniques CAF déposés par les
-clubs pour leur staff, distinct des licences administratives saisonnières
-(P0-002).
+`/admin/coach-licenses` valide les diplômes techniques CAF déposés par les clubs. Le niveau minimal défini sur `saisons.minimum_head_coach_qualification` est désormais appliqué opérationnellement : `match-operations` exige un `HEAD_COACH` officiel pour chaque équipe et une qualification fédérale `VALID`, non expirée et de niveau suffisant avant `PRE_MATCH_SIGNED`.
 
 ### Aptitude médicale fédérale (migration-v2 P1-005)
 
@@ -132,15 +136,11 @@ par le club — aucun diagnostic n'est jamais représenté ni affiché.
 
 ### Agents et intermédiaires (migration-v2 P1-006)
 
-`/admin/agents` tient le registre fédéral des agents et de leurs mandats de
-représentation. Un `agentId` de contrat joueur (P0-004) doit désormais
-référencer un agent `ACTIVE` non expiré (contrôle serveur côté `club-hub`).
+`/admin/agents` tient le registre fédéral des agents et de leurs mandats de représentation. Les contrats continuent d'exiger un agent actif. Les transferts peuvent désormais référencer `agentId` et `representationAgreementId`; `club-hub` vérifie l'agent, le statut et la période du mandat ainsi que son rattachement au joueur ou à l'un des clubs au dépôt, puis répète le contrôle lors de l'homologation fédérale.
 
 ### Discipline fédérale avancée (migration-v2 P1-007)
 
-`/admin/discipline` instruit les dossiers disciplinaires (preuves, audiences,
-décisions) sans remplacer `Card`/`Suspension` existants ; une décision peut
-créer directement une sanction club liée (P0-009).
+`/admin/discipline` instruit les dossiers disciplinaires avec preuves, audiences et décisions. Une décision club peut créer une `club_sanction`. Une décision visant un joueur peut maintenant créer une vraie ligne `Suspension` avec la provenance `DISCIPLINARY_DECISION` et un nombre de matchs ; cette suspension est consommée automatiquement par `EligibilityService`, donc elle bloque réellement la feuille de match.
 
 ### Appels (migration-v2 P1-008)
 
@@ -149,7 +149,7 @@ créer directement une sanction club liée (P0-009).
 décision contestée ; il transitionne seulement son statut vers `APPEALED`
 quand ce domaine le prévoit.
 
-SSO; SMTP pour invitations; notifications; MariaDB partagée par les applications métier; match-operations (réouverture de feuille, HTTP authentifié) ; ticketing et club-hub (saga d'annulation de match, TASK-P0-003 — `TICKETING_URL`/`CLUB_HUB_URL` + clés de service).
+SSO; SMTP pour invitations; notifications; MariaDB partagée par les applications métier; match-operations (réouverture et contrôles opérationnels, HTTP authentifié) ; payments (vérification des droits d'engagement) ; ticketing et club-hub (saga d'annulation de match).
 
 ## Variables d’environnement
 
@@ -159,7 +159,7 @@ Copier le fichier réellement versionné :
 cp .env.example .env.local
 ```
 
-Variables déclarées dans `.env.example` : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_LOGGING`, `SSO_URL`, `NEXT_PUBLIC_SSO_URL`, `SSO_JWT_SECRET`, `SSO_COOKIE_NAME`, `SSO_COOKIE_DOMAIN`, `NOTIFICATION_API_URL`, `NOTIFICATION_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
+Les variables principales sont documentées dans `.env.example`, notamment DB/SSO/notifications, `PAYMENT_API_URL` + `PAYMENT_API_KEY`, `MATCH_OPERATIONS_URL` + `MATCH_OPERATIONS_SERVICE_API_KEY`, ticketing/club-hub et SMTP. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
 
 ## Démarrage
 
@@ -183,8 +183,4 @@ Le script racine `../start.sh` ne lance que `identity`, `arbinote`, `match-opera
 
 ## Limites connues
 
-Import CSV et uploads exigent validation/sauvegarde opérationnelle. Le secret SSO symétrique est partagé. Les migrations sont des scripts SQL manuels, sans runner/versionnement central.
-
-## Migration V2 P0-006 à P0-008
-
-Les écrans `/admin/competition-entries`, `/admin/transfer-windows` et `/admin/eligibility` gèrent les engagements, les périodes de transfert et le contrôle d'éligibilité avec scopes plateforme/fédération/ligue, audit et notifications.
+Import CSV et uploads exigent validation/sauvegarde opérationnelle. Le secret SSO symétrique est partagé. Les migrations sont des scripts SQL manuels, avec ordre centralisé dans `db/migrations.manifest`.
