@@ -27,6 +27,7 @@ const sharedPackages = {
   'packages/design-tokens': '@foot/design-tokens',
   'packages/domain-contracts': '@foot/domain-contracts',
   'packages/i18n': '@foot/i18n',
+  'packages/identity-client': '@foot/identity-client',
   'packages/notifications-client': '@foot/notifications-client',
   'packages/referee-client': '@foot/referee-client',
   'packages/regulatory-client': '@foot/regulatory-client',
