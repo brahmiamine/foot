@@ -52,6 +52,14 @@ export interface CreateIdentityAccountInput {
   leagueId?: string | null
 }
 
+export interface UpdateIdentityAccountInput {
+  name?: string
+  email?: string
+  isActive?: boolean
+  role?: IdentityRole
+  password?: string
+}
+
 /** Narrow lookup used by profile-oriented applications such as referee-hub. */
 export interface IdentityProfilePort {
   getUserProfile(id: string): Promise<IdentityUserProfile | null>
@@ -59,14 +67,12 @@ export interface IdentityProfilePort {
 
 export interface IdentityDirectoryPort {
   listUsers(search?: IdentityUserSearch): Promise<IdentityUserRecord[]>
+  getUserById(id: string): Promise<IdentityUserRecord | null>
   getUserByEmail(email: string): Promise<IdentityUserRecord | null>
 }
 
 export interface IdentityAccountProvisioningPort {
   createUser(input: CreateIdentityAccountInput): Promise<IdentityUserRecord>
-  updateUser(
-    id: string,
-    input: { isActive?: boolean; role?: IdentityRole; password?: string },
-  ): Promise<IdentityUserRecord>
+  updateUser(id: string, input: UpdateIdentityAccountInput): Promise<IdentityUserRecord>
   deleteUser(id: string): Promise<void>
 }
