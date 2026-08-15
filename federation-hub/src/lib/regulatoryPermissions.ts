@@ -4,6 +4,7 @@ import type { SsoUser } from "./ssoSession";
 export const REGULATORY_PERMISSIONS = [
   "club_license.view", "club_license.review", "club_license.approve", "club_license.reject",
   "person_license.view", "person_license.review", "person_license.approve", "person_license.suspend",
+  "player_registration.view", "player_registration.review", "player_registration.approve",
   "contract.view", "contract.review", "contract.approve",
   "competition_registration.view", "competition_registration.review", "competition_registration.approve",
   "transfer_window.manage", "eligibility.view", "eligibility.override",
@@ -13,6 +14,8 @@ export const REGULATORY_PERMISSIONS = [
   "financial_compliance.view", "financial_compliance.review",
   "stadium_license.view", "stadium_license.review",
   "coach_license.view", "coach_license.review",
+  "medical_eligibility.view", "medical_eligibility.review",
+  "governance.view", "governance.review",
   "agent.view", "agent.manage",
   "season_cycle.view", "season_cycle.manage",
   "sanction.view", "sanction.manage",
@@ -55,4 +58,47 @@ export async function replaceRegulatoryPermissions(source: DataSource, actor: Ss
     for (const permission of unique) await manager.query("INSERT INTO regulatory_user_permissions (user_id, permission, granted_by) VALUES (?, ?, ?)", [userId, permission, actor.id]);
   });
   return listRegulatoryPermissions(source, userId);
+}
+
+/** Resolve la permission requise pour les API migration-v2. Les pages et les API hors domaine réglementaire ne sont pas affectées. */
+export function resolveRegulatoryPermission(pathname: string, method: string): RegulatoryPermission | null {
+  if (!pathname.startsWith("/api/admin/")) return null;
+  const write = method !== "GET" && method !== "HEAD";
+  const has = (value: string) => pathname.includes(value);
+  const action = pathname.split("/").filter(Boolean).at(-1) ?? "";
+
+  if (has("/regulatory-permissions")) return null;
+  if (has("/club-licensing")) {
+    if (!write) return "club_license.view";
+    if (action === "approve") return "club_license.approve";
+    if (action === "reject") return "club_license.reject";
+    return "club_license.review";
+  }
+  if (has("/licenses")) {
+    if (!write) return "person_license.view";
+    if (action === "approve") return "person_license.approve";
+    if (action === "suspend") return "person_license.suspend";
+    return "person_license.review";
+  }
+  if (has("/registrations")) {
+    if (!write) return "player_registration.view";
+    if (action === "approve") return "player_registration.approve";
+    return "player_registration.review";
+  }
+  if (has("/staff-contracts") || has("/contracts")) return write ? (action === "approve" ? "contract.approve" : "contract.review") : "contract.view";
+  if (has("/competition-entries")) return write ? (action === "approve" ? "competition_registration.approve" : "competition_registration.review") : "competition_registration.view";
+  if (has("/transfer-windows")) return "transfer_window.manage";
+  if (has("/eligibility")) return write ? "eligibility.override" : "eligibility.view";
+  if (has("/legal-cases")) return write ? (action === "decision" || action === "decide" ? "legal_case.decide" : "legal_case.manage") : "legal_case.view";
+  if (has("/discipline")) return write ? (action === "decision" || action === "decide" ? "discipline.decide" : "discipline.manage") : "discipline.view";
+  if (has("/appeals")) return write ? (action === "decision" || action === "decide" ? "appeal.decide" : "appeal.manage") : "appeal.view";
+  if (has("/financial-compliance")) return write ? "financial_compliance.review" : "financial_compliance.view";
+  if (has("/stadium-licensing")) return write ? "stadium_license.review" : "stadium_license.view";
+  if (has("/coach-licenses")) return write ? "coach_license.review" : "coach_license.view";
+  if (has("/medical-eligibility")) return write ? "medical_eligibility.review" : "medical_eligibility.view";
+  if (has("/board-mandates")) return write ? "governance.review" : "governance.view";
+  if (has("/agents") || has("/agreements")) return write ? "agent.manage" : "agent.view";
+  if (has("/season-cycles")) return write ? "season_cycle.manage" : "season_cycle.view";
+  if (has("/sanctions")) return write ? "sanction.manage" : "sanction.view";
+  return null;
 }
