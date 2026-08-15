@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./eligibility": "./src/eligibility.ts",
-    "./events": "./src/events.ts"
+    "./events": "./src/events.ts",
+    "./staff-eligibility": "./src/staff-eligibility.ts"
   }
 }
