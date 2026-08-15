@@ -119,7 +119,15 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ matrix.dir }}
-        run: ${{ matrix.pm == 'pnpm' && 'pnpm install --frozen-lockfile' || 'npm ci' }}
+        # --ignore-workspace: chaque app garde une installation pnpm independante de
+        # son propre lockfile (voir .npmrc). Sans ce flag, le nouveau pnpm-workspace.yaml
+        # racine fait deux choses : (1) il ignore silencieusement le script natif de
+        # better-sqlite3 (utilise par les tests d'integration SQLite de arbinote,
+        # club-ob, federation-hub, identity, match-operations, club-hub, seller-portal,
+        # ticketing), qui echoue alors avec "Could not locate the bindings file" ; (2)
+        # il fait echouer l'install de marketplace ("No projects matched the filters"),
+        # qui n'est pas un membre du workspace pnpm.
+        run: ${{ matrix.pm == 'pnpm' && 'pnpm install --frozen-lockfile --ignore-workspace' || 'npm ci' }}
 
       - name: Typecheck
         if: matrix.pm == 'pnpm'
