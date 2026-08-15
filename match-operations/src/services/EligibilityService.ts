@@ -1,6 +1,6 @@
+import { createPlayerEligibilityPort } from '@/adapters/regulatory/createRegulatoryAdapters'
 import { MatchLineup } from '@/entities/MatchLineup'
 import { getDataSource } from '@/lib/db'
-import { SharedDatabaseEligibilityAdapter } from '@/adapters/regulatory/SharedDatabaseEligibilityAdapter'
 import type {
   EligibilityCheckRequest,
   EligibilityContext,
@@ -21,13 +21,13 @@ export class LineupEligibilityError extends Error {
  * Match-facing eligibility facade.
  *
  * Match workflows depend on this class while the regulatory data source is
- * injected through EligibilityServicePort. Today the default adapter reads the
- * shared MariaDB; a federation/regulatory HTTP adapter can replace it later
- * without changing pre-match actions or lineup blocking semantics.
+ * injected through EligibilityServicePort. The composition root keeps the
+ * shared MariaDB adapter by default and switches to the federation HTTP
+ * boundary only when both regulatory service variables are configured.
  */
 export class EligibilityService implements EligibilityServicePort {
   constructor(
-    private readonly playerEligibility: EligibilityServicePort = new SharedDatabaseEligibilityAdapter(),
+    private readonly playerEligibility: EligibilityServicePort = createPlayerEligibilityPort(),
   ) {}
 
   checkPlayerEligibility(
