@@ -20,7 +20,7 @@ import { PlayerControl } from "@/entities/PlayerControl";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { TeamMembership } from "@/entities/TeamMembership";
 import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
-import { CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead, SeasonRegulation, SuspensionRead } from "@/entities/Eligibility";
+import { CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead, SeasonRegulation, SuspensionRead } from "@/entities/Eligibility";
 
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
@@ -44,7 +44,8 @@ export async function getDataSource(): Promise<DataSource> {
         MatchOfficialAssignment, PlayerControl, MatchReopenLog, TeamMembership,
         RefereeUnavailability, CompetitionRegistrationRead, EligibilityCheckWrite,
         MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead,
-        PlayerRegistrationRead, PlayerTransferRead, SeasonRegulation, SuspensionRead,
+        PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead,
+        SeasonRegulation, SuspensionRead,
       ],
       migrations: [],
       charset: "utf8mb4",
