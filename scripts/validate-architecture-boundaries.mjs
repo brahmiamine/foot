@@ -41,6 +41,12 @@ const matchRegulatoryReadModelAllowlist = new Set([
   'match-operations/src/adapters/regulatory/SharedDatabaseStaffQualificationAdapter.ts',
 ])
 
+const matchRefereeAvailabilityAllowlist = new Set([
+  'match-operations/src/lib/db.ts',
+  'match-operations/src/test/testDataSource.ts',
+  'match-operations/src/adapters/referee/SharedDatabaseRefereeAvailabilityAdapter.ts',
+])
+
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
   const files = []
@@ -119,6 +125,20 @@ for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
   if (importsOf(source).includes('@/entities/Eligibility')) {
     errors.push(
       `${relativeFile} imports federation regulatory read models directly; use an adapter/port instead`,
+    )
+  }
+}
+
+// referee_unavailabilities belongs to referee-hub. Match may keep a shared-DB
+// adapter during migration, but orchestration/services cannot read the entity
+// directly anymore.
+for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
+  const relativeFile = path.relative(root, file).split(path.sep).join('/')
+  if (matchRefereeAvailabilityAllowlist.has(relativeFile)) continue
+  const source = await readFile(file, 'utf8')
+  if (importsOf(source).includes('@/entities/RefereeUnavailability')) {
+    errors.push(
+      `${relativeFile} imports referee availability storage directly; use RefereeAvailabilityPort instead`,
     )
   }
 }
