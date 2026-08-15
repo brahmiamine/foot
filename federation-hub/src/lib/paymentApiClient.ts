@@ -28,6 +28,7 @@ export async function getRegulatoryPayment(paymentId: string): Promise<Regulator
   const response = await fetch(`${baseUrl}/payments/${encodeURIComponent(paymentId)}`, {
     headers: { "x-api-key": apiKey },
     cache: "no-store",
+    signal: AbortSignal.timeout(5000),
   });
 
   if (response.status === 404) return null;
