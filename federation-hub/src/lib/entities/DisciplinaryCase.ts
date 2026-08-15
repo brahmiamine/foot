@@ -54,6 +54,7 @@ export class DisciplinaryCaseDecision {
   @Column({ type: 'text' }) summary!: string
   @Column({ type: 'text', nullable: true, name: 'sanction_description' }) sanctionDescription?: string | null
   @Column({ type: 'char', length: 36, nullable: true, name: 'club_sanction_id' }) clubSanctionId?: string | null
+  @Column({ type: 'varchar', length: 191, nullable: true, name: 'suspension_id' }) suspensionId?: string | null
   @Column({ type: 'varchar', length: 191, name: 'decided_by' }) decidedBy!: string
   @Column({ type: 'datetime', name: 'decided_at' }) decidedAt!: Date
 }
