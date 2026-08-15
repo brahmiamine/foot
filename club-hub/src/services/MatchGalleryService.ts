@@ -35,7 +35,7 @@ export class MatchGalleryService {
     const rows = await repository
       .createQueryBuilder("matchGallery")
       .select("matchGallery.matchId", "matchId")
-      .addSelect("COUNT(matchGallery.id)", "count")
+      .addSelect("COUNT(*)", "count")
       .where({ matchId: In(matchIds) })
       .groupBy("matchGallery.matchId")
       .getRawMany<{ matchId: string; count: string }>();
