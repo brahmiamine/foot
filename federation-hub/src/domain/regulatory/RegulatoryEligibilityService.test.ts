@@ -36,11 +36,10 @@ function federationQueryResult(sql: string) {
   }
   if (sql.includes('regulatory_legacy_confirmations')) return []
   if (sql.includes('person_licenses')) return [{ found: 1 }]
-  if (sql.includes('player_registrations')) {
-    return [{ status: 'APPROVED', eligibilityStatus: 'ELIGIBLE' }]
-  }
+  if (sql.includes('player_registrations')) return [{ found: 1 }]
   if (sql.includes('competition_registrations')) return [{ found: 1 }]
   if (sql.includes('player_transfers')) return [{ found: 0 }]
+  if (sql.includes('medical_eligibilities')) return [{ found: 0 }]
   if (sql.includes('FROM teams')) return [{ ageCategory: 'seniors' }]
   throw new Error(`Unexpected federation query: ${sql}`)
 }
