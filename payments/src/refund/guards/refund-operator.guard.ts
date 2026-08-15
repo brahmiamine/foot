@@ -19,7 +19,9 @@ const REFUND_OPERATOR_APPLICATIONS = new Set(['federation-hub']);
 export class RefundOperatorGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    const service = (request as Request & { service?: AuthenticatedService }).service;
+    const service = (
+      request as Request & { service?: AuthenticatedService }
+    ).service;
 
     if (!service || !REFUND_OPERATOR_APPLICATIONS.has(service.application)) {
       throw new ForbiddenException('Refund operator access required');

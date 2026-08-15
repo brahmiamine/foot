@@ -4,8 +4,7 @@ import { RefundOperatorGuard } from './refund-operator.guard';
 function contextFor(application?: string): ExecutionContext {
   return {
     switchToHttp: () => ({
-      getRequest: () =>
-        application ? { service: { application } } : {},
+      getRequest: () => (application ? { service: { application } } : {}),
     }),
   } as unknown as ExecutionContext;
 }
@@ -17,7 +16,7 @@ describe('RefundOperatorGuard', () => {
     expect(guard.canActivate(contextFor('federation-hub'))).toBe(true);
   });
 
-  it.each(['ticketing', 'club-hub', 'marketplace', 'seller-portal']) (
+  it.each(['ticketing', 'club-hub', 'marketplace', 'seller-portal'])(
     'rejects non-operator service %s',
     (application) => {
       expect(() => guard.canActivate(contextFor(application))).toThrow(

@@ -16,7 +16,9 @@ function buildService() {
 describe('RefundController operator identity', () => {
   it('uses the authenticated backend operator header instead of body identity', async () => {
     const service = buildService();
-    service.confirmManualRefund.mockResolvedValue({ status: RefundStatus.SUCCEEDED });
+    service.confirmManualRefund.mockResolvedValue({
+      status: RefundStatus.SUCCEEDED,
+    });
     const controller = new RefundController(service as never);
 
     await controller.confirm(

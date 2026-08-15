@@ -22,7 +22,9 @@ import { RefundOperatorGuard } from './guards/refund-operator.guard';
 function requireOperatorUserId(value: string | undefined): string {
   const operatorUserId = value?.trim();
   if (!operatorUserId || operatorUserId.length > 100) {
-    throw new BadRequestException('Missing or invalid x-operator-user-id header');
+    throw new BadRequestException(
+      'Missing or invalid x-operator-user-id header',
+    );
   }
   return operatorUserId;
 }
