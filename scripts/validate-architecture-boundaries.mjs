@@ -70,6 +70,15 @@ const federationIdentityUserAllowlist = new Set([
   'federation-hub/src/lib/entities/User.ts',
 ])
 
+// Same rule for referee-hub: User may remain registered for the transitional
+// shared DB adapter/bootstrap, but profile services must consume Identity.
+const refereeIdentityUserAllowlist = new Set([
+  'referee-hub/src/lib/db.ts',
+  'referee-hub/src/test/testDataSource.ts',
+  'referee-hub/src/entities/User.ts',
+  'referee-hub/src/adapters/identity/SharedDatabaseIdentityProfileAdapter.ts',
+])
+
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
   const files = []
@@ -207,6 +216,17 @@ for (const file of await walk(path.join(root, 'federation-hub', 'src'))) {
   if (directEntityImport || broadEntityImport) {
     errors.push(
       `${relativeFile} imports Identity-owned User storage directly; use @foot/identity-client instead`,
+    )
+  }
+}
+
+for (const file of await walk(path.join(root, 'referee-hub', 'src'))) {
+  const relativeFile = path.relative(root, file).split(path.sep).join('/')
+  if (refereeIdentityUserAllowlist.has(relativeFile)) continue
+  const source = await readFile(file, 'utf8')
+  if (importsOf(source).includes('@/entities/User')) {
+    errors.push(
+      `${relativeFile} imports Identity-owned User storage directly; use IdentityProfilePort instead`,
     )
   }
 }
