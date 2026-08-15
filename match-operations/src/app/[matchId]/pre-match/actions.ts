@@ -98,11 +98,8 @@ export async function confirmPreMatch(sheetId: number, matchId: string, expected
     revalidatePath(`/${matchId}`);
     return { success: true, message: "actions.preMatch.messages.confirmed" };
   } catch (error) {
-    if (error instanceof LineupEligibilityError) {
+    if (error instanceof LineupEligibilityError || error instanceof StaffEligibilityError) {
       return { success: false, error: "actions.preMatch.errors.ineligibleLineup", errorParams: { reasons: error.message } };
-    }
-    if (error instanceof StaffEligibilityError) {
-      return { success: false, error: "actions.preMatch.errors.ineligibleStaff", errorParams: { reasons: error.message } };
     }
     if (error instanceof SheetVersionConflictError) {
       return { success: false, error: "actions.sheet.errors.conflict", conflict: true };
