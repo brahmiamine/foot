@@ -47,6 +47,13 @@ const matchRefereeAvailabilityAllowlist = new Set([
   'match-operations/src/adapters/referee/SharedDatabaseRefereeAvailabilityAdapter.ts',
 ])
 
+const federationRefereeAvailabilityAllowlist = new Set([
+  'federation-hub/src/lib/db.ts',
+  'federation-hub/src/test/testDataSource.ts',
+  'federation-hub/src/lib/entities/index.ts',
+  'federation-hub/src/adapters/referee/SharedDatabaseRefereeAvailabilityDirectoryAdapter.ts',
+])
+
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
   const files = []
@@ -74,7 +81,6 @@ function isInside(candidate, directory) {
 }
 
 function referencesAnotherDeployable(specifier, currentDeployable, importingFile) {
-  // `@/...` is a local source alias inside the current application.
   if (specifier.startsWith('@/')) return null
 
   if (specifier.startsWith('.')) {
@@ -98,8 +104,6 @@ function referencesAnotherDeployable(specifier, currentDeployable, importingFile
 
 const errors = []
 
-// Deployable units may consume packages/*, HTTP APIs and events, but never
-// source code owned by another independently deployable unit.
 for (const deployable of deployables) {
   const files = await walk(path.join(root, deployable, 'src'))
   for (const file of files) {
@@ -115,9 +119,6 @@ for (const deployable of deployables) {
   }
 }
 
-// The legacy shared-DB regulatory read models in match-operations are a
-// transitional adapter detail. New services/routes must depend on ports and
-// cannot reintroduce direct imports of those read models.
 for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
   const relativeFile = path.relative(root, file).split(path.sep).join('/')
   if (matchRegulatoryReadModelAllowlist.has(relativeFile)) continue
@@ -129,9 +130,6 @@ for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
   }
 }
 
-// referee_unavailabilities belongs to referee-hub. Match may keep a shared-DB
-// adapter during migration, but orchestration/services cannot read the entity
-// directly anymore.
 for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
   const relativeFile = path.relative(root, file).split(path.sep).join('/')
   if (matchRefereeAvailabilityAllowlist.has(relativeFile)) continue
@@ -143,8 +141,21 @@ for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
   }
 }
 
-// Shared packages must remain reusable building blocks. In particular they
-// cannot become a back door to MariaDB/TypeORM or deployable-unit source code.
+for (const file of await walk(path.join(root, 'federation-hub', 'src'))) {
+  const relativeFile = path.relative(root, file).split(path.sep).join('/')
+  if (federationRefereeAvailabilityAllowlist.has(relativeFile)) continue
+  const source = await readFile(file, 'utf8')
+  const imports = importsOf(source)
+  const directEntityImport = imports.includes('@/lib/entities/RefereeUnavailability')
+  const broadEntityImport =
+    imports.includes('./entities') && /\bRefereeUnavailability\b/.test(source)
+  if (directEntityImport || broadEntityImport) {
+    errors.push(
+      `${relativeFile} imports referee availability storage directly; use RefereeAvailabilityDirectoryPort instead`,
+    )
+  }
+}
+
 const packageDirs = await readdir(path.join(root, 'packages'), { withFileTypes: true })
 for (const entry of packageDirs) {
   if (!entry.isDirectory()) continue
