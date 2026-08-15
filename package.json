@@ -1,12 +1,19 @@
 {
-  "name": "foot-repo-root",
+  "name": "foot-platform",
   "private": true,
   "version": "0.0.0",
-  "description": "Pas un package applicatif : fournit uniquement node_modules à la racine du dépôt pour que packages/auth-shared (importé par chemin relatif par arbinote/match-operations/federation-hub/club-hub/club-ob/ticketing, voir packages/auth-shared/README.md) puisse résoudre `jose`. N'affecte aucun des lockfiles ni des déploiements indépendants des apps.",
+  "description": "Monorepo de la plateforme FOOT : applications, services et packages partages.",
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
     "i18n:check": "node scripts/i18n-audit.mjs"
   },
   "devDependencies": {
-    "jose": "^5.9.6"
+    "jose": "^5.9.6",
+    "turbo": "^2.5.6"
   }
 }
