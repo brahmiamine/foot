@@ -42,6 +42,16 @@ const fr = {
   "dashboard.status.suspended": "🟥 Suspendu",
   "dashboard.notifications.title": "Notifications",
   "dashboard.notifications.empty": "Aucune notification non lue.",
+  "license.ariaLabel": "Licence {federationCode} {holderName}",
+  "license.federationFallback": "Fédération Tunisienne de Football",
+  "license.officialDocument": "Document officiel",
+  "license.title": "Licence {federationCode}",
+  "license.season": "Saison",
+  "license.club": "Club",
+  "license.noClub": "Sans club",
+  "license.number": "N° de licencié(e)",
+  "license.digitalCard": "Carte fédérale numérique",
+  "license.realtimeStatus": "Le statut affiché reflète l’état réglementaire en temps réel",
 } as const;
 
 export type TranslationKey = keyof typeof fr;
@@ -88,6 +98,16 @@ const ar: Record<TranslationKey, string> = {
   "dashboard.status.suspended": "🟥 موقوف",
   "dashboard.notifications.title": "الإشعارات",
   "dashboard.notifications.empty": "لا توجد إشعارات غير مقروءة.",
+  "license.ariaLabel": "ترخيص {federationCode} {holderName}",
+  "license.federationFallback": "الجامعة التونسية لكرة القدم",
+  "license.officialDocument": "وثيقة رسمية",
+  "license.title": "ترخيص {federationCode}",
+  "license.season": "الموسم",
+  "license.club": "النادي",
+  "license.noClub": "دون ناد",
+  "license.number": "رقم الترخيص",
+  "license.digitalCard": "بطاقة رقمية اتحادية",
+  "license.realtimeStatus": "الحالة المعروضة هي الحالة الفعلية في النظام",
 };
 
 export const dictionaries: Record<Locale, Record<TranslationKey, string>> = { fr, ar };
