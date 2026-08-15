@@ -4,12 +4,6 @@ import { createUser, getUserByEmail } from "@/lib/identityService";
 
 export const runtime = "nodejs";
 
-/**
- * GET /api/internal/users?email=... — TASK-P0-013 (todo.md). Permet à
- * l'appelant de vérifier si un compte existe déjà pour cet email, pour
- * distinguer un vrai conflit d'un retry idempotent après un `email_taken`
- * sur POST (voir federation-hub/src/lib/staffInvitations.ts, acceptInvitation).
- */
 export async function GET(request: NextRequest) {
   const unauthorized = ensureServiceAuth(request);
   if (unauthorized) return unauthorized;
@@ -24,19 +18,12 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(user);
 }
 
-/**
- * POST /api/internal/users — création d'un compte staff par une autre app
- * (ex: federation-hub, acceptation d'invitation — voir identityClient.ts côté
- * federation-hub). Service-à-service uniquement (x-api-key, voir
- * lib/serviceAuth.ts). Remplace l'écriture directe TypeORM que
- * `acceptInvitation` faisait jusqu'ici dans `User` (TS-53, avancement.md).
- */
 export async function POST(request: NextRequest) {
   const unauthorized = ensureServiceAuth(request);
   if (unauthorized) return unauthorized;
 
   const body = await request.json();
-  const { name, email, password, role, teamId, federationId, leagueId } = body ?? {};
+  const { name, email, password, role, teamId, playerId, federationId, leagueId } = body ?? {};
   if (
     typeof name !== "string" ||
     typeof email !== "string" ||
@@ -52,6 +39,7 @@ export async function POST(request: NextRequest) {
     password,
     role: role as never,
     teamId: typeof teamId === "string" ? teamId : null,
+    playerId: typeof playerId === "string" ? playerId : null,
     federationId: typeof federationId === "string" ? federationId : null,
     leagueId: typeof leagueId === "string" ? leagueId : null,
   });
