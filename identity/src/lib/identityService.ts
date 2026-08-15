@@ -48,6 +48,7 @@ export interface CreateUserInput {
   email: string;
   password: string;
   role: User["role"];
+  isActive?: boolean;
   teamId: string | null;
   playerId?: string | null;
   federationId?: string | null;
@@ -72,7 +73,7 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
     email: input.email,
     password: hashed,
     role: input.role,
-    isActive: true,
+    isActive: input.isActive ?? true,
     teamId: input.teamId,
     playerId: input.playerId ?? null,
     federationId: input.federationId ?? null,
