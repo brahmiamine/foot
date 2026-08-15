@@ -47,6 +47,12 @@ const matchRefereeAvailabilityAllowlist = new Set([
   'match-operations/src/adapters/referee/SharedDatabaseRefereeAvailabilityAdapter.ts',
 ])
 
+const matchClubLineupAllowlist = new Set([
+  'match-operations/src/lib/db.ts',
+  'match-operations/src/test/testDataSource.ts',
+  'match-operations/src/adapters/club/SharedDatabaseClubLineupAdapter.ts',
+])
+
 const federationRefereeAvailabilityAllowlist = new Set([
   'federation-hub/src/lib/db.ts',
   'federation-hub/src/test/testDataSource.ts',
@@ -141,14 +147,24 @@ for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
   }
 }
 
+for (const file of await walk(path.join(root, 'match-operations', 'src'))) {
+  const relativeFile = path.relative(root, file).split(path.sep).join('/')
+  if (matchClubLineupAllowlist.has(relativeFile)) continue
+  const source = await readFile(file, 'utf8')
+  if (importsOf(source).includes('@/entities/MatchLineup')) {
+    errors.push(
+      `${relativeFile} imports club lineup storage directly; use ClubLineupReadPort instead`,
+    )
+  }
+}
+
 for (const file of await walk(path.join(root, 'federation-hub', 'src'))) {
   const relativeFile = path.relative(root, file).split(path.sep).join('/')
   if (federationRefereeAvailabilityAllowlist.has(relativeFile)) continue
   const source = await readFile(file, 'utf8')
   const imports = importsOf(source)
   const directEntityImport = imports.includes('@/lib/entities/RefereeUnavailability')
-  const broadEntityImport =
-    imports.includes('./entities') && /\bRefereeUnavailability\b/.test(source)
+  const broadEntityImport = imports.includes('./entities') && /\bRefereeUnavailability\b/.test(source)
   if (directEntityImport || broadEntityImport) {
     errors.push(
       `${relativeFile} imports referee availability storage directly; use RefereeAvailabilityDirectoryPort instead`,
