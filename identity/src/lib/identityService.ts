@@ -12,6 +12,9 @@ import { User } from "@/entities/User";
 export interface IdentityUser {
   id: string;
   name: string;
+  firstName: string | null;
+  lastName: string | null;
+  phoneNumber: string | null;
   email: string;
   role: User["role"];
   isActive: boolean;
@@ -26,6 +29,9 @@ function toIdentityUser(user: User): IdentityUser {
   return {
     id: user.id,
     name: user.name,
+    firstName: user.firstName ?? null,
+    lastName: user.lastName ?? null,
+    phoneNumber: user.phoneNumber ?? null,
     email: user.email,
     role: user.role,
     isActive: Boolean(user.isActive),
