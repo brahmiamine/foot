@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { In } from 'typeorm'
 import { User } from '@/entities/User'
 import { getDataSource } from '@/lib/database'
 import type {
@@ -34,18 +33,14 @@ export class SharedDatabaseClubIdentityAdapter
 
   async listUsers(search: IdentityUserSearch = {}): Promise<IdentityUserRecord[]> {
     const repository = await this.repository()
-    const where: Record<string, unknown> = {}
-    if (search.teamId) where.teamId = search.teamId
-    if (search.roles?.length) where.role = In(search.roles)
+    const query = repository.createQueryBuilder('user')
 
-    const users = await repository.find({ where, order: { name: 'ASC' } })
-    return users
-      .filter((user) => {
-        if (search.hasTeam === true) return Boolean(user.teamId)
-        if (search.hasTeam === false) return !user.teamId
-        return true
-      })
-      .map(toRecord)
+    if (search.teamId) query.andWhere('user.teamId = :teamId', { teamId: search.teamId })
+    if (search.roles?.length) query.andWhere('user.role IN (:...roles)', { roles: search.roles })
+    if (search.hasTeam === true) query.andWhere('user.teamId IS NOT NULL')
+    if (search.hasTeam === false) query.andWhere('user.teamId IS NULL')
+
+    return (await query.orderBy('user.name', 'ASC').getMany()).map(toRecord)
   }
 
   async getUserById(id: string): Promise<IdentityUserRecord | null> {
