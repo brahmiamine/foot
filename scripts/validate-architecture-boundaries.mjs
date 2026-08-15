@@ -60,6 +60,16 @@ const federationRefereeAvailabilityAllowlist = new Set([
   'federation-hub/src/adapters/referee/SharedDatabaseRefereeAvailabilityDirectoryAdapter.ts',
 ])
 
+// Identity owns the User table. Federation may keep the entity registered in
+// its transitional DataSource, but application services/routes must consume
+// Identity's authenticated service API instead of reading/writing User.
+const federationIdentityUserAllowlist = new Set([
+  'federation-hub/src/lib/db.ts',
+  'federation-hub/src/test/testDataSource.ts',
+  'federation-hub/src/lib/entities/index.ts',
+  'federation-hub/src/lib/entities/User.ts',
+])
+
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
   const files = []
@@ -106,6 +116,16 @@ function referencesAnotherDeployable(specifier, currentDeployable, importingFile
   }
 
   return null
+}
+
+function importsNamedFrom(source, name, specifier) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const escapedSpecifier = specifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(
+    `import\\s*(?:type\\s*)?\\{[^}]*\\b${escapedName}\\b[^}]*\\}\\s*from\\s*['"]${escapedSpecifier}['"]`,
+    'm',
+  )
+  return pattern.test(source)
 }
 
 const errors = []
@@ -168,6 +188,25 @@ for (const file of await walk(path.join(root, 'federation-hub', 'src'))) {
   if (directEntityImport || broadEntityImport) {
     errors.push(
       `${relativeFile} imports referee availability storage directly; use RefereeAvailabilityDirectoryPort instead`,
+    )
+  }
+}
+
+for (const file of await walk(path.join(root, 'federation-hub', 'src'))) {
+  const relativeFile = path.relative(root, file).split(path.sep).join('/')
+  if (federationIdentityUserAllowlist.has(relativeFile)) continue
+  const source = await readFile(file, 'utf8')
+  const imports = importsOf(source)
+  const directEntityImport =
+    imports.includes('@/lib/entities/User') ||
+    imports.includes('./entities/User') ||
+    imports.includes('../entities/User')
+  const broadEntityImport =
+    imports.includes('./entities') && importsNamedFrom(source, 'User', './entities')
+
+  if (directEntityImport || broadEntityImport) {
+    errors.push(
+      `${relativeFile} imports Identity-owned User storage directly; use @foot/identity-client instead`,
     )
   }
 }
