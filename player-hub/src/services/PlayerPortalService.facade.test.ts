@@ -4,6 +4,7 @@ import { PlayerPortalService } from "./PlayerPortalService";
 const publicMethods = [
   "getPlayer",
   "resolveConvocationMatch",
+  "resolveConvocationMatches",
   "getConvocations",
   "respondToConvocation",
   "getTrainingInvitations",
