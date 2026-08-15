@@ -46,6 +46,7 @@ export interface CreateIdentityAccountInput {
   email: string
   password: string
   role: IdentityRole
+  isActive?: boolean
   teamId?: string | null
   playerId?: string | null
   federationId?: string | null
