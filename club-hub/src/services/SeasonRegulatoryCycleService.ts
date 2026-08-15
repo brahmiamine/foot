@@ -1,12 +1,14 @@
+import type { DataSource, EntityManager } from "typeorm";
 import { SeasonRegulatoryCycle } from "@/entities/SeasonRegulatoryCycle";
 import { getDataSource } from "@/lib/database";
 import { isRegulatoryWindowOpen } from "../../../packages/regulatory-shared/src/seasonRegulatoryCycle";
 
 type WindowName = "clubLicensing" | "personLicensing" | "registration" | "competitionEntry" | "financialCompliance";
+type RepositorySource = DataSource | EntityManager;
 
-async function isWindowOpen(seasonId: string, name: WindowName): Promise<boolean> {
-  const dataSource = await getDataSource();
-  const cycle = await dataSource.getRepository(SeasonRegulatoryCycle).findOne({ where: { seasonId } });
+async function isWindowOpen(seasonId: string, name: WindowName, repositorySource?: RepositorySource): Promise<boolean> {
+  const source = repositorySource ?? await getDataSource();
+  const cycle = await source.getRepository(SeasonRegulatoryCycle).findOne({ where: { seasonId } });
   if (!cycle) return true;
   const open = {
     clubLicensing: cycle.clubLicensingOpenAt,
@@ -26,8 +28,8 @@ async function isWindowOpen(seasonId: string, name: WindowName): Promise<boolean
 }
 
 /** Absence de cycle = comportement historique ouvert ; présence d'un cycle = garde fédérale stricte. */
-export const isClubLicensingWindowOpen = (seasonId: string) => isWindowOpen(seasonId, "clubLicensing");
-export const isPersonLicensingWindowOpen = (seasonId: string) => isWindowOpen(seasonId, "personLicensing");
-export const isRegistrationWindowOpen = (seasonId: string) => isWindowOpen(seasonId, "registration");
-export const isCompetitionEntryWindowOpen = (seasonId: string) => isWindowOpen(seasonId, "competitionEntry");
-export const isFinancialComplianceWindowOpen = (seasonId: string) => isWindowOpen(seasonId, "financialCompliance");
+export const isClubLicensingWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "clubLicensing", source);
+export const isPersonLicensingWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "personLicensing", source);
+export const isRegistrationWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "registration", source);
+export const isCompetitionEntryWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "competitionEntry", source);
+export const isFinancialComplianceWindowOpen = (seasonId: string, source?: RepositorySource) => isWindowOpen(seasonId, "financialCompliance", source);
