@@ -1,4 +1,9 @@
 import type {
+  ClubRbacAccessRequest,
+  ClubRbacAccessResult,
+  ClubRbacReadPort,
+} from '../../domain-contracts/src/club-access'
+import type {
   ClubLineupReadPort,
   ClubMatchLineupEntry,
 } from '../../domain-contracts/src/club-lineup'
@@ -8,6 +13,7 @@ export interface ClubClientOptions {
   apiKey: string
   timeoutMs?: number
   lineupPath?: string
+  accessPath?: string
 }
 
 export class ClubClientError extends Error {
@@ -33,10 +39,11 @@ async function readError(response: Response): Promise<string> {
   return `club service responded ${response.status}`
 }
 
-export class ClubHttpClient implements ClubLineupReadPort {
+export class ClubHttpClient implements ClubLineupReadPort, ClubRbacReadPort {
   private readonly baseUrl: string
   private readonly timeoutMs: number
   private readonly lineupPath: string
+  private readonly accessPath: string
 
   constructor(private readonly options: ClubClientOptions) {
     if (!options.baseUrl || !options.apiKey) {
@@ -45,20 +52,17 @@ export class ClubHttpClient implements ClubLineupReadPort {
     this.baseUrl = normalizeBaseUrl(options.baseUrl)
     this.timeoutMs = options.timeoutMs ?? 5_000
     this.lineupPath = options.lineupPath ?? '/api/internal/matches'
+    this.accessPath = options.accessPath ?? '/api/internal/access'
   }
 
-  private async getLineup(matchId: string, teamId?: string): Promise<ClubMatchLineupEntry[]> {
-    const suffix = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+  private async request<T>(path: string): Promise<T> {
     let response: Response
     try {
-      response = await fetch(
-        `${this.baseUrl}${this.lineupPath}/${encodeURIComponent(matchId)}/lineup${suffix}`,
-        {
-          method: 'GET',
-          headers: { 'x-api-key': this.options.apiKey },
-          signal: AbortSignal.timeout(this.timeoutMs),
-        },
-      )
+      response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'GET',
+        headers: { 'x-api-key': this.options.apiKey },
+        signal: AbortSignal.timeout(this.timeoutMs),
+      })
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'network error'
       throw new ClubClientError(`Club service unavailable: ${reason}`)
@@ -68,7 +72,14 @@ export class ClubHttpClient implements ClubLineupReadPort {
       throw new ClubClientError(await readError(response), response.status)
     }
 
-    const body = (await response.json()) as { lineup?: ClubMatchLineupEntry[] }
+    return response.json() as Promise<T>
+  }
+
+  private async getLineup(matchId: string, teamId?: string): Promise<ClubMatchLineupEntry[]> {
+    const suffix = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+    const body = await this.request<{ lineup?: ClubMatchLineupEntry[] }>(
+      `${this.lineupPath}/${encodeURIComponent(matchId)}/lineup${suffix}`,
+    )
     return Array.isArray(body.lineup) ? body.lineup : []
   }
 
@@ -78,5 +89,10 @@ export class ClubHttpClient implements ClubLineupReadPort {
 
   findByMatchAndTeam(matchId: string, teamId: string): Promise<ClubMatchLineupEntry[]> {
     return this.getLineup(matchId, teamId)
+  }
+
+  getEffectiveAccess(input: ClubRbacAccessRequest): Promise<ClubRbacAccessResult> {
+    const params = new URLSearchParams({ teamId: input.teamId, userId: input.userId })
+    return this.request<ClubRbacAccessResult>(`${this.accessPath}?${params.toString()}`)
   }
 }
