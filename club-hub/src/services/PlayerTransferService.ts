@@ -154,7 +154,10 @@ export async function completeTransfer(transferId: string, homologatedBy?: strin
   const dataSource = await getDataSource();
   const completed = await dataSource.transaction(async (manager) => {
     const transferRepo = manager.getRepository(PlayerTransfer);
-    const transfer = await transferRepo.createQueryBuilder("transfer").setLock("pessimistic_write").where("transfer.id=:id", { id: transferId }).getOne();
+    let query = transferRepo.createQueryBuilder("transfer").where("transfer.id=:id", { id: transferId });
+    const driver = dataSource.options.type;
+    if (driver !== "sqlite" && driver !== "better-sqlite3") query = query.setLock("pessimistic_write");
+    const transfer = await query.getOne();
     if (!transfer) throw new PlayerTransferError("Transfert introuvable");
     if (transfer.status === "COMPLETED") throw new PlayerTransferError("Ce transfert est déjà complété");
     if (transfer.status !== "APPROVED") throw new PlayerTransferError("Le club destination doit approuver le transfert avant homologation fédérale");
