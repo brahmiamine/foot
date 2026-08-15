@@ -6,12 +6,15 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/States";
 import { ConvocationResponseButtons } from "@/components/portal/ConvocationResponse";
 import { formatDateTime, formatShortDate } from "@/lib/format";
+import { getTranslator } from "@/i18n/server";
+import { getAgendaLabelKey, getAvailabilityLabelKey, getTrainingAttendance } from "@/lib/dashboard";
 
 export default async function DashboardPage() {
   const session = await auth();
   if (!session) return null;
-  const { playerId, teamId, name } = session.user;
 
+  const { t, locale } = await getTranslator();
+  const { playerId, teamId, name } = session.user;
   const [nextConvocation, agenda, seasonSummary, availability, notifications, player] = await Promise.all([
     playerPortalService.getNextConvocation(playerId),
     playerPortalService.getAgenda(playerId, 7),
@@ -20,33 +23,33 @@ export default async function DashboardPage() {
     fetchNotifications(),
     playerPortalService.getPlayer(playerId),
   ]);
-
-  const unread = notifications.filter((n) => !n.readAt).slice(0, 3);
+  const unread = notifications.filter((notification) => !notification.readAt).slice(0, 3);
+  const myTeam = t("dashboard.myTeam");
 
   return (
     <div style={{ display: "grid", gap: "1.25rem" }}>
       <div>
         <h1 style={{ fontSize: "1.3rem", margin: "0 0 4px" }}>
-          Bonjour {player?.firstNameFr ?? name} 👋
+          {t("dashboard.greeting", { name: player?.firstNameFr ?? name })}
         </h1>
         <p style={{ color: "var(--ph-text-muted)", fontSize: "0.85rem", margin: 0 }}>
-          Voici votre semaine.
+          {t("dashboard.weekIntro")}
         </p>
       </div>
 
       <Card>
         <div style={{ fontSize: "0.8rem", color: "var(--ph-text-muted)", fontWeight: 600, marginBottom: 10 }}>
-          Prochain match
+          {t("dashboard.nextMatch")}
         </div>
         {nextConvocation?.match ? (
           <div style={{ display: "grid", gap: 12 }}>
             <div>
               <div style={{ fontSize: "1.15rem", fontWeight: 700 }}>
-                {nextConvocation.match.isHome ? "Mon équipe" : nextConvocation.match.opponentName} vs{" "}
-                {nextConvocation.match.isHome ? nextConvocation.match.opponentName : "Mon équipe"}
+                {nextConvocation.match.isHome ? myTeam : nextConvocation.match.opponentName} vs{" "}
+                {nextConvocation.match.isHome ? nextConvocation.match.opponentName : myTeam}
               </div>
               <div style={{ color: "var(--ph-text-muted)", fontSize: "0.85rem" }}>
-                {formatDateTime(nextConvocation.match.date)}
+                {formatDateTime(nextConvocation.match.date, locale)}
               </div>
             </div>
             <ConvocationResponseButtons
@@ -56,16 +59,21 @@ export default async function DashboardPage() {
             />
           </div>
         ) : (
-          <EmptyState title="Aucun match programmé" description="Vous serez prévenu dès votre prochaine convocation." />
+          <EmptyState
+            title={t("dashboard.noMatch.title")}
+            description={t("dashboard.noMatch.description")}
+          />
         )}
       </Card>
 
       <Card>
         <div style={{ fontSize: "0.8rem", color: "var(--ph-text-muted)", fontWeight: 600, marginBottom: 10 }}>
-          Cette semaine
+          {t("dashboard.thisWeek")}
         </div>
         {agenda.length === 0 ? (
-          <p style={{ color: "var(--ph-text-muted)", fontSize: "0.85rem", margin: 0 }}>Rien de prévu cette semaine.</p>
+          <p style={{ color: "var(--ph-text-muted)", fontSize: "0.85rem", margin: 0 }}>
+            {t("dashboard.noAgenda")}
+          </p>
         ) : (
           <div style={{ display: "grid", gap: 8 }}>
             {agenda.map((entry) => (
@@ -74,10 +82,15 @@ export default async function DashboardPage() {
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0", borderBottom: "1px solid var(--ph-border)" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Badge label={entry.type === "MATCH" ? "Match" : "Entraînement"} tone={entry.type === "MATCH" ? "danger" : "info"} />
+                  <Badge
+                    label={t(getAgendaLabelKey(entry.type))}
+                    tone={entry.type === "MATCH" ? "danger" : "info"}
+                  />
                   <span style={{ fontSize: "0.88rem", fontWeight: 600 }}>{entry.title}</span>
                 </div>
-                <span style={{ fontSize: "0.8rem", color: "var(--ph-text-muted)" }}>{formatShortDate(entry.date)}</span>
+                <span style={{ fontSize: "0.8rem", color: "var(--ph-text-muted)" }}>
+                  {formatShortDate(entry.date, locale)}
+                </span>
               </div>
             ))}
           </div>
@@ -85,40 +98,39 @@ export default async function DashboardPage() {
       </Card>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.9rem" }}>
-        <StatCard label="Matchs joués" value={String(seasonSummary.matches)} tone="primary" />
-        <StatCard label="Minutes jouées" value={String(seasonSummary.minutesPlayed)} />
-        <StatCard label="Buts" value={String(seasonSummary.goals)} tone="success" />
-        <StatCard label="Passes décisives" value={String(seasonSummary.assists)} />
-        <StatCard label="Cartons jaunes" value={String(seasonSummary.yellowCards)} tone="warning" />
+        <StatCard label={t("dashboard.stats.matchesPlayed")} value={String(seasonSummary.matches)} tone="primary" />
+        <StatCard label={t("dashboard.stats.minutesPlayed")} value={String(seasonSummary.minutesPlayed)} />
+        <StatCard label={t("dashboard.stats.goals")} value={String(seasonSummary.goals)} tone="success" />
+        <StatCard label={t("dashboard.stats.assists")} value={String(seasonSummary.assists)} />
+        <StatCard label={t("dashboard.stats.yellowCards")} value={String(seasonSummary.yellowCards)} tone="warning" />
         <StatCard
-          label="Présence entraînements"
-          value={seasonSummary.trainingsTotal > 0 ? `${Math.round((seasonSummary.trainingsAttended / seasonSummary.trainingsTotal) * 100)}%` : "—"}
+          label={t("dashboard.stats.trainingAttendance")}
+          value={getTrainingAttendance(seasonSummary.trainingsAttended, seasonSummary.trainingsTotal)}
         />
       </div>
 
       <Card>
         <div style={{ fontSize: "0.8rem", color: "var(--ph-text-muted)", fontWeight: 600, marginBottom: 10 }}>
-          Mon état
+          {t("dashboard.status.title")}
         </div>
-        {availability.available ? (
-          <Badge label="✅ Disponible" tone="success" />
-        ) : (
-          <Badge label={availability.reason === "INJURED" ? "🩺 Blessé" : "🟥 Suspendu"} tone="danger" />
-        )}
+        <Badge
+          label={t(getAvailabilityLabelKey(availability.available, availability.reason))}
+          tone={availability.available ? "success" : "danger"}
+        />
       </Card>
 
       <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontSize: "0.8rem", color: "var(--ph-text-muted)", fontWeight: 600 }}>Notifications</div>
+        <div style={{ fontSize: "0.8rem", color: "var(--ph-text-muted)", fontWeight: 600, marginBottom: 10 }}>
+          {t("dashboard.notifications.title")}
         </div>
         {unread.length === 0 ? (
-          <p style={{ color: "var(--ph-text-muted)", fontSize: "0.85rem", margin: 0 }}>Aucune notification non lue.</p>
+          <p style={{ color: "var(--ph-text-muted)", fontSize: "0.85rem", margin: 0 }}>
+            {t("dashboard.notifications.empty")}
+          </p>
         ) : (
           <div style={{ display: "grid", gap: 8 }}>
-            {unread.map((n) => (
-              <div key={n.id} style={{ fontSize: "0.85rem" }}>
-                • {n.title}
-              </div>
+            {unread.map((notification) => (
+              <div key={notification.id} style={{ fontSize: "0.85rem" }}>• {notification.title}</div>
             ))}
           </div>
         )}

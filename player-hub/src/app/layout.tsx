@@ -5,46 +5,38 @@ import { buildPlayerLoginUrlForPath } from "@/lib/ssoSession";
 import { playerPortalService } from "@/services/PlayerPortalService";
 import { getClubBranding } from "@/lib/clubBranding";
 import { AppShell } from "@/components/layout/AppShell";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { localeDirection } from "@/i18n/config";
+import { getTranslator } from "@/i18n/server";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslator();
   const session = await auth();
-  if (!session) return { title: "Espace Joueur" };
-
+  if (!session) return { title: t("app.name") };
   const branding = await getClubBranding(session.user.teamId);
-  return {
-    title: `Espace Joueur — ${branding.name}`,
-    icons: branding.faviconUrl ? { icon: branding.faviconUrl } : undefined,
-  };
+  return { title: t("app.titleWithClub", { club: branding.name }), icons: branding.faviconUrl ? { icon: branding.faviconUrl } : undefined };
 }
 
-// Garde-fou serveur : sans session PLAYER valide (voir lib/auth.ts), impossible
-// d'atteindre une seule page, même en connaissant l'URL directement — le
-// middleware fait déjà cette vérification, ce layout la refait pour ne
-// dépendre que d'un seul mécanisme en cas de nouvelle route qui y échapperait.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  if (!session) {
-    redirect(await buildPlayerLoginUrlForPath("/"));
-  }
+  if (!session) redirect(await buildPlayerLoginUrlForPath("/"));
 
-  const [player, branding] = await Promise.all([
+  const [{ locale }, player, branding] = await Promise.all([
+    getTranslator(),
     playerPortalService.getPlayer(session.user.playerId),
     getClubBranding(session.user.teamId),
   ]);
-
-  if (!player) {
-    redirect(await buildPlayerLoginUrlForPath("/"));
-  }
-
-  const playerName = `${player.firstNameFr} ${player.lastNameFr}`;
+  if (!player) redirect(await buildPlayerLoginUrlForPath("/"));
 
   return (
-    <html lang="fr">
+    <html lang={locale} dir={localeDirection(locale)}>
       <body>
-        <AppShell playerName={playerName} playerNumber={player.number} userName={session.user.name} clubBranding={branding}>
-          {children}
-        </AppShell>
+        <I18nProvider locale={locale}>
+          <AppShell playerName={`${player.firstNameFr} ${player.lastNameFr}`} playerNumber={player.number} userName={session.user.name} clubBranding={branding}>
+            {children}
+          </AppShell>
+        </I18nProvider>
       </body>
     </html>
   );
