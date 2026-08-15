@@ -12,7 +12,7 @@ function dataSource(levels:Record<string,string>){
   if(entity.name==="Matchday")return{findOne:vi.fn(async()=>({seasonId:"s1"}))};
   if(entity.name==="SeasonRegulation")return{findOne:vi.fn(async()=>({minimumHeadCoachQualification:"CAF_A"}))};
   if(entity.name==="MatchStaffAssignment")return{findOne:vi.fn(async({where}:{where:{teamId:string}})=>assignments[where.teamId]??null)};
-  if(entity.name==="CoachQualificationRead")return{createQueryBuilder:()=>{let teamId="";return{where:(_q:string,p:{teamId:string})=>{teamId=p.teamId;return this},andWhere(){return this},getMany:async()=>levels[teamId]?[{qualificationType:levels[teamId]}]:[]}}};
+  if(entity.name==="CoachQualificationRead")return{createQueryBuilder:()=>{let teamId="";const builder={where:(_q:string,p:{teamId:string})=>{teamId=p.teamId;return builder},andWhere:()=>builder,getMany:async()=>levels[teamId]?[{qualificationType:levels[teamId]}]:[]};return builder}};
   throw new Error(`unexpected repository ${entity.name}`);
  }};
 }
