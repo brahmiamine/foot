@@ -3,6 +3,8 @@ import { RefereeUnavailability } from '@/entities/RefereeUnavailability'
 import { getDataSource } from '@/lib/db'
 import { validateDateRange } from '@/lib/refereeRules'
 import type {
+  RefereeAvailabilityBatchRequest,
+  RefereeAvailabilityBatchResult,
   RefereeAvailabilityCheckRequest,
   RefereeAvailabilityResult,
 } from '../../../packages/domain-contracts/src/referee-availability'
@@ -60,10 +62,7 @@ export class AvailabilityService {
     await repo.save(period)
   }
 
-  /**
-   * Referee-domain decision consumed by match assignment workflows.
-   * Only active (non-cancelled) unavailability periods can block assignment.
-   */
+  /** Referee-domain decision for one official on one calendar date. */
   async checkAvailability(
     input: RefereeAvailabilityCheckRequest,
   ): Promise<RefereeAvailabilityResult> {
@@ -88,5 +87,46 @@ export class AvailabilityService {
         reason: period.reason ?? null,
       },
     }
+  }
+
+  /**
+   * Batch variant used by federation-hub when rendering the designation
+   * selector. One query replaces N service calls and preserves referee-hub as
+   * the owner of availability data.
+   */
+  async checkAvailabilityBatch(
+    input: RefereeAvailabilityBatchRequest,
+  ): Promise<RefereeAvailabilityBatchResult> {
+    const validationError = validateDateRange(input.date, input.date)
+    if (validationError) throw new AvailabilityError(validationError)
+
+    const userIds = [...new Set(input.userIds.map((id) => id.trim()).filter(Boolean))]
+    const availabilityByUser: RefereeAvailabilityBatchResult['availabilityByUser'] = {}
+    for (const userId of userIds) {
+      availabilityByUser[userId] = { available: true, blockingPeriod: null }
+    }
+    if (userIds.length === 0) return { availabilityByUser }
+
+    const periods = await (await this.repository())
+      .createQueryBuilder('period')
+      .where('period.user_id IN (:...userIds)', { userIds })
+      .andWhere('period.cancelled_at IS NULL')
+      .andWhere(':date BETWEEN period.start_date AND period.end_date', { date: input.date })
+      .orderBy('period.start_date', 'ASC')
+      .getMany()
+
+    for (const period of periods) {
+      if (availabilityByUser[period.userId]?.available === false) continue
+      availabilityByUser[period.userId] = {
+        available: false,
+        blockingPeriod: {
+          startDate: period.startDate,
+          endDate: period.endDate,
+          reason: period.reason ?? null,
+        },
+      }
+    }
+
+    return { availabilityByUser }
   }
 }
