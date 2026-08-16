@@ -45,7 +45,7 @@ export async function middleware(request: NextRequest) {
     !!session.teamId && (role === "CLUB_ADMIN" || role === "CLUB_STAFF");
   const isCenterRefereeCandidate = !session.teamId && role === "REFEREE";
   if (!isClubAccount && !isCenterRefereeCandidate) {
-    return redirectToLogin(request);
+    return new NextResponse("Forbidden", { status: 403 });
   }
 
   const requestHeaders = new Headers(request.headers);
