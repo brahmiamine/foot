@@ -8,8 +8,9 @@ en lisant les données déjà gérées par [`club-hub`](../club-hub) (même base
 
 ## Périmètre de cette implémentation
 
-C'est la première des trois interfaces spécialisées envisagées
-(`player-hub`, `staff-hub`, `medical-hub`) à côté de `club-hub`. Elle inclut :
+`player-hub` fait partie des trois interfaces spécialisées actuellement
+présentes à côté de `club-hub` : `player-hub`, `staff-hub` et `medical-hub`.
+Cette application inclut :
 
 - le rôle `PLAYER` dans `identity` (compte scopé à un club **et** à un joueur
   — `User.playerId`, voir `identity/src/entities/User.ts`) ;
@@ -23,8 +24,9 @@ C'est la première des trois interfaces spécialisées envisagées
   connecté sur ses propres lignes (présence à un match/entraînement, offre de
   transport pour un déplacement).
 
-`staff-hub` et `medical-hub` restent à faire — voir la discussion
-architecture qui a motivé ce chantier.
+`staff-hub` couvre désormais le travail quotidien du staff technique en
+réutilisant le RBAC de `club-hub`, tandis que `medical-hub` isole les données
+médicales détaillées derrière les permissions `medical.view`/`medical.manage`.
 
 ## Provisionnement d'un compte joueur
 
