@@ -18,12 +18,20 @@ export class VariantsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  private async assertOwnership(productId: string, sellerId: string): Promise<void> {
-    const product = await this.productRepository.findOne({ where: { id: productId, sellerId } });
+  private async assertOwnership(
+    productId: string,
+    sellerId: string,
+  ): Promise<void> {
+    const product = await this.productRepository.findOne({
+      where: { id: productId, sellerId },
+    });
     if (!product) throw new NotFoundException('Produit introuvable');
   }
 
-  async findAllForProduct(productId: string, sellerId: string): Promise<ProductVariant[]> {
+  async findAllForProduct(
+    productId: string,
+    sellerId: string,
+  ): Promise<ProductVariant[]> {
     await this.assertOwnership(productId, sellerId);
     return this.repository.find({ where: { productId } });
   }
@@ -67,11 +75,15 @@ export class VariantsService {
     dto: UpdateVariantDto,
   ): Promise<ProductVariant> {
     await this.assertOwnership(productId, sellerId);
-    const variant = await this.repository.findOne({ where: { id, productId } });
+    const variant = await this.repository.findOne({
+      where: { id, productId },
+    });
     if (!variant) throw new NotFoundException('Variante introuvable');
     if (dto.sku !== undefined) variant.sku = dto.sku;
     if (dto.attributes !== undefined) variant.attributes = dto.attributes;
-    if (dto.price !== undefined) variant.price = dto.price === null ? null : String(dto.price);
+    if (dto.price !== undefined) {
+      variant.price = dto.price === null ? null : String(dto.price);
+    }
     if (dto.imageUrl !== undefined) variant.imageUrl = dto.imageUrl;
     if (dto.isActive !== undefined) variant.isActive = dto.isActive;
     return this.repository.save(variant);
@@ -87,15 +99,25 @@ export class VariantsService {
     return this.update(id, variant.productId, sellerId, dto);
   }
 
-  async toggleActive(id: string, productId: string, sellerId: string): Promise<ProductVariant> {
+  async toggleActive(
+    id: string,
+    productId: string,
+    sellerId: string,
+  ): Promise<ProductVariant> {
     await this.assertOwnership(productId, sellerId);
-    const variant = await this.repository.findOne({ where: { id, productId } });
+    const variant = await this.repository.findOne({
+      where: { id, productId },
+    });
     if (!variant) throw new NotFoundException('Variante introuvable');
     variant.isActive = !variant.isActive;
     return this.repository.save(variant);
   }
 
-  async remove(id: string, productId: string, sellerId: string): Promise<void> {
+  async remove(
+    id: string,
+    productId: string,
+    sellerId: string,
+  ): Promise<void> {
     await this.assertOwnership(productId, sellerId);
     const result = await this.repository.delete({ id, productId });
     if (!result.affected) throw new NotFoundException('Variante introuvable');
