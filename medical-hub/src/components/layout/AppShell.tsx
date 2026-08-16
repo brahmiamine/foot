@@ -12,7 +12,7 @@ import {
   createBrandingVariables,
   createResponsiveShellCss,
   createShellClassNames,
-} from "../../../../packages/app-shell/src/index";
+} from "@foot/app-shell";
 
 const shell = createShellClassNames("mh");
 const responsiveCss = createResponsiveShellCss("mh");
