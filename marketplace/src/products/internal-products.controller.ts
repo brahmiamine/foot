@@ -56,7 +56,11 @@ export class InternalProductsController {
     @Query('sellerId') sellerId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Product> {
-    return this.productsService.sellerTransition(id, sellerId, ProductStatus.SUBMITTED);
+    return this.productsService.sellerTransition(
+      id,
+      sellerId,
+      ProductStatus.SUBMITTED,
+    );
   }
 
   @Post(':id/withdraw')
@@ -64,7 +68,11 @@ export class InternalProductsController {
     @Query('sellerId') sellerId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Product> {
-    return this.productsService.sellerTransition(id, sellerId, ProductStatus.DRAFT);
+    return this.productsService.sellerTransition(
+      id,
+      sellerId,
+      ProductStatus.DRAFT,
+    );
   }
 
   @Post(':id/toggle-active')
