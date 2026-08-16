@@ -2,6 +2,9 @@ import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 't
 import { Match } from './Match'
 import { User } from './User'
 
+export type OfficialMatchReportType = 'REFEREE_COMPLEMENTARY' | 'MATCH_DELEGATE' | 'REFEREE_OBSERVER'
+export type OfficialMatchReportCategory = 'GENERAL' | 'SECURITY' | 'ORGANIZATION' | 'DISCIPLINE' | 'TECHNICAL' | 'OTHER'
+
 /** Entité de lecture : brouillons et envois sont possédés par referee-hub. */
 @Entity({ name: 'referee_match_reports' })
 export class RefereeMatchReport {
@@ -28,8 +31,14 @@ export class RefereeMatchReport {
   @Column({ type: 'varchar', length: 64 })
   role!: string
 
+  @Column({ type: 'enum', enum: ['REFEREE_COMPLEMENTARY', 'MATCH_DELEGATE', 'REFEREE_OBSERVER'], name: 'report_type' })
+  reportType!: OfficialMatchReportType
+
   @Column({ type: 'varchar', length: 180 })
   subject!: string
+
+  @Column({ type: 'enum', enum: ['GENERAL', 'SECURITY', 'ORGANIZATION', 'DISCIPLINE', 'TECHNICAL', 'OTHER'] })
+  category!: OfficialMatchReportCategory
 
   @Column({ type: 'text' })
   content!: string

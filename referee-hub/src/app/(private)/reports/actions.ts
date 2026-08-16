@@ -16,6 +16,7 @@ export async function saveReportAction(formData: FormData) {
       assignmentId,
       String(formData.get("subject") ?? ""),
       String(formData.get("content") ?? ""),
+      String(formData.get("category") ?? "GENERAL"),
       intent === "submit",
     );
   } catch (error) {
