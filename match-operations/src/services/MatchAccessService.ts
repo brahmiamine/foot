@@ -1,24 +1,25 @@
-import { getDataSource } from "@/lib/db";
 import type { ActorRole } from "@/entities/Signature";
 import type { Match } from "@/entities/Match";
 import type { MatchOfficialAssignment } from "@/entities/MatchOfficialAssignment";
+import type {
+  ClubPermissionScope,
+  ClubPermissionScopeReadPort,
+} from "../../../packages/domain-contracts/src/club-access";
 import { normalizeRole } from "../../../packages/auth-shared/src/roles";
+import { SharedDatabaseClubPermissionScopeAdapter } from "@/adapters/club/SharedDatabaseClubPermissionScopeAdapter";
 import { MatchService } from "./MatchService";
 import { MatchOfficialAssignmentService } from "./MatchOfficialAssignmentService";
 
 export const MATCH_OPERATIONS_ACCESS_PERMISSION = "matchOperations.access";
 export const MATCH_OPERATIONS_SIGN_PERMISSION = "matchOperations.sign";
 
-export type PermissionScope = "ALL" | string[] | null;
+export type PermissionScope = ClubPermissionScope;
+export type ClubRbacReader = ClubPermissionScopeReadPort;
 
 export interface MatchActorSession {
   userId: string;
   role: string;
   teamId: string | null;
-}
-
-export interface ClubRbacReader {
-  getPermissionScope(teamId: string, userId: string, permission: string): Promise<PermissionScope>;
 }
 
 export interface MatchLookup {
@@ -33,53 +34,6 @@ export interface OfficialAssignmentLookup {
     role?: MatchOfficialAssignment["role"],
   ): Promise<MatchOfficialAssignment | null>;
   listActiveCenterRefereeMatches(userId: string, limit?: number): Promise<Match[]>;
-}
-
-interface ClubRoleRow {
-  permissions: string;
-  isGlobal: number | boolean;
-  category: string | null;
-}
-
-/**
- * Read-only projection of Club Hub RBAC. Club Hub remains the owner of
- * cms_roles/cms_user_roles; match-operations only resolves the permission
- * scope required to protect its own runtime.
- */
-export class DatabaseClubRbacReader implements ClubRbacReader {
-  async getPermissionScope(teamId: string, userId: string, permission: string): Promise<PermissionScope> {
-    const dataSource = await getDataSource();
-    const rows = (await dataSource.query(
-      `SELECT r.permissions, r.is_global AS isGlobal, ur.category
-       FROM cms_user_roles ur
-       INNER JOIN cms_roles r ON r.id = ur.role_id AND r.team_id = ur.team_id
-       WHERE ur.team_id = ? AND ur.user_id = ?`,
-      [teamId, userId],
-    )) as ClubRoleRow[];
-
-    const categories = new Set<string>();
-    let matched = false;
-
-    for (const row of rows) {
-      let permissions: string[] = [];
-      try {
-        const parsed = JSON.parse(row.permissions);
-        permissions = Array.isArray(parsed)
-          ? parsed.filter((value): value is string => typeof value === "string")
-          : [];
-      } catch {
-        permissions = [];
-      }
-
-      if (!permissions.includes(permission)) continue;
-      matched = true;
-      if (Boolean(row.isGlobal)) return "ALL";
-      if (row.category) categories.add(row.category);
-    }
-
-    if (!matched) return null;
-    return Array.from(categories);
-  }
 }
 
 export class MatchAccessDeniedError extends Error {
@@ -103,7 +57,7 @@ function clubCategoryForMatch(match: Match, teamId: string): string | null {
 
 export class MatchAccessService {
   constructor(
-    private readonly clubRbac: ClubRbacReader = new DatabaseClubRbacReader(),
+    private readonly clubRbac: ClubRbacReader = new SharedDatabaseClubPermissionScopeAdapter(),
     private readonly matches: MatchLookup = new MatchService(),
     private readonly assignments: OfficialAssignmentLookup = new MatchOfficialAssignmentService(),
   ) {}
@@ -123,11 +77,11 @@ export class MatchAccessService {
       return this.matches.findForClub(session.teamId, "ALL", limit);
     }
 
-    const scope = await this.clubRbac.getPermissionScope(
-      session.teamId,
-      session.userId,
-      MATCH_OPERATIONS_ACCESS_PERMISSION,
-    );
+    const scope = await this.clubRbac.getPermissionScope({
+      teamId: session.teamId,
+      userId: session.userId,
+      permission: MATCH_OPERATIONS_ACCESS_PERMISSION,
+    });
     if (!scope) return [];
 
     return this.matches.findForClub(session.teamId, scope, limit);
@@ -153,11 +107,11 @@ export class MatchAccessService {
 
     if (role === "CLUB_ADMIN") return;
 
-    const scope = await this.clubRbac.getPermissionScope(
-      session.teamId,
-      session.userId,
-      MATCH_OPERATIONS_ACCESS_PERMISSION,
-    );
+    const scope = await this.clubRbac.getPermissionScope({
+      teamId: session.teamId,
+      userId: session.userId,
+      permission: MATCH_OPERATIONS_ACCESS_PERMISSION,
+    });
     if (!scopeAllowsCategory(scope, category)) throw new MatchAccessDeniedError();
   }
 
@@ -191,16 +145,16 @@ export class MatchAccessService {
 
     const category = clubCategoryForMatch(match, session.teamId);
     const [accessScope, signScope] = await Promise.all([
-      this.clubRbac.getPermissionScope(
-        session.teamId,
-        session.userId,
-        MATCH_OPERATIONS_ACCESS_PERMISSION,
-      ),
-      this.clubRbac.getPermissionScope(
-        session.teamId,
-        session.userId,
-        MATCH_OPERATIONS_SIGN_PERMISSION,
-      ),
+      this.clubRbac.getPermissionScope({
+        teamId: session.teamId,
+        userId: session.userId,
+        permission: MATCH_OPERATIONS_ACCESS_PERMISSION,
+      }),
+      this.clubRbac.getPermissionScope({
+        teamId: session.teamId,
+        userId: session.userId,
+        permission: MATCH_OPERATIONS_SIGN_PERMISSION,
+      }),
     ]);
 
     return scopeAllowsCategory(accessScope, category) && scopeAllowsCategory(signScope, category)
