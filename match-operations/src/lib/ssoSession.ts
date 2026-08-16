@@ -25,6 +25,8 @@ export interface SsoUser {
   role:
     | "ADMIN"
     | "OBSERVATEUR"
+    | "CLUB_ADMIN"
+    | "CLUB_STAFF"
     | "SUPERADMIN"
     | "PLATFORM_SUPERADMIN"
     | "FEDERATION_ADMIN"
