@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import type { DataSource } from 'typeorm'
 import { createTestDataSource } from '@/test/testDataSource'
-import { Federation, Team } from '@/lib/entities'
+import { Federation, League, Team } from '@/lib/entities'
 import { changeAffiliation } from '@/lib/teamAffiliations'
 import type { SsoUser } from '@/lib/ssoSession'
 
@@ -27,7 +27,7 @@ vi.mock('@/lib/playerTransferClient', () => ({
   PlayerTransferClientError: class PlayerTransferClientError extends Error {},
 }))
 
-const { POST } = await import('./route')
+const { GET, POST } = await import('./route')
 
 function session(overrides: Partial<SsoUser>): SsoUser {
   return {
@@ -40,6 +40,10 @@ function session(overrides: Partial<SsoUser>): SsoUser {
     leagueId: null,
     ...overrides,
   }
+}
+
+function getRequest(): NextRequest {
+  return new NextRequest('http://localhost/api/admin/player-transfers')
 }
 
 function postRequest(body: Record<string, unknown>): NextRequest {
@@ -68,6 +72,91 @@ const baseBody = {
   effective_date: '2026-01-15',
   season_id: 'season-1',
 }
+
+async function seedLeagueClub(label: string) {
+  const federationRepo = dataSource.getRepository(Federation)
+  const leagueRepo = dataSource.getRepository(League)
+  const teamRepo = dataSource.getRepository(Team)
+
+  const federation = await federationRepo.save(
+    federationRepo.create({ code: `F${label}`, nom: `Fédération ${label}`, is_active: true }),
+  )
+  const league = await leagueRepo.save(
+    leagueRepo.create({ federation_id: federation.id, nom: `Ligue ${label}`, is_active: true }),
+  )
+  const team = await teamRepo.save(teamRepo.create({ nom: `Club ${label}`, team_type: 'club' }))
+  await changeAffiliation(dataSource, {
+    teamId: team.id,
+    federationId: federation.id,
+    leagueId: league.id,
+    startDate: '2025-01-01',
+  })
+
+  return { federation, league, team }
+}
+
+describe('GET /api/admin/player-transfers — scoping fédération/ligue', () => {
+  it('filters a LEAGUE_ADMIN to transfers involving clubs affiliated with its league', async () => {
+    const leagueA = await seedLeagueClub('A')
+    const leagueB = await seedLeagueClub('B')
+
+    mockGetAdminSession.mockResolvedValue(
+      session({
+        role: 'LEAGUE_ADMIN',
+        federationId: leagueA.federation.id,
+        leagueId: leagueA.league.id,
+      }),
+    )
+    mockListPlayerTransfers.mockResolvedValue([
+      {
+        id: 'transfer-a',
+        playerId: 'player-a',
+        fromTeamId: leagueA.team.id,
+        toTeamId: 'outside-a',
+        transferType: 'PERMANENT',
+        status: 'APPROVED',
+        effectiveDate: '2026-01-15',
+      },
+      {
+        id: 'transfer-b',
+        playerId: 'player-b',
+        fromTeamId: leagueB.team.id,
+        toTeamId: 'outside-b',
+        transferType: 'PERMANENT',
+        status: 'APPROVED',
+        effectiveDate: '2026-01-15',
+      },
+    ])
+
+    const response = await GET(getRequest())
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json).toHaveLength(1)
+    expect(json[0].id).toBe('transfer-a')
+  })
+
+  it('fails closed when a FEDERATION_ADMIN has no federation scope', async () => {
+    mockGetAdminSession.mockResolvedValue(session({ role: 'FEDERATION_ADMIN', federationId: null }))
+    mockListPlayerTransfers.mockResolvedValue([
+      {
+        id: 'transfer-hidden',
+        playerId: 'player-hidden',
+        fromTeamId: 'team-a',
+        toTeamId: 'team-b',
+        transferType: 'PERMANENT',
+        status: 'PENDING',
+        effectiveDate: '2026-01-15',
+      },
+    ])
+
+    const response = await GET(getRequest())
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json).toEqual([])
+  })
+})
 
 describe('POST /api/admin/player-transfers — autorisation dérivée de team_affiliations (migration.md §19-21)', () => {
   it('rejects a FEDERATION_ADMIN whose federation does not own the source club', async () => {
@@ -109,6 +198,25 @@ describe('POST /api/admin/player-transfers — autorisation dérivée de team_af
         createdBy: 'admin@example.com',
       }),
     )
+  })
+
+  it('allows a LEAGUE_ADMIN for a source club affiliated with its league', async () => {
+    const scoped = await seedLeagueClub('C')
+
+    mockGetAdminSession.mockResolvedValue(
+      session({
+        role: 'LEAGUE_ADMIN',
+        federationId: scoped.federation.id,
+        leagueId: scoped.league.id,
+      }),
+    )
+    mockCreatePlayerTransfer.mockResolvedValue({ id: 'transfer-league', status: 'PENDING' })
+
+    const response = await POST(postRequest({ ...baseBody, from_team_id: scoped.team.id }))
+    const json = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(json.status).toBe('PENDING')
   })
 
   it('rejects a FEDERATION_ADMIN when the source club has no active affiliation (unknown federation)', async () => {
