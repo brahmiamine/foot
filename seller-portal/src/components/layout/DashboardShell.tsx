@@ -5,6 +5,15 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import type { ClubBranding } from "@/lib/clubBranding";
+import {
+  DEFAULT_SHELL_CONTENT,
+  createBrandingVariables,
+  createResponsiveShellCss,
+  createShellClassNames,
+} from "../../../../packages/app-shell/src/index";
+
+const shell = createShellClassNames("sp");
+const responsiveCss = createResponsiveShellCss("sp");
 
 export function DashboardShell({
   sellerName,
@@ -21,48 +30,33 @@ export function DashboardShell({
 }) {
   useI18n();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  // Couleurs du club connecté injectées comme variables CSS scopées à ce
-  // wrapper : elles écrasent les valeurs par défaut de globals.css pour
-  // tout le tableau de bord sans affecter les pages publiques (login/
-  // register), qui restent sur le thème générique.
-  const brandingVars = {
-    "--sp-primary": clubBranding.primaryColor,
-    "--sp-sidebar-bg": clubBranding.secondaryColor,
-    "--sp-accent": clubBranding.accentColor,
-  } as CSSProperties;
+  const brandingVars = createBrandingVariables("sp", clubBranding) as CSSProperties;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", ...brandingVars }}>
-      <style>{`
-        @media (max-width: 900px) {
-          .sp-sidebar-wrap { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 40; }
-          .sp-sidebar-wrap.open { transform: translateX(0); }
-          .sp-menu-toggle { display: inline-flex !important; }
-          .sp-overlay { display: block !important; }
-        }
-      `}</style>
+    <div style={{ display: "flex", minHeight: "100dvh", width: "100%", minWidth: 0, ...brandingVars }}>
+      <style>{responsiveCss}</style>
 
-      <div className={`sp-sidebar-wrap${mobileOpen ? " open" : ""}`}>
+      <div className={`${shell.sidebarWrap}${mobileOpen ? " open" : ""}`}>
         <Sidebar clubName={clubBranding.name} clubLogoUrl={clubBranding.logoUrl} />
       </div>
 
       {mobileOpen && (
         <div
-          className="sp-overlay"
+          className={shell.overlay}
+          aria-hidden="true"
           onClick={() => setMobileOpen(false)}
           style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 30 }}
         />
       )}
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, maxWidth: "100%" }}>
         <Topbar
           sellerName={sellerName}
           sellerStatus={sellerStatus}
           userName={userName}
-          onToggleMenu={() => setMobileOpen((v) => !v)}
+          onToggleMenu={() => setMobileOpen((value) => !value)}
         />
-        <main style={{ padding: "1.5rem", maxWidth: 1280, margin: "0 auto" }}>{children}</main>
+        <main style={{ ...DEFAULT_SHELL_CONTENT }}>{children}</main>
       </div>
     </div>
   );

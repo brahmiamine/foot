@@ -34,6 +34,118 @@
 
   /* Layout */
   --foot-topbar-height: 70px;
+  --foot-content-max: 1440px;
+  --foot-page-gutter: clamp(0.75rem, 2.4vw, 2rem);
+  --foot-section-gap: clamp(1rem, 2vw, 1.75rem);
+  --foot-touch-target: 44px;
+}
+
+/*
+ * Responsive foundation shared by every surface that consumes FOOT tokens.
+ * Keep this deliberately structural: product-specific visual identity stays local.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+#__next {
+  min-width: 0;
+  max-width: 100%;
+}
+
+main,
+header,
+footer,
+nav,
+section,
+article,
+aside,
+form,
+fieldset {
+  min-width: 0;
+}
+
+img,
+picture,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+svg,
+iframe {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  min-width: 0;
+  max-width: 100%;
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+dd,
+dt,
+label {
+  overflow-wrap: break-word;
+}
+
+.foot-page-container {
+  width: min(100%, var(--foot-content-max));
+  margin-inline: auto;
+  padding-inline: var(--foot-page-gutter);
+}
+
+.foot-responsive-scroll,
+.foot-responsive-table {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.foot-responsive-table > table {
+  width: 100%;
+}
+
+.foot-fluid-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
+  gap: var(--foot-section-gap);
+}
+
+.foot-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.foot-action-row > * {
+  min-width: 0;
 }
 
 :root.dark {
@@ -42,4 +154,29 @@
   --foot-color-text: #e9ecef;
   --foot-color-text-muted: #adb5bd;
   --foot-color-border: #3f465b;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --foot-page-gutter: clamp(0.75rem, 4vw, 1rem);
+    --foot-section-gap: 1rem;
+  }
+
+  input,
+  select,
+  textarea {
+    /* Prevent automatic form zoom on mobile Safari while preserving desktop type scales. */
+    font-size: max(1rem, 16px);
+  }
+
+  .foot-action-row > button,
+  .foot-action-row > a {
+    min-height: var(--foot-touch-target);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
 }
