@@ -19,6 +19,14 @@ export const REGULATORY_PERMISSIONS = [
   "agent.view", "agent.manage",
   "season_cycle.view", "season_cycle.manage",
   "sanction.view", "sanction.manage",
+  "commission.view", "commission.manage", "commission.decide",
+  "insurance.view", "insurance.review",
+  "grant.view", "grant.manage", "grant.review",
+  "broadcasting.view", "broadcasting.manage",
+  "training_compensation.view", "training_compensation.manage", "training_compensation.decide",
+  "solidarity.view", "solidarity.manage", "solidarity.decide",
+  "document_compliance.view", "document_compliance.review",
+  "national_team.view", "national_team.manage",
 ] as const;
 export type RegulatoryPermission = (typeof REGULATORY_PERMISSIONS)[number];
 
@@ -101,5 +109,27 @@ export function resolveRegulatoryPermission(pathname: string, method: string): R
   if (has("/agents") || has("/agreements")) return write ? "agent.manage" : "agent.view";
   if (has("/season-cycles")) return write ? "season_cycle.manage" : "season_cycle.view";
   if (has("/sanctions")) return write ? "sanction.manage" : "sanction.view";
+
+  if (has("/federal-operations/commissions")) {
+    if (!write) return "commission.view";
+    if (["decision", "decide", "sign", "notify"].includes(action)) return "commission.decide";
+    return "commission.manage";
+  }
+  if (has("/federal-operations/insurance")) return write ? "insurance.review" : "insurance.view";
+  if (has("/federal-operations/grants")) {
+    if (!write) return "grant.view";
+    return ["review", "approve", "reject", "payment"].includes(action) ? "grant.review" : "grant.manage";
+  }
+  if (has("/federal-operations/broadcasting")) return write ? "broadcasting.manage" : "broadcasting.view";
+  if (has("/federal-operations/training-compensation")) {
+    if (!write) return "training_compensation.view";
+    return ["decision", "decide"].includes(action) ? "training_compensation.decide" : "training_compensation.manage";
+  }
+  if (has("/federal-operations/solidarity")) {
+    if (!write) return "solidarity.view";
+    return ["decision", "decide"].includes(action) ? "solidarity.decide" : "solidarity.manage";
+  }
+  if (has("/federal-operations/documents")) return write ? "document_compliance.review" : "document_compliance.view";
+  if (has("/federal-operations/national-teams")) return write ? "national_team.manage" : "national_team.view";
   return null;
 }
