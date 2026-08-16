@@ -3,15 +3,24 @@
   --foot-color-primary: #c8102e;
   --foot-color-primary-rgb: 200, 16, 46;
   --foot-color-primary-dark: #a10d25;
+  --foot-color-primary-soft: #ffd9de;
   --foot-color-secondary: #64748b;
+  --foot-color-accent: #b8860b;
 
   /* Semantic */
   --foot-color-success: #3fa772;
+  --foot-color-success-soft: #dcfce7;
   --foot-color-info: #4a90a4;
+  --foot-color-info-strong: #2563eb;
+  --foot-color-info-soft: #dbeafe;
   --foot-color-warning: #d99a3d;
+  --foot-color-warning-strong: #d97706;
+  --foot-color-warning-soft: #fef3c7;
   --foot-color-danger: #d6455a;
+  --foot-color-danger-strong: #dc2626;
+  --foot-color-danger-soft: #fee2e2;
 
-  /* Surfaces and text */
+  /* Core surfaces and text (legacy-compatible admin family) */
   --foot-color-background: #f4f6f8;
   --foot-color-surface: #ffffff;
   --foot-color-text: #3d4650;
@@ -19,21 +28,50 @@
   --foot-color-border: #e7ebf0;
   --foot-color-dark: #0d0d0d;
 
+  /* Product-hub surfaces and text.
+   * These tokens preserve the current player/staff/medical/seller/ticketing
+   * visual language while moving ownership out of individual applications. */
+  --foot-color-app-background: #f4f6f9;
+  --foot-color-app-surface: #ffffff;
+  --foot-color-app-surface-alt: #f8fafc;
+  --foot-color-app-border: #e2e8f0;
+  --foot-color-app-text: #0f172a;
+  --foot-color-app-text-muted: #64748b;
+  --foot-color-app-text-subtle: #94a3b8;
+  --foot-color-neutral-soft: #f1f5f9;
+
+  /* Shared application shell */
+  --foot-color-sidebar-bg: #0d0d0d;
+  --foot-color-sidebar-text: #c9c4bd;
+  --foot-color-sidebar-text-active: #ffffff;
+  --foot-color-sidebar-active-bg: #2a0a0f;
+
   /* Typography */
   --foot-font-ui: "Manrope", "Segoe UI", sans-serif;
   --foot-font-display: "Bebas Neue", "Manrope", sans-serif;
+  --foot-font-system: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* Radius */
   --foot-radius-sm: 0.4rem;
   --foot-radius-md: 0.65rem;
   --foot-radius-lg: 1rem;
+  --foot-app-radius-sm: 6px;
+  --foot-app-radius-md: 10px;
+  --foot-app-radius-lg: 14px;
 
   /* Shadows */
   --foot-shadow-card: 0 1px 2px rgba(11, 31, 46, 0.04), 0 8px 20px -12px rgba(11, 31, 46, 0.14);
   --foot-shadow-card-hover: 0 1px 2px rgba(11, 31, 46, 0.05), 0 14px 28px -14px rgba(11, 31, 46, 0.2);
+  --foot-app-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --foot-app-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  /* Focus */
+  --foot-focus-ring: 0 0 0 3px rgba(var(--foot-color-primary-rgb), 0.22);
 
   /* Layout */
   --foot-topbar-height: 70px;
+  --foot-content-max-width: 1280px;
+  --foot-content-padding: 1.5rem;
 }
 
 :root.dark {
