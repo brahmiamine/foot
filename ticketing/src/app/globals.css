@@ -1,32 +1,31 @@
 :root {
-  --tk-bg: #f4f6f9;
-  --tk-surface: #ffffff;
-  --tk-surface-alt: #f8fafc;
-  --tk-border: #e2e8f0;
-  --tk-text: #0f172a;
-  --tk-text-muted: #64748b;
-  --tk-text-subtle: #94a3b8;
+  --tk-bg: var(--foot-portal-bg);
+  --tk-surface: var(--foot-portal-surface);
+  --tk-surface-alt: var(--foot-portal-surface-alt);
+  --tk-border: var(--foot-portal-border);
+  --tk-text: var(--foot-portal-text);
+  --tk-text-muted: var(--foot-portal-text-muted);
+  --tk-text-subtle: var(--foot-portal-text-subtle);
 
-  /* Palette alignee sur ob (Olympique de Beja), meme rouge de marque que
-     identity/federation-hub/club-hub/seller-portal. */
-  --tk-primary: #c8102e;
-  --tk-primary-dark: #a10d25;
-  --tk-primary-soft: #ffd9de;
+  /* Legacy app-prefixed aliases now resolve from the shared club portal theme. */
+  --tk-primary: var(--foot-portal-primary);
+  --tk-primary-dark: var(--foot-portal-primary-dark);
+  --tk-primary-soft: var(--foot-portal-primary-soft);
 
-  --tk-danger: #dc2626;
-  --tk-danger-soft: #fee2e2;
-  --tk-warning: #d97706;
-  --tk-warning-soft: #fef3c7;
-  --tk-success: #16a34a;
-  --tk-success-soft: #dcfce7;
+  --tk-danger: var(--foot-portal-danger);
+  --tk-danger-soft: var(--foot-portal-danger-soft);
+  --tk-warning: var(--foot-portal-warning);
+  --tk-warning-soft: var(--foot-portal-warning-soft);
+  --tk-success: var(--foot-portal-success);
+  --tk-success-soft: var(--foot-portal-success-soft);
 
-  --tk-radius-sm: 6px;
-  --tk-radius-md: 10px;
-  --tk-radius-lg: 14px;
-  --tk-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --tk-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --tk-radius-sm: var(--foot-portal-radius-sm);
+  --tk-radius-md: var(--foot-portal-radius-md);
+  --tk-radius-lg: var(--foot-portal-radius-lg);
+  --tk-shadow-sm: var(--foot-portal-shadow-sm);
+  --tk-shadow-md: var(--foot-portal-shadow-md);
 
-  --tk-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --tk-font: var(--foot-portal-font);
 }
 
 * {
