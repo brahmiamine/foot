@@ -26,6 +26,11 @@ export class InternalInventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetAvailableStockDto,
   ): Promise<InventoryItem> {
-    return this.inventoryService.setAvailable(id, sellerId, dto.available, dto.lowStockThreshold);
+    return this.inventoryService.setAvailable(
+      id,
+      sellerId,
+      dto.available,
+      dto.lowStockThreshold,
+    );
   }
 }
