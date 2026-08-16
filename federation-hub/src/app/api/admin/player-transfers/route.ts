@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { In } from 'typeorm'
 import { safeErrorMessage } from '@/lib/apiError'
-import { getAdminSession, canAccessFederation, canAccessLeague, canAccessPlatform } from '@/lib/adminAuth'
+import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { Player, Team, TeamAffiliation } from '@/lib/entities'
 import { getActiveAffiliation } from '@/lib/teamAffiliations'
