@@ -1,58 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSsoSessionFromRequest, redirectToLogin } from "@/lib/ssoSession";
+import { normalizeRole } from "../../packages/auth-shared/src/roles";
 
 /**
- * Protège toutes les routes de feuille de match ([matchId]/*). La page
- * d'accueil ("/", simple écran "sélectionnez un match") reste publique.
+ * SSO gate for the electronic match sheet. The landing page is protected too:
+ * after login, the Node runtime resolves the user's actual match perimeter.
  *
- * Deux populations acceptées ici :
- * - comptes de club (ADMIN/OBSERVATEUR, avec teamId) — vérifiés ensuite par
- *   [matchId]/layout.tsx (appartenance à l'une des deux équipes du match) ;
- * - officiels de match (REFEREE/MATCH_OFFICIAL/REFEREE_OBSERVER,
- *   migration.md §11, Phase 4), sans teamId — vérifiés ensuite par la même
- *   layout.tsx via une affectation réelle (`match_official_assignments`),
- *   jamais uniquement par la présence de ce rôle dans le JWT.
+ * Only two populations may enter this application:
+ * - club accounts normalised to CLUB_ADMIN / CLUB_STAFF and carrying teamId;
+ * - REFEREE accounts without teamId. A REFEREE still needs an ACTIVE
+ *   CENTER_REFEREE assignment for each match (MatchAccessService).
  *
- * SUPERADMIN/PLATFORM_SUPERADMIN restent refusés (aucun périmètre de match
- * précis), même règle que club-hub (voir club-hub/src/lib/auth.ts).
- * FEDERATION_ADMIN/LEAGUE_ADMIN restent également exclus : leur supervision
- * passe par federation-hub, pas par une session match-operations directe.
- *
- * Ce middleware ne peut PAS lui-même vérifier l'affectation à un match
- * précis (runtime Edge, pas d'accès MySQL/TypeORM ici — voir
- * services/sheetGuard.ts pour l'équivalent runtime Node) : il ne fait
- * qu'authentifier et laisser passer un rôle plausible, la vérification
- * fine reste dans [matchId]/layout.tsx.
- *
- * L'utilisateur vérifié est transmis aux Server Components via des en-têtes
- * (x-sso-*) pour éviter de revérifier le JWT à chaque page.
- *
- * `/api/internal/*` (TS-31, avancement.md) échappe à cette règle : ce sont
- * des routes service-à-service (clé API, voir lib/serviceAuth.ts), jamais
- * une session SSO — c'est justement par ce chemin que federation-hub (qui n'a
- * pas de session match-operations) doit désormais passer au lieu d'écrire
- * directement dans `ms_sheets`.
+ * Federation/league/platform administration stays in federation-hub, and
+ * assistants/delegates/observers do not receive a match-operations workspace.
+ * `/api/internal/*` remains service-to-service and is authenticated separately.
  */
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
 
-const OFFICIAL_ROLES = new Set(["REFEREE", "MATCH_OFFICIAL", "REFEREE_OBSERVER"]);
+function isPublicStaticAsset(pathname: string): boolean {
+  return (
+    pathname === "/manifest.json" ||
+    pathname === "/sw.js" ||
+    pathname === "/offline.html" ||
+    pathname.startsWith("/icons/") ||
+    pathname.startsWith("/fonts/")
+  );
+}
 
 export async function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === "/" || request.nextUrl.pathname.startsWith("/api/internal/")) {
+  const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith("/api/internal/") || isPublicStaticAsset(pathname)) {
     return NextResponse.next();
   }
 
   const session = await getSsoSessionFromRequest(request);
-  if (!session || session.role === "SUPERADMIN" || session.role === "PLATFORM_SUPERADMIN") {
+  if (!session) {
     return redirectToLogin(request);
   }
 
-  const isClubAccount = !!session.teamId;
-  const isOfficialAccount = !session.teamId && OFFICIAL_ROLES.has(session.role);
-  if (!isClubAccount && !isOfficialAccount) {
-    return redirectToLogin(request);
+  const role = normalizeRole(session.role);
+  const isClubAccount =
+    !!session.teamId && (role === "CLUB_ADMIN" || role === "CLUB_STAFF");
+  const isCenterRefereeCandidate = !session.teamId && role === "REFEREE";
+  if (!isClubAccount && !isCenterRefereeCandidate) {
+    return new NextResponse("Forbidden", { status: 403 });
   }
 
   const requestHeaders = new Headers(request.headers);

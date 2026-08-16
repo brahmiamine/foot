@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
+import { assertCurrentMatchAccess, assertCurrentSignatureActor } from "@/lib/matchActorSession";
 import { SheetService, SheetVersionConflictError } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
@@ -23,6 +24,8 @@ export async function saveSignature(
     const sheetService = new SheetService();
     const sheet = await sheetService.findById(sheetId);
     if (!sheet) return { success: false, error: "actions.sheet.errors.notFound" };
+
+    const session = await assertCurrentSignatureActor(sheet.matchId, actorRole);
     const requestHeaders = await headers();
     const signatureService = new SignatureService();
     await signatureService.save(
@@ -31,7 +34,7 @@ export async function saveSignature(
       phase,
       actorRole,
       { signerName, signatureData },
-      { userId: requestHeaders.get("x-sso-user-id"), name: requestHeaders.get("x-sso-name") },
+      { userId: session.userId, name: requestHeaders.get("x-sso-name") },
     );
     revalidatePath(`/${sheet.matchId}/pre-match`);
     return { success: true, message: "actions.signatures.messages.saved" };
@@ -46,6 +49,8 @@ export async function addReservation(sheetId: number, phase: SignaturePhase, aut
     const sheetService = new SheetService();
     const sheet = await sheetService.findById(sheetId);
     if (!sheet) return { success: false, error: "actions.sheet.errors.notFound" };
+
+    await assertCurrentSignatureActor(sheet.matchId, authorRole);
     const reservationService = new ReservationService();
     await reservationService.create({ sheetId, phase, authorRole, content: content.trim() });
     revalidatePath(`/${sheet.matchId}/pre-match`);
@@ -58,6 +63,15 @@ export async function addReservation(sheetId: number, phase: SignaturePhase, aut
 export async function deleteReservation(id: number, matchId: string): Promise<ActionResult> {
   try {
     const reservationService = new ReservationService();
+    const reservation = await reservationService.findById(id);
+    if (!reservation) return { success: false, error: "actions.reservations.errors.delete" };
+
+    const sheet = await new SheetService().findById(reservation.sheetId);
+    if (!sheet || sheet.matchId !== matchId) {
+      return { success: false, error: "actions.reservations.errors.delete" };
+    }
+
+    await assertCurrentSignatureActor(matchId, reservation.authorRole);
     await reservationService.delete(id);
     revalidatePath(`/${matchId}/pre-match`);
     return { success: true, message: "actions.reservations.messages.deleted" };
@@ -72,10 +86,16 @@ export async function deleteReservation(id: number, matchId: string): Promise<Ac
  */
 export async function confirmPreMatch(sheetId: number, matchId: string, expectedVersion: number): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const sheetService = new SheetService();
     const signatureService = new SignatureService();
     const officialService = new MatchOfficialService();
     const requestHeaders = await headers();
+
+    const sheet = await sheetService.findById(sheetId);
+    if (!sheet || sheet.matchId !== matchId) {
+      return { success: false, error: "actions.sheet.errors.notFound" };
+    }
 
     await new EligibilityService().assertLineupEligible(matchId, {
       actorUserId: requestHeaders.get("x-sso-user-id"),
@@ -91,8 +111,7 @@ export async function confirmPreMatch(sheetId: number, matchId: string, expected
     const complete = await signatureService.isPhaseComplete(sheetId, "PRE_MATCH");
     if (!complete) return { success: false, error: "actions.preMatch.errors.signaturesRequired", errorParams: { count: 3 } };
 
-    const sheet = await sheetService.findById(sheetId);
-    if (sheet && sheet.status === "DRAFT") await sheetService.updateStatus(sheetId, "PRE_MATCH_SIGNED", expectedVersion);
+    if (sheet.status === "DRAFT") await sheetService.updateStatus(sheetId, "PRE_MATCH_SIGNED", expectedVersion);
 
     revalidatePath(`/${matchId}/pre-match`);
     revalidatePath(`/${matchId}`);

@@ -97,15 +97,45 @@ export class MatchOfficialAssignmentService {
   }
 
   /**
-   * Truth used by [matchId]/layout.tsx: null when the user has no ACTIVE
-   * assignment for this match; access is never inferred only from JWT role.
+   * Runtime authorization truth. Passing a role narrows the assignment check
+   * so callers can require CENTER_REFEREE rather than accepting any official
+   * assignment on the match.
    */
   async findActiveAssignment(
     userId: string,
     matchId: string,
+    role?: MatchOfficialAssignmentRole,
   ): Promise<MatchOfficialAssignment | null> {
     const repo = await this.getRepository()
+    if (role) {
+      return repo.findOne({ where: { userId, matchId, role, status: 'ACTIVE' } })
+    }
     return repo.findOne({ where: { userId, matchId, status: 'ACTIVE' } })
+  }
+
+  /** Personal match list for the referee workspace: centre referee only. */
+  async listActiveCenterRefereeMatches(userId: string, limit = 20): Promise<Match[]> {
+    const dataSource = await getDataSource()
+    return dataSource
+      .getRepository(Match)
+      .createQueryBuilder('match')
+      .innerJoin(
+        MatchOfficialAssignment,
+        'assignment',
+        `assignment.match_id = match.id
+         AND assignment.user_id = :userId
+         AND assignment.role = :role
+         AND assignment.status = :status`,
+        { userId, role: 'CENTER_REFEREE', status: 'ACTIVE' },
+      )
+      .leftJoinAndSelect('match.homeTeam', 'homeTeam')
+      .leftJoinAndSelect('match.awayTeam', 'awayTeam')
+      .leftJoinAndSelect('match.matchday', 'matchday')
+      .orderBy('match.date IS NULL', 'DESC')
+      .addOrderBy('ABS(DATEDIFF(match.date, CURDATE()))', 'ASC')
+      .addOrderBy('match.date', 'ASC')
+      .limit(limit)
+      .getMany()
   }
 
   async listForMatch(matchId: string): Promise<MatchOfficialAssignment[]> {

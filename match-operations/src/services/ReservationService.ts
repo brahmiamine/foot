@@ -22,6 +22,11 @@ export class ReservationService {
     return repository.find({ where: { sheetId }, order: { createdAt: "ASC" } });
   }
 
+  async findById(id: number): Promise<Reservation | null> {
+    const repository = await this.getRepository();
+    return repository.findOne({ where: { id } });
+  }
+
   async create(data: CreateReservationInput): Promise<Reservation> {
     const repository = await this.getRepository();
     const reservation = repository.create(data);

@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
+import { assertCurrentMatchAccess, assertCurrentSignatureActor } from "@/lib/matchActorSession";
 import { SheetService, SheetVersionConflictError } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
@@ -10,7 +11,7 @@ import { MatchService } from "@/services/MatchService";
 import { notify } from "@/lib/notificationClient";
 import type { ActorRole, SignaturePhase } from "@/entities/Signature";
 
-/** Enregistre (ou remplace) la signature d'un acteur pour une phase donnée. */
+/** Enregistre une nouvelle signature append-only pour l'acteur authentifié. */
 export async function saveSignature(
   sheetId: number,
   phase: SignaturePhase,
@@ -32,6 +33,7 @@ export async function saveSignature(
       return { success: false, error: "actions.sheet.errors.locked" };
     }
 
+    const session = await assertCurrentSignatureActor(sheet.matchId, actorRole);
     const requestHeaders = await headers();
     const signatureService = new SignatureService();
     await signatureService.save(
@@ -40,7 +42,7 @@ export async function saveSignature(
       phase,
       actorRole,
       { signerName, signatureData },
-      { userId: requestHeaders.get("x-sso-user-id"), name: requestHeaders.get("x-sso-name") },
+      { userId: session.userId, name: requestHeaders.get("x-sso-name") },
     );
 
     revalidatePath(`/${sheet.matchId}/post-match`);
@@ -69,6 +71,7 @@ export async function addReservation(sheetId: number, phase: SignaturePhase, aut
       return { success: false, error: "actions.sheet.errors.locked" };
     }
 
+    await assertCurrentSignatureActor(sheet.matchId, authorRole);
     const reservationService = new ReservationService();
     await reservationService.create({ sheetId, phase, authorRole, content: content.trim() });
 
@@ -85,6 +88,15 @@ export async function addReservation(sheetId: number, phase: SignaturePhase, aut
 export async function deleteReservation(id: number, matchId: string): Promise<ActionResult> {
   try {
     const reservationService = new ReservationService();
+    const reservation = await reservationService.findById(id);
+    if (!reservation) return { success: false, error: "actions.reservations.errors.delete" };
+
+    const sheet = await new SheetService().findById(reservation.sheetId);
+    if (!sheet || sheet.matchId !== matchId) {
+      return { success: false, error: "actions.reservations.errors.delete" };
+    }
+
+    await assertCurrentSignatureActor(matchId, reservation.authorRole);
     await reservationService.delete(id);
 
     revalidatePath(`/${matchId}/post-match`);
@@ -112,21 +124,18 @@ export async function deleteReservation(id: number, matchId: string): Promise<Ac
  */
 export async function confirmPostMatch(sheetId: number, matchId: string, expectedVersion: number): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const sheetService = new SheetService();
     const signatureService = new SignatureService();
 
     const sheet = await sheetService.findById(sheetId);
-    if (!sheet) {
+    if (!sheet || sheet.matchId !== matchId) {
       return { success: false, error: "actions.sheet.errors.notFound" };
     }
     if (sheet.status === "CLOSED") {
       return { success: false, error: "actions.closure.errors.alreadyClosed" };
     }
 
-    // isPhaseValid (pas seulement isPhaseComplete) : une correction/annulation
-    // d'événement après qu'un acteur a signé change le hash du contenu de la
-    // feuille (TASK-P0-009) — la signature existante ne couvre plus le
-    // contenu actuel et ne doit pas suffire à clôturer sans re-signature.
     const valid = await signatureService.isPhaseValid(sheetId, matchId, "POST_MATCH");
     if (!valid) {
       return {
