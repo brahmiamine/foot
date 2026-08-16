@@ -98,6 +98,34 @@ if (!identityOverrides.includes('prefers-reduced-motion')) {
   errors.push('identity/src/app/design-system.css: reduced-motion doit etre pris en charge')
 }
 
+const arbinoteLayout = await read('arbinote/src/app/layout.tsx')
+const arbinoteOverrides = await read('arbinote/src/app/design-system.css')
+if (!arbinoteLayout.includes('./design-system.css')) {
+  errors.push('arbinote/src/app/layout.tsx: doit charger ses regles transversales design system')
+}
+if (!arbinoteOverrides.includes('focus-visible')) {
+  errors.push('arbinote/src/app/design-system.css: un focus clavier visible est obligatoire')
+}
+if (!arbinoteOverrides.includes('prefers-reduced-motion')) {
+  errors.push('arbinote/src/app/design-system.css: reduced-motion doit etre pris en charge')
+}
+
+const clubObLayout = await read('club-ob/src/app/layout.tsx')
+const clubObOverrides = await read('club-ob/src/app/design-system.css')
+const clubObGlobals = await read('club-ob/src/app/globals.css')
+if (!clubObLayout.includes('packages/design-tokens/src/index.css')) {
+  errors.push('club-ob/src/app/layout.tsx: doit charger les tokens FOOT')
+}
+if (!clubObOverrides.includes('--ob-red: var(--foot-color-primary)')) {
+  errors.push('club-ob/src/app/design-system.css: le rouge OB doit venir du token FOOT primaire')
+}
+if (!clubObOverrides.includes('focus-visible')) {
+  errors.push('club-ob/src/app/design-system.css: un focus clavier visible est obligatoire')
+}
+if (!clubObGlobals.includes('prefers-reduced-motion')) {
+  errors.push('club-ob/src/app/globals.css: reduced-motion doit rester pris en charge')
+}
+
 const uiIndex = await read('packages/ui/src/index.ts')
 for (const name of requiredUiExports) {
   if (!uiIndex.includes(`export { ${name} }`)) {
@@ -142,5 +170,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `Design system valide: ${portalApps.length} portails club et ${internalAdminLayouts.length} back-offices partagent les themes FOOT; Referee Hub et Identity utilisent la marque centrale; ${requiredUiExports.length} primitives UI sont exportees.`,
+  `Design system valide: ${portalApps.length} portails club, ${internalAdminLayouts.length} back-offices et les produits publics respectent le contrat FOOT; Referee Hub et Identity utilisent la marque centrale; ${requiredUiExports.length} primitives UI sont exportees.`,
 )
