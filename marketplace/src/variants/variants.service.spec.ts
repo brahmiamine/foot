@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
 import { NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
@@ -12,7 +12,7 @@ describe('VariantsService', () => {
     save: jest.Mock;
     delete: jest.Mock;
   };
-  let productRepository: jest.Mocked<Pick<Repository<Product>, 'findOne'>>;
+  let productRepository: { findOne: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let txVariantRepository: { create: jest.Mock; save: jest.Mock };
   let txInventoryRepository: { create: jest.Mock; save: jest.Mock };
@@ -25,12 +25,10 @@ describe('VariantsService', () => {
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     productRepository = {
-      findOne: jest
-        .fn()
-        .mockResolvedValue({
-          id: 'product-1',
-          sellerId: 'seller-1',
-        } as Product),
+      findOne: jest.fn().mockResolvedValue({
+        id: 'product-1',
+        sellerId: 'seller-1',
+      }),
     };
     txVariantRepository = {
       create: jest.fn((value) => ({ id: 'variant-1', ...value })),
@@ -87,23 +85,18 @@ describe('VariantsService', () => {
     variantRepository.findOne.mockResolvedValue({
       id: 'variant-1',
       productId: 'product-1',
-      product: {} as Product,
+      product: {},
       sku: 'MAILLOT-M',
       attributes: { Taille: 'M' },
       price: null,
       imageUrl: null,
       isActive: true,
-    } as ProductVariant);
+    });
 
-    const result = await service.update(
-      'variant-1',
-      'product-1',
-      'seller-1',
-      {
-        imageUrl: 'https://cdn/new.jpg',
-        isActive: false,
-      },
-    );
+    const result = await service.update('variant-1', 'product-1', 'seller-1', {
+      imageUrl: 'https://cdn/new.jpg',
+      isActive: false,
+    });
 
     expect(result.imageUrl).toBe('https://cdn/new.jpg');
     expect(result.isActive).toBe(false);
