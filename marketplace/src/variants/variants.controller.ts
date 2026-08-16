@@ -13,17 +13,17 @@ import { SellerJwtGuard } from '../auth/guards/seller-jwt.guard';
 import { CurrentSeller } from '../auth/decorators/current-seller.decorator';
 import type { AuthenticatedSeller } from '../auth/interfaces/authenticated-seller.interface';
 import { VariantsService } from './variants.service';
-import { UpsertVariantDto } from './dto/upsert-variant.dto';
+import { CreateVariantDto } from './dto/create-variant.dto';
+import { UpdateVariantDto } from './dto/update-variant.dto';
 import { ProductVariant } from './entities/product-variant.entity';
 
-/** Variantes (taille/couleur/...) d'un produit — self-service vendeur, scopé par produit possédé (US-06). */
 @Controller('products/:productId/variants')
 @UseGuards(SellerJwtGuard)
 export class VariantsController {
   constructor(private readonly variantsService: VariantsService) {}
 
   @Get()
-  async findAll(
+  findAll(
     @CurrentSeller() seller: AuthenticatedSeller,
     @Param('productId', ParseUUIDPipe) productId: string,
   ): Promise<ProductVariant[]> {
@@ -31,20 +31,20 @@ export class VariantsController {
   }
 
   @Post()
-  async create(
+  create(
     @CurrentSeller() seller: AuthenticatedSeller,
     @Param('productId', ParseUUIDPipe) productId: string,
-    @Body() dto: UpsertVariantDto,
+    @Body() dto: CreateVariantDto,
   ): Promise<ProductVariant> {
     return this.variantsService.create(productId, seller.sellerId, dto);
   }
 
   @Patch(':id')
-  async update(
+  update(
     @CurrentSeller() seller: AuthenticatedSeller,
     @Param('productId', ParseUUIDPipe) productId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpsertVariantDto,
+    @Body() dto: UpdateVariantDto,
   ): Promise<ProductVariant> {
     return this.variantsService.update(id, productId, seller.sellerId, dto);
   }
@@ -59,9 +59,8 @@ export class VariantsController {
     return { success: true };
   }
 
-  /** Active/désactive la variante, sans modifier ses autres champs (voir VariantsService.toggleActive). */
   @Post(':id/toggle-active')
-  async toggleActive(
+  toggleActive(
     @CurrentSeller() seller: AuthenticatedSeller,
     @Param('productId', ParseUUIDPipe) productId: string,
     @Param('id', ParseUUIDPipe) id: string,

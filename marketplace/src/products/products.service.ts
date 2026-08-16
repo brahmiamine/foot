@@ -26,10 +26,6 @@ export class ProductsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  /**
-   * Product, initial images and the base inventory row are one aggregate
-   * creation transaction. A failure in any step rolls the whole product back.
-   */
   async create(sellerId: string, dto: CreateProductDto): Promise<Product> {
     return this.dataSource.transaction(async (manager) => {
       const productRepository = manager.getRepository(Product);
@@ -92,6 +88,25 @@ export class ProductsService {
     return product;
   }
 
+  private applyUpdate(product: Product, dto: UpdateProductDto): void {
+    if (dto.name !== undefined) product.name = dto.name;
+    if (dto.slug !== undefined) product.slug = dto.slug;
+    if (dto.description !== undefined) product.description = dto.description;
+    if (dto.shortDescription !== undefined) product.shortDescription = dto.shortDescription;
+    if (dto.categoryId !== undefined) product.categoryId = dto.categoryId;
+    if (dto.brand !== undefined) product.brand = dto.brand;
+    if (dto.sku !== undefined) product.sku = dto.sku;
+    if (dto.price !== undefined) product.price = String(dto.price);
+    if (dto.compareAtPrice !== undefined) {
+      product.compareAtPrice = dto.compareAtPrice === null ? null : String(dto.compareAtPrice);
+    }
+    if (dto.taxRate !== undefined) product.taxRate = String(dto.taxRate);
+    if (dto.weightKg !== undefined) {
+      product.weightKg = dto.weightKg === null ? null : String(dto.weightKg);
+    }
+    if (dto.dimensions !== undefined) product.dimensions = dto.dimensions;
+  }
+
   async update(
     id: string,
     sellerId: string,
@@ -99,31 +114,26 @@ export class ProductsService {
   ): Promise<Product> {
     const product = await this.findOneForSeller(id, sellerId);
     if (!SELLER_EDITABLE_STATUSES.includes(product.status)) {
-      throw new ConflictException(
-        `Produit non modifiable dans le statut ${product.status}`,
-      );
+      throw new ConflictException(`Produit non modifiable dans le statut ${product.status}`);
     }
+    this.applyUpdate(product, dto);
 
-    if (dto.name !== undefined) product.name = dto.name;
-    if (dto.slug !== undefined) product.slug = dto.slug;
-    if (dto.description !== undefined) product.description = dto.description;
-    if (dto.shortDescription !== undefined)
-      product.shortDescription = dto.shortDescription;
-    if (dto.categoryId !== undefined) product.categoryId = dto.categoryId;
-    if (dto.brand !== undefined) product.brand = dto.brand;
-    if (dto.sku !== undefined) product.sku = dto.sku;
-    if (dto.price !== undefined) product.price = String(dto.price);
-    if (dto.compareAtPrice !== undefined) {
-      product.compareAtPrice =
-        dto.compareAtPrice === null ? null : String(dto.compareAtPrice);
-    }
-    if (dto.taxRate !== undefined) product.taxRate = String(dto.taxRate);
-    if (dto.weightKg !== undefined) {
-      product.weightKg = dto.weightKg === null ? null : String(dto.weightKg);
-    }
-    if (dto.dimensions !== undefined) product.dimensions = dto.dimensions;
+    if (dto.images === undefined) return this.repository.save(product);
 
-    return this.repository.save(product);
+    return this.dataSource.transaction(async (manager) => {
+      const productRepository = manager.getRepository(Product);
+      const saved = await productRepository.save(product);
+      const imageRepository = manager.getRepository(ProductImage);
+      await imageRepository.delete({ productId: id });
+      if (dto.images?.length) {
+        await imageRepository.save(
+          dto.images.map((url, position) =>
+            imageRepository.create({ productId: id, url, position }),
+          ),
+        );
+      }
+      return saved;
+    });
   }
 
   async toggleActive(id: string, sellerId: string): Promise<Product> {
@@ -147,24 +157,16 @@ export class ProductsService {
     const product = await this.findOneForSeller(id, sellerId);
     const allowed = SELLER_ALLOWED_PRODUCT_TRANSITIONS[product.status] ?? [];
     if (!allowed.includes(nextStatus)) {
-      throw new ConflictException(
-        `Transition ${product.status} → ${nextStatus} non autorisée`,
-      );
+      throw new ConflictException(`Transition ${product.status} → ${nextStatus} non autorisée`);
     }
-
     if (
       nextStatus === ProductStatus.SUBMITTED &&
       (!product.price || Number(product.price) <= 0)
     ) {
-      throw new ConflictException(
-        'Le prix doit être renseigné avant soumission',
-      );
+      throw new ConflictException('Le prix doit être renseigné avant soumission');
     }
-
     product.status = nextStatus;
-    if (nextStatus === ProductStatus.DRAFT) {
-      product.rejectionReason = null;
-    }
+    if (nextStatus === ProductStatus.DRAFT) product.rejectionReason = null;
     return this.repository.save(product);
   }
 }

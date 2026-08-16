@@ -8,11 +8,6 @@ import {
 } from 'typeorm';
 import { Product } from '../../products/entities/product.entity';
 
-/**
- * `attributes` porte le ou les axes de variation (Taille, Couleur, ...) sous
- * forme libre pour ne pas figer le schéma à un seul type d'attribut.
- * Exemple: { "Taille": "M" } ou { "Couleur": "Rouge", "Taille": "L" }.
- */
 @Entity('sp_product_variants')
 export class ProductVariant {
   @PrimaryGeneratedColumn('uuid')
@@ -32,9 +27,11 @@ export class ProductVariant {
   @Column({ type: 'json' })
   attributes: Record<string, string>;
 
-  // Si null, hérite du prix du produit parent.
   @Column({ type: 'decimal', precision: 10, scale: 3, nullable: true })
   price: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
