@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
+import { generateKeyPairSync } from "crypto";
+import { importPKCS8, SignJWT } from "jose";
 import { NextRequest } from "next/server";
-import { SignJWT } from "jose";
 import { createTestDataSource } from "@/test/testDataSource";
 import { seedUser } from "@/test/fixtures";
+import { resetJwtKeyCache } from "@/lib/jwtKeys";
 
 let dataSource: DataSource;
 
@@ -11,9 +13,23 @@ vi.mock("@/lib/db", () => ({
   getDataSource: async () => dataSource,
 }));
 
+function generateTestRsaPem(): string {
+  const { privateKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    publicKeyEncoding: { type: "spki", format: "pem" },
+  });
+  return privateKey;
+}
+
 beforeEach(async () => {
   dataSource = await createTestDataSource();
-  process.env.SSO_JWT_SECRET = "test-secret-at-least-32-bytes-long!!";
+  process.env.SSO_JWT_PRIVATE_KEY = generateTestRsaPem();
+  process.env.SSO_JWT_KID = "test-kid-current";
+  delete process.env.SSO_JWT_PRIVATE_KEY_PREVIOUS;
+  delete process.env.SSO_JWT_KID_PREVIOUS;
+  delete process.env.SSO_JWT_SECRET;
+  resetJwtKeyCache();
 });
 
 afterEach(async () => {
@@ -27,13 +43,21 @@ function buildRequest(authorization?: string) {
 }
 
 async function signToken(userId: string, tokenVersion: number) {
-  return new SignJWT({ email: "user@example.com", name: "User", role: "SUPERADMIN", teamId: null, tokenVersion })
-    .setProtectedHeader({ alg: "HS256" })
+  const key = await importPKCS8(process.env.SSO_JWT_PRIVATE_KEY!, "RS256");
+  return new SignJWT({
+    email: "user@example.com",
+    name: "User",
+    role: "SUPERADMIN",
+    teamId: null,
+    tokenVersion,
+  })
+    .setProtectedHeader({ alg: "RS256", kid: process.env.SSO_JWT_KID })
     .setSubject(userId)
     .setIssuer("foot-sso")
+    .setAudience("foot-platform")
     .setIssuedAt()
     .setExpirationTime("12h")
-    .sign(new TextEncoder().encode(process.env.SSO_JWT_SECRET));
+    .sign(key);
 }
 
 /** TS-34 — introspection, consommée par les 6 apps clientes pour la révocation (TS-29). */
