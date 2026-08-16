@@ -1,0 +1,44 @@
+:root {
+  /* Align Referee Hub brand accents with the FOOT platform source of truth. */
+  --rh-red: var(--foot-color-primary);
+  --rh-red-dark: var(--foot-color-primary-dark);
+}
+
+/* Keep hierarchy readable without relying on repeated uppercase eyebrow labels. */
+.page-heading > span,
+.section-heading span {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Status is already communicated by badges/dots; avoid decorative side stripes. */
+.assignment-card,
+.assignment-card.is-revoked {
+  border-inline-start-width: 1px;
+  border-inline-start-color: var(--rh-border);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--rh-red);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  a.stat-card:hover {
+    transform: none;
+  }
+}

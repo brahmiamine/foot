@@ -4,7 +4,9 @@ import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getLocale, getLocalizedMetadata } from "@/i18n/server";
+import "../../../packages/design-tokens/src/index.css";
 import "./globals.css";
+import "./design-system.css";
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],

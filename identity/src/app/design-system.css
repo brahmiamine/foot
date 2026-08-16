@@ -1,0 +1,17 @@
+:root {
+  /* Identity remains intentionally dark/minimal while sharing FOOT brand tokens. */
+  --sso-bg: var(--foot-color-dark);
+  --sso-accent: var(--foot-color-primary);
+  --sso-accent-hover: var(--foot-color-primary-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}

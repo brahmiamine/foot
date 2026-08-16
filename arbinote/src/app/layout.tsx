@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import "./design-system.css";
 import Providers from "@/components/Providers";
 import FontAwesomeLoader from "@/components/FontAwesomeLoader";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";

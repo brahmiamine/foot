@@ -36,6 +36,7 @@ jobs:
         with:
           node-version: 20
       - run: node scripts/validate-frontend-workspace.mjs
+      - run: node scripts/validate-design-system.mjs
 
   architecture-boundaries:
     name: application architecture boundaries
