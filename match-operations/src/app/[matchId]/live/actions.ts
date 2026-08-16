@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { assertCurrentMatchAccess } from "@/lib/matchActorSession";
 import { CardEventService } from "@/services/CardEventService";
 import { GoalService } from "@/services/GoalService";
 import { InjuryService } from "@/services/InjuryService";
@@ -27,6 +28,7 @@ export async function addCard(
   commentFr: string | null,
 ): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     if (!playerId) return { success: false, error: "events.validation.selectPlayer" };
     const cardEventService = new CardEventService();
     await cardEventService.create({ sheetId, matchId, playerId, type, minute, period, cardReasonId, commentFr });
@@ -39,6 +41,7 @@ export async function addCard(
 
 export async function deleteCard(id: string, matchId: string): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const cardEventService = new CardEventService();
     await cardEventService.delete(id);
     revalidatePath(`/${matchId}/live`);
@@ -66,6 +69,7 @@ export async function addGoal(
   clientRequestId?: string,
 ): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     const goalService = new GoalService();
     await goalService.create({ sheetId, matchId, teamId, playerId, minute, period, isOwnGoal, isPenalty, clientRequestId });
@@ -83,6 +87,7 @@ export async function addGoal(
  */
 export async function cancelGoal(id: number, matchId: string, reason: string): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const goalService = new GoalService();
     const actor = await currentActor();
     await goalService.cancel(id, { reason, actorUserId: actor.userId, actorName: actor.name });
@@ -106,6 +111,7 @@ export async function addInjury(
   clientRequestId?: string,
 ): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     const injuryService = new InjuryService();
     await injuryService.create({ sheetId, matchId, teamId, playerId, minute, period, description, requiresSubstitution, clientRequestId });
@@ -119,6 +125,7 @@ export async function addInjury(
 /** Annule une blessure déjà saisie (TASK-P0-009) — voir cancelGoal. */
 export async function cancelInjury(id: number, matchId: string, reason: string): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const injuryService = new InjuryService();
     const actor = await currentActor();
     await injuryService.cancel(id, { reason, actorUserId: actor.userId, actorName: actor.name });
@@ -141,6 +148,7 @@ export async function addSubstitution(
   clientRequestId?: string,
 ): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     if (!teamId) return { success: false, error: "events.validation.selectTeam" };
     if (!playerOutId || !playerInId) return { success: false, error: "events.validation.selectBothPlayers" };
     if (playerOutId === playerInId) return { success: false, error: "actions.events.substitution.samePlayer" };
@@ -156,6 +164,7 @@ export async function addSubstitution(
 /** Annule un remplacement déjà saisi (TASK-P0-009) — voir cancelGoal. */
 export async function cancelSubstitution(id: number, matchId: string, reason: string): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const substitutionService = new SubstitutionService();
     const actor = await currentActor();
     await substitutionService.cancel(id, { reason, actorUserId: actor.userId, actorName: actor.name });
@@ -172,7 +181,12 @@ export async function cancelSubstitution(id: number, matchId: string, reason: st
  */
 export async function startMatch(sheetId: number, matchId: string, expectedVersion: number): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const sheetService = new SheetService();
+    const sheet = await sheetService.findById(sheetId);
+    if (!sheet || sheet.matchId !== matchId) {
+      return { success: false, error: "actions.sheet.errors.notFound" };
+    }
     await sheetService.updateStatus(sheetId, "IN_PROGRESS", expectedVersion);
     revalidatePath(`/${matchId}/live`);
     return { success: true, message: "actions.events.start.saved" };
