@@ -44,7 +44,13 @@ class EnvironmentVariables {
   SERVICE_API_KEYS_PREVIOUS?: string;
 
   @IsOptional()
-  @IsISO8601({}, { message: 'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date' })
+  @IsISO8601(
+    {},
+    {
+      message:
+        'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date',
+    },
+  )
   SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?: string;
 
   @IsNotEmpty()
@@ -122,7 +128,9 @@ class EnvironmentVariables {
 
 function validateRotationPair(config: EnvironmentVariables): void {
   const hasPrevious = Boolean(config.SERVICE_API_KEYS_PREVIOUS?.trim());
-  const hasExpiry = Boolean(config.SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?.trim());
+  const hasExpiry = Boolean(
+    config.SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?.trim(),
+  );
   if (hasPrevious !== hasExpiry) {
     throw new Error(
       'Invalid environment configuration: SERVICE_API_KEYS_PREVIOUS and SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be configured together',
@@ -131,8 +139,12 @@ function validateRotationPair(config: EnvironmentVariables): void {
 }
 
 export function validateEnv(config: Record<string, unknown>) {
-  const validatedConfig = plainToInstance(EnvironmentVariables, config, { enableImplicitConversion: true });
-  const errors = validateSync(validatedConfig, { skipMissingProperties: false });
+  const validatedConfig = plainToInstance(EnvironmentVariables, config, {
+    enableImplicitConversion: true,
+  });
+  const errors = validateSync(validatedConfig, {
+    skipMissingProperties: false,
+  });
   if (errors.length > 0) {
     const messages = errors
       .map((error) => Object.values(error.constraints ?? {}).join(', '))

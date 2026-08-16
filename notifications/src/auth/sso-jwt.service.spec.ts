@@ -15,7 +15,7 @@ describe('SsoJwtService', () => {
     jest.clearAllMocks();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ active: true }),
+      json: () => Promise.resolve({ active: true }),
     });
   });
 
@@ -61,7 +61,9 @@ describe('SsoJwtService', () => {
   });
 
   it('returns null when strict JWT verification fails', async () => {
-    mockedJwtVerify.mockRejectedValue(new Error('invalid audience or algorithm'));
+    mockedJwtVerify.mockRejectedValue(
+      new Error('invalid audience or algorithm'),
+    );
     expect(await buildService().verify('token')).toBeNull();
   });
 });

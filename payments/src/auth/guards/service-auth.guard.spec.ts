@@ -26,14 +26,16 @@ describe('ServiceAuthGuard', () => {
 
   it('rejects a request without x-api-key', () => {
     const guard = guardWithClients({ current: { 'club-ob': 'ob-key' } });
-    expect(() => guard.canActivate(contextWithHeaders({}))).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(contextWithHeaders({}))).toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects an unknown api key', () => {
     const guard = guardWithClients({ current: { 'club-ob': 'ob-key' } });
-    expect(() => guard.canActivate(contextWithHeaders({ 'x-api-key': 'wrong-key' }))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() =>
+      guard.canActivate(contextWithHeaders({ 'x-api-key': 'wrong-key' })),
+    ).toThrow(UnauthorizedException);
   });
 
   it('accepts a known api key and attaches the calling application', () => {
@@ -62,7 +64,9 @@ describe('ServiceAuthGuard', () => {
       previous: { 'club-ob': 'ob-key-old' },
       previousExpiresAt: new Date(Date.now() + 60_000).toISOString(),
     });
-    expect(guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' }))).toBe(true);
+    expect(
+      guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' })),
+    ).toBe(true);
   });
 
   it('rejects the previous key once the grace period has expired', () => {
@@ -71,9 +75,9 @@ describe('ServiceAuthGuard', () => {
       previous: { 'club-ob': 'ob-key-old' },
       previousExpiresAt: new Date(Date.now() - 60_000).toISOString(),
     });
-    expect(() => guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' }))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() =>
+      guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' })),
+    ).toThrow(UnauthorizedException);
   });
 
   it('rejects the previous key when no expiry is configured', () => {
@@ -81,8 +85,8 @@ describe('ServiceAuthGuard', () => {
       current: { 'club-ob': 'ob-key-new' },
       previous: { 'club-ob': 'ob-key-old' },
     });
-    expect(() => guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' }))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() =>
+      guard.canActivate(contextWithHeaders({ 'x-api-key': 'ob-key-old' })),
+    ).toThrow(UnauthorizedException);
   });
 });

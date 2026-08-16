@@ -22,7 +22,9 @@ export class SsoJwtService {
 
   private getRemoteJwks(): ReturnType<typeof createRemoteJWKSet> {
     const ssoUrl = this.config.get<string>('SSO_URL');
-    if (!ssoUrl) throw new Error('SSO_URL must be set to verify SSO session tokens');
+    if (!ssoUrl) {
+      throw new Error('SSO_URL must be set to verify SSO session tokens');
+    }
     const jwksUrl = `${ssoUrl.replace(/\/$/, '')}/api/.well-known/jwks.json`;
     if (!this.remoteJwks || this.remoteJwksUrl !== jwksUrl) {
       this.remoteJwks = createRemoteJWKSet(new URL(jwksUrl), {
@@ -41,14 +43,20 @@ export class SsoJwtService {
     if (cached && cached.expiresAt > now) return !cached.active;
 
     try {
-      const res = await fetch(`${ssoUrl.replace(/\/$/, '')}/api/session/introspect`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(REVOCATION_FETCH_TIMEOUT_MS),
-      });
+      const res = await fetch(
+        `${ssoUrl.replace(/\/$/, '')}/api/session/introspect`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(REVOCATION_FETCH_TIMEOUT_MS),
+        },
+      );
       if (!res.ok) return false;
       const body = (await res.json()) as { active?: boolean };
       const active = body.active === true;
-      this.revocationCache.set(token, { active, expiresAt: now + REVOCATION_CACHE_TTL_MS });
+      this.revocationCache.set(token, {
+        active,
+        expiresAt: now + REVOCATION_CACHE_TTL_MS,
+      });
       return !active;
     } catch {
       return false;
@@ -63,7 +71,11 @@ export class SsoJwtService {
         audience: SSO_JWT_AUDIENCE,
         algorithms: ['RS256'],
       });
-      if (!payload.sub || typeof payload.email !== 'string' || typeof payload.role !== 'string') {
+      if (
+        !payload.sub ||
+        typeof payload.email !== 'string' ||
+        typeof payload.role !== 'string'
+      ) {
         return null;
       }
       if (await this.isRevoked(token)) return null;

@@ -1,7 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /** Non-destructive baseline for the standalone notifications database. */
-export class BaselineNotificationsSchema1786841100000 implements MigrationInterface {
+export class BaselineNotificationsSchema1786841100000
+  implements MigrationInterface
+{
   name = 'BaselineNotificationsSchema1786841100000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -132,9 +134,11 @@ export class BaselineNotificationsSchema1786841100000 implements MigrationInterf
     `);
   }
 
-  public async down(): Promise<void> {
-    throw new Error(
-      'BaselineNotificationsSchema cannot be reverted safely because it may have adopted pre-existing production tables.',
+  public down(): Promise<void> {
+    return Promise.reject(
+      new Error(
+        'BaselineNotificationsSchema cannot be reverted safely because it may have adopted pre-existing production tables.',
+      ),
     );
   }
 }

@@ -1,21 +1,19 @@
-import { decodeProtectedHeader, jwtVerify, SignJWT, type KeyLike } from "jose";
-import { findVerificationKey, getLegacyHs256Secret, getSigningKey } from "./jwtKeys";
+import { decodeProtectedHeader, jwtVerify, SignJWT } from "jose";
+import { findVerificationKey, getSigningKey } from "./jwtKeys";
 
 /**
  * Jeton intermédiaire "mot de passe vérifié, code MFA attendu" — jamais
  * posé en cookie, renvoyé dans le corps de la réponse de /api/login et
- * conservé côté client (état React) le temps de saisir le code. Signé avec
- * un issuer DIFFÉRENT de la session réelle ("foot-sso") pour qu'un jeton
- * volé à cette étape ne puisse jamais être accepté comme une session par
- * verifySessionToken (ici ou dans packages/auth-shared) — jwtVerify rejette
- * tout jeton dont l'issuer ne correspond pas exactement.
+ * conservé côté client le temps de saisir le code. L'issuer est distinct de
+ * celui d'une session SSO réelle afin que ce jeton ne soit jamais accepté
+ * comme session.
  *
- * TASK-P0-001 : RS256 + kid comme session.ts (mêmes clés). Fallback HS256
- * legacy en vérification uniquement, pour les jetons émis juste avant la
- * migration (durée de vie 5min, donc fenêtre de transition très courte).
+ * L'émission et la vérification sont RS256 uniquement, avec `kid`, comme les
+ * sessions SSO. L'ancien fallback HS256 a été retiré avec la fin de la
+ * migration cryptographique de la plateforme.
  */
 
-const PENDING_TTL_SECONDS = 5 * 60; // 5 minutes
+const PENDING_TTL_SECONDS = 5 * 60;
 const ISSUER = "foot-sso-mfa-pending";
 
 export async function signMfaPendingToken(userId: string): Promise<string> {
@@ -32,20 +30,15 @@ export async function signMfaPendingToken(userId: string): Promise<string> {
 export async function verifyMfaPendingToken(token: string): Promise<string | null> {
   try {
     const header = decodeProtectedHeader(token);
-    let key: KeyLike | Uint8Array;
-    if (header.alg === "RS256") {
-      const publicKey = await findVerificationKey(header.kid);
-      if (!publicKey) return null;
-      key = publicKey;
-    } else if (header.alg === "HS256") {
-      const legacySecret = getLegacyHs256Secret();
-      if (!legacySecret) return null;
-      key = legacySecret;
-    } else {
-      return null;
-    }
+    if (header.alg !== "RS256" || !header.kid) return null;
 
-    const { payload } = await jwtVerify(token, key, { issuer: ISSUER });
+    const publicKey = await findVerificationKey(header.kid);
+    if (!publicKey) return null;
+
+    const { payload } = await jwtVerify(token, publicKey, {
+      issuer: ISSUER,
+      algorithms: ["RS256"],
+    });
     return typeof payload.sub === "string" ? payload.sub : null;
   } catch {
     return null;

@@ -97,9 +97,11 @@ export class BaselinePaymentsSchema1786841000000 implements MigrationInterface {
     `);
   }
 
-  public async down(): Promise<void> {
-    throw new Error(
-      'BaselinePaymentsSchema cannot be reverted safely because it may have adopted pre-existing production tables.',
+  public down(): Promise<void> {
+    return Promise.reject(
+      new Error(
+        'BaselinePaymentsSchema cannot be reverted safely because it may have adopted pre-existing production tables.',
+      ),
     );
   }
 }
