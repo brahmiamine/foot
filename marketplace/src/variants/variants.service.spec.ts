@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
 import { NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
@@ -26,7 +27,10 @@ describe('VariantsService', () => {
     productRepository = {
       findOne: jest
         .fn()
-        .mockResolvedValue({ id: 'product-1', sellerId: 'seller-1' } as Product),
+        .mockResolvedValue({
+          id: 'product-1',
+          sellerId: 'seller-1',
+        } as Product),
     };
     txVariantRepository = {
       create: jest.fn((value) => ({ id: 'variant-1', ...value })),
