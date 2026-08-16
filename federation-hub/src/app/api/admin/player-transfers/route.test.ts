@@ -8,8 +8,26 @@ import type { SsoUser } from '@/lib/ssoSession'
 
 let dataSource: DataSource
 
+function dataSourceWithPlayerReadStub(): DataSource {
+  return new Proxy(dataSource, {
+    get(target, property, receiver) {
+      if (property === 'getRepository') {
+        return (entity: unknown) => {
+          if (typeof entity === 'function' && entity.name === 'Player') {
+            return { find: async () => [] }
+          }
+          return target.getRepository(entity as never)
+        }
+      }
+
+      const value = Reflect.get(target, property, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
 vi.mock('@/lib/db', () => ({
-  getDataSource: async () => dataSource,
+  getDataSource: async () => dataSourceWithPlayerReadStub(),
 }))
 
 const mockGetAdminSession = vi.fn<() => Promise<SsoUser | null>>()
