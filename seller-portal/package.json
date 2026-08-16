@@ -16,6 +16,7 @@
     "check:i18n": "node scripts/check-ui-literals.mjs && node --test test/i18n-parity.test.mjs"
   },
   "dependencies": {
+    "@foot/design-tokens": "workspace:*",
     "bcryptjs": "^3.0.3",
     "jose": "^5.9.6",
     "mariadb": "^3.4.5",
