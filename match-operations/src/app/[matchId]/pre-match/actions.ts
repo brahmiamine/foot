@@ -62,8 +62,16 @@ export async function addReservation(sheetId: number, phase: SignaturePhase, aut
 
 export async function deleteReservation(id: number, matchId: string): Promise<ActionResult> {
   try {
-    await assertCurrentMatchAccess(matchId);
     const reservationService = new ReservationService();
+    const reservation = await reservationService.findById(id);
+    if (!reservation) return { success: false, error: "actions.reservations.errors.delete" };
+
+    const sheet = await new SheetService().findById(reservation.sheetId);
+    if (!sheet || sheet.matchId !== matchId) {
+      return { success: false, error: "actions.reservations.errors.delete" };
+    }
+
+    await assertCurrentSignatureActor(matchId, reservation.authorRole);
     await reservationService.delete(id);
     revalidatePath(`/${matchId}/pre-match`);
     return { success: true, message: "actions.reservations.messages.deleted" };
