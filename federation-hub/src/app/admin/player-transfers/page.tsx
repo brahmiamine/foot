@@ -4,5 +4,9 @@ import { getCompetitionAdminPageSession } from '@/lib/adminAuth'
 
 export default async function AdminPlayerTransfersPage() {
   const session = await getCompetitionAdminPageSession()
-  return session ? <AdminPlayerTransfersManager /> : <AdminLogin />
+  return session ? (
+    <AdminPlayerTransfersManager canCreate={session.role !== 'LEAGUE_ADMIN'} />
+  ) : (
+    <AdminLogin />
+  )
 }
