@@ -39,19 +39,29 @@ export class TrainingService {
     return repository.find({ where: { trainingId }, relations: ["tacticsBoard"], order: { displayOrder: "ASC" } });
   }
 
+  async findBlocksByTrainingIds(trainingIds: number[]): Promise<TrainingBlock[]> {
+    if (trainingIds.length === 0) return [];
+    const repository = await this.getBlockRepository();
+    return repository.find({
+      where: { trainingId: In(trainingIds) },
+      relations: ["tacticsBoard"],
+      order: { trainingId: "ASC", displayOrder: "ASC" },
+    });
+  }
+
   async saveBlocks(trainingId: number, blocks: TrainingBlockInput[]): Promise<TrainingBlock[]> {
     const repository = await this.getBlockRepository();
     await repository.delete({ trainingId });
     if (blocks.length === 0) return [];
-    const rows = blocks.map((b, index) =>
+    const rows = blocks.map((block, index) =>
       repository.create({
         trainingId,
         displayOrder: index,
-        blockType: b.blockType,
-        label: b.label,
-        durationMinutes: b.durationMinutes,
-        notes: b.notes ?? null,
-        tacticsBoardId: b.tacticsBoardId ?? null,
+        blockType: block.blockType,
+        label: block.label,
+        durationMinutes: block.durationMinutes,
+        notes: block.notes ?? null,
+        tacticsBoardId: block.tacticsBoardId ?? null,
       })
     );
     return repository.save(rows);

@@ -3,7 +3,7 @@ import { getDataSource } from "@/lib/database";
 import { Fine, type FineStatus, type FineType } from "@/entities/Fine";
 import { Player } from "@/entities/Player";
 import { Suspension } from "@/entities/Suspension";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 export interface CreateFineInput {
   type: FineType;
@@ -25,10 +25,7 @@ export interface UpdateFineInput {
   dueDate?: string;
 }
 
-/**
- * Service for Fine operations (amendes disciplinaires) — port de
- * cardManager/app/api/fines.
- */
+/** Service for Fine operations (amendes disciplinaires). */
 export class FineService {
   private async getRepository(): Promise<Repository<Fine>> {
     const dataSource = await getDataSource();
@@ -56,10 +53,17 @@ export class FineService {
     return count > 0;
   }
 
-  /**
-   * Crée une amende. `teamId` doit avoir déjà été vérifié par l'appelant
-   * (dérivé du joueur pour une amende carton, ou de la session sinon).
-   */
+  /** Charge en une requête les joueurs ayant au moins une amende OVERDUE. */
+  async findOverduePlayerIds(playerIds: string[]): Promise<Set<string>> {
+    if (playerIds.length === 0) return new Set();
+    const repository = await this.getRepository();
+    const rows = await repository.find({
+      select: { playerId: true },
+      where: { playerId: In(playerIds), status: "OVERDUE" },
+    });
+    return new Set(rows.map((fine) => fine.playerId).filter((playerId): playerId is string => Boolean(playerId)));
+  }
+
   async create(data: CreateFineInput, teamId: string | null): Promise<Fine> {
     const repository = await this.getRepository();
     const fine = repository.create({
@@ -96,8 +100,6 @@ export class FineService {
 
     const after = await repository.save(before);
 
-    // Déblocage du joueur quand l'amende passe PAID — uniquement si plus de
-    // suspension active ni d'autre amende OVERDUE (règlement FTF).
     if (data.status === "PAID" && after.playerId) {
       const remainingActiveSuspensions = await suspensionRepo.count({
         where: { playerId: after.playerId, status: "ACTIVE" },

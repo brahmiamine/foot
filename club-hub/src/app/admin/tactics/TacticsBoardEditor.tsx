@@ -3,7 +3,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import jsPDF from "jspdf";
 import { AGE_CATEGORY_LABELS, type AgeCategory } from "@/types/categories";
 import type { BoardElement } from "@/types/tactics";
 import { createTacticsBoard, updateTacticsBoard, duplicateTacticsBoard } from "./actions";
@@ -180,7 +179,8 @@ export function TacticsBoardEditor({
     await duplicateTacticsBoard(boardId);
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const marginX = 20;
     const pitchTop = 35;

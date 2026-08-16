@@ -1,3 +1,4 @@
+import { In } from "typeorm";
 import { Match } from "@/entities/Match";
 import { FriendlyMatch } from "@/entities/FriendlyMatch";
 import { Team } from "@/entities/Team";
@@ -6,36 +7,60 @@ import { StaffRosterService } from "./StaffRosterService";
 import type { MatchInfo } from "./StaffServiceBase";
 
 export class StaffMatchService extends StaffRosterService {
-  protected async resolveMatch(teamId: string, matchId: string): Promise<MatchInfo | null> {
+  private async buildOfficialMatchInfo(teamId: string, matches: Match[]): Promise<Map<string, MatchInfo>> {
+    const result = new Map<string, MatchInfo>();
+    if (matches.length === 0) return result;
+
     const ds = await this.ds();
-    const match = await ds.getRepository(Match).findOne({ where: { id: matchId } });
-    if (!match) return null;
+    const opponentTeamIds = [
+      ...new Set(matches.map((match) => (match.equipeHome === teamId ? match.equipeAway : match.equipeHome))),
+    ];
+    const opponents = opponentTeamIds.length
+      ? await ds.getRepository(Team).find({ where: { id: In(opponentTeamIds) } })
+      : [];
+    const opponentById = new Map(opponents.map((team) => [team.id, team]));
 
-    const isHome = match.equipeHome === teamId;
-    const opponentTeamId = isHome ? match.equipeAway : match.equipeHome;
-    const opponent = await ds.getRepository(Team).findOne({ where: { id: opponentTeamId } });
+    for (const match of matches) {
+      const isHome = match.equipeHome === teamId;
+      const opponentTeamId = isHome ? match.equipeAway : match.equipeHome;
+      result.set(match.id, {
+        kind: "OFFICIAL",
+        id: match.id,
+        date: match.date ?? null,
+        opponentName: opponentById.get(opponentTeamId)?.nom ?? "Adversaire",
+        isHome,
+        status: match.status,
+      });
+    }
+    return result;
+  }
 
-    return {
-      kind: "OFFICIAL",
-      id: match.id,
-      date: match.date ?? null,
-      opponentName: opponent?.nom ?? "Adversaire",
-      isHome,
-      status: match.status,
-    };
+  protected async resolveMatchesByIds(teamId: string, matchIds: string[]): Promise<Map<string, MatchInfo>> {
+    if (matchIds.length === 0) return new Map();
+    const ds = await this.ds();
+    const matches = await ds.getRepository(Match).find({ where: { id: In([...new Set(matchIds)]) } });
+    return this.buildOfficialMatchInfo(teamId, matches);
+  }
+
+  protected async resolveMatch(teamId: string, matchId: string): Promise<MatchInfo | null> {
+    const matches = await this.resolveMatchesByIds(teamId, [matchId]);
+    return matches.get(matchId) ?? null;
   }
 
   async listMatches(teamId: string): Promise<MatchInfo[]> {
     const ds = await this.ds();
-    const official = await ds.getRepository(Match).find({
-      where: [{ equipeHome: teamId }, { equipeAway: teamId }],
-      order: { date: "DESC" },
-    });
-    const officialInfo = await Promise.all(official.map((match) => this.resolveMatch(teamId, match.id)));
-    const friendly = await ds.getRepository(FriendlyMatch).find({
-      where: { teamId },
-      order: { date: "DESC" },
-    });
+    const [official, friendly] = await Promise.all([
+      ds.getRepository(Match).find({
+        where: [{ equipeHome: teamId }, { equipeAway: teamId }],
+        order: { date: "DESC" },
+      }),
+      ds.getRepository(FriendlyMatch).find({
+        where: { teamId },
+        order: { date: "DESC" },
+      }),
+    ]);
+
+    const officialById = await this.buildOfficialMatchInfo(teamId, official);
     const friendlyInfo: MatchInfo[] = friendly.map((match) => ({
       kind: "FRIENDLY",
       id: String(match.id),
@@ -45,7 +70,7 @@ export class StaffMatchService extends StaffRosterService {
       status: match.status,
     }));
 
-    return [...officialInfo.filter((match): match is MatchInfo => !!match), ...friendlyInfo].sort(
+    return [...officialById.values(), ...friendlyInfo].sort(
       (a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0),
     );
   }

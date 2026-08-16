@@ -9,12 +9,13 @@ export class PlayerPlanningService extends PlayerProfileService {
     playerId: string,
   ): Promise<{ convocation: Convocation; match: MatchInfo | null } | null> {
     const convocations = await this.getConvocations(playerId);
+    const matchesByConvocation = await this.resolveConvocationMatches(convocations);
     const now = Date.now();
     const upcoming: Array<{ convocation: Convocation; match: MatchInfo }> = [];
 
     for (const convocation of convocations) {
       if (convocation.cancelledAt) continue;
-      const match = await this.resolveConvocationMatch(convocation);
+      const match = matchesByConvocation.get(convocation.id) ?? null;
       if (
         match?.date &&
         match.date.getTime() >= now &&
@@ -44,9 +45,10 @@ export class PlayerPlanningService extends PlayerProfileService {
     }> = [];
 
     const convocations = await this.getConvocations(playerId);
+    const matchesByConvocation = await this.resolveConvocationMatches(convocations);
     for (const convocation of convocations) {
       if (convocation.cancelledAt) continue;
-      const match = await this.resolveConvocationMatch(convocation);
+      const match = matchesByConvocation.get(convocation.id) ?? null;
       if (match?.date && match.date.getTime() >= now && match.date.getTime() <= horizon) {
         entries.push({
           type: "MATCH",
