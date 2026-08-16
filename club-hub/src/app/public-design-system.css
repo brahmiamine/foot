@@ -1,0 +1,29 @@
+html:root {
+  /* Keep the Footclub template visually intact while sourcing the shared FOOT brand. */
+  --primary-color: var(--foot-color-dark);
+  --accent-color: var(--foot-color-primary);
+  --text-color: #64748b;
+  --default-font: var(--foot-font-ui);
+  --accent-font: var(--foot-font-display);
+}
+
+html a:focus-visible,
+html button:focus-visible,
+html input:focus-visible,
+html select:focus-visible,
+html textarea:focus-visible,
+html [tabindex]:focus-visible {
+  outline: 2px solid var(--foot-color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
