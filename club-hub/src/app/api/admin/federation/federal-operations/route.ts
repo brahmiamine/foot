@@ -10,6 +10,10 @@ import {
   submitClubInsurance,
   submitClubRegulatoryDocument,
 } from "@/services/ClubFederalOperationsService";
+import {
+  assertActiveClubFederalAffiliation,
+  assertClubSeasonInScope,
+} from "@/services/clubFederalOperationGuards";
 
 export const runtime = "nodejs";
 
@@ -50,7 +54,15 @@ export async function POST(request: NextRequest) {
     const dataSource = await getDataSource();
     const actor = auditActor(request, session.user);
     const teamId = session.user.teamId;
-    if (action === "insurance.create") return NextResponse.json(await createClubInsuranceDraft(teamId, actor, body, dataSource), { status: 201 });
+
+    // Toute écriture réglementaire exige une affiliation active ; le club ne
+    // peut jamais choisir son clubId/federationId dans le JSON.
+    await assertActiveClubFederalAffiliation(teamId, dataSource);
+
+    if (action === "insurance.create") {
+      await assertClubSeasonInScope(teamId, String(body.seasonId ?? ""), dataSource);
+      return NextResponse.json(await createClubInsuranceDraft(teamId, actor, body, dataSource), { status: 201 });
+    }
     if (action === "insurance.submit") return NextResponse.json(await submitClubInsurance(teamId, actor, String(body.id ?? ""), dataSource));
     if (action === "grant.create") return NextResponse.json(await createClubGrantApplication(teamId, actor, body, dataSource), { status: 201 });
     if (action === "grant.submit") return NextResponse.json(await submitClubGrantApplication(teamId, actor, String(body.id ?? ""), dataSource));
