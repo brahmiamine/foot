@@ -8,9 +8,7 @@ import { VariantsController } from './variants.controller';
 import { InternalVariantsController } from './internal-variants.controller';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([ProductVariant, Product, InventoryItem]),
-  ],
+  imports: [TypeOrmModule.forFeature([ProductVariant, Product, InventoryItem])],
   controllers: [VariantsController, InternalVariantsController],
   providers: [VariantsService],
 })
