@@ -1,0 +1,73 @@
+@import "./index.css";
+
+:root {
+  --foot-admin-background: #f8f8fb;
+  --foot-admin-surface: #ffffff;
+  --foot-admin-text: #495057;
+  --foot-admin-text-muted: #74788d;
+  --foot-admin-border: #e6e8ec;
+  --foot-admin-sidebar: #2a3042;
+  --foot-admin-sidebar-text: #a6b0cf;
+
+  /* Bootstrap/Skote semantic bridge. */
+  --bs-primary: var(--foot-color-primary);
+  --bs-primary-rgb: var(--foot-color-primary-rgb);
+  --bs-link-color: var(--foot-color-primary);
+  --bs-link-hover-color: var(--foot-color-primary-dark);
+  --bs-body-bg: var(--foot-admin-background);
+  --bs-body-color: var(--foot-admin-text);
+  --bs-border-radius: var(--foot-radius-sm);
+  --bs-border-radius-lg: var(--foot-radius-md);
+}
+
+body {
+  background: var(--foot-admin-background);
+  color: var(--foot-admin-text);
+}
+
+#sidebar-menu li.mm-active > a,
+#sidebar-menu li a.active {
+  color: #fff;
+  background: rgba(var(--foot-color-primary-rgb), 0.18);
+}
+
+#sidebar-menu li.mm-active > a::before,
+#sidebar-menu li a.active::before {
+  display: none;
+}
+
+.card {
+  box-shadow: 0 4px 8px -4px rgba(11, 31, 46, 0.12) !important;
+}
+
+.card.mini-stats-wid:hover {
+  box-shadow: 0 6px 8px -4px rgba(11, 31, 46, 0.18) !important;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--foot-color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .card.mini-stats-wid:hover,
+  .btn:active,
+  .btn-primary:hover,
+  .btn-primary:focus {
+    transform: none !important;
+  }
+}
