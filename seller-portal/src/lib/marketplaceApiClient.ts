@@ -1,16 +1,4 @@
-/**
- * Client HTTP serveur-à-serveur vers marketplace (voir
- * ../../marketplace/README.md), pour les écritures produit (create,
- * update, delete, submit, withdraw) — voir avancement.md, TS-04.
- * seller-portal a déjà authentifié le vendeur via sa propre session
- * (src/lib/session.ts, SP_JWT_SECRET) : ces routes internal/* de
- * marketplace font confiance à `sellerId` passé explicitement plutôt
- * que d'exiger un second login vendeur (marketplace a son propre JWT
- * self-service, SELLER_JWT_SECRET, non interchangeable avec celui-ci).
- * Les lectures produit restent en TypeORM direct côté seller-portal (même
- * table `sp_products`, aucun problème de cohérence).
- */
-
+/** Server-to-server client for seller-facing marketplace mutations. */
 class MarketplaceApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -38,11 +26,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   const isJson = response.headers.get("content-type")?.includes("application/json");
   const body = isJson ? await response.json().catch(() => null) : null;
-
   if (!response.ok) {
     throw new MarketplaceApiError((body as { message?: string })?.message ?? `marketplace ${response.status}`, response.status);
   }
-
   return body as T;
 }
 
@@ -59,6 +45,7 @@ export interface MarketplaceProductInput {
   taxRate?: number;
   weightKg?: number | null;
   dimensions?: string | null;
+  images?: string[];
 }
 
 export interface MarketplaceProduct {
@@ -91,26 +78,17 @@ export async function updateMarketplaceProduct(
 }
 
 export async function deleteMarketplaceProduct(sellerId: string, productId: string): Promise<void> {
-  await apiFetch(`/internal/products/${productId}?sellerId=${encodeURIComponent(sellerId)}`, {
-    method: "DELETE",
-  });
+  await apiFetch(`/internal/products/${productId}?sellerId=${encodeURIComponent(sellerId)}`, { method: "DELETE" });
 }
 
 export async function submitMarketplaceProduct(sellerId: string, productId: string): Promise<MarketplaceProduct> {
-  return apiFetch(`/internal/products/${productId}/submit?sellerId=${encodeURIComponent(sellerId)}`, {
-    method: "POST",
-  });
+  return apiFetch(`/internal/products/${productId}/submit?sellerId=${encodeURIComponent(sellerId)}`, { method: "POST" });
 }
 
 export async function withdrawMarketplaceProduct(sellerId: string, productId: string): Promise<MarketplaceProduct> {
-  return apiFetch(`/internal/products/${productId}/withdraw?sellerId=${encodeURIComponent(sellerId)}`, {
-    method: "POST",
-  });
+  return apiFetch(`/internal/products/${productId}/withdraw?sellerId=${encodeURIComponent(sellerId)}`, { method: "POST" });
 }
 
-/** Bascule isActive, sans restriction de statut (voir marketplace ProductsService.toggleActive). */
 export async function toggleActiveMarketplaceProduct(sellerId: string, productId: string): Promise<MarketplaceProduct> {
-  return apiFetch(`/internal/products/${productId}/toggle-active?sellerId=${encodeURIComponent(sellerId)}`, {
-    method: "POST",
-  });
+  return apiFetch(`/internal/products/${productId}/toggle-active?sellerId=${encodeURIComponent(sellerId)}`, { method: "POST" });
 }

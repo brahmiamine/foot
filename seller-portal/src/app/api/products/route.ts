@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataSource } from "@/lib/database";
 import { Product } from "@/entities/Product";
-import { ProductImage } from "@/entities/ProductImage";
-import { InventoryItem } from "@/entities/InventoryItem";
 import { ProductCategory } from "@/entities/ProductCategory";
 import { ProductStatus } from "@/entities/enums";
 import { requireActiveSeller } from "@/lib/authz";
@@ -11,11 +9,6 @@ import { handleApiError } from "@/lib/api";
 import { slugify } from "@/lib/slug";
 import { createMarketplaceProduct } from "@/lib/marketplaceApiClient";
 
-// GET /api/products — toujours filtré sur le vendeur de la session, jamais
-// sur un sellerId fourni par le client (voir GET ?sellerId=... dans la
-// spec comme contre-exemple à ne pas reproduire). Lecture directe TypeORM
-// conservée (voir avancement.md, TS-04) : même table `sp_products` que
-// marketplace, aucun problème de cohérence à migrer une lecture.
 export async function GET(req: NextRequest) {
   try {
     const { session } = await requireActiveSeller();
@@ -46,9 +39,9 @@ export async function GET(req: NextRequest) {
       .take(pageSize)
       .getManyAndCount();
 
-    const items = products.map((p) => ({
-      ...p,
-      totalStock: (p.inventoryItems ?? []).reduce((sum, i) => sum + i.available, 0),
+    const items = products.map((product) => ({
+      ...product,
+      totalStock: (product.inventoryItems ?? []).reduce((sum, item) => sum + item.available, 0),
     }));
 
     return NextResponse.json({ items, total, page, pageSize });
@@ -72,10 +65,6 @@ const createSchema = z.object({
   images: z.array(z.string().max(500)).max(10).optional(),
 });
 
-// La ligne Product elle-même est créée via marketplace (voir
-// src/lib/marketplaceApiClient.ts, TS-04) : seller-portal n'écrit plus
-// directement dans `sp_products`. Images/stock initial restent en TypeORM
-// direct — hors périmètre TS-04 (voir avancement.md, limite documentée).
 export async function POST(req: NextRequest) {
   try {
     const { session } = await requireActiveSeller();
@@ -87,9 +76,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ce SKU est déjà utilisé." }, { status: 409 });
     }
 
-    // Le référentiel de catégories est scopé par club : jamais faire
-    // confiance à un categoryId envoyé par le client sans vérifier qu'il
-    // appartient bien au club du vendeur connecté.
     if (body.categoryId) {
       const category = await ds
         .getRepository(ProductCategory)
@@ -99,7 +85,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const created = await createMarketplaceProduct(session.sellerId, {
+    const product = await createMarketplaceProduct(session.sellerId, {
       name: body.name,
       slug: `${slugify(body.name)}-${Date.now().toString(36)}`,
       description: body.description ?? null,
@@ -112,26 +98,9 @@ export async function POST(req: NextRequest) {
       taxRate: body.taxRate ?? 0,
       weightKg: body.weightKg ?? null,
       dimensions: body.dimensions ?? null,
+      images: body.images,
     });
 
-    await ds.transaction(async (manager) => {
-      if (body.images?.length) {
-        const images = body.images.map((url, position) =>
-          manager.create(ProductImage, { productId: created.id, url, position }),
-        );
-        await manager.save(images);
-      }
-
-      const inventory = manager.create(InventoryItem, {
-        sellerId: session.sellerId,
-        productId: created.id,
-        variantId: null,
-        available: 0,
-      });
-      await manager.save(inventory);
-    });
-
-    const product = await ds.getRepository(Product).findOne({ where: { id: created.id } });
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     return handleApiError(error);

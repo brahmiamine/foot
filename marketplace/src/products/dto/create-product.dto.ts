@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -68,4 +70,11 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(120)
   dimensions?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  images?: string[];
 }
