@@ -126,23 +126,26 @@ jobs:
         with:
           node-version: 20
           cache: ${{ matrix.pm }}
-          cache-dependency-path: ${{ matrix.dir }}/${{ matrix.pm == 'pnpm' && 'pnpm-lock.yaml' || 'package-lock.json' }}
+          cache-dependency-path: ${{ matrix.pm == 'pnpm' && 'pnpm-lock.yaml' || format('{0}/package-lock.json', matrix.dir) }}
 
       - name: Restore Next.js build cache
         if: matrix.pm == 'pnpm' && matrix.name != 'marketplace'
         uses: actions/cache@v4
         with:
           path: ${{ matrix.dir }}/.next/cache
-          key: next-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.dir), format('{0}/package.json', matrix.dir)) }}-${{ github.sha }}
+          key: next-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('pnpm-lock.yaml', format('{0}/package.json', matrix.dir)) }}-${{ github.sha }}
           restore-keys: |
-            next-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.dir), format('{0}/package.json', matrix.dir)) }}-
+            next-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('pnpm-lock.yaml', format('{0}/package.json', matrix.dir)) }}-
             next-${{ runner.os }}-${{ matrix.name }}-
 
-      - name: Install dependencies
+      - name: Install dependencies (pnpm workspace)
+        if: matrix.pm == 'pnpm'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies (npm)
+        if: matrix.pm == 'npm'
         working-directory: ${{ matrix.dir }}
-        # Migration workspace encore progressive : chaque application conserve
-        # temporairement son lockfile autonome jusqu'au lot de consolidation pnpm.
-        run: ${{ matrix.pm == 'pnpm' && 'pnpm install --frozen-lockfile --ignore-workspace' || 'npm ci' }}
+        run: npm ci
 
       - name: Typecheck
         if: matrix.pm == 'pnpm'

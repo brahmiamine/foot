@@ -31,7 +31,7 @@ Le dépôt ne contient aucun dossier `skote` : il ne s'agit donc pas d'une appli
 
 | Package | Statut et consommateurs | Exports / responsabilité |
 |---|---|---|
-| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0. Ce n'est volontairement **pas** un workspace pnpm : les applications clientes (`arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`, `player-hub`, `staff-hub`, `medical-hub`) l'importent par chemin relatif et conservent leur lockfile et leur dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
+| [`packages/auth-shared`](./packages/auth-shared) | Package privé `auth-shared` v0.1.0, installé via le workspace pnpm racine (`packages/*`) mais volontairement **pas** consommé comme dépendance déclarée : les applications clientes (`arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`, `player-hub`, `staff-hub`, `medical-hub`) l'importent par chemin relatif et déclarent chacune leur propre dépendance `jose`. | Types `CookieReader`, `CookieWriter`, `SsoTokenPayload` ; `getSsoCookieName`, `verifySsoToken`, `getSsoTokenFromRequest`, `verifySsoTokenWithRevocation`, `buildSsoRedirectUrl` et `clearSsoCookie`. Il centralise issuer `foot-sso`, cookie, secret, validation et révocation du JWT sans dépendre de `next/headers`, donc reste compatible Edge Middleware. |
 
 ## Composants partagés non déployables
 
@@ -144,11 +144,27 @@ Ce routage est cible : aujourd'hui les trois APIs NestJS sont exposées séparé
 ### Prérequis
 
 - Bash, Docker actif et les images `mariadb:latest` / `phpmyadmin/phpmyadmin` disponibles ;
-- `pnpm` et les dépendances déjà installées dans chacun de `identity`, `arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `player-hub`, `staff-hub` et `medical-hub` ;
+- `pnpm` et un `pnpm install --frozen-lockfile` exécuté une fois à la racine du dépôt (installe l'ensemble du workspace, dont `identity`, `arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `player-hub`, `staff-hub` et `medical-hub`) ;
 - `arbinote/.env.local`, créé depuis `arbinote/.env.example`, avec au minimum `DB_USER`, `DB_PASSWORD` et `DB_ROOT_PASSWORD` : le script s'arrête immédiatement si l'un manque ;
 - pour activer le SSO, `identity/.env.local`, créé avec `cp identity/.env.example identity/.env.local` puis complété. Son absence n'arrête pas le script, mais `identity` n'est pas lancé (et aucune autre app ne peut authentifier tant qu'il ne tourne pas — `player-hub`/`staff-hub`/`medical-hub` démarrent quand même, mais toute page renvoie une redirection SSO qui ne peut pas aboutir) ;
 - `player-hub/.env.local`, `staff-hub/.env.local` et `medical-hub/.env.local`, créés depuis leur `.env.example` respectif (`DB_*`, `SSO_URL`) : comme pour les autres apps Next.js, le script ne les crée ni ne les valide, il lance quand même le process — sans ce fichier, la connexion base de données échoue à la première requête ;
 - les `.env.local` propres aux autres apps Next.js, à créer depuis leurs `.env.example` selon leurs besoins. Le script ne les crée ni ne les valide.
+
+### Installation du workspace pnpm
+
+Le dépôt est un unique workspace pnpm/Turbo. Toute installation se fait depuis la racine, jamais depuis une application :
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+Cette commande installe en une passe les applications listées dans `pnpm-workspace.yaml` (`arbinote`, `club-hub`, `club-ob`, `federation-hub`, `identity`, `marketplace`, `match-operations`, `medical-hub`, `player-hub`, `referee-hub`, `seller-portal`, `staff-hub`, `ticketing`) ainsi que `packages/*`, à partir du lockfile canonique unique `pnpm-lock.yaml` à la racine. Il n'existe plus de `pnpm-lock.yaml` ni de `pnpm-workspace.yaml` par application : en ajouter un régresserait vers l'ancien mode d'installation isolée et fait échouer `pnpm run workspace:check` (`scripts/validate-frontend-workspace.mjs`).
+
+Les dépendances natives (`better-sqlite3`, `sharp`, `esbuild`, `unrs-resolver`, `@parcel/watcher`) nécessitent un script de build ; leur autorisation est centralisée dans `onlyBuiltDependencies` au sommet de `pnpm-workspace.yaml`. Toute nouvelle dépendance native doit être ajoutée à cette liste plutôt que dans un `pnpm-workspace.yaml` ou un champ `pnpm.onlyBuiltDependencies` local à une application.
+
+Ensuite, `pnpm turbo run typecheck`, `lint`, `test` et `build` (ou les scripts racine équivalents `pnpm run <task>`) s'exécutent pour l'ensemble des membres du workspace concernés par la tâche.
+
+La résolution en workspace unique fait passer `eslint-plugin-react-hooks` en 7.1.1 pour toutes les applications Next.js (au lieu de versions figées disparates par ancien lockfile par application). Cette version active par défaut, en erreur, les nouvelles règles statiques « React Compiler » du plugin (`preserve-manual-memoization`, `immutability`, `set-state-in-effect`, `purity`, etc. — la règle historique `rules-of-hooks` n'est pas concernée). Elles remontent des motifs déjà présents dans le code existant, jamais audités vis-à-vis du React Compiler ; les traiter au cas par cas est un chantier séparé de la normalisation du workspace pnpm. Chaque `eslint.config.mjs` des 12 applications Next.js les repasse donc en avertissement, à l'identique de `exhaustive-deps` qui l'était déjà.
 
 ```bash
 ./start.sh

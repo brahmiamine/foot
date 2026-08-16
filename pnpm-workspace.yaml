@@ -4,6 +4,7 @@ packages:
   - "club-ob"
   - "federation-hub"
   - "identity"
+  - "marketplace"
   - "match-operations"
   - "medical-hub"
   - "player-hub"
@@ -12,3 +13,10 @@ packages:
   - "staff-hub"
   - "ticketing"
   - "packages/*"
+
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - better-sqlite3
+  - esbuild
+  - sharp
+  - unrs-resolver

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, access } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -18,6 +18,16 @@ const frontendApps = [
   'staff-hub',
   'ticketing',
 ]
+
+// Applications pnpm additionnelles installees depuis le workspace racine mais
+// qui n'etendent pas packages/tsconfig/nextjs.json (ex: API NestJS).
+const additionalWorkspaceApps = ['marketplace']
+
+async function pathExists(relativePath) {
+  return access(path.join(root, relativePath))
+    .then(() => true)
+    .catch(() => false)
+}
 
 const sharedPackages = {
   'packages/access-client': '@foot/access-client',
@@ -66,6 +76,30 @@ for (const app of frontendApps) {
 
 if (!workspace.includes('- "packages/*"') && !workspace.includes("- 'packages/*'")) {
   errors.push('pnpm-workspace.yaml: packages/* doit etre inclus')
+}
+
+for (const app of additionalWorkspaceApps) {
+  if (!workspace.includes(`- "${app}"`) && !workspace.includes(`- '${app}'`)) {
+    errors.push(`pnpm-workspace.yaml: application manquante: ${app}`)
+  }
+}
+
+// Le workspace doit rester une installation unique a la racine : aucune
+// application ne doit reintroduire un lockfile ou un pnpm-workspace.yaml
+// autonome qui l'isolerait de l'install racine (regression du mode
+// --ignore-workspace retire lors de la normalisation du workspace).
+for (const app of [...frontendApps, ...additionalWorkspaceApps]) {
+  if (await pathExists(`${app}/pnpm-workspace.yaml`)) {
+    errors.push(`${app}/pnpm-workspace.yaml: ne doit pas exister (workspace pnpm unique a la racine)`)
+  }
+  if (await pathExists(`${app}/pnpm-lock.yaml`)) {
+    errors.push(`${app}/pnpm-lock.yaml: ne doit pas exister (lockfile pnpm partage a la racine)`)
+  }
+}
+
+const npmrc = await readFile(path.join(root, '.npmrc'), 'utf8').catch(() => '')
+if (/shared-workspace-lockfile\s*=\s*false/.test(npmrc) || /recursive-install\s*=\s*false/.test(npmrc)) {
+  errors.push('.npmrc: les options de migration transitoire (shared-workspace-lockfile/recursive-install) doivent etre retirees')
 }
 
 for (const [packagePath, expectedName] of Object.entries(sharedPackages)) {
