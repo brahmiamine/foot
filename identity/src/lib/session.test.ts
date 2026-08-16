@@ -159,7 +159,8 @@ describe("verifySessionToken", () => {
       teamId: user.teamId ?? null,
       tokenVersion: 0,
     });
-    const oldToken = response.cookies.get("foot_sso_session")?.value!;
+    const oldToken = response.cookies.get("foot_sso_session")?.value;
+    if (!oldToken) throw new Error("Expected an issued SSO session token");
 
     process.env.SSO_JWT_PRIVATE_KEY_PREVIOUS = process.env.SSO_JWT_PRIVATE_KEY;
     process.env.SSO_JWT_KID_PREVIOUS = process.env.SSO_JWT_KID;
