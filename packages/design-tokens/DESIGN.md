@@ -31,6 +31,15 @@ Thème partagé des portails opérationnels liés aux clubs :
 
 Les variables historiques préfixées par application (`--ph-*`, `--mh-*`, `--sh-*`, `--sp-*`, `--tk-*`) peuvent rester temporairement comme alias de compatibilité, mais leurs valeurs doivent provenir des tokens `--foot-portal-*`.
 
+### `src/internal-admin.css`
+
+Bridge partagé pour les back-offices Skote/Bootstrap :
+
+- `federation-hub`
+- `match-operations`
+
+Il harmonise les variables Bootstrap avec la marque FOOT, l'état actif de navigation, les cartes, le focus clavier et reduced-motion sans réécrire le template métier existant.
+
 ### `@foot/ui`
 
 Primitives React partagées. Le socle actuel comprend :
@@ -52,11 +61,15 @@ Contrat partagé pour le branding et le comportement responsive des shells appli
 
 ### Back-offices fédéraux
 
-`federation-hub`, `match-operations` et l'administration de `club-hub` partagent une direction dashboard dense. Leur migration doit conserver les workflows Skote/Bootstrap existants tout en rapprochant progressivement les couleurs, la typographie et les primitives du design system FOOT.
+`federation-hub` et `match-operations` chargent `internal-admin.css` au-dessus de Skote/Bootstrap afin de partager les mêmes règles de marque et d'interaction. L'administration de `club-hub` reste la prochaine cible de ce bridge ; sa structure ne doit pas être modifiée tant que ses composants Skote spécifiques n'ont pas été vérifiés.
 
 ### Portails club
 
 `player-hub`, `medical-hub`, `staff-hub`, `seller-portal` et `ticketing` partagent le thème `club-portal.css`. Le branding dynamique d'un club peut remplacer les couleurs de marque, mais les métriques structurelles et les couleurs sémantiques restent cohérentes.
+
+### Referee Hub
+
+`referee-hub` garde une personnalité navy/Poppins adaptée à l'espace arbitre, mais le rouge de marque vient de `src/index.css`. Ses overrides design-system standardisent également le focus, reduced-motion et retirent les bandes latérales purement décoratives des cartes de désignation.
 
 ### Produits publics
 
@@ -64,7 +77,7 @@ Contrat partagé pour le branding et le comportement responsive des shells appli
 
 ### Identity
 
-`identity` reste volontairement plus minimal et sombre. Il doit conserver le même rouge de marque et les mêmes standards de focus, contraste et i18n que le reste de la plateforme.
+`identity` reste volontairement minimal et sombre. Son fond noir et son accent rouge sont reliés aux tokens FOOT centraux, avec une règle reduced-motion commune.
 
 ## Règles de contribution
 
@@ -90,7 +103,9 @@ vérifie actuellement :
 - le chargement du thème partagé par les portails club ;
 - l'absence des principales valeurs de thème dupliquées dans leurs `globals.css` ;
 - la cohérence du fallback de branding de `seller-portal` ;
+- le chargement du bridge commun par `federation-hub` et `match-operations` ;
+- l'alignement de marque et reduced-motion de `referee-hub` et `identity` ;
 - la présence des primitives requises dans `@foot/ui` ;
-- la présence des tokens essentiels du thème portal.
+- la présence des tokens essentiels des thèmes partagés.
 
 Cette validation est exécutée dans la CI avec les contrôles d'architecture frontend.
