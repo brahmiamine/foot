@@ -81,7 +81,7 @@ export default async function RefereeReportsPage() {
         <div className="card border-0 shadow-sm">
           <div className="card-body py-5 text-center text-muted">
             <i className="bx bx-file fs-1 d-block mb-2" />
-            Aucun rapport d'officiel envoyé dans votre périmètre.
+            Aucun rapport d&apos;officiel envoyé dans votre périmètre.
           </div>
         </div>
       )}
