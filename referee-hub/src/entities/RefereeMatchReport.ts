@@ -3,6 +3,8 @@ import { Assignment, type AssignmentRole } from "./Assignment";
 import { Match } from "./Match";
 
 export type RefereeMatchReportStatus = "DRAFT" | "SUBMITTED";
+export type RefereeMatchReportType = "REFEREE_COMPLEMENTARY" | "MATCH_DELEGATE" | "REFEREE_OBSERVER";
+export type RefereeMatchReportCategory = "GENERAL" | "SECURITY" | "ORGANIZATION" | "DISCIPLINE" | "TECHNICAL" | "OTHER";
 
 @Entity("referee_match_reports")
 export class RefereeMatchReport {
@@ -29,8 +31,23 @@ export class RefereeMatchReport {
   @Column({ type: "varchar", length: 64 })
   role!: AssignmentRole;
 
+  @Column({
+    type: "enum",
+    enum: ["REFEREE_COMPLEMENTARY", "MATCH_DELEGATE", "REFEREE_OBSERVER"],
+    name: "report_type",
+    default: "REFEREE_COMPLEMENTARY",
+  })
+  reportType!: RefereeMatchReportType;
+
   @Column({ type: "varchar", length: 180 })
   subject!: string;
+
+  @Column({
+    type: "enum",
+    enum: ["GENERAL", "SECURITY", "ORGANIZATION", "DISCIPLINE", "TECHNICAL", "OTHER"],
+    default: "GENERAL",
+  })
+  category!: RefereeMatchReportCategory;
 
   @Column({ type: "text" })
   content!: string;

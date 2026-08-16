@@ -9,7 +9,8 @@ Espace privé personnel des arbitres et officiels de match. Cette application re
 - tableau de bord avec prochaine désignation, nombre de matchs à venir et notifications non lues ;
 - désignations à venir, passées et révoquées ;
 - détail d'une désignation, compétition, journée, horaire, stade et équipe arbitrale ;
-- rapports complémentaires en brouillon puis envoi définitif après un match terminé ;
+- rapports d'officiels en brouillon puis envoi définitif après un match terminé : rapport complémentaire pour arbitres, rapport de commissaire de match et rapport d'observateur d'arbitres ;
+- catégorisation contrôlée des rapports (`GENERAL`, `SECURITY`, `ORGANIZATION`, `DISCIPLINE`, `TECHNICAL`, `OTHER`) ;
 - déclaration et annulation des indisponibilités ;
 - historique complet des désignations et révocations ;
 - profil alimenté par `User` (Identity) et, lorsqu'il existe, par le profil métier `arbitres` ;
@@ -27,12 +28,15 @@ Le détail applique simultanément `assignment.id = :routeId` et `user_id = :ses
 
 Le même principe s'applique aux rapports et aux indisponibilités. Les brouillons
 ne sont visibles que par leur auteur ; Federation Hub ne lit que les rapports
-`SUBMITTED`. Une indisponibilité active est contrôlée dans `match-operations`
-avant toute nouvelle affectation, même si le formulaire Federation Hub est
-contourné.
+`SUBMITTED`. Le type de rapport n'est jamais accepté depuis le navigateur :
+`referee-hub` le dérive de la désignation officielle (`CENTER_REFEREE`,
+`MATCH_DELEGATE`, `REFEREE_OBSERVER`, etc.). Une indisponibilité active est
+contrôlée dans `match-operations` avant toute nouvelle affectation, même si le
+formulaire Federation Hub est contourné.
 
-La migration `sql/migration_add_referee_private_workflows.sql` est référencée
-dans le manifeste commun `db/migrations.manifest`.
+Les migrations `sql/migration_add_referee_private_workflows.sql` et
+`sql/migration_extend_match_reports_for_officials.sql` sont référencées dans
+le manifeste commun `db/migrations.manifest`.
 
 Les nouveaux parcours conservent l’interface responsive bilingue FR/AR et le
 support RTL du portail.
