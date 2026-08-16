@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
@@ -126,11 +126,7 @@ describe('ProductsService', () => {
     );
 
     await expect(
-      service.sellerTransition(
-        'product-1',
-        'seller-1',
-        ProductStatus.APPROVED,
-      ),
+      service.sellerTransition('product-1', 'seller-1', ProductStatus.APPROVED),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -138,11 +134,7 @@ describe('ProductsService', () => {
     repository.findOne.mockResolvedValue(null);
 
     await expect(
-      service.sellerTransition(
-        'product-1',
-        'other',
-        ProductStatus.SUBMITTED,
-      ),
+      service.sellerTransition('product-1', 'other', ProductStatus.SUBMITTED),
     ).rejects.toThrow(NotFoundException);
   });
 });
