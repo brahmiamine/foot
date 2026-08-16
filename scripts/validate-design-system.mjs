@@ -11,7 +11,11 @@ const portalApps = [
   'seller-portal',
   'ticketing',
 ]
-const internalAdminApps = ['federation-hub', 'match-operations']
+const internalAdminLayouts = [
+  'federation-hub/src/app/layout.tsx',
+  'match-operations/src/app/layout.tsx',
+  'club-hub/src/app/admin/layout.tsx',
+]
 
 const duplicatedPortalLiterals = [
   '#c8102e',
@@ -49,8 +53,7 @@ for (const app of portalApps) {
   }
 }
 
-for (const app of internalAdminApps) {
-  const layoutPath = `${app}/src/app/layout.tsx`
+for (const layoutPath of internalAdminLayouts) {
   const layout = await read(layoutPath)
   if (!layout.includes('packages/design-tokens/src/internal-admin.css')) {
     errors.push(`${layoutPath}: doit charger le bridge partage internal-admin.css`)
@@ -139,5 +142,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `Design system valide: ${portalApps.length} portails club et ${internalAdminApps.length} back-offices partagent les themes FOOT; Referee Hub et Identity utilisent la marque centrale; ${requiredUiExports.length} primitives UI sont exportees.`,
+  `Design system valide: ${portalApps.length} portails club et ${internalAdminLayouts.length} back-offices partagent les themes FOOT; Referee Hub et Identity utilisent la marque centrale; ${requiredUiExports.length} primitives UI sont exportees.`,
 )
