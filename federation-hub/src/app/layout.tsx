@@ -4,6 +4,7 @@ import { TranslationProvider } from "@/lib/i18n";
 import { getSuperadminDocumentAttributes, getSuperadminLocale } from "@/lib/federationHubLocale";
 import "./globals.css";
 import "@/assets/scss/skote-theme.scss";
+import "../../../packages/design-tokens/src/internal-admin.css";
 
 const layoutMessages = {
   fr: { title: "Federation Hub", description: "Outil interne de gestion du référentiel (fédérations, ligues, équipes, arbitres, matchs) et des comptes clubs." },
