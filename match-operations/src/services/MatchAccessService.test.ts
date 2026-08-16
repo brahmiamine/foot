@@ -2,11 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { Match } from "@/entities/Match";
 import type { MatchOfficialAssignment } from "@/entities/MatchOfficialAssignment";
 import {
+  MATCH_OPERATIONS_ACCESS_PERMISSION,
+  MATCH_OPERATIONS_SIGN_PERMISSION,
   MatchAccessDeniedError,
   MatchAccessService,
   type ClubRbacReader,
   type MatchLookup,
   type OfficialAssignmentLookup,
+  type PermissionScope,
 } from "./MatchAccessService";
 
 function match(overrides: Partial<Match> = {}): Match {
@@ -27,16 +30,17 @@ function match(overrides: Partial<Match> = {}): Match {
 }
 
 function dependencies(options?: {
-  permissions?: string[];
-  categories?: "ALL" | string[];
+  accessScope?: PermissionScope;
+  signScope?: PermissionScope;
   clubMatches?: Match[];
   refereeMatches?: Match[];
   assignment?: MatchOfficialAssignment | null;
 }) {
   const rbac: ClubRbacReader = {
-    getEffectiveAccess: vi.fn().mockResolvedValue({
-      permissions: options?.permissions ?? [],
-      categories: options?.categories ?? [],
+    getPermissionScope: vi.fn().mockImplementation(async (_teamId, _userId, permission) => {
+      if (permission === MATCH_OPERATIONS_ACCESS_PERMISSION) return options?.accessScope ?? null;
+      if (permission === MATCH_OPERATIONS_SIGN_PERMISSION) return options?.signScope ?? null;
+      return null;
     }),
   };
   const matches: MatchLookup = {
@@ -52,7 +56,7 @@ function dependencies(options?: {
 
 describe("MatchAccessService", () => {
   it("refuse la liste des matchs à un CLUB_STAFF sans matchOperations.access", async () => {
-    const deps = dependencies({ permissions: ["matches.view"], categories: ["seniors"] });
+    const deps = dependencies({ accessScope: null });
     const service = new MatchAccessService(deps.rbac, deps.matches, deps.assignments);
 
     await expect(
@@ -61,8 +65,8 @@ describe("MatchAccessService", () => {
     expect(deps.matches.findForClub).not.toHaveBeenCalled();
   });
 
-  it("transmet les catégories effectives du rôle club au filtrage des matchs", async () => {
-    const deps = dependencies({ permissions: ["matchOperations.access"], categories: ["u17"] });
+  it("transmet les catégories autorisées par matchOperations.access au filtrage des matchs", async () => {
+    const deps = dependencies({ accessScope: ["u17"] });
     const service = new MatchAccessService(deps.rbac, deps.matches, deps.assignments);
 
     await service.listAccessibleMatches({ userId: "coach-u17", role: "CLUB_STAFF", teamId: "club-1" });
@@ -76,7 +80,7 @@ describe("MatchAccessService", () => {
 
     await service.listAccessibleMatches({ userId: "admin-1", role: "CLUB_ADMIN", teamId: "club-1" });
 
-    expect(deps.rbac.getEffectiveAccess).not.toHaveBeenCalled();
+    expect(deps.rbac.getPermissionScope).not.toHaveBeenCalled();
     expect(deps.matches.findForClub).toHaveBeenCalledWith("club-1", "ALL", 20);
   });
 
@@ -91,10 +95,7 @@ describe("MatchAccessService", () => {
   });
 
   it("autorise un représentant domicile à signer uniquement TEAM_HOME avec matchOperations.sign", async () => {
-    const deps = dependencies({
-      permissions: ["matchOperations.access", "matchOperations.sign"],
-      categories: ["seniors"],
-    });
+    const deps = dependencies({ accessScope: ["seniors"], signScope: ["seniors"] });
     const service = new MatchAccessService(deps.rbac, deps.matches, deps.assignments);
 
     await expect(
@@ -115,7 +116,7 @@ describe("MatchAccessService", () => {
   });
 
   it("refuse la signature club quand le rôle peut consulter mais pas signer", async () => {
-    const deps = dependencies({ permissions: ["matchOperations.access"], categories: ["seniors"] });
+    const deps = dependencies({ accessScope: ["seniors"], signScope: null });
     const service = new MatchAccessService(deps.rbac, deps.matches, deps.assignments);
 
     await expect(
