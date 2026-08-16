@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 import "@/assets/scss/skote-theme.scss";
 import "../../../packages/design-tokens/src/internal-admin.css";
 import "./match-operations.css";
-import { MatchService } from "@/services/MatchService";
+import { MatchAccessService } from "@/services/MatchAccessService";
 import { MatchesBottomBar } from "@/components/MatchesBottomBar";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -37,8 +37,15 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const lang = resolveLanguage((await cookies()).get(LANGUAGE_COOKIE)?.value);
-  const matchService = new MatchService();
-  const matches = await matchService.findRecent();
+  const requestHeaders = await headers();
+  const userId = requestHeaders.get("x-sso-user-id");
+  const role = requestHeaders.get("x-sso-role");
+  const teamId = requestHeaders.get("x-sso-team-id");
+
+  const matches =
+    userId && role
+      ? await new MatchAccessService().listAccessibleMatches({ userId, role, teamId })
+      : [];
 
   const matchOptions = matches.map((m) => ({
     id: m.id,
