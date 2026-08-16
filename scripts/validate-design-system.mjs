@@ -11,6 +11,7 @@ const portalApps = [
   'seller-portal',
   'ticketing',
 ]
+const internalAdminApps = ['federation-hub', 'match-operations']
 
 const duplicatedPortalLiterals = [
   '#c8102e',
@@ -48,6 +49,14 @@ for (const app of portalApps) {
   }
 }
 
+for (const app of internalAdminApps) {
+  const layoutPath = `${app}/src/app/layout.tsx`
+  const layout = await read(layoutPath)
+  if (!layout.includes('packages/design-tokens/src/internal-admin.css')) {
+    errors.push(`${layoutPath}: doit charger le bridge partage internal-admin.css`)
+  }
+}
+
 const sellerBranding = await read('seller-portal/src/lib/clubBranding.ts')
 for (const [field, expected] of [
   ['primaryColor', '#c8102e'],
@@ -74,6 +83,18 @@ if (!refereeOverrides.includes('prefers-reduced-motion')) {
   errors.push('referee-hub/src/app/design-system.css: reduced-motion doit etre pris en charge')
 }
 
+const identityLayout = await read('identity/src/app/layout.tsx')
+const identityOverrides = await read('identity/src/app/design-system.css')
+if (!identityLayout.includes('packages/design-tokens/src/index.css')) {
+  errors.push('identity/src/app/layout.tsx: doit charger les tokens FOOT')
+}
+if (!identityOverrides.includes('--sso-accent: var(--foot-color-primary)')) {
+  errors.push('identity/src/app/design-system.css: le rouge Identity doit venir du token FOOT primaire')
+}
+if (!identityOverrides.includes('prefers-reduced-motion')) {
+  errors.push('identity/src/app/design-system.css: reduced-motion doit etre pris en charge')
+}
+
 const uiIndex = await read('packages/ui/src/index.ts')
 for (const name of requiredUiExports) {
   if (!uiIndex.includes(`export { ${name} }`)) {
@@ -96,10 +117,27 @@ for (const token of [
   }
 }
 
+const adminTheme = await read('packages/design-tokens/src/internal-admin.css')
+for (const token of [
+  '--foot-admin-background',
+  '--foot-admin-text',
+  '--foot-admin-sidebar',
+  '--bs-primary',
+]) {
+  if (!adminTheme.includes(token)) {
+    errors.push(`packages/design-tokens/src/internal-admin.css: token/bridge obligatoire manquant: ${token}`)
+  }
+}
+if (!adminTheme.includes('prefers-reduced-motion')) {
+  errors.push('packages/design-tokens/src/internal-admin.css: reduced-motion doit etre pris en charge')
+}
+
 if (errors.length > 0) {
   console.error('Validation design system echouee:')
   for (const error of errors) console.error(`- ${error}`)
   process.exit(1)
 }
 
-console.log(`Design system valide: ${portalApps.length} portails partagent le theme FOOT, Referee Hub est aligne sur la marque et ${requiredUiExports.length} primitives UI sont exportees.`)
+console.log(
+  `Design system valide: ${portalApps.length} portails club et ${internalAdminApps.length} back-offices partagent les themes FOOT; Referee Hub et Identity utilisent la marque centrale; ${requiredUiExports.length} primitives UI sont exportees.`,
+)
