@@ -1,4 +1,4 @@
-@import "@foot/design-tokens/tokens.css";
+@import "../../../packages/design-tokens/src/index.css";
 
 :root {
   --ph-bg: var(--foot-color-app-background);
