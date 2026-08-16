@@ -1,6 +1,69 @@
 :root {
   /* ArbiNote keeps its public-product blue identity; this token only standardizes interaction affordances. */
   --arbinote-focus: #2563eb;
+  --arbinote-page-gutter: clamp(0.75rem, 2.4vw, 2rem);
+  --arbinote-touch-target: 44px;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+main,
+header,
+footer,
+nav,
+section,
+article,
+aside,
+form,
+fieldset,
+main > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+img,
+picture,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+svg,
+iframe,
+input,
+select,
+textarea,
+button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+label {
+  overflow-wrap: break-word;
+}
+
+.table-responsive,
+.arbinote-responsive-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 a:focus-visible,
@@ -11,6 +74,20 @@ textarea:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--arbinote-focus);
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    min-height: var(--arbinote-touch-target);
+    font-size: 1rem;
+  }
+
+  button,
+  [role="button"] {
+    min-height: var(--arbinote-touch-target);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
