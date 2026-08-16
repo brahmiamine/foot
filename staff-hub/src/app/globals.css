@@ -1,41 +1,40 @@
 :root {
-  --sh-bg: #f4f6f9;
-  --sh-surface: #ffffff;
-  --sh-surface-alt: #f8fafc;
-  --sh-border: #e2e8f0;
-  --sh-text: #0f172a;
-  --sh-text-muted: #64748b;
-  --sh-text-subtle: #94a3b8;
+  --sh-bg: var(--foot-portal-bg);
+  --sh-surface: var(--foot-portal-surface);
+  --sh-surface-alt: var(--foot-portal-surface-alt);
+  --sh-border: var(--foot-portal-border);
+  --sh-text: var(--foot-portal-text);
+  --sh-text-muted: var(--foot-portal-text-muted);
+  --sh-text-subtle: var(--foot-portal-text-subtle);
 
-  /* Palette alignée sur les autres apps du dépôt (identity/club-hub/seller-portal) —
-     rouge OB par défaut, écrasé par le branding du club connecté (voir lib/clubBranding.ts). */
-  --sh-primary: #c8102e;
-  --sh-primary-dark: #a10d25;
-  --sh-primary-soft: #ffd9de;
-  --sh-accent: #b8860b;
-  --sh-danger: #dc2626;
-  --sh-danger-soft: #fee2e2;
-  --sh-warning: #d97706;
-  --sh-warning-soft: #fef3c7;
-  --sh-success: #16a34a;
-  --sh-success-soft: #dcfce7;
-  --sh-info: #2563eb;
-  --sh-info-soft: #dbeafe;
-  --sh-neutral-soft: #f1f5f9;
+  /* Legacy app-prefixed aliases now resolve from the shared club portal theme. */
+  --sh-primary: var(--foot-portal-primary);
+  --sh-primary-dark: var(--foot-portal-primary-dark);
+  --sh-primary-soft: var(--foot-portal-primary-soft);
+  --sh-accent: var(--foot-portal-accent);
+  --sh-danger: var(--foot-portal-danger);
+  --sh-danger-soft: var(--foot-portal-danger-soft);
+  --sh-warning: var(--foot-portal-warning);
+  --sh-warning-soft: var(--foot-portal-warning-soft);
+  --sh-success: var(--foot-portal-success);
+  --sh-success-soft: var(--foot-portal-success-soft);
+  --sh-info: var(--foot-portal-info);
+  --sh-info-soft: var(--foot-portal-info-soft);
+  --sh-neutral-soft: var(--foot-portal-neutral-soft);
 
-  --sh-sidebar-bg: #0d0d0d;
-  --sh-sidebar-text: #c9c4bd;
-  --sh-sidebar-text-active: #ffffff;
-  --sh-sidebar-active-bg: #2a0a0f;
+  --sh-sidebar-bg: var(--foot-portal-sidebar-bg);
+  --sh-sidebar-text: var(--foot-portal-sidebar-text);
+  --sh-sidebar-text-active: var(--foot-portal-sidebar-text-active);
+  --sh-sidebar-active-bg: var(--foot-portal-sidebar-active-bg);
 
-  --sh-radius-sm: 6px;
-  --sh-radius-md: 10px;
-  --sh-radius-lg: 14px;
+  --sh-radius-sm: var(--foot-portal-radius-sm);
+  --sh-radius-md: var(--foot-portal-radius-md);
+  --sh-radius-lg: var(--foot-portal-radius-lg);
 
-  --sh-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --sh-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --sh-shadow-sm: var(--foot-portal-shadow-sm);
+  --sh-shadow-md: var(--foot-portal-shadow-md);
 
-  --sh-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --sh-font: var(--foot-portal-font);
 }
 
 * {
