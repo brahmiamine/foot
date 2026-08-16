@@ -1,5 +1,6 @@
 import type { ClubRbacReadPort } from '../../../../packages/domain-contracts/src/club-access'
 import { ClubHttpClient } from '../../../../packages/club-client/src'
+import { selectDomainBoundaryMode } from '../../../../packages/utils/src'
 import { SharedDatabaseClubRbacAdapter } from './SharedDatabaseClubRbacAdapter'
 
 export function createClubRbacAdapter(
@@ -7,11 +8,12 @@ export function createClubRbacAdapter(
 ): ClubRbacReadPort {
   const baseUrl = env.CLUB_HUB_SERVICE_URL
   const apiKey = env.CLUB_HUB_SERVICE_API_KEY
-
-  if (!baseUrl && !apiKey) return new SharedDatabaseClubRbacAdapter()
-  if (!baseUrl || !apiKey) {
-    throw new Error('CLUB_HUB_SERVICE_URL and CLUB_HUB_SERVICE_API_KEY must be configured together')
-  }
-
-  return new ClubHttpClient({ baseUrl, apiKey })
+  const mode = selectDomainBoundaryMode({
+    boundary: 'staff-hub->club-rbac',
+    baseUrl,
+    apiKey,
+    requireHttp: env.DOMAIN_BOUNDARY_REQUIRE_HTTP === 'true',
+  })
+  if (mode === 'shared-db') return new SharedDatabaseClubRbacAdapter()
+  return new ClubHttpClient({ baseUrl: baseUrl!, apiKey: apiKey! })
 }

@@ -3,32 +3,28 @@ import { SharedDatabaseStaffQualificationAdapter } from '@/adapters/regulatory/S
 import { RegulatoryHttpClient } from '../../../../packages/regulatory-client/src/index'
 import type { EligibilityServicePort } from '../../../../packages/domain-contracts/src/eligibility'
 import type { StaffQualificationServicePort } from '../../../../packages/domain-contracts/src/staff-eligibility'
+import { selectDomainBoundaryMode } from '../../../../packages/utils/src'
 
-function createHttpClientFromEnvironment(): RegulatoryHttpClient | null {
-  const baseUrl = process.env.FEDERATION_REGULATORY_URL
-  const apiKey = process.env.FEDERATION_REGULATORY_SERVICE_API_KEY
-
-  if (!baseUrl && !apiKey) return null
-  if (!baseUrl || !apiKey) {
-    throw new Error(
-      'FEDERATION_REGULATORY_URL et FEDERATION_REGULATORY_SERVICE_API_KEY doivent être configurés ensemble',
-    )
-  }
-
-  return new RegulatoryHttpClient({ baseUrl, apiKey })
+function createHttpClientFromEnvironment(env: NodeJS.ProcessEnv): RegulatoryHttpClient | null {
+  const baseUrl = env.FEDERATION_REGULATORY_URL
+  const apiKey = env.FEDERATION_REGULATORY_SERVICE_API_KEY
+  const mode = selectDomainBoundaryMode({
+    boundary: 'match-operations->federation-regulatory',
+    baseUrl,
+    apiKey,
+    requireHttp: env.DOMAIN_BOUNDARY_REQUIRE_HTTP === 'true',
+  })
+  return mode === 'http' ? new RegulatoryHttpClient({ baseUrl: baseUrl!, apiKey: apiKey! }) : null
 }
 
-/**
- * Transitional composition root.
- *
- * No configuration => keep the current shared-database implementation.
- * Both federation regulatory variables configured => use the HTTP boundary.
- * Partial configuration fails closed instead of silently mixing architectures.
- */
-export function createPlayerEligibilityPort(): EligibilityServicePort {
-  return createHttpClientFromEnvironment() ?? new SharedDatabaseEligibilityAdapter()
+export function createPlayerEligibilityPort(
+  env: NodeJS.ProcessEnv = process.env,
+): EligibilityServicePort {
+  return createHttpClientFromEnvironment(env) ?? new SharedDatabaseEligibilityAdapter()
 }
 
-export function createStaffQualificationPort(): StaffQualificationServicePort {
-  return createHttpClientFromEnvironment() ?? new SharedDatabaseStaffQualificationAdapter()
+export function createStaffQualificationPort(
+  env: NodeJS.ProcessEnv = process.env,
+): StaffQualificationServicePort {
+  return createHttpClientFromEnvironment(env) ?? new SharedDatabaseStaffQualificationAdapter()
 }
