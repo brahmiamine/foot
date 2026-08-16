@@ -3,11 +3,11 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/i18n/actionFeedback";
+import { assertCurrentMatchAccess, assertCurrentSignatureActor } from "@/lib/matchActorSession";
 import { SheetService, SheetVersionConflictError } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
 import { MatchService } from "@/services/MatchService";
-import { MatchAccessService } from "@/services/MatchAccessService";
 import { notify } from "@/lib/notificationClient";
 import type { ActorRole, SignaturePhase } from "@/entities/Signature";
 
@@ -33,20 +33,8 @@ export async function saveSignature(
       return { success: false, error: "actions.sheet.errors.locked" };
     }
 
+    const session = await assertCurrentSignatureActor(sheet.matchId, actorRole);
     const requestHeaders = await headers();
-    const userId = requestHeaders.get("x-sso-user-id");
-    const role = requestHeaders.get("x-sso-role");
-    const teamId = requestHeaders.get("x-sso-team-id");
-    if (!userId || !role) {
-      return { success: false, error: "actions.signatures.errors.save" };
-    }
-
-    await new MatchAccessService().assertSignatureActor(
-      { userId, role, teamId },
-      sheet.matchId,
-      actorRole,
-    );
-
     const signatureService = new SignatureService();
     await signatureService.save(
       sheetId,
@@ -54,7 +42,7 @@ export async function saveSignature(
       phase,
       actorRole,
       { signerName, signatureData },
-      { userId, name: requestHeaders.get("x-sso-name") },
+      { userId: session.userId, name: requestHeaders.get("x-sso-name") },
     );
 
     revalidatePath(`/${sheet.matchId}/post-match`);
@@ -83,6 +71,7 @@ export async function addReservation(sheetId: number, phase: SignaturePhase, aut
       return { success: false, error: "actions.sheet.errors.locked" };
     }
 
+    await assertCurrentSignatureActor(sheet.matchId, authorRole);
     const reservationService = new ReservationService();
     await reservationService.create({ sheetId, phase, authorRole, content: content.trim() });
 
@@ -98,6 +87,7 @@ export async function addReservation(sheetId: number, phase: SignaturePhase, aut
 
 export async function deleteReservation(id: number, matchId: string): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const reservationService = new ReservationService();
     await reservationService.delete(id);
 
@@ -126,11 +116,12 @@ export async function deleteReservation(id: number, matchId: string): Promise<Ac
  */
 export async function confirmPostMatch(sheetId: number, matchId: string, expectedVersion: number): Promise<ActionResult> {
   try {
+    await assertCurrentMatchAccess(matchId);
     const sheetService = new SheetService();
     const signatureService = new SignatureService();
 
     const sheet = await sheetService.findById(sheetId);
-    if (!sheet) {
+    if (!sheet || sheet.matchId !== matchId) {
       return { success: false, error: "actions.sheet.errors.notFound" };
     }
     if (sheet.status === "CLOSED") {
