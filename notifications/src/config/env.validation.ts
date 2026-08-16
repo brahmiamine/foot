@@ -28,17 +28,14 @@ class EnvironmentVariables {
   @Max(65535)
   PORT = 3010;
 
-  @IsNotEmpty({ message: 'SSO_JWT_SECRET is required' })
-  SSO_JWT_SECRET: string;
+  @IsNotEmpty({ message: 'SSO_URL is required for RS256/JWKS verification' })
+  SSO_URL: string;
 
   @IsOptional()
   SSO_JWT_ISSUER = 'foot-sso';
 
   @IsOptional()
   SSO_COOKIE_NAME = 'foot_sso_session';
-
-  @IsOptional()
-  SSO_URL?: string;
 
   @IsNotEmpty({ message: 'SERVICE_API_KEYS is required' })
   SERVICE_API_KEYS: string;
@@ -52,94 +49,70 @@ class EnvironmentVariables {
 
   @IsNotEmpty()
   DB_HOST: string;
-
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   DB_PORT = 3306;
-
   @IsNotEmpty()
   DB_USERNAME: string;
-
   @IsOptional()
   DB_PASSWORD = '';
-
   @IsNotEmpty()
   DB_DATABASE: string;
 
   @IsOptional()
   DIRECTORY_DB_HOST?: string;
-
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   DIRECTORY_DB_PORT = 3306;
-
   @IsOptional()
   DIRECTORY_DB_USERNAME?: string;
-
   @IsOptional()
   DIRECTORY_DB_PASSWORD?: string;
-
   @IsOptional()
   DIRECTORY_DB_DATABASE?: string;
 
   @IsOptional()
   REDIS_HOST = 'localhost';
-
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   REDIS_PORT = 6379;
-
   @IsOptional()
   REDIS_PASSWORD?: string;
 
   @IsOptional()
   @IsIn(['smtp', 'resend', 'sendgrid'])
   EMAIL_PROVIDER = 'smtp';
-
   @IsOptional()
   SMTP_HOST?: string;
-
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   SMTP_PORT = 587;
-
   @IsOptional()
   SMTP_USER?: string;
-
   @IsOptional()
   SMTP_PASSWORD?: string;
-
   @IsOptional()
   SMTP_FROM = 'no-reply@foot.tn';
-
   @IsOptional()
   RESEND_API_KEY?: string;
-
   @IsOptional()
   SENDGRID_API_KEY?: string;
-
   @IsOptional()
   WEB_PUSH_PUBLIC_KEY?: string;
-
   @IsOptional()
   WEB_PUSH_PRIVATE_KEY?: string;
-
   @IsOptional()
   WEB_PUSH_CONTACT_EMAIL = 'mailto:contact@foot.tn';
-
   @IsOptional()
   FCM_PROJECT_ID?: string;
-
   @IsOptional()
   FCM_CLIENT_EMAIL?: string;
-
   @IsOptional()
   FCM_PRIVATE_KEY?: string;
-
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -158,9 +131,7 @@ function validateRotationPair(config: EnvironmentVariables): void {
 }
 
 export function validateEnv(config: Record<string, unknown>) {
-  const validatedConfig = plainToInstance(EnvironmentVariables, config, {
-    enableImplicitConversion: true,
-  });
+  const validatedConfig = plainToInstance(EnvironmentVariables, config, { enableImplicitConversion: true });
   const errors = validateSync(validatedConfig, { skipMissingProperties: false });
   if (errors.length > 0) {
     const messages = errors
