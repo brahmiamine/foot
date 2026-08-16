@@ -56,6 +56,11 @@ async function loadLockedApplication(manager: EntityManager, session: SsoUser, i
   return row
 }
 
+async function lockGrantCampaign(manager: EntityManager, grantId: string): Promise<void> {
+  const rows = await manager.query(`SELECT id FROM federation_grants WHERE id = ? FOR UPDATE`, [grantId]) as Array<{ id: string }>
+  if (!rows[0]) throw new FederalOperationInputError('Campagne de subvention introuvable')
+}
+
 export async function transitionGrantApplicationSafely(
   source: DataSource,
   session: SsoUser,
@@ -67,6 +72,7 @@ export async function transitionGrantApplicationSafely(
 ) {
   return source.transaction(async manager => {
     const row = await loadLockedApplication(manager, session, id)
+    await lockGrantCampaign(manager, row.grant_id)
     const to = requireEnum(targetStatus, APPLICATION_STATUSES, 'Statut demande')
     if (!TRANSITIONS[row.status]?.includes(to)) throw new FederalOperationWorkflowError(`Transition de demande interdite : ${row.status} -> ${to}`)
 
@@ -112,6 +118,7 @@ export async function recordGrantPaymentSafely(
 ) {
   return source.transaction(async manager => {
     const application = await loadLockedApplication(manager, session, applicationId)
+    await lockGrantCampaign(manager, application.grant_id)
     if (!['APPROVED', 'PARTIALLY_APPROVED', 'PAID'].includes(application.status)) {
       throw new FederalOperationWorkflowError('La demande doit être approuvée avant paiement')
     }
@@ -120,8 +127,7 @@ export async function recordGrantPaymentSafely(
     const paidRows = await manager.query(
       `SELECT COALESCE(SUM(amount), 0) AS total
          FROM grant_payments
-        WHERE application_id = ? AND status = 'PAID'
-        FOR UPDATE`,
+        WHERE application_id = ? AND status = 'PAID'`,
       [applicationId],
     ) as Array<{ total: number | string }>
     const paidTotal = Number(paidRows[0]?.total ?? 0)
