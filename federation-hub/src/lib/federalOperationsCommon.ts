@@ -47,6 +47,56 @@ export function buildFederalOperationScopeFilter(session: SsoUser, alias = ''): 
   return { sql: '1 = 0', params: [] }
 }
 
+export async function assertSeasonInFederalScope(
+  source: FederalOperationSource,
+  federationId: string,
+  leagueId: string | null | undefined,
+  seasonId: string,
+): Promise<{ id: string; leagueId: string; federationId: string }> {
+  const rows = await source.query(
+    `SELECT s.id, s.league_id, l.federation_id
+       FROM saisons s
+       LEFT JOIN ligues l ON l.id = s.league_id
+      WHERE s.id = ?
+      LIMIT 1`,
+    [seasonId],
+  ) as Array<{ id: string; league_id: string | null; federation_id: string | null }>
+  const row = rows[0]
+  if (!row) throw new FederalOperationInputError('Saison introuvable')
+  if (!row.league_id || !row.federation_id) {
+    throw new FederalOperationInputError('La saison doit être rattachée à une ligue fédérale pour ce processus')
+  }
+  if (row.federation_id !== federationId || (leagueId && row.league_id !== leagueId)) {
+    throw new FederalOperationAuthorizationError('Saison hors périmètre réglementaire')
+  }
+  return { id: row.id, leagueId: row.league_id, federationId: row.federation_id }
+}
+
+export async function assertClubInFederalScope(
+  source: FederalOperationSource,
+  federationId: string,
+  leagueId: string | null | undefined,
+  clubId: string,
+): Promise<{ federationId: string; leagueId: string | null }> {
+  const params: unknown[] = [clubId, federationId]
+  let leagueClause = ''
+  if (leagueId) {
+    leagueClause = ' AND league_id = ?'
+    params.push(leagueId)
+  }
+  const rows = await source.query(
+    `SELECT federation_id, league_id
+       FROM team_affiliations
+      WHERE team_id = ? AND federation_id = ? AND status = 'ACTIVE'${leagueClause}
+      ORDER BY start_date DESC, created_at DESC
+      LIMIT 1`,
+    params,
+  ) as Array<{ federation_id: string; league_id: string | null }>
+  const row = rows[0]
+  if (!row) throw new FederalOperationAuthorizationError('Club hors périmètre réglementaire ou affiliation inactive')
+  return { federationId: row.federation_id, leagueId: row.league_id }
+}
+
 export async function recordFederalOperationAudit(
   source: FederalOperationSource,
   context: FederalOperationAuditContext,
