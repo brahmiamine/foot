@@ -7,6 +7,7 @@ import { SheetService, SheetVersionConflictError } from "@/services/SheetService
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
 import { MatchOfficialService } from "@/services/MatchOfficialService";
+import { MatchAccessService } from "@/services/MatchAccessService";
 import type { ActorRole, SignaturePhase } from "@/entities/Signature";
 import { EligibilityService, LineupEligibilityError } from "@/services/EligibilityService";
 import { StaffEligibilityError, StaffEligibilityService } from "@/services/StaffEligibilityService";
@@ -23,7 +24,19 @@ export async function saveSignature(
     const sheetService = new SheetService();
     const sheet = await sheetService.findById(sheetId);
     if (!sheet) return { success: false, error: "actions.sheet.errors.notFound" };
+
     const requestHeaders = await headers();
+    const userId = requestHeaders.get("x-sso-user-id");
+    const role = requestHeaders.get("x-sso-role");
+    const teamId = requestHeaders.get("x-sso-team-id");
+    if (!userId || !role) return { success: false, error: "actions.signatures.errors.save" };
+
+    await new MatchAccessService().assertSignatureActor(
+      { userId, role, teamId },
+      sheet.matchId,
+      actorRole,
+    );
+
     const signatureService = new SignatureService();
     await signatureService.save(
       sheetId,
@@ -31,7 +44,7 @@ export async function saveSignature(
       phase,
       actorRole,
       { signerName, signatureData },
-      { userId: requestHeaders.get("x-sso-user-id"), name: requestHeaders.get("x-sso-name") },
+      { userId, name: requestHeaders.get("x-sso-name") },
     );
     revalidatePath(`/${sheet.matchId}/pre-match`);
     return { success: true, message: "actions.signatures.messages.saved" };
