@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { localeDirection } from "@/i18n/config";
 import { getTranslator } from "@/i18n/server";
+import "../../../packages/design-tokens/src/club-portal.css";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
