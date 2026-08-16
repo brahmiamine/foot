@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { createFederalCommission, listFederalCommissionDecisions, listFederalCommissions, listFederalCommissionSessions } from '@/lib/federalCommissions'
+import { assertFederalOperationCreateReferences } from '@/lib/federalOperationCreateGuards'
 import { FederalOperationAuthorizationError, FederalOperationInputError } from '@/lib/federalOperationsCommon'
 import { FederalOperationWorkflowError } from '@/lib/federalOperationsRules'
 import { createBroadcastingDistribution, createDocumentRequirement, createFederationGrant, createInsurancePolicy, createSolidarityContribution, createTrainingCompensationCase, listFederalProgramDomain, type FederalProgramDomain } from '@/lib/federalPrograms'
@@ -86,16 +87,20 @@ export async function POST(request: NextRequest, { params }: Context) {
     const dataSource = await getDataSource()
     await assertRegulatoryPermission(dataSource, session, permission)
     const body = await request.json() as Record<string, unknown>
+    const createBody = domain === 'broadcasting'
+      ? { ...body, allocations: normalizeBroadcastingAllocations(body.allocations) }
+      : body
+    await assertFederalOperationCreateReferences(dataSource, domain, createBody)
     const audit = auditContext(request, session)
-    if (domain === 'commissions') return NextResponse.json(await createFederalCommission(dataSource, session, audit, body), { status: 201 })
-    if (domain === 'insurance') return NextResponse.json(await createInsurancePolicy(dataSource, session, audit, body), { status: 201 })
-    if (domain === 'grants') return NextResponse.json(await createFederationGrant(dataSource, session, audit, body), { status: 201 })
-    if (domain === 'broadcasting') return NextResponse.json(await createBroadcastingDistribution(dataSource, session, audit, { ...body, allocations: normalizeBroadcastingAllocations(body.allocations) }), { status: 201 })
-    if (domain === 'training-compensation') return NextResponse.json(await createTrainingCompensationCase(dataSource, session, audit, body), { status: 201 })
-    if (domain === 'solidarity') return NextResponse.json(await createSolidarityContribution(dataSource, session, audit, body), { status: 201 })
-    if (domain === 'documents') return NextResponse.json(await createDocumentRequirement(dataSource, session, audit, body), { status: 201 })
-    if (domain === 'national-teams') return NextResponse.json(await createNationalTeam(dataSource, session, audit, body), { status: 201 })
-    if (domain === 'season-cycle') return NextResponse.json(await prepareFederalSeasonOperations(dataSource, session, audit, String(body.cycleId ?? ''), body as unknown as Parameters<typeof prepareFederalSeasonOperations>[4]))
+    if (domain === 'commissions') return NextResponse.json(await createFederalCommission(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'insurance') return NextResponse.json(await createInsurancePolicy(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'grants') return NextResponse.json(await createFederationGrant(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'broadcasting') return NextResponse.json(await createBroadcastingDistribution(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'training-compensation') return NextResponse.json(await createTrainingCompensationCase(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'solidarity') return NextResponse.json(await createSolidarityContribution(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'documents') return NextResponse.json(await createDocumentRequirement(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'national-teams') return NextResponse.json(await createNationalTeam(dataSource, session, audit, createBody), { status: 201 })
+    if (domain === 'season-cycle') return NextResponse.json(await prepareFederalSeasonOperations(dataSource, session, audit, String(createBody.cycleId ?? ''), createBody as unknown as Parameters<typeof prepareFederalSeasonOperations>[4]))
     return NextResponse.json({ error: 'Domaine inconnu' }, { status: 404 })
   } catch (error) {
     return handleError(error)
