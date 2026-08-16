@@ -113,11 +113,7 @@ export class VariantsService {
     return this.repository.save(variant);
   }
 
-  async remove(
-    id: string,
-    productId: string,
-    sellerId: string,
-  ): Promise<void> {
+  async remove(id: string, productId: string, sellerId: string): Promise<void> {
     await this.assertOwnership(productId, sellerId);
     const result = await this.repository.delete({ id, productId });
     if (!result.affected) throw new NotFoundException('Variante introuvable');
