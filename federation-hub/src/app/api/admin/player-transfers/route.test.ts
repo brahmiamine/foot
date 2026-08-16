@@ -131,7 +131,7 @@ describe('GET /api/admin/player-transfers — scoping fédération/ligue', () =>
     const response = await GET(getRequest())
     const json = await response.json()
 
-    expect(response.status).toBe(200)
+    expect(response.status, JSON.stringify(json)).toBe(200)
     expect(json).toHaveLength(1)
     expect(json[0].id).toBe('transfer-a')
   })
