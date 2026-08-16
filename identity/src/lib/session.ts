@@ -64,12 +64,17 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
 
     const { payload } = await jwtVerify(token, publicKey, {
       issuer: "foot-sso",
-      audience: SSO_JWT_AUDIENCE,
-      algorithms: ["RS256"],
     });
     if (!payload.sub || typeof payload.email !== "string" || typeof payload.role !== "string") {
       return null;
     }
+
+    const audiences = Array.isArray(payload.aud)
+      ? payload.aud
+      : payload.aud === undefined
+        ? []
+        : [payload.aud];
+    if (!audiences.includes(SSO_JWT_AUDIENCE)) return null;
 
     const tokenVersion = typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0;
     const dataSource = await getDataSource();
