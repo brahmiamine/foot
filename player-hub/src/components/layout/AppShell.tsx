@@ -9,7 +9,7 @@ import {
   createBrandingVariables,
   createResponsiveShellCss,
   createShellClassNames,
-} from "@foot/app-shell";
+} from "../../../../packages/app-shell/src/index";
 
 const shell = createShellClassNames("ph");
 const responsiveCss = createResponsiveShellCss("ph");
