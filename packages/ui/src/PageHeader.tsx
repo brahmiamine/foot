@@ -4,14 +4,12 @@ export interface PageHeaderProps extends HTMLAttributes<HTMLElement> {
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
-  eyebrow?: ReactNode
 }
 
 export function PageHeader({
   title,
   description,
   actions,
-  eyebrow,
   className = '',
   ...props
 }: PageHeaderProps) {
@@ -20,7 +18,6 @@ export function PageHeader({
   return (
     <header className={classes} {...props}>
       <div className="foot-page-header__copy">
-        {eyebrow ? <div className="foot-page-header__eyebrow">{eyebrow}</div> : null}
         <h1 className="foot-page-header__title">{title}</h1>
         {description ? <p className="foot-page-header__description">{description}</p> : null}
       </div>
