@@ -7,9 +7,9 @@ import { TeamBranding } from "@/entities/TeamBranding";
  * (Seller.clubId) — jamais hardcodé à un club en particulier. name/logoUrl
  * viennent de `teams` (référentiel géré dans federation-hub) ; couleurs/favicon
  * viennent de `team_branding` (optionnelle, voir federation-hub/TeamBrandingPanel).
- * Les valeurs par défaut ci-dessous reprennent le thème actuel de
- * seller-portal (globals.css) pour ne rien changer visuellement tant qu'un
- * club n'a pas configuré son propre branding.
+ * Les valeurs par défaut ci-dessous reprennent le thème FOOT partagé afin que
+ * le rendu serveur et le thème CSS restent cohérents tant qu'un club n'a pas
+ * configuré son propre branding.
  */
 export interface ClubBranding {
   name: string;
@@ -23,8 +23,8 @@ export interface ClubBranding {
 
 const DEFAULT_BRANDING: Omit<ClubBranding, "name" | "logoUrl"> = {
   faviconUrl: null,
-  primaryColor: "#0d6e4f",
-  secondaryColor: "#0b1f18",
+  primaryColor: "#c8102e",
+  secondaryColor: "#0d0d0d",
   accentColor: "#b8860b",
   font: null,
 };
