@@ -1,41 +1,41 @@
+@import "@foot/design-tokens/tokens.css";
+
 :root {
-  --sp-bg: #f4f6f9;
-  --sp-surface: #ffffff;
-  --sp-surface-alt: #f8fafc;
-  --sp-border: #e2e8f0;
-  --sp-text: #0f172a;
-  --sp-text-muted: #64748b;
-  --sp-text-subtle: #94a3b8;
+  --sp-bg: var(--foot-color-app-background);
+  --sp-surface: var(--foot-color-app-surface);
+  --sp-surface-alt: var(--foot-color-app-surface-alt);
+  --sp-border: var(--foot-color-app-border);
+  --sp-text: var(--foot-color-app-text);
+  --sp-text-muted: var(--foot-color-app-text-muted);
+  --sp-text-subtle: var(--foot-color-app-text-subtle);
 
-  /* Palette alignee sur ob (Olympique de Beja), meme rouge de marque que
-     identity/federation-hub/club-hub/ticketing. */
-  --sp-primary: #c8102e;
-  --sp-primary-dark: #a10d25;
-  --sp-primary-soft: #ffd9de;
+  --sp-primary: var(--foot-color-primary);
+  --sp-primary-dark: var(--foot-color-primary-dark);
+  --sp-primary-soft: var(--foot-color-primary-soft);
 
-  --sp-accent: #b8860b;
-  --sp-danger: #dc2626;
-  --sp-danger-soft: #fee2e2;
-  --sp-warning: #d97706;
-  --sp-warning-soft: #fef3c7;
+  --sp-accent: var(--foot-color-accent);
+  --sp-danger: var(--foot-color-danger-strong);
+  --sp-danger-soft: var(--foot-color-danger-soft);
+  --sp-warning: var(--foot-color-warning-strong);
+  --sp-warning-soft: var(--foot-color-warning-soft);
   --sp-success: #16a34a;
-  --sp-success-soft: #dcfce7;
-  --sp-info: #2563eb;
-  --sp-info-soft: #dbeafe;
-  --sp-neutral-soft: #f1f5f9;
+  --sp-success-soft: var(--foot-color-success-soft);
+  --sp-info: var(--foot-color-info-strong);
+  --sp-info-soft: var(--foot-color-info-soft);
+  --sp-neutral-soft: var(--foot-color-neutral-soft);
 
-  --sp-sidebar-bg: #0d0d0d;
-  --sp-sidebar-text: #c9c4bd;
-  --sp-sidebar-text-active: #ffffff;
-  --sp-sidebar-active-bg: #2a0a0f;
+  --sp-sidebar-bg: var(--foot-color-sidebar-bg);
+  --sp-sidebar-text: var(--foot-color-sidebar-text);
+  --sp-sidebar-text-active: var(--foot-color-sidebar-text-active);
+  --sp-sidebar-active-bg: var(--foot-color-sidebar-active-bg);
 
-  --sp-radius-sm: 6px;
-  --sp-radius-md: 10px;
-  --sp-radius-lg: 14px;
-  --sp-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --sp-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --sp-radius-sm: var(--foot-app-radius-sm);
+  --sp-radius-md: var(--foot-app-radius-md);
+  --sp-radius-lg: var(--foot-app-radius-lg);
+  --sp-shadow-sm: var(--foot-app-shadow-sm);
+  --sp-shadow-md: var(--foot-app-shadow-md);
 
-  --sp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --sp-font: var(--foot-font-system);
 }
 
 * {
