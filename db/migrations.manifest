@@ -73,8 +73,7 @@ federation-hub/mysql/migration_add_staff_invitations.sql
 federation-hub/mysql/migration_add_match_actual_times.sql
 federation-hub/mysql/migration_add_match_saga.sql
 # Élargit staff_invitations aux rôles FEDERATION_ADMIN/LEAGUE_ADMIN/REFEREE/
-# MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §0, provisioning). Dépend de
-# migration_add_staff_invitations.sql (ci-dessus).
+# MATCH_OFFICIAL/REFEREE_OBSERVER (migration.md §7/§11, Phase 4).
 federation-hub/mysql/migration_widen_staff_invitations_scope.sql
 # Historique d'affiliation club <-> fédération/ligue/saison (migration.md
 # §6, Phase 2). Dépend de teams/federations/ligues/saisons (FK), donc
@@ -140,6 +139,9 @@ federation-hub/mysql/migration_link_disciplinary_decision_suspension.sql
 # décision contestée (legal_cases/disciplinary_cases/etc.), dépend de
 # federations/ligues/User (déjà en base).
 federation-hub/mysql/migration_add_appeals.sql
+# Federal Operations V3 : commissions, assurances, subventions, droits média,
+# formation/solidarité, conformité documentaire et sélections nationales.
+federation-hub/mysql/migration_add_federal_operations_v3.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
 federation-hub/migrations/add_is_active_to_federations.sql

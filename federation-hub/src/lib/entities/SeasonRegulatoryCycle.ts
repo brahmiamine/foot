@@ -22,7 +22,14 @@ export class SeasonRegulatoryCycle {
   @Column({ type: 'datetime', nullable: true, name: 'financial_compliance_close_at' }) financialComplianceCloseAt?: Date | null
   @Column({ type: 'datetime', nullable: true, name: 'transfer_window_open_at' }) transferWindowOpenAt?: Date | null
   @Column({ type: 'datetime', nullable: true, name: 'transfer_window_close_at' }) transferWindowCloseAt?: Date | null
+  @Column({ type: 'datetime', nullable: true, name: 'insurance_open_at' }) insuranceOpenAt?: Date | null
+  @Column({ type: 'datetime', nullable: true, name: 'insurance_close_at' }) insuranceCloseAt?: Date | null
+  @Column({ type: 'datetime', nullable: true, name: 'grant_application_open_at' }) grantApplicationOpenAt?: Date | null
+  @Column({ type: 'datetime', nullable: true, name: 'grant_application_close_at' }) grantApplicationCloseAt?: Date | null
+  @Column({ type: 'datetime', nullable: true, name: 'document_compliance_open_at' }) documentComplianceOpenAt?: Date | null
+  @Column({ type: 'datetime', nullable: true, name: 'document_compliance_close_at' }) documentComplianceCloseAt?: Date | null
   @Column({ type: 'datetime', nullable: true, name: 'season_prepared_at' }) seasonPreparedAt?: Date | null
+  @Column({ type: 'datetime', nullable: true, name: 'season_finalized_at' }) seasonFinalizedAt?: Date | null
   @Column({ type: 'char', length: 36, nullable: true, name: 'previous_season_id' }) previousSeasonId?: string | null
   @Column({ type: 'datetime', nullable: true, name: 'previous_season_expired_at' }) previousSeasonExpiredAt?: Date | null
   @Column({ type: 'varchar', length: 191, name: 'created_by' }) createdBy!: string
