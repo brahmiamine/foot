@@ -51,6 +51,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     permissions: [{ key: "matches.view", label: "Voir les matchs officiels" }],
   },
   {
+    key: "matchOperations",
+    label: "Feuille de match électronique",
+    permissions: [
+      { key: "matchOperations.access", label: "Accéder aux feuilles de match de sa catégorie" },
+      { key: "matchOperations.sign", label: "Signer la feuille de match pour son club" },
+    ],
+  },
+  {
     key: "friendlyMatches",
     label: "Matchs amicaux",
     permissions: [
@@ -272,13 +280,15 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
   },
   {
     name: "Coach",
-    description: "Gère l'effectif, les entraînements, les matchs amicaux et la composition de sa catégorie.",
+    description: "Gère l'effectif, les entraînements, les matchs amicaux, la composition et la feuille de match de sa catégorie.",
     isGlobal: false,
     permissions: [
       "players.view",
       "players.edit",
       "staff.view",
       "matches.view",
+      "matchOperations.access",
+      "matchOperations.sign",
       "friendlyMatches.view",
       "friendlyMatches.create",
       "friendlyMatches.edit",
