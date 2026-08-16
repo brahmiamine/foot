@@ -60,6 +60,27 @@ for (const layoutPath of internalAdminLayouts) {
   }
 }
 
+const clubHubLayout = await read('club-hub/src/app/layout.tsx')
+const clubHubPublicOverrides = await read('club-hub/src/app/public-design-system.css')
+if (!clubHubLayout.includes('packages/design-tokens/src/index.css')) {
+  errors.push('club-hub/src/app/layout.tsx: la surface publique doit charger les tokens FOOT')
+}
+if (!clubHubLayout.includes('./public-design-system.css')) {
+  errors.push('club-hub/src/app/layout.tsx: la surface publique doit charger public-design-system.css')
+}
+if (!clubHubPublicOverrides.includes('--accent-color: var(--foot-color-primary)')) {
+  errors.push('club-hub/src/app/public-design-system.css: la couleur accent doit venir du primaire FOOT')
+}
+if (!clubHubPublicOverrides.includes('--text-color: #64748b')) {
+  errors.push('club-hub/src/app/public-design-system.css: la couleur texte accessible attendue est #64748b')
+}
+if (!clubHubPublicOverrides.includes('focus-visible')) {
+  errors.push('club-hub/src/app/public-design-system.css: un focus clavier visible est obligatoire')
+}
+if (!clubHubPublicOverrides.includes('prefers-reduced-motion')) {
+  errors.push('club-hub/src/app/public-design-system.css: reduced-motion doit etre pris en charge')
+}
+
 const sellerBranding = await read('seller-portal/src/lib/clubBranding.ts')
 for (const [field, expected] of [
   ['primaryColor', '#c8102e'],
@@ -170,5 +191,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `Design system valide: ${portalApps.length} portails club, ${internalAdminLayouts.length} back-offices et les produits publics respectent le contrat FOOT; Referee Hub et Identity utilisent la marque centrale; ${requiredUiExports.length} primitives UI sont exportees.`,
+  `Design system valide: ${portalApps.length} portails club, ${internalAdminLayouts.length} back-offices et toutes les surfaces publiques respectent le contrat FOOT; Referee Hub et Identity utilisent la marque centrale; ${requiredUiExports.length} primitives UI sont exportees.`,
 )
