@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { In } from 'typeorm'
 import { safeErrorMessage } from '@/lib/apiError'
-import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/adminAuth'
+import { getAdminSession, canAccessFederation, canAccessLeague, canAccessPlatform } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { Player, Team, TeamAffiliation } from '@/lib/entities'
 import { getActiveAffiliation } from '@/lib/teamAffiliations'
@@ -14,17 +14,19 @@ export const runtime = 'nodejs'
 const VALID_STATUSES = new Set(['DRAFT', 'PENDING', 'APPROVED', 'COMPLETED', 'CANCELLED', 'REJECTED'])
 
 /**
- * GET /api/admin/player-transfers — tableau de bord Transferts
- * (migration.md §23). `club-hub` ne connaît pas les fédérations
- * (`team_affiliations` vit ici) : pour un `FEDERATION_ADMIN`, on relit
- * d'abord les clubs jamais/actuellement affiliés à sa fédération, puis on
- * filtre la liste renvoyée par `club-hub` à celles impliquant un de ces
- * clubs (source OU destination) — jamais un `federationId` fourni par le
- * client. `PLATFORM_SUPERADMIN` voit tout, sans filtre.
+ * GET /api/admin/player-transfers — tableau de bord Transferts.
+ *
+ * PLATFORM_SUPERADMIN voit tout. FEDERATION_ADMIN et LEAGUE_ADMIN sont
+ * filtrés à partir de `team_affiliations`, jamais à partir d'un identifiant
+ * de périmètre fourni par le navigateur. Un compte scoped sans federationId
+ * ou leagueId est fermé par défaut et ne voit aucun transfert.
  */
 export async function GET(request: NextRequest) {
   const session = await getAdminSession(request)
-  if (!session || !(canAccessPlatform(session) || session.role === 'FEDERATION_ADMIN')) {
+  if (
+    !session ||
+    !(canAccessPlatform(session) || session.role === 'FEDERATION_ADMIN' || session.role === 'LEAGUE_ADMIN')
+  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -37,12 +39,20 @@ export async function GET(request: NextRequest) {
     const dataSource = await getDataSource()
 
     let scoped = transfers
-    if (!canAccessPlatform(session) && session.federationId) {
-      const affiliations = await dataSource
-        .getRepository(TeamAffiliation)
-        .find({ where: { federationId: session.federationId } })
-      const federationTeamIds = new Set(affiliations.map((a) => a.teamId))
-      scoped = transfers.filter((t) => federationTeamIds.has(t.fromTeamId) || federationTeamIds.has(t.toTeamId))
+    if (!canAccessPlatform(session)) {
+      const affiliationRepo = dataSource.getRepository(TeamAffiliation)
+      let affiliations: TeamAffiliation[] = []
+
+      if (session.role === 'FEDERATION_ADMIN' && session.federationId) {
+        affiliations = await affiliationRepo.find({ where: { federationId: session.federationId } })
+      } else if (session.role === 'LEAGUE_ADMIN' && session.leagueId) {
+        affiliations = await affiliationRepo.find({ where: { leagueId: session.leagueId } })
+      }
+
+      const scopedTeamIds = new Set(affiliations.map((affiliation) => affiliation.teamId))
+      scoped = transfers.filter(
+        (transfer) => scopedTeamIds.has(transfer.fromTeamId) || scopedTeamIds.has(transfer.toTeamId),
+      )
     }
 
     const teamIds = [...new Set(scoped.flatMap((t) => [t.fromTeamId, t.toTeamId]))]
@@ -85,9 +95,9 @@ export async function GET(request: NextRequest) {
  * effectifs et applique la fenêtre de transfert lors de la création puis de
  * l'homologation.
  *
- * Autorisation : dérivée de la fédération qui gouverne actuellement le club
- * source, jamais d'un federationId fourni par le navigateur. Un club sans
- * affiliation active ne peut être traité ici que par PLATFORM_SUPERADMIN.
+ * Autorisation : dérivée de l'affiliation active du club source. La fédération
+ * propriétaire ou la ligue propriétaire peuvent agir dans leur périmètre ;
+ * un club sans affiliation active reste réservé à PLATFORM_SUPERADMIN.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -131,8 +141,15 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         )
       }
-    } else if (!canAccessFederation(session, sourceAffiliation.federationId)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    } else {
+      const federationAccess = canAccessFederation(session, sourceAffiliation.federationId)
+      const leagueAccess = Boolean(
+        sourceAffiliation.leagueId &&
+          canAccessLeague(session, sourceAffiliation.leagueId, sourceAffiliation.federationId),
+      )
+      if (!federationAccess && !leagueAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     const created = await createPlayerTransfer({
