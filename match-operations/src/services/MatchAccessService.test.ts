@@ -37,7 +37,7 @@ function dependencies(options?: {
   assignment?: MatchOfficialAssignment | null;
 }) {
   const rbac: ClubRbacReader = {
-    getPermissionScope: vi.fn().mockImplementation(async (_teamId, _userId, permission) => {
+    getPermissionScope: vi.fn().mockImplementation(async ({ permission }) => {
       if (permission === MATCH_OPERATIONS_ACCESS_PERMISSION) return options?.accessScope ?? null;
       if (permission === MATCH_OPERATIONS_SIGN_PERMISSION) return options?.signScope ?? null;
       return null;
@@ -72,6 +72,11 @@ describe("MatchAccessService", () => {
     await service.listAccessibleMatches({ userId: "coach-u17", role: "CLUB_STAFF", teamId: "club-1" });
 
     expect(deps.matches.findForClub).toHaveBeenCalledWith("club-1", ["u17"], 20);
+    expect(deps.rbac.getPermissionScope).toHaveBeenCalledWith({
+      teamId: "club-1",
+      userId: "coach-u17",
+      permission: MATCH_OPERATIONS_ACCESS_PERMISSION,
+    });
   });
 
   it("donne l'accès club complet à CLUB_ADMIN selon la convention Club Hub", async () => {
