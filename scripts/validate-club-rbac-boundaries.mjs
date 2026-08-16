@@ -21,6 +21,9 @@ const boundaries = {
     'medical-hub/src/entities/UserRole.ts',
     'medical-hub/src/adapters/club/SharedDatabaseClubRbacAdapter.ts',
   ]),
+  'match-operations': new Set([
+    'match-operations/src/adapters/club/SharedDatabaseClubPermissionScopeAdapter.ts',
+  ]),
 }
 
 async function walk(directory) {
@@ -48,7 +51,7 @@ for (const [app, allowlist] of Object.entries(boundaries)) {
     const imports = importsOf(await readFile(file, 'utf8'))
     if (imports.includes('@/entities/Role') || imports.includes('@/entities/UserRole')) {
       errors.push(
-        `${relative} imports Club-owned RBAC storage directly; use ClubRbacReadPort instead`,
+        `${relative} imports Club-owned RBAC storage directly; use a Club RBAC read port instead`,
       )
     }
   }
@@ -60,4 +63,4 @@ if (errors.length) {
   process.exit(1)
 }
 
-console.log('Club RBAC boundaries valid: specialized hubs consume ClubRbacReadPort outside transition adapters.')
+console.log('Club RBAC boundaries valid: specialized hubs consume Club RBAC read ports outside transition adapters.')
