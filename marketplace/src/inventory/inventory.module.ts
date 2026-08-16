@@ -13,7 +13,11 @@ import { NotificationsModule } from '../notifications/notifications.module';
     TypeOrmModule.forFeature([InventoryItem, StockReservation]),
     NotificationsModule,
   ],
-  controllers: [InventoryController, InventoryHealthController, InternalInventoryController],
+  controllers: [
+    InventoryController,
+    InventoryHealthController,
+    InternalInventoryController,
+  ],
   providers: [InventoryService],
   exports: [InventoryService],
 })
