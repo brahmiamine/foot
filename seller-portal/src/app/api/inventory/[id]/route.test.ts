@@ -9,6 +9,10 @@ import { Seller } from "@/entities/Seller";
 import { ProductStatus, SellerStatus } from "@/entities/enums";
 import type { SellerSessionUser } from "@/lib/session";
 
+const marketplace = vi.hoisted(() => ({
+  updateInventory: vi.fn(),
+}));
+
 let dataSource: DataSource;
 let mockSession: SellerSessionUser | null;
 
@@ -18,6 +22,10 @@ vi.mock("@/lib/database", () => ({
 
 vi.mock("@/lib/session", () => ({
   getCurrentSellerSession: async () => mockSession,
+}));
+
+vi.mock("@/lib/marketplaceApiClient", () => ({
+  updateMarketplaceInventory: marketplace.updateInventory,
 }));
 
 function sessionFor(sellerId: string): SellerSessionUser {
@@ -74,6 +82,7 @@ async function seedInventoryItem(sellerId: string, available = 5): Promise<Inven
 beforeEach(async () => {
   dataSource = await createTestDataSource();
   mockSession = null;
+  marketplace.updateInventory.mockReset();
 });
 
 afterEach(async () => {
@@ -88,23 +97,26 @@ function buildRequest(available: number) {
   });
 }
 
-/** TS-35 — stock (InventoryItem). */
 describe("PATCH /api/inventory/[id]", () => {
-  it("updates available for the owning seller's item", async () => {
+  it("delegates the stock update to Marketplace for the authenticated seller", async () => {
     const { PATCH } = await import("./route");
     const sellerId = randomUUID();
     await seedActiveSeller(sellerId);
     mockSession = sessionFor(sellerId);
     const item = await seedInventoryItem(sellerId, 5);
+    marketplace.updateInventory.mockResolvedValue({ ...item, available: 12 });
 
-    const response = await PATCH(buildRequest(12), { params: Promise.resolve({ id: item.id }) });
+    const response = await PATCH(buildRequest(12), {
+      params: Promise.resolve({ id: item.id }),
+    });
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.item.available).toBe(12);
+    expect(marketplace.updateInventory).toHaveBeenCalledWith(sellerId, item.id, 12);
   });
 
-  it("returns 404 (never 403) for another seller's inventory item", async () => {
+  it("preserves Marketplace 404 ownership concealment", async () => {
     const { PATCH } = await import("./route");
     const ownerId = randomUUID();
     await seedActiveSeller(ownerId);
@@ -112,32 +124,50 @@ describe("PATCH /api/inventory/[id]", () => {
     const otherSellerId = randomUUID();
     await seedActiveSeller(otherSellerId);
     mockSession = sessionFor(otherSellerId);
+    marketplace.updateInventory.mockRejectedValue(
+      Object.assign(new Error("Ressource introuvable."), { status: 404 }),
+    );
 
-    const response = await PATCH(buildRequest(999), { params: Promise.resolve({ id: item.id }) });
+    const response = await PATCH(buildRequest(999), {
+      params: Promise.resolve({ id: item.id }),
+    });
 
     expect(response.status).toBe(404);
-    const reloaded = await dataSource.getRepository(InventoryItem).findOne({ where: { id: item.id } });
+    expect(marketplace.updateInventory).toHaveBeenCalledWith(
+      otherSellerId,
+      item.id,
+      999,
+    );
+    const reloaded = await dataSource
+      .getRepository(InventoryItem)
+      .findOne({ where: { id: item.id } });
     expect(reloaded?.available).toBe(5);
   });
 
-  it("rejects a negative available value", async () => {
+  it("rejects a negative available value before calling Marketplace", async () => {
     const { PATCH } = await import("./route");
     const sellerId = randomUUID();
     await seedActiveSeller(sellerId);
     mockSession = sessionFor(sellerId);
     const item = await seedInventoryItem(sellerId, 5);
 
-    const response = await PATCH(buildRequest(-1), { params: Promise.resolve({ id: item.id }) });
+    const response = await PATCH(buildRequest(-1), {
+      params: Promise.resolve({ id: item.id }),
+    });
 
     expect(response.status).toBe(422);
+    expect(marketplace.updateInventory).not.toHaveBeenCalled();
   });
 
   it("requires an authenticated seller session", async () => {
     const { PATCH } = await import("./route");
     mockSession = null;
 
-    const response = await PATCH(buildRequest(5), { params: Promise.resolve({ id: randomUUID() }) });
+    const response = await PATCH(buildRequest(5), {
+      params: Promise.resolve({ id: randomUUID() }),
+    });
 
     expect(response.status).toBe(401);
+    expect(marketplace.updateInventory).not.toHaveBeenCalled();
   });
 });

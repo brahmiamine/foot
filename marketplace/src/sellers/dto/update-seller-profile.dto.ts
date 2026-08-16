@@ -1,6 +1,5 @@
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
-/** Champs qu'un vendeur peut modifier lui-même sur son propre profil. */
 export class UpdateSellerProfileDto {
   @IsOptional()
   @IsString()
@@ -10,31 +9,41 @@ export class UpdateSellerProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(32)
-  phone?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  address?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  city?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  country?: string;
+  @MaxLength(500)
+  logoUrl?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(2000)
-  description?: string;
+  description?: string | null;
 
   @IsOptional()
   @IsString()
-  @MaxLength(500)
-  logoUrl?: string;
+  @MaxLength(32)
+  phone?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  address?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  city?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  country?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  taxId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  tradeRegister?: string | null;
 }

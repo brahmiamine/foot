@@ -38,6 +38,6 @@ describe('regulatory adapter composition', () => {
     process.env.FEDERATION_REGULATORY_URL = 'http://federation.test'
     delete process.env.FEDERATION_REGULATORY_SERVICE_API_KEY
 
-    expect(() => createPlayerEligibilityPort()).toThrow(/doivent être configurés ensemble/)
+    expect(() => createPlayerEligibilityPort()).toThrow(/configured together/)
   })
 })

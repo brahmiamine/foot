@@ -26,7 +26,6 @@ describe('ServiceAuthGuard', () => {
 
   it('rejects a request without x-api-key', () => {
     const guard = guardWithClients({ current: { 'club-hub': 'tm-key' } });
-
     expect(() => guard.canActivate(contextWithHeaders({}))).toThrow(
       UnauthorizedException,
     );
@@ -34,7 +33,6 @@ describe('ServiceAuthGuard', () => {
 
   it('rejects an unknown api key', () => {
     const guard = guardWithClients({ current: { 'club-hub': 'tm-key' } });
-
     expect(() =>
       guard.canActivate(contextWithHeaders({ 'x-api-key': 'wrong-key' })),
     ).toThrow(UnauthorizedException);
@@ -60,14 +58,12 @@ describe('ServiceAuthGuard', () => {
     expect(request.service).toEqual({ application: 'club-hub' });
   });
 
-  // TASK-P0-003 : rotation sans interruption.
   it('accepts the previous key while still within the grace period', () => {
     const guard = guardWithClients({
       current: { 'club-hub': 'tm-key-new' },
       previous: { 'club-hub': 'tm-key-old' },
       previousExpiresAt: new Date(Date.now() + 60_000).toISOString(),
     });
-
     expect(
       guard.canActivate(contextWithHeaders({ 'x-api-key': 'tm-key-old' })),
     ).toBe(true);
@@ -79,7 +75,16 @@ describe('ServiceAuthGuard', () => {
       previous: { 'club-hub': 'tm-key-old' },
       previousExpiresAt: new Date(Date.now() - 60_000).toISOString(),
     });
+    expect(() =>
+      guard.canActivate(contextWithHeaders({ 'x-api-key': 'tm-key-old' })),
+    ).toThrow(UnauthorizedException);
+  });
 
+  it('rejects the previous key when no expiry is configured', () => {
+    const guard = guardWithClients({
+      current: { 'club-hub': 'tm-key-new' },
+      previous: { 'club-hub': 'tm-key-old' },
+    });
     expect(() =>
       guard.canActivate(contextWithHeaders({ 'x-api-key': 'tm-key-old' })),
     ).toThrow(UnauthorizedException);

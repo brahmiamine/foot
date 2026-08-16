@@ -3,9 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
+import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { Product } from './entities/product.entity';
+import { ProductImage } from './entities/product-image.entity';
 import {
   ProductStatus,
   SELLER_ALLOWED_PRODUCT_TRANSITIONS,
@@ -13,7 +15,6 @@ import {
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
-/** Statuts sur lesquels le vendeur peut encore modifier les champs du produit. */
 const SELLER_EDITABLE_STATUSES = [ProductStatus.DRAFT, ProductStatus.REJECTED];
 
 @Injectable()
@@ -21,27 +22,55 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly repository: Repository<Product>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(sellerId: string, dto: CreateProductDto): Promise<Product> {
-    const product = this.repository.create({
-      sellerId,
-      name: dto.name,
-      slug: dto.slug,
-      description: dto.description ?? null,
-      shortDescription: dto.shortDescription ?? null,
-      categoryId: dto.categoryId ?? null,
-      brand: dto.brand ?? null,
-      sku: dto.sku,
-      price: String(dto.price),
-      compareAtPrice:
-        dto.compareAtPrice !== undefined ? String(dto.compareAtPrice) : null,
-      taxRate: dto.taxRate !== undefined ? String(dto.taxRate) : '0',
-      weightKg: dto.weightKg !== undefined ? String(dto.weightKg) : null,
-      dimensions: dto.dimensions ?? null,
-      status: ProductStatus.DRAFT,
+    return this.dataSource.transaction(async (manager) => {
+      const productRepository = manager.getRepository(Product);
+      const product = productRepository.create({
+        sellerId,
+        name: dto.name,
+        slug: dto.slug,
+        description: dto.description ?? null,
+        shortDescription: dto.shortDescription ?? null,
+        categoryId: dto.categoryId ?? null,
+        brand: dto.brand ?? null,
+        sku: dto.sku,
+        price: String(dto.price),
+        compareAtPrice:
+          dto.compareAtPrice !== undefined ? String(dto.compareAtPrice) : null,
+        taxRate: dto.taxRate !== undefined ? String(dto.taxRate) : '0',
+        weightKg: dto.weightKg !== undefined ? String(dto.weightKg) : null,
+        dimensions: dto.dimensions ?? null,
+        status: ProductStatus.DRAFT,
+      });
+      const saved = await productRepository.save(product);
+
+      if (dto.images?.length) {
+        const imageRepository = manager.getRepository(ProductImage);
+        await imageRepository.save(
+          dto.images.map((url, position) =>
+            imageRepository.create({ productId: saved.id, url, position }),
+          ),
+        );
+      }
+
+      const inventoryRepository = manager.getRepository(InventoryItem);
+      await inventoryRepository.save(
+        inventoryRepository.create({
+          sellerId,
+          productId: saved.id,
+          variantId: null,
+          available: 0,
+          reserved: 0,
+          sold: 0,
+        }),
+      );
+
+      return saved;
     });
-    return this.repository.save(product);
   }
 
   async findAllBySeller(sellerId: string): Promise<Product[]> {
@@ -59,23 +88,13 @@ export class ProductsService {
     return product;
   }
 
-  async update(
-    id: string,
-    sellerId: string,
-    dto: UpdateProductDto,
-  ): Promise<Product> {
-    const product = await this.findOneForSeller(id, sellerId);
-    if (!SELLER_EDITABLE_STATUSES.includes(product.status)) {
-      throw new ConflictException(
-        `Produit non modifiable dans le statut ${product.status}`,
-      );
-    }
-
+  private applyUpdate(product: Product, dto: UpdateProductDto): void {
     if (dto.name !== undefined) product.name = dto.name;
     if (dto.slug !== undefined) product.slug = dto.slug;
     if (dto.description !== undefined) product.description = dto.description;
-    if (dto.shortDescription !== undefined)
+    if (dto.shortDescription !== undefined) {
       product.shortDescription = dto.shortDescription;
+    }
     if (dto.categoryId !== undefined) product.categoryId = dto.categoryId;
     if (dto.brand !== undefined) product.brand = dto.brand;
     if (dto.sku !== undefined) product.sku = dto.sku;
@@ -89,29 +108,45 @@ export class ProductsService {
       product.weightKg = dto.weightKg === null ? null : String(dto.weightKg);
     }
     if (dto.dimensions !== undefined) product.dimensions = dto.dimensions;
-
-    return this.repository.save(product);
   }
 
-  /**
-   * Active/désactive la visibilité d'un produit déjà publié — n'est pas une
-   * modification de contenu, donc possible même hors des statuts éditables
-   * (DRAFT/REJECTED), sans redéclencher une modération. Distinct de
-   * `update()` à dessein (voir seller-portal/src/app/api/products/[id]/
-   * toggle-active/route.ts, comportement préservé par TS-04).
-   */
+  async update(
+    id: string,
+    sellerId: string,
+    dto: UpdateProductDto,
+  ): Promise<Product> {
+    const product = await this.findOneForSeller(id, sellerId);
+    if (!SELLER_EDITABLE_STATUSES.includes(product.status)) {
+      throw new ConflictException(
+        `Produit non modifiable dans le statut ${product.status}`,
+      );
+    }
+    this.applyUpdate(product, dto);
+
+    if (dto.images === undefined) return this.repository.save(product);
+
+    return this.dataSource.transaction(async (manager) => {
+      const productRepository = manager.getRepository(Product);
+      const saved = await productRepository.save(product);
+      const imageRepository = manager.getRepository(ProductImage);
+      await imageRepository.delete({ productId: id });
+      if (dto.images?.length) {
+        await imageRepository.save(
+          dto.images.map((url, position) =>
+            imageRepository.create({ productId: id, url, position }),
+          ),
+        );
+      }
+      return saved;
+    });
+  }
+
   async toggleActive(id: string, sellerId: string): Promise<Product> {
     const product = await this.findOneForSeller(id, sellerId);
     product.isActive = !product.isActive;
     return this.repository.save(product);
   }
 
-  /**
-   * Suppression logique uniquement, quel que soit le statut — l'historique
-   * (commandes passées référençant ce produit) doit rester intact, jamais
-   * de suppression physique (même comportement que seller-portal avant
-   * migration, voir avancement.md TS-04).
-   */
   async remove(id: string, sellerId: string): Promise<void> {
     const product = await this.findOneForSeller(id, sellerId);
     product.deletedAt = new Date();
@@ -119,7 +154,6 @@ export class ProductsService {
     await this.repository.save(product);
   }
 
-  /** Transition déclenchée par le vendeur (DRAFT->SUBMITTED, SUBMITTED->DRAFT, REJECTED->DRAFT). */
   async sellerTransition(
     id: string,
     sellerId: string,
@@ -132,7 +166,6 @@ export class ProductsService {
         `Transition ${product.status} → ${nextStatus} non autorisée`,
       );
     }
-
     if (
       nextStatus === ProductStatus.SUBMITTED &&
       (!product.price || Number(product.price) <= 0)
@@ -141,11 +174,8 @@ export class ProductsService {
         'Le prix doit être renseigné avant soumission',
       );
     }
-
     product.status = nextStatus;
-    if (nextStatus === ProductStatus.DRAFT) {
-      product.rejectionReason = null;
-    }
+    if (nextStatus === ProductStatus.DRAFT) product.rejectionReason = null;
     return this.repository.save(product);
   }
 }

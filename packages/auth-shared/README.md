@@ -1,150 +1,57 @@
 # `auth-shared` — contrat de lecture des sessions SSO
 
-Ce composant **non déployable** centralise la vérification du JWT émis par
-[`identity`](../../identity). Il ne signe aucun jeton et ne contient aucun secret : les
-valeurs sensibles restent fournies à l'exécution par l'environnement. Le code
-est Edge-safe (pas de `next/headers` ni de dépendance à une version de Next).
+Ce composant non déployable centralise la vérification des JWT de session émis par [`identity`](../../identity). Il ne signe aucun jeton et ne contient aucune clé privée. Le code est Edge-safe.
+
+## Contrat cryptographique
+
+Les sessions SSO sont désormais **RS256 uniquement** :
+
+- issuer obligatoire : `foot-sso` ;
+- audience obligatoire : `foot-platform` ;
+- `kid` sélectionné dans le JWKS publié par `identity` ;
+- JWKS : `${SSO_URL}/api/.well-known/jwks.json` ;
+- expiration vérifiée par `jose` ;
+- les jetons HS256 et les jetons sans `aud` sont rejetés.
+
+`SSO_JWT_SECRET` n'est plus une variable reconnue par ce package. Les applications clientes configurent `SSO_URL` et ne reçoivent aucune clé de signature de session.
 
 ## API publique
 
-Le seul point d'entrée est [`src/session.ts`](./src/session.ts). Il exporte :
-
 | Export | Rôle |
 |---|---|
-| `CookieReader` | Interface structurelle minimale d'une requête ayant un cookie. |
-| `CookieWriter` | Interface structurelle minimale d'une réponse sur laquelle supprimer le cookie. |
-| `SsoTokenPayload` | Forme normalisée de la session rendue aux applications. |
-| `getSsoCookieName()` | Lit `SSO_COOKIE_NAME`, avec `foot_sso_session` par défaut. |
-| `verifySsoToken(token)` | Vérifie signature, expiration, issuer et claims obligatoires ; renvoie `null` si le jeton est invalide. |
-| `verifySsoTokenWithRevocation(token, failMode?)` | Ajoute l'introspection auprès de `identity` et un cache de 30 s ; c'est le validateur recommandé. Le comportement en cas d'indisponibilité de l'introspection dépend de `failMode` si fourni, sinon de `getSsoRevocationFailureMode()` (TS-29 / TASK-P0-002). Chaque appel d'introspection est journalisé (`console.warn`, événement `sso_introspection`). |
-| `getSsoRevocationFailureMode()` | Lit `SSO_REVOCATION_FAILURE_MODE` (`"open"` par défaut, ou `"closed"`) — voir ci-dessous. |
-| `getSsoTokenFromRequest(request)` | Extrait le jeton du cookie partagé sans le valider. |
-| `buildSsoRedirectUrl(currentUrl, loginPath?)` | Construit une URL sous `SSO_URL` et ajoute le retour dans `redirect` (`/login` par défaut). |
-| `clearSsoCookie(response)` | Expire le cookie sur `/`, en respectant `SSO_COOKIE_DOMAIN`, et rend la réponse reçue. |
+| `CookieReader` / `CookieWriter` | Interfaces minimales pour lire/expirer le cookie. |
+| `SsoTokenPayload` | Session normalisée. |
+| `getSsoCookieName()` | Nom du cookie (`foot_sso_session` par défaut). |
+| `verifySsoToken(token)` | Vérification RS256/JWKS, issuer, audience, expiration et claims obligatoires. |
+| `verifySsoTokenWithRevocation(token, failMode?)` | Vérification précédente puis introspection de révocation auprès d'Identity, cache 30 s. |
+| `getSsoRevocationFailureMode()` | `open` par défaut ou `closed`. |
+| `getSsoTokenFromRequest(request)` | Extraction du cookie sans validation. |
+| `buildSsoRedirectUrl(...)` | URL de retour vers Identity. |
+| `clearSsoCookie(response)` | Expiration du cookie partagé. |
 
-Les helpers de validation sont donc `verifySsoToken` (contrôle local) et
-`verifySsoTokenWithRevocation` (contrôle local puis révocation distante). Une
-application doit préférer le second pour les accès authentifiés. L'extraction
-du cookie n'est **pas** une validation.
+## Claims
 
-## Claims de session
+| Claim | Normalisation |
+|---|---|
+| `sub` | `id`, obligatoire. |
+| `email` | obligatoire. |
+| `name` | repli sur `email`. |
+| `role` | obligatoire ; l'autorisation métier reste à la charge de l'application. |
+| `teamId` | chaîne ou `null`. |
+| `federationId`, `leagueId`, `playerId` | chaîne ou `null`. |
+| `iss`, `aud`, `iat`, `exp` | standards ; `iss`, `aud` et `exp` sont vérifiés. |
 
-Le JWT HS256 émis par `identity` a l'issuer obligatoire `foot-sso`, une durée de vie
-de 12 heures et les claims suivants :
+`SsoTokenPayload` n'est pas une autorisation métier : le consommateur doit toujours appliquer son rôle, son scope et ses permissions.
 
-| Claim JWT | Champ retourné | Validation / normalisation |
-|---|---|---|
-| `sub` | `id: string` | Obligatoire. |
-| `email` | `email: string` | Obligatoire et chaîne. |
-| `name` | `name: string` | Chaîne facultative ; repli sur `email`. |
-| `role` | `role: string` | Obligatoire et chaîne ; chaque wrapper consommateur restreint ensuite son union de rôles. |
-| `teamId` | `teamId: string \| null` | Chaîne facultative ; toute autre valeur devient `null`. |
-| `tokenVersion` | non exposé | Émis par `identity` et contrôlé par l'endpoint d'introspection pour invalider les anciennes sessions. |
-| `iss`, `iat`, `exp` | non exposés | Claims standards : issuer vérifié par `jose`, expiration vérifiée lors du `jwtVerify`. |
+## Révocation et disponibilité
 
-`SsoTokenPayload` n'est pas une autorisation métier : l'application doit encore
-contrôler le rôle et, si nécessaire, le `teamId` attendu.
+`verifySsoTokenWithRevocation()` appelle `GET /api/session/introspect` avec un timeout de 2 s et un cache de 30 s.
 
-## Projets consommateurs
+- `open` : si l'introspection est indisponible, une session cryptographiquement valide reste acceptée ;
+- `closed` : l'accès est refusé tant qu'Identity ne confirme pas la session.
 
-Dix applications importent directement ce module : `arbinote`, `match-operations`,
-`referee-hub`, `federation-hub`, `club-hub`, `ob`, `ticketing`, `player-hub`,
-`staff-hub` et `medical-hub`. Leurs wrappers `src/lib/ssoSession.ts` ajoutent
-les unions de rôles et, selon le runtime, les helpers Server Components. Les
-middlewares d'`arbinote`, `federation-hub`, `club-hub`, `referee-hub`,
-`player-hub`, `staff-hub` et `medical-hub` l'importent aussi directement.
-`notifications` valide le même contrat dans son service NestJS, mais ne
-dépend pas de ce module TypeScript.
+Mode recommandé : `closed` pour `ticketing`, `club-hub`, `match-operations`, `referee-hub`, `player-hub`, `staff-hub`, `medical-hub` et `federation-hub`; `open` peut rester acceptable sur les parcours publics non sensibles d'`arbinote` et `club-ob`.
 
-## Exemple minimal dans une application du monorepo
+## Dépendances
 
-Exemple pour un middleware Next placé à la racine d'une application sœur :
-
-```ts
-import { NextRequest, NextResponse } from "next/server";
-import {
-  getSsoTokenFromRequest,
-  verifySsoTokenWithRevocation,
-} from "../../packages/auth-shared/src/session";
-
-export async function middleware(request: NextRequest) {
-  const token = getSsoTokenFromRequest(request);
-  const session = token ? await verifySsoTokenWithRevocation(token) : null;
-
-  if (!session || session.role !== "SUPERADMIN") {
-    return new NextResponse("Non autorisé", { status: 401 });
-  }
-  return NextResponse.next();
-}
-```
-
-Configurer `SSO_JWT_SECRET` et, pour l'introspection, `SSO_URL` dans le secret
-manager ou le fichier d'environnement local de l'application. Ne jamais mettre
-leur valeur dans le code, un exemple ou Git.
-
-## Mode d'échec de la révocation (TS-29 / TASK-P0-002)
-
-`verifySsoTokenWithRevocation()` ne peut pas toujours confirmer qu'une
-session n'a pas été révoquée (`SSO_URL` non configuré, `identity` injoignable,
-timeout, réponse non-200). Le mode appliqué dans ce cas est déterminé par,
-dans l'ordre de priorité :
-
-1. Le paramètre `failMode` explicite passé à l'appel (permet à une route
-   précise — ex: une confirmation de paiement — de forcer `closed`
-   indépendamment du réglage global de l'app).
-2. Sinon, `SSO_REVOCATION_FAILURE_MODE` lu dans l'environnement de l'app
-   appelante (`getSsoRevocationFailureMode()`) — c'est le "default failMode
-   par app depuis .env" : chaque app définit sa propre valeur dans son
-   `.env`, aucune configuration centralisée.
-
-Valeurs possibles :
-
-- `open` (par défaut si absent, comportement historique) : on retombe sur le
-  résultat cryptographique local (signature/expiration/`tokenVersion`
-  valides) — un incident réseau transitoire sur `identity` ne coupe pas le trafic
-  authentifié de l'app cliente.
-- `closed` : on refuse l'accès tant que `identity` n'a pas confirmé explicitement
-  que la session est active.
-
-Matrice de sensibilité et mode recommandé par app :
-
-| App | Sensibilité | Mode recommandé | Raison |
-|---|---|---|---|
-| `ob` (public/espace membre) | Basse | `open` | Site public, dégrader plutôt que bloquer une panne SSO transitoire |
-| `arbinote` (vote public) | Basse | `open` | Même raisonnement — la modération admin reste, elle, `closed` (voir ci-dessous) |
-| `ticketing` | Élevée | `closed` | Argent — un incident réseau transitoire sur `identity` ne doit jamais laisser passer une session révoquée sur un parcours de paiement |
-| `club-hub` | Élevée | `closed` | Données métier club |
-| `match-operations` | Élevée | `closed` | Match en direct, feuille de match officielle |
-| `referee-hub` | Élevée | `closed` | Désignations officielles personnelles |
-| `player-hub` | Élevée | `closed` | Données personnelles et réponses du joueur |
-| `federation-hub` | Élevée | `closed` | Gestion critique de la plateforme |
-
-Chaque app définit sa propre valeur dans son `.env` — voir
-`match-operations/.env.example`, `federation-hub/.env.example`,
-`club-hub/.env.example` et `ticketing/.env.example` pour l'exemple
-`closed`. `ticketing` est fail-**closed** par défaut malgré son trafic
-public (contrairement à `ob`/`arbinote`) : c'est la seule des 3 apps
-"publiques" à manipuler de l'argent directement, ce qui change l'arbitrage
-disponibilité/sécurité.
-
-### SLA `identity`
-
-`identity` est une dépendance critique pour toutes les apps en mode `closed` : une
-indisponibilité de `identity` bloque alors l'accès aux apps concernées, pas
-seulement l'introspection de révocation (l'ensemble du flux d'authentification
-transite par `identity` — connexion, JWKS pour la vérification des jetons, voir
-TASK-P0-001). Il n'existe pas d'infrastructure de monitoring/SLA formalisée
-dans ce repo à ce jour (pas de dashboard, pas d'alerting) — un SLA chiffré ne
-peut donc pas être documenté honnêtement ici tant que cette instrumentation
-n'existe pas (voir TASK-P1-002, observabilité). Recommandation opérationnelle
-en attendant : `identity` doit être déployé avec une disponibilité au moins égale
-à celle de l'app la plus stricte qui en dépend (`federation-hub`/`match-operations`,
-`closed`), et son incident le plus courant (timeout d'introspection) est déjà
-borné à 2s côté client (`REVOCATION_FETCH_TIMEOUT_MS`, session.ts).
-
-## Pourquoi un import relatif
-
-Chaque application conserve son propre lockfile et son déploiement. Ce dossier
-n'est donc pas un workspace `pnpm` : les imports utilisent un chemin relatif et
-`jose` reste une dépendance directe de chaque application. Une conversion en
-package workspace devra être une modification de build explicite.
+Le dossier est inclus sous `packages/*` dans le workspace pnpm, mais les applications continuent actuellement à l'importer par chemin relatif afin de préserver leurs builds/lockfiles indépendants. La CI utilise encore `--ignore-workspace` pendant cette transition. La suppression de ce mode doit être accompagnée d'une normalisation des lockfiles et des dépendances natives, pas d'un simple changement de configuration.

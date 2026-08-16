@@ -1,23 +1,109 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SignJWT } from "jose";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { createServer, type Server } from "node:http";
+import { generateKeyPairSync, randomUUID } from "node:crypto";
+import {
+  exportJWK,
+  importPKCS8,
+  importSPKI,
+  SignJWT,
+  type KeyLike,
+} from "jose";
 import {
   getSsoRevocationFailureMode,
   verifySsoTokenWithRevocation,
 } from "../../../packages/auth-shared/src/session";
 
-/**
- * TS-29 — exécuté via le harnais vitest de `ticketing` (une des 6 apps
- * qui importent packages/auth-shared par chemin relatif, voir README.md de
- * ce dossier : le package lui-même n'a pas son propre node_modules/jose).
- */
-describe("getSsoRevocationFailureMode (TS-29)", () => {
-  const originalMode = process.env.SSO_REVOCATION_FAILURE_MODE;
+let signingKey: KeyLike;
+let server: Server;
+let ssoUrl: string;
+let introspectionStatus = 200;
+let introspectionActive = true;
+const originalMode = process.env.SSO_REVOCATION_FAILURE_MODE;
+const originalSsoUrl = process.env.SSO_URL;
 
-  afterEach(() => {
-    if (originalMode === undefined) delete process.env.SSO_REVOCATION_FAILURE_MODE;
-    else process.env.SSO_REVOCATION_FAILURE_MODE = originalMode;
+beforeAll(async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    publicKeyEncoding: { type: "spki", format: "pem" },
+  });
+  signingKey = await importPKCS8(privateKey, "RS256");
+  const verificationKey = await importSPKI(publicKey, "RS256");
+  const jwk = await exportJWK(verificationKey);
+  const jwks = {
+    keys: [{ ...jwk, kid: "revocation-test-kid", alg: "RS256", use: "sig" }],
+  };
+
+  server = createServer((request, response) => {
+    if (request.url === "/api/.well-known/jwks.json") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(jwks));
+      return;
+    }
+    if (request.url === "/api/session/introspect") {
+      response.writeHead(introspectionStatus, { "content-type": "application/json" });
+      response.end(JSON.stringify({ active: introspectionActive }));
+      return;
+    }
+    response.writeHead(404);
+    response.end();
   });
 
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Test SSO server failed to start");
+  ssoUrl = `http://127.0.0.1:${address.port}`;
+});
+
+afterAll(async () => {
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
+  );
+  if (originalMode === undefined) delete process.env.SSO_REVOCATION_FAILURE_MODE;
+  else process.env.SSO_REVOCATION_FAILURE_MODE = originalMode;
+  if (originalSsoUrl === undefined) delete process.env.SSO_URL;
+  else process.env.SSO_URL = originalSsoUrl;
+});
+
+beforeEach(() => {
+  process.env.SSO_URL = ssoUrl;
+  introspectionStatus = 200;
+  introspectionActive = true;
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  if (originalMode === undefined) delete process.env.SSO_REVOCATION_FAILURE_MODE;
+  else process.env.SSO_REVOCATION_FAILURE_MODE = originalMode;
+});
+
+async function signToken(): Promise<string> {
+  return new SignJWT({
+    email: "user@example.com",
+    name: "User",
+    role: "ADMIN",
+    teamId: null,
+    nonce: randomUUID(),
+  })
+    .setProtectedHeader({ alg: "RS256", kid: "revocation-test-kid" })
+    .setSubject("user-1")
+    .setIssuer("foot-sso")
+    .setAudience("foot-platform")
+    .setIssuedAt()
+    .setExpirationTime("12h")
+    .sign(signingKey);
+}
+
+describe("getSsoRevocationFailureMode", () => {
   it('defaults to "open" when unset', () => {
     delete process.env.SSO_REVOCATION_FAILURE_MODE;
     expect(getSsoRevocationFailureMode()).toBe("open");
@@ -34,159 +120,68 @@ describe("getSsoRevocationFailureMode (TS-29)", () => {
   });
 });
 
-describe("verifySsoTokenWithRevocation — unconfirmed revocation (TS-29)", () => {
-  const originalMode = process.env.SSO_REVOCATION_FAILURE_MODE;
-  const originalSecret = process.env.SSO_JWT_SECRET;
-  const originalSsoUrl = process.env.SSO_URL;
-
-  beforeEach(() => {
-    process.env.SSO_JWT_SECRET = "test-secret-at-least-32-bytes-long!!";
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    if (originalMode === undefined) delete process.env.SSO_REVOCATION_FAILURE_MODE;
-    else process.env.SSO_REVOCATION_FAILURE_MODE = originalMode;
-    if (originalSecret === undefined) delete process.env.SSO_JWT_SECRET;
-    else process.env.SSO_JWT_SECRET = originalSecret;
-    if (originalSsoUrl === undefined) delete process.env.SSO_URL;
-    else process.env.SSO_URL = originalSsoUrl;
-  });
-
-  // `nonce` garantit un JWT unique par appel (donc une clé de cache de
-  // révocation distincte) même si deux tests signent dans la même seconde
-  // avec un payload par ailleurs identique — la révocation est mise en
-  // cache par valeur brute du jeton, voir revocationCache dans session.ts.
-  async function signToken(): Promise<string> {
-    return new SignJWT({
-      email: "user@example.com",
-      name: "User",
-      role: "ADMIN",
-      teamId: null,
-      nonce: crypto.randomUUID(),
-    })
-      .setProtectedHeader({ alg: "HS256" })
-      .setSubject("user-1")
-      .setIssuer("foot-sso")
-      .setIssuedAt()
-      .setExpirationTime("12h")
-      .sign(new TextEncoder().encode(process.env.SSO_JWT_SECRET));
-  }
-
-  it('falls back to the cryptographic result when SSO_URL is unset and mode is "open"', async () => {
+describe("verifySsoTokenWithRevocation", () => {
+  it("requires SSO_URL for cryptographic JWKS verification regardless of fail mode", async () => {
     delete process.env.SSO_URL;
     process.env.SSO_REVOCATION_FAILURE_MODE = "open";
-    const token = await signToken();
-
-    const result = await verifySsoTokenWithRevocation(token);
-
-    expect(result?.id).toBe("user-1");
+    expect(await verifySsoTokenWithRevocation(await signToken())).toBeNull();
   });
 
-  it('rejects the session when SSO_URL is unset and mode is "closed"', async () => {
-    delete process.env.SSO_URL;
+  it('rejects when introspection is unavailable and mode is "closed"', async () => {
     process.env.SSO_REVOCATION_FAILURE_MODE = "closed";
-    const token = await signToken();
-
-    const result = await verifySsoTokenWithRevocation(token);
-
-    expect(result).toBeNull();
+    introspectionStatus = 503;
+    expect(await verifySsoTokenWithRevocation(await signToken())).toBeNull();
   });
 
-  it('rejects the session when the introspection call throws and mode is "closed"', async () => {
-    process.env.SSO_URL = "http://sso.invalid";
-    process.env.SSO_REVOCATION_FAILURE_MODE = "closed";
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-    const token = await signToken();
-
-    const result = await verifySsoTokenWithRevocation(token);
-
-    expect(result).toBeNull();
-  });
-
-  it('keeps the cryptographic result when the introspection call throws and mode is "open"', async () => {
-    process.env.SSO_URL = "http://sso.invalid";
+  it('keeps the cryptographic result when introspection is unavailable and mode is "open"', async () => {
     process.env.SSO_REVOCATION_FAILURE_MODE = "open";
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-    const token = await signToken();
-
-    const result = await verifySsoTokenWithRevocation(token);
-
-    expect(result?.id).toBe("user-1");
-  });
-
-  it("still honors a confirmed revocation (active: false) regardless of the failure mode", async () => {
-    process.env.SSO_URL = "http://sso.invalid";
-    process.env.SSO_REVOCATION_FAILURE_MODE = "open";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ active: false }),
-      }),
+    introspectionStatus = 503;
+    expect((await verifySsoTokenWithRevocation(await signToken()))?.id).toBe(
+      "user-1",
     );
-    const token = await signToken();
-
-    const result = await verifySsoTokenWithRevocation(token);
-
-    expect(result).toBeNull();
   });
 
-  /** TASK-P0-002 : failMode explicite prime sur le réglage .env de l'app. */
-  describe("explicit failMode parameter overrides the app-wide env default", () => {
-    it('rejects even when SSO_REVOCATION_FAILURE_MODE="open", if called with failMode="closed"', async () => {
-      delete process.env.SSO_URL;
-      process.env.SSO_REVOCATION_FAILURE_MODE = "open";
-      const token = await signToken();
-
-      const result = await verifySsoTokenWithRevocation(token, "closed");
-
-      expect(result).toBeNull();
-    });
-
-    it('falls back to the cryptographic result even when SSO_REVOCATION_FAILURE_MODE="closed", if called with failMode="open"', async () => {
-      delete process.env.SSO_URL;
-      process.env.SSO_REVOCATION_FAILURE_MODE = "closed";
-      const token = await signToken();
-
-      const result = await verifySsoTokenWithRevocation(token, "open");
-
-      expect(result?.id).toBe("user-1");
-    });
+  it("honors a confirmed revocation regardless of failure mode", async () => {
+    process.env.SSO_REVOCATION_FAILURE_MODE = "open";
+    introspectionActive = false;
+    expect(await verifySsoTokenWithRevocation(await signToken())).toBeNull();
   });
 
-  /** TASK-P0-002 : chaque appel d'introspection logge son résultat. */
-  describe("introspection logging", () => {
-    it("logs a structured event when revocation cannot be confirmed", async () => {
-      delete process.env.SSO_URL;
-      process.env.SSO_REVOCATION_FAILURE_MODE = "open";
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const token = await signToken();
+  it("allows an explicit closed failMode to override an open app default", async () => {
+    process.env.SSO_REVOCATION_FAILURE_MODE = "open";
+    introspectionStatus = 503;
+    expect(
+      await verifySsoTokenWithRevocation(await signToken(), "closed"),
+    ).toBeNull();
+  });
 
-      await verifySsoTokenWithRevocation(token);
+  it("allows an explicit open failMode to override a closed app default", async () => {
+    process.env.SSO_REVOCATION_FAILURE_MODE = "closed";
+    introspectionStatus = 503;
+    expect(
+      (await verifySsoTokenWithRevocation(await signToken(), "open"))?.id,
+    ).toBe("user-1");
+  });
 
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      const logged = JSON.parse(warnSpy.mock.calls[0][0] as string);
-      expect(logged.event).toBe("sso_introspection");
-      expect(logged.outcome).toBe("unconfirmed");
-      expect(logged.reason).toBe("sso_url_missing");
-      warnSpy.mockRestore();
-    });
+  it("logs a structured unconfirmed event for an unavailable introspection endpoint", async () => {
+    process.env.SSO_REVOCATION_FAILURE_MODE = "open";
+    introspectionStatus = 503;
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    it("logs the outcome of a successful introspection call", async () => {
-      process.env.SSO_URL = "http://sso.invalid";
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ active: true }) }),
-      );
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const token = await signToken();
+    await verifySsoTokenWithRevocation(await signToken());
 
-      await verifySsoTokenWithRevocation(token);
+    const logged = JSON.parse(warnSpy.mock.calls[0][0] as string);
+    expect(logged.event).toBe("sso_introspection");
+    expect(logged.outcome).toBe("unconfirmed");
+    expect(logged.reason).toBe("http_503");
+  });
 
-      const logged = JSON.parse(warnSpy.mock.calls[0][0] as string);
-      expect(logged.outcome).toBe("active");
-      warnSpy.mockRestore();
-    });
+  it("logs the outcome of a successful introspection call", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await verifySsoTokenWithRevocation(await signToken());
+
+    const logged = JSON.parse(warnSpy.mock.calls[0][0] as string);
+    expect(logged.outcome).toBe("active");
   });
 });

@@ -5,14 +5,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Vérifie, en plus de la base, la présence des variables critiques pour
- * qu'une session émise par cette app soit vérifiable ailleurs (voir
- * avancement.md, rang 2 : packages/auth-shared attend SSO_JWT_SECRET/
- * SSO_COOKIE_NAME identiques dans toutes les apps clientes).
+ * Vérifie les prérequis nécessaires à l'émission RS256/JWKS et au cookie SSO.
+ * Les clés précédentes sont optionnelles : elles ne sont requises que pendant
+ * une rotation planifiée.
  */
 function checkConfig() {
   return {
-    ssoJwtSecret: process.env.SSO_JWT_SECRET ? "set" : "missing",
+    ssoJwtPrivateKey: process.env.SSO_JWT_PRIVATE_KEY ? "set" : "missing",
+    ssoJwtKid: process.env.SSO_JWT_KID ? "set" : "missing",
     ssoCookieName: process.env.SSO_COOKIE_NAME ? "set" : "missing",
     ssoUrl: process.env.SSO_URL ? "set" : "missing",
   };
@@ -35,7 +35,7 @@ export async function GET() {
         responseTimeMs: Date.now() - startedAt,
         timestamp: new Date().toISOString(),
       },
-      { status: configOk ? 200 : 503 }
+      { status: configOk ? 200 : 503 },
     );
   } catch (error) {
     console.error("Health check failed:", error);
@@ -47,7 +47,7 @@ export async function GET() {
         responseTimeMs: Date.now() - startedAt,
         timestamp: new Date().toISOString(),
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 }

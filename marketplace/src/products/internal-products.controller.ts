@@ -11,24 +11,17 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
+import { AllowedApplicationsGuard } from '../auth/guards/allowed-applications.guard';
+import { AllowedApplications } from '../auth/decorators/allowed-applications.decorator';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductStatus } from './enums/product-status.enum';
 import { Product } from './entities/product.entity';
 
-/**
- * Miroir server-to-server de ProductsController, pour `seller-portal`
- * (TS-04) : seller-portal a déjà authentifié le vendeur via sa propre
- * session (SP_JWT_SECRET, indépendante du SELLER_JWT_SECRET de ce
- * service) — inutile de lui faire ré-obtenir un JWT marketplace.
- * `sellerId` est donc pris explicitement en paramètre plutôt que dérivé
- * d'un `SellerJwtGuard`, la confiance venant de `ServiceAuthGuard` (clé
- * API propre à seller-portal). Même logique métier que ProductsController
- * (ProductsService), jamais dupliquée.
- */
 @Controller('internal/products')
-@UseGuards(ServiceAuthGuard)
+@UseGuards(ServiceAuthGuard, AllowedApplicationsGuard)
+@AllowedApplications('seller-portal')
 export class InternalProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
@@ -58,7 +51,6 @@ export class InternalProductsController {
     return { success: true };
   }
 
-  /** DRAFT -> SUBMITTED */
   @Post(':id/submit')
   async submit(
     @Query('sellerId') sellerId: string,
@@ -71,7 +63,6 @@ export class InternalProductsController {
     );
   }
 
-  /** SUBMITTED/REJECTED -> DRAFT */
   @Post(':id/withdraw')
   async withdraw(
     @Query('sellerId') sellerId: string,
@@ -84,7 +75,6 @@ export class InternalProductsController {
     );
   }
 
-  /** Active/désactive la visibilité, sans restriction de statut (voir ProductsService.toggleActive). */
   @Post(':id/toggle-active')
   async toggleActive(
     @Query('sellerId') sellerId: string,
@@ -93,13 +83,6 @@ export class InternalProductsController {
     return this.productsService.toggleActive(id, sellerId);
   }
 
-  /**
-   * Lecture optionnelle — utile pour vérifier un état côté serveur sans
-   * repasser par TypeORM. seller-portal continue de lire `sp_products`
-   * directement pour ses pages (même table, pas un problème de cohérence),
-   * cet endpoint n'est donc pas strictement nécessaire mais reste cohérent
-   * avec le reste du contrôleur.
-   */
   @Get(':id')
   async findOne(
     @Query('sellerId') sellerId: string,

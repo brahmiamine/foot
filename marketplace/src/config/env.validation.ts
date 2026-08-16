@@ -28,20 +28,12 @@ class EnvironmentVariables {
   @Max(65535)
   PORT = 3011;
 
-  // --- Auth vendeur (comptes sp_seller_users -> marketplace_seller_users) ---
   @IsNotEmpty({ message: 'SELLER_JWT_SECRET is required' })
   SELLER_JWT_SECRET: string;
 
-  // --- Service-to-service (applications internes autorisées à appeler les
-  // endpoints réservés au club : modération, catégories, ...) ---
-  // JSON: {"club-hub":"clé1","federation-hub":"clé2", ...}
   @IsNotEmpty({ message: 'SERVICE_API_KEYS is required' })
   SERVICE_API_KEYS: string;
 
-  // TASK-P0-003 : rotation sans interruption — clé précédente encore
-  // acceptée en parallèle (même format JSON que SERVICE_API_KEYS) jusqu'à
-  // SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT. Les deux sont optionnels : leur
-  // absence dégrade simplement vers l'acceptation de la seule clé courante.
   @IsOptional()
   SERVICE_API_KEYS_PREVIOUS?: string;
 
@@ -54,10 +46,6 @@ class EnvironmentVariables {
   )
   SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?: string;
 
-  // --- payments (TASK-P0-004) : optionnelles — sans elles, le service
-  // démarre mais le checkout échoue explicitement (ServiceUnavailableException,
-  // voir PaymentApiClientService), même dégradation que NOTIFICATION_API_URL
-  // ci-dessous plutôt qu'un crash au démarrage. ---
   @IsOptional()
   PAYMENT_API_URL?: string;
 
@@ -68,21 +56,15 @@ class EnvironmentVariables {
   @IsIn(['konnect', 'flouci', 'paymee'])
   PAYMENT_PROVIDER?: string;
 
-  // Signe les webhooks entrants de payments (voir CheckoutController) —
-  // sans secret configuré, la route rejette tout webhook (fail-closed).
   @IsOptional()
   PAYMENT_WEBHOOK_SECRET?: string;
 
-  // --- notifications (optionnelle) : si absente, une commande confirmée
-  // ne notifie simplement pas le membre (aucune erreur, voir
-  // NotificationApiClientService). ---
   @IsOptional()
   NOTIFICATION_API_URL?: string;
 
   @IsOptional()
   NOTIFICATION_API_KEY?: string;
 
-  // --- Database (dédiée marketplace, jamais la base partagée `foot`) ---
   @IsNotEmpty()
   DB_HOST: string;
 
@@ -101,6 +83,18 @@ class EnvironmentVariables {
   DB_DATABASE: string;
 }
 
+function validateRotationPair(config: EnvironmentVariables): void {
+  const hasPrevious = Boolean(config.SERVICE_API_KEYS_PREVIOUS?.trim());
+  const hasExpiry = Boolean(
+    config.SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?.trim(),
+  );
+  if (hasPrevious !== hasExpiry) {
+    throw new Error(
+      'Invalid environment configuration: SERVICE_API_KEYS_PREVIOUS and SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be configured together',
+    );
+  }
+}
+
 export function validateEnv(config: Record<string, unknown>) {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
@@ -108,13 +102,12 @@ export function validateEnv(config: Record<string, unknown>) {
   const errors = validateSync(validatedConfig, {
     skipMissingProperties: false,
   });
-
   if (errors.length > 0) {
     const messages = errors
       .map((error) => Object.values(error.constraints ?? {}).join(', '))
       .join('; ');
     throw new Error(`Invalid environment configuration: ${messages}`);
   }
-
+  validateRotationPair(validatedConfig);
   return validatedConfig;
 }

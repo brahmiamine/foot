@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Garde d'accès pour les routes `/api/internal/*` — service-à-service
- * (clé partagée `CLUB_HUB_SERVICE_API_KEY`), jamais la session SSO d'un
- * utilisateur. Même pattern que `match-operations/src/lib/serviceAuth.ts` (TS-31)
- * et `identity/src/lib/serviceAuth.ts` (TS-53/TS-54).
- *
- * TASK-P0-003 (portion applicable ici — pas de registre par application
- * comme les API NestJS, une seule clé partagée par un ordonnanceur externe,
- * donc pas de `serviceId` attribuable par appel) : rotation sans
- * interruption via `CLUB_HUB_SERVICE_API_KEY_PREVIOUS` (acceptée en
- * parallèle jusqu'à `CLUB_HUB_SERVICE_API_KEY_PREVIOUS_EXPIRES_AT`) et
- * log structuré (kid, endpoint, timestamp) à chaque appel authentifié.
- */
+/** Service-to-service guard for `/api/internal/*`. */
 export function ensureServiceAuth(request: NextRequest): NextResponse | null {
   const current = process.env.CLUB_HUB_SERVICE_API_KEY;
   if (!current) {
@@ -30,7 +18,8 @@ export function ensureServiceAuth(request: NextRequest): NextResponse | null {
   } else {
     const previous = process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS;
     const previousExpiresAt = process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS_EXPIRES_AT;
-    const stillInGracePeriod = !previousExpiresAt || new Date(previousExpiresAt).getTime() > Date.now();
+    const expiresAtMs = previousExpiresAt ? Date.parse(previousExpiresAt) : Number.NaN;
+    const stillInGracePeriod = Number.isFinite(expiresAtMs) && expiresAtMs > Date.now();
     if (previous && provided === previous && stillInGracePeriod) {
       kid = "previous";
     }

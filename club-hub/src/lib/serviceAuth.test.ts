@@ -18,32 +18,25 @@ function buildRequest(apiKey?: string) {
   });
 }
 
-/** TASK-P0-003 : rotation sans interruption de CLUB_HUB_SERVICE_API_KEY. */
 describe("ensureServiceAuth", () => {
   it("returns 503 when CLUB_HUB_SERVICE_API_KEY is not configured", async () => {
     delete process.env.CLUB_HUB_SERVICE_API_KEY;
     const { ensureServiceAuth } = await import("./serviceAuth");
-
-    const response = ensureServiceAuth(buildRequest("anything"));
-
-    expect(response?.status).toBe(503);
+    expect(ensureServiceAuth(buildRequest("anything"))?.status).toBe(503);
   });
 
   it("returns 401 without an x-api-key header", async () => {
     const { ensureServiceAuth } = await import("./serviceAuth");
-
     expect(ensureServiceAuth(buildRequest())?.status).toBe(401);
   });
 
   it("returns 401 for an unknown key", async () => {
     const { ensureServiceAuth } = await import("./serviceAuth");
-
     expect(ensureServiceAuth(buildRequest("wrong-key"))?.status).toBe(401);
   });
 
-  it("accepts the current key (returns null)", async () => {
+  it("accepts the current key", async () => {
     const { ensureServiceAuth } = await import("./serviceAuth");
-
     expect(ensureServiceAuth(buildRequest("current-key"))).toBeNull();
   });
 
@@ -51,7 +44,6 @@ describe("ensureServiceAuth", () => {
     process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS = "old-key";
     process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS_EXPIRES_AT = new Date(Date.now() + 60_000).toISOString();
     const { ensureServiceAuth } = await import("./serviceAuth");
-
     expect(ensureServiceAuth(buildRequest("old-key"))).toBeNull();
   });
 
@@ -59,14 +51,13 @@ describe("ensureServiceAuth", () => {
     process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS = "old-key";
     process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS_EXPIRES_AT = new Date(Date.now() - 60_000).toISOString();
     const { ensureServiceAuth } = await import("./serviceAuth");
-
     expect(ensureServiceAuth(buildRequest("old-key"))?.status).toBe(401);
   });
 
-  it("accepts the previous key with no expiry configured (no rotation deadline set)", async () => {
+  it("rejects the previous key when no expiry is configured", async () => {
     process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS = "old-key";
+    delete process.env.CLUB_HUB_SERVICE_API_KEY_PREVIOUS_EXPIRES_AT;
     const { ensureServiceAuth } = await import("./serviceAuth");
-
-    expect(ensureServiceAuth(buildRequest("old-key"))).toBeNull();
+    expect(ensureServiceAuth(buildRequest("old-key"))?.status).toBe(401);
   });
 });

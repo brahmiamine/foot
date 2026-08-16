@@ -5,6 +5,7 @@ import { StockReservation } from './entities/stock-reservation.entity';
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryHealthController } from './inventory-health.controller';
+import { InternalInventoryController } from './internal-inventory.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -12,7 +13,11 @@ import { NotificationsModule } from '../notifications/notifications.module';
     TypeOrmModule.forFeature([InventoryItem, StockReservation]),
     NotificationsModule,
   ],
-  controllers: [InventoryController, InventoryHealthController],
+  controllers: [
+    InventoryController,
+    InventoryHealthController,
+    InternalInventoryController,
+  ],
   providers: [InventoryService],
   exports: [InventoryService],
 })

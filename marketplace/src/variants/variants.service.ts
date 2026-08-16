@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { ProductVariant } from './entities/product-variant.entity';
 import { Product } from '../products/entities/product.entity';
-import { UpsertVariantDto } from './dto/upsert-variant.dto';
+import { InventoryItem } from '../inventory/entities/inventory-item.entity';
+import { CreateVariantDto } from './dto/create-variant.dto';
+import { UpdateVariantDto } from './dto/update-variant.dto';
 
 @Injectable()
 export class VariantsService {
@@ -12,9 +14,10 @@ export class VariantsService {
     private readonly repository: Repository<ProductVariant>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
-  /** Vérifie que `productId` appartient bien au vendeur avant toute lecture/écriture de ses variantes. */
   private async assertOwnership(
     productId: string,
     sellerId: string,
@@ -36,49 +39,76 @@ export class VariantsService {
   async create(
     productId: string,
     sellerId: string,
-    dto: UpsertVariantDto,
+    dto: CreateVariantDto,
   ): Promise<ProductVariant> {
     await this.assertOwnership(productId, sellerId);
-    const variant = this.repository.create({
-      productId,
-      sku: dto.sku,
-      attributes: dto.attributes,
-      price: dto.price !== undefined ? String(dto.price) : null,
+    return this.dataSource.transaction(async (manager) => {
+      const variantRepository = manager.getRepository(ProductVariant);
+      const variant = await variantRepository.save(
+        variantRepository.create({
+          productId,
+          sku: dto.sku,
+          attributes: dto.attributes,
+          price: dto.price !== undefined ? String(dto.price) : null,
+          imageUrl: dto.imageUrl ?? null,
+        }),
+      );
+      const inventoryRepository = manager.getRepository(InventoryItem);
+      await inventoryRepository.save(
+        inventoryRepository.create({
+          sellerId,
+          productId,
+          variantId: variant.id,
+          available: dto.initialStock ?? 0,
+          reserved: 0,
+          sold: 0,
+        }),
+      );
+      return variant;
     });
-    return this.repository.save(variant);
   }
 
   async update(
     id: string,
     productId: string,
     sellerId: string,
-    dto: UpsertVariantDto,
+    dto: UpdateVariantDto,
   ): Promise<ProductVariant> {
     await this.assertOwnership(productId, sellerId);
-    const variant = await this.repository.findOne({ where: { id, productId } });
+    const variant = await this.repository.findOne({
+      where: { id, productId },
+    });
     if (!variant) throw new NotFoundException('Variante introuvable');
-
-    variant.sku = dto.sku;
-    variant.attributes = dto.attributes;
-    variant.price = dto.price !== undefined ? String(dto.price) : null;
+    if (dto.sku !== undefined) variant.sku = dto.sku;
+    if (dto.attributes !== undefined) variant.attributes = dto.attributes;
+    if (dto.price !== undefined) {
+      variant.price = dto.price === null ? null : String(dto.price);
+    }
+    if (dto.imageUrl !== undefined) variant.imageUrl = dto.imageUrl;
+    if (dto.isActive !== undefined) variant.isActive = dto.isActive;
     return this.repository.save(variant);
   }
 
-  /**
-   * Active/désactive une variante indépendamment de sa modification —
-   * même logique que ProductsService.toggleActive (US-06 : jusqu'ici
-   * `isActive` existait sur la variante mais aucun endpoint ne pouvait le
-   * faire basculer).
-   */
+  async updateById(
+    id: string,
+    sellerId: string,
+    dto: UpdateVariantDto,
+  ): Promise<ProductVariant> {
+    const variant = await this.repository.findOne({ where: { id } });
+    if (!variant) throw new NotFoundException('Variante introuvable');
+    return this.update(id, variant.productId, sellerId, dto);
+  }
+
   async toggleActive(
     id: string,
     productId: string,
     sellerId: string,
   ): Promise<ProductVariant> {
     await this.assertOwnership(productId, sellerId);
-    const variant = await this.repository.findOne({ where: { id, productId } });
+    const variant = await this.repository.findOne({
+      where: { id, productId },
+    });
     if (!variant) throw new NotFoundException('Variante introuvable');
-
     variant.isActive = !variant.isActive;
     return this.repository.save(variant);
   }
@@ -87,5 +117,11 @@ export class VariantsService {
     await this.assertOwnership(productId, sellerId);
     const result = await this.repository.delete({ id, productId });
     if (!result.affected) throw new NotFoundException('Variante introuvable');
+  }
+
+  async removeById(id: string, sellerId: string): Promise<void> {
+    const variant = await this.repository.findOne({ where: { id } });
+    if (!variant) throw new NotFoundException('Variante introuvable');
+    await this.remove(id, variant.productId, sellerId);
   }
 }
