@@ -20,10 +20,10 @@ vi.mock('@/lib/ssoSession', () => ({
 }))
 
 const mockCreatePlayerTransfer = vi.fn()
-const mockCompletePlayerTransfer = vi.fn()
+const mockListPlayerTransfers = vi.fn()
 vi.mock('@/lib/playerTransferClient', () => ({
   createPlayerTransfer: (...args: unknown[]) => mockCreatePlayerTransfer(...args),
-  completePlayerTransfer: (...args: unknown[]) => mockCompletePlayerTransfer(...args),
+  listPlayerTransfers: (...args: unknown[]) => mockListPlayerTransfers(...args),
   PlayerTransferClientError: class PlayerTransferClientError extends Error {},
 }))
 
@@ -53,7 +53,7 @@ beforeEach(async () => {
   dataSource = await createTestDataSource()
   mockGetAdminSession.mockReset()
   mockCreatePlayerTransfer.mockReset()
-  mockCompletePlayerTransfer.mockReset()
+  mockListPlayerTransfers.mockReset()
 })
 
 afterEach(async () => {
@@ -66,6 +66,7 @@ const baseBody = {
   to_team_id: 'to-team',
   transfer_type: 'PERMANENT',
   effective_date: '2026-01-15',
+  season_id: 'season-1',
 }
 
 describe('POST /api/admin/player-transfers — autorisation dérivée de team_affiliations (migration.md §19-21)', () => {
@@ -84,7 +85,7 @@ describe('POST /api/admin/player-transfers — autorisation dérivée de team_af
     expect(mockCreatePlayerTransfer).not.toHaveBeenCalled()
   })
 
-  it('allows the FEDERATION_ADMIN that owns the source club and forwards create+complete to club-hub', async () => {
+  it('creates a PENDING request for the owning FEDERATION_ADMIN without bypassing destination approval', async () => {
     const federationRepo = dataSource.getRepository(Federation)
     const teamRepo = dataSource.getRepository(Team)
     const fedA = await federationRepo.save(federationRepo.create({ code: 'FA', nom: 'Fédération A', is_active: true }))
@@ -93,15 +94,21 @@ describe('POST /api/admin/player-transfers — autorisation dérivée de team_af
 
     mockGetAdminSession.mockResolvedValue(session({ role: 'FEDERATION_ADMIN', federationId: fedA.id }))
     mockCreatePlayerTransfer.mockResolvedValue({ id: 'transfer-1', status: 'PENDING' })
-    mockCompletePlayerTransfer.mockResolvedValue({ id: 'transfer-1', status: 'COMPLETED' })
 
     const response = await POST(postRequest({ ...baseBody, from_team_id: fromTeam.id }))
     const json = await response.json()
 
     expect(response.status).toBe(201)
-    expect(json.status).toBe('COMPLETED')
-    expect(mockCreatePlayerTransfer).toHaveBeenCalledOnce()
-    expect(mockCompletePlayerTransfer).toHaveBeenCalledWith('transfer-1', 'admin@example.com')
+    expect(json.status).toBe('PENDING')
+    expect(mockCreatePlayerTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerId: 'player-1',
+        fromTeamId: fromTeam.id,
+        toTeamId: 'to-team',
+        seasonId: 'season-1',
+        createdBy: 'admin@example.com',
+      }),
+    )
   })
 
   it('rejects a FEDERATION_ADMIN when the source club has no active affiliation (unknown federation)', async () => {
@@ -116,17 +123,29 @@ describe('POST /api/admin/player-transfers — autorisation dérivée de team_af
     expect(mockCreatePlayerTransfer).not.toHaveBeenCalled()
   })
 
-  it('allows PLATFORM_SUPERADMIN even without a known active affiliation', async () => {
+  it('allows PLATFORM_SUPERADMIN even without a known active affiliation and keeps the request PENDING', async () => {
     const teamRepo = dataSource.getRepository(Team)
     const fromTeam = await teamRepo.save(teamRepo.create({ nom: 'Club orphelin', team_type: 'club' }))
 
     mockGetAdminSession.mockResolvedValue(session({ role: 'PLATFORM_SUPERADMIN' }))
     mockCreatePlayerTransfer.mockResolvedValue({ id: 'transfer-2', status: 'PENDING' })
-    mockCompletePlayerTransfer.mockResolvedValue({ id: 'transfer-2', status: 'COMPLETED' })
 
     const response = await POST(postRequest({ ...baseBody, from_team_id: fromTeam.id }))
+    const json = await response.json()
 
     expect(response.status).toBe(201)
+    expect(json.status).toBe('PENDING')
+  })
+
+  it('returns 400 when season_id is missing because transfer-window validation requires a season', async () => {
+    mockGetAdminSession.mockResolvedValue(session({ role: 'PLATFORM_SUPERADMIN' }))
+    const { season_id: _seasonId, ...withoutSeason } = baseBody
+
+    const response = await POST(postRequest(withoutSeason))
+
+    expect(response.status).toBe(400)
+    expect(mockGetAdminSession).not.toHaveBeenCalled()
+    expect(mockCreatePlayerTransfer).not.toHaveBeenCalled()
   })
 
   it('returns 400 when required fields are missing', async () => {
