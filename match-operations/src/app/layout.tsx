@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import "@/assets/scss/skote-theme.scss";
+import "../../../packages/design-tokens/src/internal-admin.css";
 import "./match-operations.css";
 import { MatchService } from "@/services/MatchService";
 import { MatchesBottomBar } from "@/components/MatchesBottomBar";
