@@ -19,6 +19,13 @@ export class FederalOperationAuthorizationError extends Error {
   }
 }
 
+export class FederalOperationInputError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'FederalOperationInputError'
+  }
+}
+
 export const newFederalOperationId = () => randomUUID()
 
 export function assertFederalOperationScope(session: SsoUser, federationId: string, leagueId?: string | null): void {
@@ -71,28 +78,28 @@ export async function recordFederalOperationAudit(
 }
 
 export function requireString(value: unknown, label: string, maxLength = 191): string {
-  if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} requis`)
+  if (typeof value !== 'string' || !value.trim()) throw new FederalOperationInputError(`${label} requis`)
   const normalized = value.trim()
-  if (normalized.length > maxLength) throw new Error(`${label} trop long`)
+  if (normalized.length > maxLength) throw new FederalOperationInputError(`${label} trop long`)
   return normalized
 }
 
 export function optionalString(value: unknown, maxLength = 191): string | null {
   if (value == null || value === '') return null
-  if (typeof value !== 'string') throw new Error('Valeur texte invalide')
+  if (typeof value !== 'string') throw new FederalOperationInputError('Valeur texte invalide')
   const normalized = value.trim()
-  if (normalized.length > maxLength) throw new Error('Valeur texte trop longue')
+  if (normalized.length > maxLength) throw new FederalOperationInputError('Valeur texte trop longue')
   return normalized || null
 }
 
 export function requireEnum<T extends string>(value: unknown, allowed: readonly T[], label: string): T {
-  if (typeof value !== 'string' || !allowed.includes(value as T)) throw new Error(`${label} invalide`)
+  if (typeof value !== 'string' || !allowed.includes(value as T)) throw new FederalOperationInputError(`${label} invalide`)
   return value as T
 }
 
 export function requireAmount(value: unknown, label: string): number {
   const amount = typeof value === 'number' ? value : Number(value)
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error(`${label} invalide`)
+  if (!Number.isFinite(amount) || amount <= 0) throw new FederalOperationInputError(`${label} invalide`)
   return amount
 }
 
@@ -102,10 +109,10 @@ export async function loadScopedRow<T extends { federation_id: string; league_id
   table: string,
   id: string,
 ): Promise<T> {
-  if (!/^[a-z_]+$/.test(table)) throw new Error('Table réglementaire invalide')
+  if (!/^[a-z_]+$/.test(table)) throw new FederalOperationInputError('Table réglementaire invalide')
   const rows = await source.query(`SELECT * FROM ${table} WHERE id = ? LIMIT 1`, [id]) as T[]
   const row = rows[0]
-  if (!row) throw new Error('Ressource réglementaire introuvable')
+  if (!row) throw new FederalOperationInputError('Ressource réglementaire introuvable')
   assertFederalOperationScope(session, row.federation_id, row.league_id ?? null)
   return row
 }
