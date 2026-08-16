@@ -7,10 +7,11 @@ import { SheetService, SheetVersionConflictError } from "@/services/SheetService
 import { SignatureService } from "@/services/SignatureService";
 import { ReservationService } from "@/services/ReservationService";
 import { MatchService } from "@/services/MatchService";
+import { MatchAccessService } from "@/services/MatchAccessService";
 import { notify } from "@/lib/notificationClient";
 import type { ActorRole, SignaturePhase } from "@/entities/Signature";
 
-/** Enregistre (ou remplace) la signature d'un acteur pour une phase donnée. */
+/** Enregistre une nouvelle signature append-only pour l'acteur authentifié. */
 export async function saveSignature(
   sheetId: number,
   phase: SignaturePhase,
@@ -33,6 +34,19 @@ export async function saveSignature(
     }
 
     const requestHeaders = await headers();
+    const userId = requestHeaders.get("x-sso-user-id");
+    const role = requestHeaders.get("x-sso-role");
+    const teamId = requestHeaders.get("x-sso-team-id");
+    if (!userId || !role) {
+      return { success: false, error: "actions.signatures.errors.save" };
+    }
+
+    await new MatchAccessService().assertSignatureActor(
+      { userId, role, teamId },
+      sheet.matchId,
+      actorRole,
+    );
+
     const signatureService = new SignatureService();
     await signatureService.save(
       sheetId,
@@ -40,7 +54,7 @@ export async function saveSignature(
       phase,
       actorRole,
       { signerName, signatureData },
-      { userId: requestHeaders.get("x-sso-user-id"), name: requestHeaders.get("x-sso-name") },
+      { userId, name: requestHeaders.get("x-sso-name") },
     );
 
     revalidatePath(`/${sheet.matchId}/post-match`);
@@ -123,10 +137,6 @@ export async function confirmPostMatch(sheetId: number, matchId: string, expecte
       return { success: false, error: "actions.closure.errors.alreadyClosed" };
     }
 
-    // isPhaseValid (pas seulement isPhaseComplete) : une correction/annulation
-    // d'événement après qu'un acteur a signé change le hash du contenu de la
-    // feuille (TASK-P0-009) — la signature existante ne couvre plus le
-    // contenu actuel et ne doit pas suffire à clôturer sans re-signature.
     const valid = await signatureService.isPhaseValid(sheetId, matchId, "POST_MATCH");
     if (!valid) {
       return {
