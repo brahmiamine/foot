@@ -59,6 +59,21 @@ for (const [field, expected] of [
   }
 }
 
+const refereeLayout = await read('referee-hub/src/app/layout.tsx')
+const refereeOverrides = await read('referee-hub/src/app/design-system.css')
+if (!refereeLayout.includes('packages/design-tokens/src/index.css')) {
+  errors.push('referee-hub/src/app/layout.tsx: doit charger les tokens FOOT')
+}
+if (!refereeLayout.includes('./design-system.css')) {
+  errors.push('referee-hub/src/app/layout.tsx: doit charger les overrides design system')
+}
+if (!refereeOverrides.includes('--rh-red: var(--foot-color-primary)')) {
+  errors.push('referee-hub/src/app/design-system.css: le rouge arbitre doit venir du token FOOT primaire')
+}
+if (!refereeOverrides.includes('prefers-reduced-motion')) {
+  errors.push('referee-hub/src/app/design-system.css: reduced-motion doit etre pris en charge')
+}
+
 const uiIndex = await read('packages/ui/src/index.ts')
 for (const name of requiredUiExports) {
   if (!uiIndex.includes(`export { ${name} }`)) {
@@ -87,4 +102,4 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
-console.log(`Design system valide: ${portalApps.length} portails partagent les tokens FOOT et ${requiredUiExports.length} primitives UI sont exportees.`)
+console.log(`Design system valide: ${portalApps.length} portails partagent le theme FOOT, Referee Hub est aligne sur la marque et ${requiredUiExports.length} primitives UI sont exportees.`)
