@@ -95,12 +95,12 @@ const emptyForm = {
  * destination, puis homologation fédérale explicite des dossiers APPROVED.
  * L'API reste la source d'autorité pour les scopes et les règles métier.
  */
-export default function AdminPlayerTransfersManager() {
+export default function AdminPlayerTransfersManager({ canCreate = true }: { canCreate?: boolean }) {
   const [teams, setTeams] = useState<TeamOption[]>([])
   const [saisons, setSaisons] = useState<SaisonOption[]>([])
   const [players, setPlayers] = useState<PlayerOption[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(canCreate)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<TransferResult | null>(null)
   const [saving, setSaving] = useState(false)
@@ -113,7 +113,11 @@ export default function AdminPlayerTransfersManager() {
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>('ALL')
 
   useEffect(() => {
-    async function load() {
+    async function loadCreationReferences() {
+      if (!canCreate) {
+        setLoading(false)
+        return
+      }
       setLoading(true)
       try {
         const [teamsRes, saisonsRes] = await Promise.all([
@@ -128,9 +132,9 @@ export default function AdminPlayerTransfersManager() {
         setLoading(false)
       }
     }
-    load()
+    loadCreationReferences()
     loadTransfers()
-  }, [])
+  }, [canCreate])
 
   async function loadTransfers() {
     setLoadingTransfers(true)
@@ -138,7 +142,7 @@ export default function AdminPlayerTransfersManager() {
       const response = await fetch('/api/admin/player-transfers', { cache: 'no-store', credentials: 'include' })
       if (response.ok) setTransfers(await response.json())
     } catch {
-      // Le formulaire reste utilisable même si le tableau de bord échoue à charger.
+      // Le tableau conserve son état courant en cas d'erreur réseau temporaire.
     } finally {
       setLoadingTransfers(false)
     }
@@ -152,7 +156,7 @@ export default function AdminPlayerTransfersManager() {
   }, [transfers, dashboardTab])
 
   useEffect(() => {
-    if (!form.from_team_id) {
+    if (!canCreate || !form.from_team_id) {
       setPlayers([])
       return
     }
@@ -169,12 +173,13 @@ export default function AdminPlayerTransfersManager() {
     return () => {
       cancelled = true
     }
-  }, [form.from_team_id])
+  }, [canCreate, form.from_team_id])
 
   const clubTeams = useMemo(() => teams.filter((t) => !t.team_type || t.team_type === 'club'), [teams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!canCreate) return
     setSaving(true)
     setError(null)
     setResult(null)
@@ -243,7 +248,10 @@ export default function AdminPlayerTransfersManager() {
         <h2 className="mb-1">Transferts</h2>
         <p className="text-muted mb-0">
           Suivre le workflow complet : demande en attente, approbation du club destination, puis homologation
-          fédérale. Une demande créée ici reste PENDING jusqu&apos;à l&apos;approbation du club destination.
+          fédérale.{' '}
+          {canCreate
+            ? 'Une demande créée ici reste PENDING jusqu’à l’approbation du club destination.'
+            : 'Votre périmètre de ligue permet de consulter et homologuer les dossiers déjà APPROVED.'}
         </p>
       </div>
 
@@ -258,170 +266,172 @@ export default function AdminPlayerTransfersManager() {
         </div>
       )}
 
-      <div className="card shadow-sm border-0">
-        <div className="card-body">
-          {loading ? (
-            <p className="text-muted mb-0">Chargement...</p>
-          ) : (
-            <form onSubmit={handleSubmit} className="row g-3">
-              <div className="col-12 col-md-6">
-                <label className="form-label">Club source</label>
-                <select
-                  required
-                  className="form-select"
-                  value={form.from_team_id}
-                  onChange={(e) => setForm({ ...form, from_team_id: e.target.value, player_id: '' })}
-                >
-                  <option value="">Sélectionner...</option>
-                  {clubTeams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nom}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-12 col-md-6">
-                <label className="form-label">Club destination</label>
-                <select
-                  required
-                  className="form-select"
-                  value={form.to_team_id}
-                  onChange={(e) => setForm({ ...form, to_team_id: e.target.value })}
-                >
-                  <option value="">Sélectionner...</option>
-                  {clubTeams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nom}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      {canCreate && (
+        <div className="card shadow-sm border-0">
+          <div className="card-body">
+            {loading ? (
+              <p className="text-muted mb-0">Chargement...</p>
+            ) : (
+              <form onSubmit={handleSubmit} className="row g-3">
+                <div className="col-12 col-md-6">
+                  <label className="form-label">Club source</label>
+                  <select
+                    required
+                    className="form-select"
+                    value={form.from_team_id}
+                    onChange={(e) => setForm({ ...form, from_team_id: e.target.value, player_id: '' })}
+                  >
+                    <option value="">Sélectionner...</option>
+                    {clubTeams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label">Club destination</label>
+                  <select
+                    required
+                    className="form-select"
+                    value={form.to_team_id}
+                    onChange={(e) => setForm({ ...form, to_team_id: e.target.value })}
+                  >
+                    <option value="">Sélectionner...</option>
+                    {clubTeams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="col-12 col-md-6">
-                <label className="form-label">Joueur</label>
-                <select
-                  required
-                  className="form-select"
-                  value={form.player_id}
-                  onChange={(e) => setForm({ ...form, player_id: e.target.value })}
-                  disabled={!form.from_team_id || loadingPlayers}
-                >
-                  <option value="">{loadingPlayers ? 'Chargement...' : 'Sélectionner...'}</option>
-                  {players.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      #{p.number} {p.name}
-                    </option>
-                  ))}
-                </select>
-                {form.from_team_id && !loadingPlayers && players.length === 0 && (
-                  <div className="form-text">Aucun joueur trouvé pour ce club.</div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label">Joueur</label>
+                  <select
+                    required
+                    className="form-select"
+                    value={form.player_id}
+                    onChange={(e) => setForm({ ...form, player_id: e.target.value })}
+                    disabled={!form.from_team_id || loadingPlayers}
+                  >
+                    <option value="">{loadingPlayers ? 'Chargement...' : 'Sélectionner...'}</option>
+                    {players.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        #{p.number} {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  {form.from_team_id && !loadingPlayers && players.length === 0 && (
+                    <div className="form-text">Aucun joueur trouvé pour ce club.</div>
+                  )}
+                </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label">Type de transfert</label>
+                  <select
+                    className="form-select"
+                    value={form.transfer_type}
+                    onChange={(e) => setForm({ ...form, transfer_type: e.target.value as TransferType })}
+                  >
+                    {(Object.keys(TRANSFER_TYPE_LABELS) as TransferType[]).map((type) => (
+                      <option key={type} value={type}>
+                        {TRANSFER_TYPE_LABELS[type]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label">Date d&apos;effet</label>
+                  <input
+                    type="date"
+                    required
+                    className="form-control"
+                    value={form.effective_date}
+                    onChange={(e) => setForm({ ...form, effective_date: e.target.value })}
+                  />
+                </div>
+                <div className="col-12 col-md-4">
+                  <label className="form-label">Saison</label>
+                  <select
+                    required
+                    className="form-select"
+                    value={form.season_id}
+                    onChange={(e) => setForm({ ...form, season_id: e.target.value })}
+                  >
+                    <option value="">Sélectionner...</option>
+                    {saisons.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nom}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="form-text">Obligatoire pour contrôler la fenêtre de transfert.</div>
+                </div>
+                <div className="col-6 col-md-2">
+                  <label className="form-label">Indemnité</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-control"
+                    value={form.fee}
+                    onChange={(e) => setForm({ ...form, fee: e.target.value })}
+                  />
+                </div>
+                <div className="col-6 col-md-2">
+                  <label className="form-label">Devise</label>
+                  <input
+                    type="text"
+                    placeholder="TND"
+                    className="form-control"
+                    value={form.currency}
+                    onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                  />
+                </div>
+
+                {form.transfer_type === 'LOAN' && (
+                  <>
+                    <div className="col-12 col-md-6">
+                      <label className="form-label">Début du prêt</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={form.loan_start_date}
+                        onChange={(e) => setForm({ ...form, loan_start_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-12 col-md-6">
+                      <label className="form-label">Fin du prêt</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={form.loan_end_date}
+                        onChange={(e) => setForm({ ...form, loan_end_date: e.target.value })}
+                      />
+                    </div>
+                  </>
                 )}
-              </div>
-              <div className="col-12 col-md-6">
-                <label className="form-label">Type de transfert</label>
-                <select
-                  className="form-select"
-                  value={form.transfer_type}
-                  onChange={(e) => setForm({ ...form, transfer_type: e.target.value as TransferType })}
-                >
-                  {(Object.keys(TRANSFER_TYPE_LABELS) as TransferType[]).map((type) => (
-                    <option key={type} value={type}>
-                      {TRANSFER_TYPE_LABELS[type]}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="col-12 col-md-4">
-                <label className="form-label">Date d&apos;effet</label>
-                <input
-                  type="date"
-                  required
-                  className="form-control"
-                  value={form.effective_date}
-                  onChange={(e) => setForm({ ...form, effective_date: e.target.value })}
-                />
-              </div>
-              <div className="col-12 col-md-4">
-                <label className="form-label">Saison</label>
-                <select
-                  required
-                  className="form-select"
-                  value={form.season_id}
-                  onChange={(e) => setForm({ ...form, season_id: e.target.value })}
-                >
-                  <option value="">Sélectionner...</option>
-                  {saisons.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nom}
-                    </option>
-                  ))}
-                </select>
-                <div className="form-text">Obligatoire pour contrôler la fenêtre de transfert.</div>
-              </div>
-              <div className="col-6 col-md-2">
-                <label className="form-label">Indemnité</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-control"
-                  value={form.fee}
-                  onChange={(e) => setForm({ ...form, fee: e.target.value })}
-                />
-              </div>
-              <div className="col-6 col-md-2">
-                <label className="form-label">Devise</label>
-                <input
-                  type="text"
-                  placeholder="TND"
-                  className="form-control"
-                  value={form.currency}
-                  onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                />
-              </div>
+                <div className="col-12">
+                  <label className="form-label">Notes (optionnel)</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  />
+                </div>
 
-              {form.transfer_type === 'LOAN' && (
-                <>
-                  <div className="col-12 col-md-6">
-                    <label className="form-label">Début du prêt</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={form.loan_start_date}
-                      onChange={(e) => setForm({ ...form, loan_start_date: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-12 col-md-6">
-                    <label className="form-label">Fin du prêt</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={form.loan_end_date}
-                      onChange={(e) => setForm({ ...form, loan_end_date: e.target.value })}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="col-12">
-                <label className="form-label">Notes (optionnel)</label>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                />
-              </div>
-
-              <div className="col-12 d-flex justify-content-end">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Création...' : 'Créer la demande'}
-                </button>
-              </div>
-            </form>
-          )}
+                <div className="col-12 d-flex justify-content-end">
+                  <button type="submit" className="btn btn-primary" disabled={saving}>
+                    {saving ? 'Création...' : 'Créer la demande'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="card shadow-sm border-0">
         <div className="card-body">
