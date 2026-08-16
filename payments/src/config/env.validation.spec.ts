@@ -2,9 +2,7 @@ import 'reflect-metadata';
 import { validateEnv } from './env.validation';
 
 describe('validateEnv', () => {
-  function validEnv(
-    overrides: Record<string, string> = {},
-  ): Record<string, string> {
+  function validEnv(overrides: Record<string, string> = {}): Record<string, string> {
     return {
       KONNECT_BASE_URL: 'https://api.sandbox.konnect.network/api/v2',
       KONNECT_API_KEY: 'konnect-key',

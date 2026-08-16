@@ -1,9 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /** Non-destructive baseline for the standalone notifications database. */
-export class BaselineNotificationsSchema1786841100000
-  implements MigrationInterface
-{
+export class BaselineNotificationsSchema1786841100000 implements MigrationInterface {
   name = 'BaselineNotificationsSchema1786841100000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -46,10 +46,7 @@ class EnvironmentVariables {
   @IsOptional()
   @IsISO8601(
     {},
-    {
-      message:
-        'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date',
-    },
+    { message: 'SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT must be an ISO 8601 date' },
   )
   SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT?: string;
 
