@@ -2,13 +2,14 @@ import 'reflect-metadata';
 import { validateEnv } from './env.validation';
 
 describe('validateEnv', () => {
-  function validEnv(overrides: Record<string, string> = {}): Record<string, string> {
+  function validEnv(
+    overrides: Record<string, string> = {},
+  ): Record<string, string> {
     return {
       KONNECT_BASE_URL: 'https://api.sandbox.konnect.network/api/v2',
       KONNECT_API_KEY: 'konnect-key',
       KONNECT_WALLET_ID: 'wallet-123',
-      KONNECT_WEBHOOK_URL:
-        'https://api.example.com/payments/konnect/webhook',
+      KONNECT_WEBHOOK_URL: 'https://api.example.com/payments/konnect/webhook',
       PAYMEE_BASE_URL: 'https://sandbox.paymee.tn/api/v2',
       PAYMEE_API_KEY: 'paymee-key',
       PAYMEE_WEBHOOK_URL:
