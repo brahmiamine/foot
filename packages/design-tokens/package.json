@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.css",
     "./tokens.css": "./src/index.css",
-    "./club-portal.css": "./src/club-portal.css"
+    "./club-portal.css": "./src/club-portal.css",
+    "./internal-admin.css": "./src/internal-admin.css"
   }
 }
