@@ -161,37 +161,33 @@ export class MatchAccessService {
     if (!scopeAllowsCategory(scope, category)) throw new MatchAccessDeniedError();
   }
 
-  async assertSignatureActor(
-    session: MatchActorSession,
-    matchId: string,
-    requestedActorRole: ActorRole,
-  ): Promise<void> {
+  /**
+   * Returns the only signature slot the authenticated actor is allowed to
+   * edit for this match, or null when the actor may view but not sign.
+   */
+  async resolveSignatureActor(session: MatchActorSession, matchId: string): Promise<ActorRole | null> {
     const match = await this.matches.findById(matchId);
-    if (!match) throw new MatchAccessDeniedError("Match introuvable ou inaccessible");
+    if (!match) return null;
 
     const role = normalizeRole(session.role);
     if (role === "REFEREE" && !session.teamId) {
-      if (requestedActorRole !== "REFEREE") throw new MatchAccessDeniedError();
       const assignment = await this.assignments.findActiveAssignment(session.userId, matchId, "CENTER_REFEREE");
-      if (!assignment) throw new MatchAccessDeniedError();
-      return;
+      return assignment ? "REFEREE" : null;
     }
 
     if (!session.teamId || (role !== "CLUB_ADMIN" && role !== "CLUB_STAFF")) {
-      throw new MatchAccessDeniedError();
+      return null;
     }
 
-    const expectedActorRole: ActorRole | null =
+    const actorRole: ActorRole | null =
       match.equipeHome === session.teamId
         ? "TEAM_HOME"
         : match.equipeAway === session.teamId
           ? "TEAM_AWAY"
           : null;
-    if (!expectedActorRole || requestedActorRole !== expectedActorRole) {
-      throw new MatchAccessDeniedError();
-    }
+    if (!actorRole) return null;
 
-    if (role === "CLUB_ADMIN") return;
+    if (role === "CLUB_ADMIN") return actorRole;
 
     const category = clubCategoryForMatch(match, session.teamId);
     const [accessScope, signScope] = await Promise.all([
@@ -207,7 +203,18 @@ export class MatchAccessService {
       ),
     ]);
 
-    if (!scopeAllowsCategory(accessScope, category) || !scopeAllowsCategory(signScope, category)) {
+    return scopeAllowsCategory(accessScope, category) && scopeAllowsCategory(signScope, category)
+      ? actorRole
+      : null;
+  }
+
+  async assertSignatureActor(
+    session: MatchActorSession,
+    matchId: string,
+    requestedActorRole: ActorRole,
+  ): Promise<void> {
+    const actorRole = await this.resolveSignatureActor(session, matchId);
+    if (!actorRole || actorRole !== requestedActorRole) {
       throw new MatchAccessDeniedError();
     }
   }
