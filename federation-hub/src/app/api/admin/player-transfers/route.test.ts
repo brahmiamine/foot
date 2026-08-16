@@ -139,7 +139,8 @@ describe('POST /api/admin/player-transfers — autorisation dérivée de team_af
 
   it('returns 400 when season_id is missing because transfer-window validation requires a season', async () => {
     mockGetAdminSession.mockResolvedValue(session({ role: 'PLATFORM_SUPERADMIN' }))
-    const { season_id: _seasonId, ...withoutSeason } = baseBody
+    const withoutSeason: Record<string, unknown> = { ...baseBody }
+    delete withoutSeason.season_id
 
     const response = await POST(postRequest(withoutSeason))
 
