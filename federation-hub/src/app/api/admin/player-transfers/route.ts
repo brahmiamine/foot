@@ -86,18 +86,17 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/admin/player-transfers — création administrative d'une demande.
  *
- * Le workflow réglementaire est désormais strictement multi-acteurs :
+ * Le workflow réglementaire est strictement multi-acteurs :
  * PENDING (création) -> APPROVED (club destination) -> COMPLETED
  * (homologation fédérale via /[id]/homologate).
  *
- * Cette route ne tente donc jamais d'homologuer immédiatement une demande
- * qu'elle vient de créer. `club-hub` reste propriétaire de la mutation des
- * effectifs et applique la fenêtre de transfert lors de la création puis de
- * l'homologation.
+ * Cette route ne tente jamais d'homologuer immédiatement une demande qu'elle
+ * vient de créer. Elle reste une capacité administrative plateforme/fédération ;
+ * les LEAGUE_ADMIN consultent et homologuent dans leur périmètre mais ne créent
+ * pas de demande depuis ce back-office.
  *
- * Autorisation : dérivée de l'affiliation active du club source. La fédération
- * propriétaire ou la ligue propriétaire peuvent agir dans leur périmètre ;
- * un club sans affiliation active reste réservé à PLATFORM_SUPERADMIN.
+ * Autorisation : dérivée de l'affiliation active du club source. Un club sans
+ * affiliation active reste réservé à PLATFORM_SUPERADMIN.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -130,6 +129,9 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (!(canAccessPlatform(session) || session.role === 'FEDERATION_ADMIN')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const dataSource = await getDataSource()
     const sourceAffiliation = await getActiveAffiliation(dataSource, from_team_id)
@@ -141,15 +143,8 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         )
       }
-    } else {
-      const federationAccess = canAccessFederation(session, sourceAffiliation.federationId)
-      const leagueAccess = Boolean(
-        sourceAffiliation.leagueId &&
-          canAccessLeague(session, sourceAffiliation.leagueId, sourceAffiliation.federationId),
-      )
-      if (!federationAccess && !leagueAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    } else if (!canAccessFederation(session, sourceAffiliation.federationId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const created = await createPlayerTransfer({
