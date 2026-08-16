@@ -200,7 +200,7 @@ describe('POST /api/admin/player-transfers — autorisation dérivée de team_af
     )
   })
 
-  it('allows a LEAGUE_ADMIN for a source club affiliated with its league', async () => {
+  it('keeps administrative creation forbidden to LEAGUE_ADMIN even for a club in its league', async () => {
     const scoped = await seedLeagueClub('C')
 
     mockGetAdminSession.mockResolvedValue(
@@ -210,13 +210,11 @@ describe('POST /api/admin/player-transfers — autorisation dérivée de team_af
         leagueId: scoped.league.id,
       }),
     )
-    mockCreatePlayerTransfer.mockResolvedValue({ id: 'transfer-league', status: 'PENDING' })
 
     const response = await POST(postRequest({ ...baseBody, from_team_id: scoped.team.id }))
-    const json = await response.json()
 
-    expect(response.status).toBe(201)
-    expect(json.status).toBe('PENDING')
+    expect(response.status).toBe(403)
+    expect(mockCreatePlayerTransfer).not.toHaveBeenCalled()
   })
 
   it('rejects a FEDERATION_ADMIN when the source club has no active affiliation (unknown federation)', async () => {
