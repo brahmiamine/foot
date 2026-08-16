@@ -10,6 +10,14 @@ vi.mock("@/lib/db", () => ({
   getDataSource: async () => dataSource,
 }));
 
+vi.mock("@/lib/matchActorSession", () => ({
+  assertCurrentMatchAccess: async () => ({
+    userId: "test-official",
+    role: "REFEREE",
+    teamId: null,
+  }),
+}));
+
 vi.mock("next/headers", () => ({
   headers: async () => ({ get: () => null }),
 }));
@@ -27,9 +35,9 @@ afterEach(async () => {
 });
 
 /**
- * TASK-P0-010 : deux officiels chargent le même écran (même version connue),
- * l'un des deux clique en premier — le second doit être rejeté avec un
- * conflit explicite (pas un écrasement silencieux), et invité à recharger.
+ * TASK-P0-010 : deux officiels autorisés chargent le même écran (même version
+ * connue), l'un des deux clique en premier — le second doit être rejeté avec
+ * un conflit explicite (pas un écrasement silencieux), et invité à recharger.
  */
 describe("startMatch — verrou optimiste bout en bout (TASK-P0-010)", () => {
   it("un succès puis un conflit pour deux officiels partant de la même version", async () => {
