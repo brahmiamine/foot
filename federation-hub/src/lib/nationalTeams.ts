@@ -1,10 +1,13 @@
 import type { DataSource } from 'typeorm'
 import type { SsoUser } from './ssoSession'
 import {
+  assertClubInFederalScope,
   assertFederalOperationScope,
+  assertSeasonInFederalScope,
   buildFederalOperationScopeFilter,
   type FederalOperationAuditContext,
   type FederalOperationSource,
+  FederalOperationInputError,
   newFederalOperationId,
   optionalString,
   recordFederalOperationAudit,
@@ -33,7 +36,7 @@ type NationalTeamRow = { id: string; federation_id: string; status: string }
 async function loadNationalTeam(source: FederalOperationSource, session: SsoUser, teamId: string): Promise<NationalTeamRow> {
   const rows = await source.query(`SELECT * FROM national_teams WHERE id = ? LIMIT 1`, [teamId]) as NationalTeamRow[]
   const row = rows[0]
-  if (!row) throw new Error('Sélection nationale introuvable')
+  if (!row) throw new FederalOperationInputError('Sélection nationale introuvable')
   assertFederalOperationScope(session, row.federation_id, null)
   return row
 }
@@ -75,9 +78,11 @@ export async function createNationalTeam(source: DataSource, session: SsoUser, a
 export async function createNationalTeamEvent(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, nationalTeamId: string, input: Record<string, unknown>) {
   const team = await loadNationalTeam(source, session, nationalTeamId)
   if (team.status !== 'ACTIVE') throw new FederalOperationWorkflowError('La sélection doit être active')
+  const seasonId = optionalString(input.seasonId)
+  if (seasonId) await assertSeasonInFederalScope(source, team.federation_id, null, seasonId)
   const startsAt = new Date(requireString(input.startsAt, 'Début'))
   const endsAt = input.endsAt ? new Date(String(input.endsAt)) : null
-  if (Number.isNaN(startsAt.getTime()) || (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt))) throw new Error('Période d’événement invalide')
+  if (Number.isNaN(startsAt.getTime()) || (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt))) throw new FederalOperationInputError('Période d’événement invalide')
   const eventType = requireEnum(input.eventType, EVENT_TYPES, 'Type d’événement')
   const id = newFederalOperationId()
   await source.transaction(async manager => {
@@ -85,9 +90,9 @@ export async function createNationalTeamEvent(source: DataSource, session: SsoUs
       `INSERT INTO national_team_events
         (id, national_team_id, season_id, event_type, title, starts_at, ends_at, location, opponent, match_id, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, nationalTeamId, optionalString(input.seasonId), eventType, requireString(input.title, 'Titre'), startsAt, endsAt, optionalString(input.location, 255), optionalString(input.opponent), optionalString(input.matchId), audit.userId],
+      [id, nationalTeamId, seasonId, eventType, requireString(input.title, 'Titre'), startsAt, endsAt, optionalString(input.location, 255), optionalString(input.opponent), optionalString(input.matchId), audit.userId],
     )
-    await recordFederalOperationAudit(manager, audit, 'NATIONAL_TEAM_EVENT', id, 'CREATED', null, { nationalTeamId, eventType, startsAt, endsAt })
+    await recordFederalOperationAudit(manager, audit, 'NATIONAL_TEAM_EVENT', id, 'CREATED', null, { nationalTeamId, eventType, seasonId, startsAt, endsAt })
   })
   return { id, nationalTeamId, eventType, status: 'PLANNED' }
 }
@@ -98,7 +103,7 @@ export async function transitionNationalTeamEvent(source: DataSource, session: S
     [eventId],
   ) as Array<{ id: string; status: string; federation_id: string }>
   const event = rows[0]
-  if (!event) throw new Error('Événement de sélection introuvable')
+  if (!event) throw new FederalOperationInputError('Événement de sélection introuvable')
   assertFederalOperationScope(session, event.federation_id, null)
   const to = requireEnum(targetStatus, EVENT_STATUSES, 'Statut événement')
   const allowed: Record<string, readonly string[]> = { PLANNED: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['COMPLETED', 'CANCELLED'], COMPLETED: [], CANCELLED: [] }
@@ -113,20 +118,26 @@ export async function transitionNationalTeamEvent(source: DataSource, session: S
 export async function createNationalTeamCallup(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, nationalTeamId: string, input: Record<string, unknown>) {
   const team = await loadNationalTeam(source, session, nationalTeamId)
   if (team.status !== 'ACTIVE') throw new FederalOperationWorkflowError('La sélection doit être active')
+  const seasonId = optionalString(input.seasonId)
+  if (seasonId) await assertSeasonInFederalScope(source, team.federation_id, null, seasonId)
+  const clubId = optionalString(input.clubId)
+  if (clubId) await assertClubInFederalScope(source, team.federation_id, null, clubId)
   const eventId = optionalString(input.eventId)
   if (eventId) {
     const events = await source.query(`SELECT id FROM national_team_events WHERE id = ? AND national_team_id = ? LIMIT 1`, [eventId, nationalTeamId]) as Array<{ id: string }>
-    if (!events[0]) throw new Error('L’événement ne correspond pas à cette sélection')
+    if (!events[0]) throw new FederalOperationInputError('L’événement ne correspond pas à cette sélection')
   }
+  const reportingAt = input.reportingAt ? new Date(String(input.reportingAt)) : null
+  if (reportingAt && Number.isNaN(reportingAt.getTime())) throw new FederalOperationInputError('Date de rassemblement invalide')
   const id = newFederalOperationId()
   await source.transaction(async manager => {
     await manager.query(
       `INSERT INTO national_team_callups
         (id, national_team_id, season_id, player_id, club_id, event_id, status, reporting_at, notes, created_by)
        VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?)`,
-      [id, nationalTeamId, optionalString(input.seasonId), requireString(input.playerId, 'Joueur'), optionalString(input.clubId), eventId, input.reportingAt ? new Date(String(input.reportingAt)) : null, optionalString(input.notes, 10000), audit.userId],
+      [id, nationalTeamId, seasonId, requireString(input.playerId, 'Joueur'), clubId, eventId, reportingAt, optionalString(input.notes, 10000), audit.userId],
     )
-    await recordFederalOperationAudit(manager, audit, 'NATIONAL_TEAM_CALLUP', id, 'CREATED', null, { nationalTeamId, eventId, playerId: input.playerId, clubId: input.clubId })
+    await recordFederalOperationAudit(manager, audit, 'NATIONAL_TEAM_CALLUP', id, 'CREATED', null, { nationalTeamId, eventId, seasonId, playerId: input.playerId, clubId })
   })
   return { id, nationalTeamId, eventId, status: 'DRAFT' }
 }
@@ -137,7 +148,7 @@ export async function transitionNationalTeamCallup(source: DataSource, session: 
     [callupId],
   ) as Array<{ id: string; status: string; federation_id: string }>
   const callup = rows[0]
-  if (!callup) throw new Error('Convocation introuvable')
+  if (!callup) throw new FederalOperationInputError('Convocation introuvable')
   assertFederalOperationScope(session, callup.federation_id, null)
   const to = requireEnum(targetStatus, CALLUP_STATUSES, 'Statut convocation')
   if (!CALLUP_TRANSITIONS[callup.status]?.includes(to)) throw new FederalOperationWorkflowError(`Transition convocation interdite : ${callup.status} -> ${to}`)
