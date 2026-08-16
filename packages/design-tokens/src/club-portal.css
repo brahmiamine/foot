@@ -1,0 +1,52 @@
+@import "./index.css";
+
+:root {
+  /* Shared portal theme used by club-facing operational applications. */
+  --foot-portal-bg: #f4f6f9;
+  --foot-portal-surface: #ffffff;
+  --foot-portal-surface-alt: #f8fafc;
+  --foot-portal-border: #e2e8f0;
+  --foot-portal-text: #0f172a;
+  --foot-portal-text-muted: #64748b;
+  --foot-portal-text-subtle: #94a3b8;
+
+  --foot-portal-primary: var(--foot-color-primary);
+  --foot-portal-primary-dark: var(--foot-color-primary-dark);
+  --foot-portal-primary-soft: #ffd9de;
+  --foot-portal-accent: #b8860b;
+
+  --foot-portal-danger: #dc2626;
+  --foot-portal-danger-soft: #fee2e2;
+  --foot-portal-warning: #d97706;
+  --foot-portal-warning-soft: #fef3c7;
+  --foot-portal-success: #16a34a;
+  --foot-portal-success-soft: #dcfce7;
+  --foot-portal-info: #2563eb;
+  --foot-portal-info-soft: #dbeafe;
+  --foot-portal-neutral-soft: #f1f5f9;
+
+  --foot-portal-sidebar-bg: var(--foot-color-dark);
+  --foot-portal-sidebar-text: #c9c4bd;
+  --foot-portal-sidebar-text-active: #ffffff;
+  --foot-portal-sidebar-active-bg: #2a0a0f;
+
+  --foot-portal-radius-sm: 6px;
+  --foot-portal-radius-md: 10px;
+  --foot-portal-radius-lg: 14px;
+
+  --foot-portal-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --foot-portal-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+
+  --foot-portal-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
