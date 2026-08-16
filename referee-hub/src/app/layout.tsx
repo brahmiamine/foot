@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "../../../packages/design-tokens/src/index.css";
 import "./globals.css";
+import "./design-system.css";
 import { getLocale } from "@/lib/i18n";
 
 export const metadata: Metadata = {
