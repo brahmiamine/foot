@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 import { AllowedApplicationsGuard } from '../auth/guards/allowed-applications.guard';
 import { AllowedApplications } from '../auth/decorators/allowed-applications.decorator';
