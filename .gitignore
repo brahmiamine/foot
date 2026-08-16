@@ -5,7 +5,11 @@ db/*.zip
 # des données personnelles) — jamais commitées, voir db/restore.sh.
 db/backups/
 
-# node_modules à la racine : sert uniquement à packages/auth-shared pour
-# résoudre `jose` (voir packages/auth-shared/README.md) — pas un workspace,
-# chaque app garde son propre node_modules et son propre pnpm-lock.yaml.
+# Installation unique du workspace pnpm racine (voir pnpm-workspace.yaml et
+# pnpm-lock.yaml) : chaque application garde un node_modules local hoisté
+# depuis le store pnpm partagé, mais aucun lockfile ni node_modules ne sont
+# suivis par git.
 node_modules/
+
+# Cache local Turborepo (turbo run build/lint/test/typecheck).
+.turbo/

@@ -54,4 +54,4 @@ Mode recommandé : `closed` pour `ticketing`, `club-hub`, `match-operations`, `r
 
 ## Dépendances
 
-Le dossier est inclus sous `packages/*` dans le workspace pnpm, mais les applications continuent actuellement à l'importer par chemin relatif afin de préserver leurs builds/lockfiles indépendants. La CI utilise encore `--ignore-workspace` pendant cette transition. La suppression de ce mode doit être accompagnée d'une normalisation des lockfiles et des dépendances natives, pas d'un simple changement de configuration.
+Le dossier est inclus sous `packages/*` dans le workspace pnpm racine et son install passe désormais par le lockfile partagé unique (`pnpm-lock.yaml` à la racine). Les applications clientes continuent toutefois de l'importer par chemin relatif plutôt que via une dépendance `@foot/auth-shared` déclarée — ce choix architectural est indépendant de la normalisation de l'installation et n'est pas modifié ici.

@@ -34,10 +34,5 @@
     "eslint-config-next": "16.0.10",
     "typescript": "^5",
     "vitest": "^4.1.10"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3"
-    ]
   }
 }
