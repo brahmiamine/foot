@@ -5,6 +5,7 @@ import { TeamService } from "@/services/TeamService";
 import { getUserAccess, toClientAccess } from "@/lib/access";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import "./skote-admin.css";
+import "../../../../packages/design-tokens/src/internal-admin.css";
 
 // L'admin lit toujours l'état live de la base partagée (players, staff,
 // matchs...) : jamais de rendu statique / cache au build.
