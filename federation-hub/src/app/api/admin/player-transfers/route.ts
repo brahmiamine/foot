@@ -5,7 +5,7 @@ import { getAdminSession, canAccessFederation, canAccessPlatform } from '@/lib/a
 import { getDataSource } from '@/lib/db'
 import { Player, Team, TeamAffiliation } from '@/lib/entities'
 import { getActiveAffiliation } from '@/lib/teamAffiliations'
-import { createPlayerTransfer, completePlayerTransfer, listPlayerTransfers, PlayerTransferClientError } from '@/lib/playerTransferClient'
+import { createPlayerTransfer, listPlayerTransfers, PlayerTransferClientError } from '@/lib/playerTransferClient'
 import { toPlain } from '@/lib/serialization'
 import { logAdminAction } from '@/lib/auditLog'
 
@@ -14,17 +14,19 @@ export const runtime = 'nodejs'
 const VALID_STATUSES = new Set(['DRAFT', 'PENDING', 'APPROVED', 'COMPLETED', 'CANCELLED', 'REJECTED'])
 
 /**
- * GET /api/admin/player-transfers — tableau de bord Transferts
- * (migration.md §23). `club-hub` ne connaît pas les fédérations
- * (`team_affiliations` vit ici) : pour un `FEDERATION_ADMIN`, on relit
- * d'abord les clubs jamais/actuellement affiliés à sa fédération, puis on
- * filtre la liste renvoyée par `club-hub` à celles impliquant un de ces
- * clubs (source OU destination) — jamais un `federationId` fourni par le
- * client. `PLATFORM_SUPERADMIN` voit tout, sans filtre.
+ * GET /api/admin/player-transfers — tableau de bord Transferts.
+ *
+ * PLATFORM_SUPERADMIN voit tout. FEDERATION_ADMIN et LEAGUE_ADMIN sont
+ * filtrés à partir de `team_affiliations`, jamais à partir d'un identifiant
+ * de périmètre fourni par le navigateur. Un compte scoped sans federationId
+ * ou leagueId est fermé par défaut et ne voit aucun transfert.
  */
 export async function GET(request: NextRequest) {
   const session = await getAdminSession(request)
-  if (!session || !(canAccessPlatform(session) || session.role === 'FEDERATION_ADMIN')) {
+  if (
+    !session ||
+    !(canAccessPlatform(session) || session.role === 'FEDERATION_ADMIN' || session.role === 'LEAGUE_ADMIN')
+  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -37,12 +39,20 @@ export async function GET(request: NextRequest) {
     const dataSource = await getDataSource()
 
     let scoped = transfers
-    if (!canAccessPlatform(session) && session.federationId) {
-      const affiliations = await dataSource
-        .getRepository(TeamAffiliation)
-        .find({ where: { federationId: session.federationId } })
-      const federationTeamIds = new Set(affiliations.map((a) => a.teamId))
-      scoped = transfers.filter((t) => federationTeamIds.has(t.fromTeamId) || federationTeamIds.has(t.toTeamId))
+    if (!canAccessPlatform(session)) {
+      const affiliationRepo = dataSource.getRepository(TeamAffiliation)
+      let affiliations: TeamAffiliation[] = []
+
+      if (session.role === 'FEDERATION_ADMIN' && session.federationId) {
+        affiliations = await affiliationRepo.find({ where: { federationId: session.federationId } })
+      } else if (session.role === 'LEAGUE_ADMIN' && session.leagueId) {
+        affiliations = await affiliationRepo.find({ where: { leagueId: session.leagueId } })
+      }
+
+      const scopedTeamIds = new Set(affiliations.map((affiliation) => affiliation.teamId))
+      scoped = transfers.filter(
+        (transfer) => scopedTeamIds.has(transfer.fromTeamId) || scopedTeamIds.has(transfer.toTeamId),
+      )
     }
 
     const teamIds = [...new Set(scoped.flatMap((t) => [t.fromTeamId, t.toTeamId]))]
@@ -74,23 +84,19 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/admin/player-transfers — migration.md §19-21, Phase 3.
- * `federation-hub` (fédération/ligue) pilote l'homologation mais n'écrit
- * jamais directement `Player`/`cms_team_members` : il appelle les routes
- * internes de `club-hub` (voir lib/playerTransferClient.ts), seul
- * endroit où `player_transfers`, `Player.teamId` et `cms_team_members`
- * peuvent être mis à jour dans une transaction DB unique.
+ * POST /api/admin/player-transfers — création administrative d'une demande.
  *
- * Version simplifiée v1 (migration.md §19 l'autorise explicitement tant
- * que seuls les administrateurs fédéraux créent les transferts) : create +
- * complete enchaînés dans le même appel plutôt qu'un workflow de
- * validation à deux acteurs (club source/destination) — pas de PATCH
- * d'approbation séparé pour l'instant.
+ * Le workflow réglementaire est strictement multi-acteurs :
+ * PENDING (création) -> APPROVED (club destination) -> COMPLETED
+ * (homologation fédérale via /[id]/homologate).
  *
- * Autorisation : dérivée de la fédération qui gouverne ACTUELLEMENT le
- * club source (`team_affiliations`, Phase 2), jamais d'un federation_id
- * fourni par le client — un club sans affiliation active ne peut être
- * transféré que par PLATFORM_SUPERADMIN.
+ * Cette route ne tente jamais d'homologuer immédiatement une demande qu'elle
+ * vient de créer. Elle reste une capacité administrative plateforme/fédération ;
+ * les LEAGUE_ADMIN consultent et homologuent dans leur périmètre mais ne créent
+ * pas de demande depuis ce back-office.
+ *
+ * Autorisation : dérivée de l'affiliation active du club source. Un club sans
+ * affiliation active reste réservé à PLATFORM_SUPERADMIN.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -109,9 +115,12 @@ export async function POST(request: NextRequest) {
       notes,
     } = body
 
-    if (!player_id || !from_team_id || !to_team_id || !transfer_type || !effective_date) {
+    if (!player_id || !from_team_id || !to_team_id || !transfer_type || !effective_date || !season_id) {
       return NextResponse.json(
-        { error: 'player_id, from_team_id, to_team_id, transfer_type et effective_date sont requis' },
+        {
+          error:
+            'player_id, from_team_id, to_team_id, transfer_type, effective_date et season_id sont requis',
+        },
         { status: 400 },
       )
     }
@@ -120,6 +129,9 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (!(canAccessPlatform(session) || session.role === 'FEDERATION_ADMIN')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const dataSource = await getDataSource()
     const sourceAffiliation = await getActiveAffiliation(dataSource, from_team_id)
@@ -127,7 +139,7 @@ export async function POST(request: NextRequest) {
     if (!sourceAffiliation) {
       if (!canAccessPlatform(session)) {
         return NextResponse.json(
-          { error: "Club source sans fédération active connue — action réservée à PLATFORM_SUPERADMIN" },
+          { error: 'Club source sans fédération active connue — action réservée à PLATFORM_SUPERADMIN' },
           { status: 403 },
         )
       }
@@ -141,7 +153,7 @@ export async function POST(request: NextRequest) {
       toTeamId: to_team_id,
       transferType: transfer_type,
       effectiveDate: effective_date,
-      seasonId: season_id ?? null,
+      seasonId: season_id,
       fee: fee ?? null,
       currency: currency ?? null,
       loanStartDate: loan_start_date ?? null,
@@ -150,32 +162,15 @@ export async function POST(request: NextRequest) {
       createdBy: session.email,
     })
 
-    try {
-      const completed = await completePlayerTransfer(created.id, session.email)
-      await logAdminAction({
-        request,
-        action: 'create',
-        entityType: 'player_transfer',
-        entityId: completed.id,
-        summary: `Joueur ${player_id} transféré de ${from_team_id} vers ${to_team_id} (${transfer_type})`,
-      })
-      return NextResponse.json(completed, { status: 201 })
-    } catch (completeError) {
-      // Le dossier existe côté club-hub (statut PENDING) même si son
-      // homologation immédiate a échoué — jamais silencieusement perdu,
-      // rejouable via POST /api/internal/player-transfers/:id/complete.
-      await logAdminAction({
-        request,
-        action: 'create',
-        entityType: 'player_transfer',
-        entityId: created.id,
-        summary: `Transfert créé (PENDING) mais homologation immédiate échouée : ${safeErrorMessage(completeError)}`,
-      })
-      return NextResponse.json(
-        { ...created, warning: `Transfert créé mais non homologué automatiquement : ${safeErrorMessage(completeError)}` },
-        { status: 202 },
-      )
-    }
+    await logAdminAction({
+      request,
+      action: 'create',
+      entityType: 'player_transfer',
+      entityId: created.id,
+      summary: `Demande de transfert ${created.id} créée en attente d'approbation du club destination`,
+    })
+
+    return NextResponse.json(created, { status: 201 })
   } catch (error) {
     if (error instanceof PlayerTransferClientError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
