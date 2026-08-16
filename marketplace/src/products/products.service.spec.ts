@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
@@ -10,14 +11,23 @@ describe('ProductsService', () => {
   let repository: { findOne: jest.Mock; save: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let productTxRepository: { create: jest.Mock; save: jest.Mock };
-  let imageTxRepository: { create: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let imageTxRepository: {
+    create: jest.Mock;
+    save: jest.Mock;
+    delete: jest.Mock;
+  };
   let inventoryTxRepository: { create: jest.Mock; save: jest.Mock };
   let service: ProductsService;
 
   function buildProduct(overrides: Partial<Product> = {}): Product {
     return {
-      id: 'product-1', sellerId: 'seller-1', status: ProductStatus.DRAFT,
-      rejectionReason: null, price: '19.990', deletedAt: null, ...overrides,
+      id: 'product-1',
+      sellerId: 'seller-1',
+      status: ProductStatus.DRAFT,
+      rejectionReason: null,
+      price: '19.990',
+      deletedAt: null,
+      ...overrides,
     } as Product;
   }
 
@@ -56,45 +66,83 @@ describe('ProductsService', () => {
 
   it('creates product, images and initial inventory in one transaction', async () => {
     const result = await service.create('seller-1', {
-      name: 'Maillot', slug: 'maillot-1', sku: 'SKU-1', price: 49.9,
+      name: 'Maillot',
+      slug: 'maillot-1',
+      sku: 'SKU-1',
+      price: 49.9,
       images: ['https://cdn.example/a.jpg'],
     });
+
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(result.id).toBe('product-1');
     expect(imageTxRepository.save).toHaveBeenCalled();
     expect(inventoryTxRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({ sellerId: 'seller-1', productId: 'product-1', available: 0 }),
+      expect.objectContaining({
+        sellerId: 'seller-1',
+        productId: 'product-1',
+        available: 0,
+      }),
     );
   });
 
   it('replaces product images inside the marketplace transaction', async () => {
     const product = buildProduct();
     repository.findOne.mockResolvedValue(product);
+
     await service.update('product-1', 'seller-1', {
       name: 'Maillot 2',
       images: ['https://cdn.example/new.jpg'],
     });
-    expect(imageTxRepository.delete).toHaveBeenCalledWith({ productId: 'product-1' });
+
+    expect(imageTxRepository.delete).toHaveBeenCalledWith({
+      productId: 'product-1',
+    });
     expect(imageTxRepository.save).toHaveBeenCalledWith([
-      expect.objectContaining({ productId: 'product-1', url: 'https://cdn.example/new.jpg', position: 0 }),
+      expect.objectContaining({
+        productId: 'product-1',
+        url: 'https://cdn.example/new.jpg',
+        position: 0,
+      }),
     ]);
   });
 
   it('allows DRAFT -> SUBMITTED', async () => {
     repository.findOne.mockResolvedValue(buildProduct());
-    expect((await service.sellerTransition('product-1', 'seller-1', ProductStatus.SUBMITTED)).status)
-      .toBe(ProductStatus.SUBMITTED);
+
+    expect(
+      (
+        await service.sellerTransition(
+          'product-1',
+          'seller-1',
+          ProductStatus.SUBMITTED,
+        )
+      ).status,
+    ).toBe(ProductStatus.SUBMITTED);
   });
 
   it('rejects a transition reserved to club moderation', async () => {
-    repository.findOne.mockResolvedValue(buildProduct({ status: ProductStatus.SUBMITTED }));
-    await expect(service.sellerTransition('product-1', 'seller-1', ProductStatus.APPROVED))
-      .rejects.toThrow(ConflictException);
+    repository.findOne.mockResolvedValue(
+      buildProduct({ status: ProductStatus.SUBMITTED }),
+    );
+
+    await expect(
+      service.sellerTransition(
+        'product-1',
+        'seller-1',
+        ProductStatus.APPROVED,
+      ),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('throws NotFoundException when product is not owned by seller', async () => {
     repository.findOne.mockResolvedValue(null);
-    await expect(service.sellerTransition('product-1', 'other', ProductStatus.SUBMITTED))
-      .rejects.toThrow(NotFoundException);
+
+    await expect(
+      service.sellerTransition(
+        'product-1',
+        'other',
+        ProductStatus.SUBMITTED,
+      ),
+    ).rejects.toThrow(NotFoundException);
   });
 });
