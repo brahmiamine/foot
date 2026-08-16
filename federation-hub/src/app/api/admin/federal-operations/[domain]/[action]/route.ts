@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/adminAuth'
 import { getDataSource } from '@/lib/db'
 import { addFederalCommissionMember, createFederalCommissionDecision, createFederalCommissionSession, markFederalCommissionDecisionNotified, recordFederalCommissionAttendance, signFederalCommissionDecision, transitionFederalCommissionSession } from '@/lib/federalCommissions'
-import { FederalOperationAuthorizationError, FederalOperationInputError, loadScopedRow } from '@/lib/federalOperationsCommon'
+import { assertClubInFederalScope, FederalOperationAuthorizationError, FederalOperationInputError, loadScopedRow } from '@/lib/federalOperationsCommon'
 import { FederalOperationWorkflowError } from '@/lib/federalOperationsRules'
-import { approveBroadcastingDistribution, createGrantApplication, decideSolidarityContribution, decideTrainingCompensationCase, recordGrantPayment, reviewRegulatoryDocument, submitRegulatoryDocument, transitionFederationGrant, transitionGrantApplication, transitionInsurancePolicy } from '@/lib/federalPrograms'
+import { approveBroadcastingDistribution, createGrantApplication, decideSolidarityContribution, decideTrainingCompensationCase, reviewRegulatoryDocument, submitRegulatoryDocument, transitionFederationGrant, transitionInsurancePolicy } from '@/lib/federalPrograms'
+import { recordGrantPaymentSafely, transitionGrantApplicationSafely } from '@/lib/federalGrantIntegrity'
 import { assertSafeRegulatoryDocumentUrl } from '@/lib/federalProgramViews'
 import { finalizeFederalSeasonOperations } from '@/lib/federalSeasonOperations'
 import { createNationalTeamCallup, createNationalTeamEvent, listNationalTeamCallups, listNationalTeamEvents, transitionNationalTeamCallup, transitionNationalTeamEvent } from '@/lib/nationalTeams'
@@ -84,10 +85,13 @@ export async function POST(request: NextRequest, { params }: Context) {
         const grantId = String(body.grantId ?? '')
         const grant = await loadScopedRow<{ id: string; federation_id: string; league_id: string | null; status: string }>(dataSource, session, 'federation_grants', grantId)
         if (grant.status !== 'OPEN') throw new FederalOperationWorkflowError('La campagne de subvention doit être ouverte')
-        return NextResponse.json(await createGrantApplication(dataSource, session, audit, grantId, body), { status: 201 })
+        const clubId = typeof body.clubId === 'string' ? body.clubId.trim() : ''
+        if (!clubId) throw new FederalOperationInputError('Club requis')
+        await assertClubInFederalScope(dataSource, grant.federation_id, grant.league_id, clubId)
+        return NextResponse.json(await createGrantApplication(dataSource, session, audit, grantId, { ...body, clubId }), { status: 201 })
       }
-      if (action === 'application-transition') return NextResponse.json(await transitionGrantApplication(dataSource, session, audit, String(body.id ?? ''), body.targetStatus, body.approvedAmount, typeof body.comment === 'string' ? body.comment : null))
-      if (action === 'payment') return NextResponse.json(await recordGrantPayment(dataSource, session, audit, String(body.applicationId ?? ''), body), { status: 201 })
+      if (action === 'application-transition') return NextResponse.json(await transitionGrantApplicationSafely(dataSource, session, audit, String(body.id ?? ''), body.targetStatus, body.approvedAmount, typeof body.comment === 'string' ? body.comment : null))
+      if (action === 'payment') return NextResponse.json(await recordGrantPaymentSafely(dataSource, session, audit, String(body.applicationId ?? ''), body), { status: 201 })
     }
 
     if (domain === 'broadcasting' && action === 'approve') return NextResponse.json(await approveBroadcastingDistribution(dataSource, session, audit, String(body.id ?? '')))
