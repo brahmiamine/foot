@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { getCurrentMatchActorSession } from "@/lib/matchActorSession";
+import { MatchAccessService } from "@/services/MatchAccessService";
 import { MatchService } from "@/services/MatchService";
 import { SheetService } from "@/services/SheetService";
 import { SignatureService } from "@/services/SignatureService";
@@ -21,11 +23,13 @@ export default async function PreMatchPage({ params }: { params: Promise<{ match
   }
 
   const sheet = await sheetService.getOrCreate(matchId);
+  const session = await getCurrentMatchActorSession();
 
-  const [signatures, reservations, isComplete] = await Promise.all([
+  const [signatures, reservations, isComplete, editableActorRole] = await Promise.all([
     signatureService.findBySheet(sheet.id),
     reservationService.findBySheet(sheet.id),
     signatureService.isPhaseComplete(sheet.id, "PRE_MATCH"),
+    new MatchAccessService().resolveSignatureActor(session, matchId),
   ]);
 
   const preMatchSignatures = signatures
@@ -58,6 +62,7 @@ export default async function PreMatchPage({ params }: { params: Promise<{ match
       signatures={preMatchSignatures}
       reservations={preMatchReservations}
       isPhaseComplete={isComplete}
+      editableActorRole={editableActorRole}
     />
   );
 }
