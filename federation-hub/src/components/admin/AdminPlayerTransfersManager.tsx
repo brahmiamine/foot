@@ -89,13 +89,11 @@ const emptyForm = {
 }
 
 /**
- * migration.md §19-23, Phase 3 : module central de transfert/homologation.
- * v1 simplifiée (autorisée par §19) — create + complete enchaînés côté
- * `POST /api/admin/player-transfers`, pas de workflow de validation à deux
- * clubs. Tableau de bord (§23) sous forme d'onglets filtrant une seule
- * liste chargée une fois (`GET /api/admin/player-transfers`, scopée par
- * fédération côté serveur pour un FEDERATION_ADMIN) plutôt que six routes
- * séparées.
+ * Tableau fédéral des transferts.
+ *
+ * Le workflow est multi-acteurs : création PENDING, approbation du club
+ * destination, puis homologation fédérale explicite des dossiers APPROVED.
+ * L'API reste la source d'autorité pour les scopes et les règles métier.
  */
 export default function AdminPlayerTransfersManager() {
   const [teams, setTeams] = useState<TeamOption[]>([])
@@ -106,6 +104,7 @@ export default function AdminPlayerTransfersManager() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<TransferResult | null>(null)
   const [saving, setSaving] = useState(false)
+  const [homologatingId, setHomologatingId] = useState<string | null>(null)
 
   const [form, setForm] = useState(emptyForm)
 
@@ -139,7 +138,7 @@ export default function AdminPlayerTransfersManager() {
       const response = await fetch('/api/admin/player-transfers', { cache: 'no-store', credentials: 'include' })
       if (response.ok) setTransfers(await response.json())
     } catch {
-      // silencieux : le formulaire de création reste utilisable même si le tableau de bord échoue à charger
+      // Le formulaire reste utilisable même si le tableau de bord échoue à charger.
     } finally {
       setLoadingTransfers(false)
     }
@@ -186,8 +185,8 @@ export default function AdminPlayerTransfersManager() {
         to_team_id: form.to_team_id,
         transfer_type: form.transfer_type,
         effective_date: form.effective_date,
+        season_id: form.season_id,
       }
-      if (form.season_id) body.season_id = form.season_id
       if (form.fee) body.fee = form.fee
       if (form.currency) body.currency = form.currency
       if (form.loan_start_date) body.loan_start_date = form.loan_start_date
@@ -201,10 +200,10 @@ export default function AdminPlayerTransfersManager() {
         body: JSON.stringify(body),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok && response.status !== 202) {
+      if (!response.ok) {
         throw new Error(data.error ?? 'Erreur lors de la création du transfert')
       }
-      setResult({ id: data.id, status: data.status, warning: data.warning })
+      setResult({ id: data.id, status: data.status })
       setForm(emptyForm)
       await loadTransfers()
     } catch (err) {
@@ -214,13 +213,37 @@ export default function AdminPlayerTransfersManager() {
     }
   }
 
+  async function handleHomologate(transferId: string) {
+    setHomologatingId(transferId)
+    setError(null)
+    setResult(null)
+    try {
+      const response = await fetch(`/api/admin/player-transfers/${transferId}/homologate`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error ?? "Erreur lors de l'homologation du transfert")
+      }
+      setResult({ id: data.id ?? transferId, status: data.status ?? 'COMPLETED' })
+      await loadTransfers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+    } finally {
+      setHomologatingId(null)
+    }
+  }
+
   return (
     <div className="d-flex flex-column gap-4">
       <div>
         <h2 className="mb-1">Transferts</h2>
         <p className="text-muted mb-0">
-          Homologuer un transfert de joueur entre deux clubs (migration.md §19-21). Le dossier est créé puis
-          homologué immédiatement — v1 simplifiée, pas de workflow de validation à deux clubs.
+          Suivre le workflow complet : demande en attente, approbation du club destination, puis homologation
+          fédérale. Une demande créée ici reste PENDING jusqu&apos;à l&apos;approbation du club destination.
         </p>
       </div>
 
@@ -228,6 +251,9 @@ export default function AdminPlayerTransfersManager() {
       {result && (
         <div className={`alert ${result.warning ? 'alert-warning' : 'alert-success'} mb-0`}>
           Transfert {result.id} — statut {result.status}
+          {result.status === 'PENDING' && (
+            <div className="small mt-1">En attente de l&apos;approbation du club destination.</div>
+          )}
           {result.warning && <div className="small mt-1">{result.warning}</div>}
         </div>
       )}
@@ -317,19 +343,21 @@ export default function AdminPlayerTransfersManager() {
                 />
               </div>
               <div className="col-12 col-md-4">
-                <label className="form-label">Saison (optionnel)</label>
+                <label className="form-label">Saison</label>
                 <select
+                  required
                   className="form-select"
                   value={form.season_id}
                   onChange={(e) => setForm({ ...form, season_id: e.target.value })}
                 >
-                  <option value="">Aucune</option>
+                  <option value="">Sélectionner...</option>
                   {saisons.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.nom}
                     </option>
                   ))}
                 </select>
+                <div className="form-text">Obligatoire pour contrôler la fenêtre de transfert.</div>
               </div>
               <div className="col-6 col-md-2">
                 <label className="form-label">Indemnité</label>
@@ -387,7 +415,7 @@ export default function AdminPlayerTransfersManager() {
 
               <div className="col-12 d-flex justify-content-end">
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Homologation...' : 'Homologuer le transfert'}
+                  {saving ? 'Création...' : 'Créer la demande'}
                 </button>
               </div>
             </form>
@@ -428,6 +456,7 @@ export default function AdminPlayerTransfersManager() {
                     <th>Type</th>
                     <th>Date d&apos;effet</th>
                     <th>Statut</th>
+                    <th className="text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -443,6 +472,20 @@ export default function AdminPlayerTransfersManager() {
                         <td>
                           <span className={`badge ${status.badge}`}>{status.label}</span>
                           {t.statusReason && <div className="text-muted small">{t.statusReason}</div>}
+                        </td>
+                        <td className="text-end">
+                          {t.status === 'APPROVED' ? (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success"
+                              disabled={homologatingId === t.id}
+                              onClick={() => handleHomologate(t.id)}
+                            >
+                              {homologatingId === t.id ? 'Homologation...' : 'Homologuer'}
+                            </button>
+                          ) : (
+                            <span className="text-muted small">—</span>
+                          )}
                         </td>
                       </tr>
                     )
