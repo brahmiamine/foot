@@ -11,7 +11,14 @@ export default async function ReportsPage() {
   const items = await new ReportService().listMine(session.id);
   return (
     <>
-      <PageHeading title={locale === "ar" ? "التقارير التكميلية" : "Rapports complémentaires"} description={locale === "ar" ? "حرّر وأرسل تقريرك بعد المباريات التي أدرتها." : "Rédigez et envoyez votre rapport après les matchs que vous avez arbitrés."} />
+      <PageHeading
+        title={locale === "ar" ? "تقارير الرسميين" : "Rapports des officiels"}
+        description={
+          locale === "ar"
+            ? "حرّر وأرسل تقريرك بعد المباريات التي عُيّنت فيها كحكم أو مراقب مباراة أو مراقب حكام."
+            : "Rédigez et envoyez votre rapport après les matchs où vous étiez désigné comme arbitre, commissaire ou observateur."
+        }
+      />
       <div className="report-list">
         {items.map(({ assignment, report }) => {
           const match = assignment.match!;
@@ -24,7 +31,7 @@ export default async function ReportsPage() {
           </article>;
         })}
       </div>
-      {items.length === 0 && <div className="empty-state"><FiFileText /><h3>{locale === "ar" ? "لا يوجد تقرير متاح" : "Aucun rapport disponible"}</h3><p>{locale === "ar" ? "تظهر هنا فقط المباريات المنتهية التي كنت حكماً فيها." : "Seuls vos matchs terminés avec une désignation arbitrale active apparaissent ici."}</p></div>}
+      {items.length === 0 && <div className="empty-state"><FiFileText /><h3>{locale === "ar" ? "لا يوجد تقرير متاح" : "Aucun rapport disponible"}</h3><p>{locale === "ar" ? "تظهر هنا فقط المباريات المنتهية التي كانت لديك فيها مهمة رسمية مؤهلة ونشطة." : "Seuls les matchs terminés pour lesquels vous avez une désignation officielle active et éligible apparaissent ici."}</p></div>}
     </>
   );
 }
