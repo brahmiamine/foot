@@ -190,6 +190,58 @@ describe("updateNews", () => {
     expect((await dataSource.getRepository(News).findOneByOrFail({ id: created.id! })).status).toBe("DRAFT");
   });
 
+  it("does not require news.publish for an ordinary draft save", async () => {
+    const { createNews, updateNews } = await import("./actions");
+    const created = await createNews(buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "DRAFT" }));
+    expect(created.success, JSON.stringify(created)).toBe(true);
+    accessState.denied.add("news.publish");
+
+    const result = await updateNews(
+      created.id!,
+      buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "DRAFT" }),
+    );
+
+    expect(result.success, JSON.stringify(result)).toBe(true);
+    const news = await dataSource.getRepository(News).findOneByOrFail({ id: created.id! });
+    expect(news).toMatchObject({ status: "DRAFT", editorialStatus: "DRAFT", isPublished: false });
+  });
+
+  it("refreshes approval when protected content of a scheduled News changes", async () => {
+    const scheduledAt = new Date(Date.now() + 60_000);
+    const newsRepo = dataSource.getRepository(News);
+    const scheduled = await newsRepo.save(
+      newsRepo.create({
+        teamId: "team-1",
+        title: "Titre initial",
+        contentHtml: "<p>Initial</p>",
+        status: "DRAFT",
+        editorialStatus: "SCHEDULED",
+        isPublished: false,
+        publishedAt: null,
+        scheduledAt,
+      }),
+    );
+    const { updateNews } = await import("./actions");
+
+    const result = await updateNews(
+      scheduled.id,
+      buildForm({ title: "Titre modifié", contentHtml: "<p>Initial</p>", status: "DRAFT" }),
+    );
+
+    expect(result.success, JSON.stringify(result)).toBe(true);
+    const refreshed = await newsRepo.findOneByOrFail({ id: scheduled.id });
+    expect(refreshed).toMatchObject({
+      title: "Titre modifié",
+      status: "DRAFT",
+      editorialStatus: "UNDER_REVIEW",
+      isPublished: false,
+    });
+    expect(refreshed.scheduledAt?.getTime()).toBe(scheduledAt.getTime());
+    const requests = await dataSource.getRepository(ClubApprovalRequest).find();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ domain: "NEWS", entityId: String(scheduled.id), status: "PENDING" });
+  });
+
   it("does not enqueue again for a non-sensitive update of an AUTO-published article", async () => {
     await enableAutomaticNewsPublication();
     const { createNews, updateNews } = await import("./actions");
