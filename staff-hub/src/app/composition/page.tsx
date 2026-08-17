@@ -82,7 +82,14 @@ async function CompositionEditor({
   canPropose: boolean;
   canApprove: boolean;
 }) {
-  const [kind, id] = matchKey.split("-", 2) as ["OFFICIAL" | "FRIENDLY", string];
+  const separator = matchKey.indexOf("-");
+  if (separator < 0) throw new Error("Référence de match invalide");
+  const kind = matchKey.slice(0, separator) as "OFFICIAL" | "FRIENDLY";
+  const id = matchKey.slice(separator + 1);
+  if ((kind !== "OFFICIAL" && kind !== "FRIENDLY") || !id) {
+    throw new Error("Référence de match invalide");
+  }
+
   const matchId = kind === "OFFICIAL" ? id : undefined;
   const friendlyMatchId = kind === "FRIENDLY" ? Number(id) : undefined;
 
@@ -132,6 +139,7 @@ async function CompositionEditor({
         const existing = lineupByPlayer.get(player.id);
         return {
           id: player.id,
+          entryId: existing?.id ?? null,
           label: `${player.number} — ${player.firstNameFr} ${player.lastNameFr}`,
           role: existing?.role ?? "NONE",
           shirtNumber: existing?.shirtNumber ?? player.number,
