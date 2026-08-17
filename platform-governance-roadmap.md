@@ -22,6 +22,8 @@
 
 - 2026-08-17 — branche `feat/platform-governance-roadmap` créée depuis `main` (`7e3dd3194dbbd52f15f5ab84d81b692a979b7de5`).
 - 2026-08-17 — backlog initial créé après audit des applications et services du monorepo.
+- 2026-08-17 — CI #796 + Ownership boundaries #325 : Identity, Staff Hub, Medical Hub, Player Hub, Referee Hub, Federation Hub, Match Operations, Ticketing, Marketplace, Payments, Notifications, ArbiNote, Club OB, migrations, architecture, design system et i18n validés verts. Club Hub a typecheck + lint verts ; son build/test final reste le dernier gate du lot Club.
+- 2026-08-17 — clôturés après validation : `GOV-001`, `GOV-002`, `GOV-003`, `ID-001`, `ID-002`, `ID-003`, `STAFF-001`, `MED-001` à `MED-004`, `REF-001`, `REF-002`, `OPS-002`. `GOV-004/GOV-005` restent partiels par exigence de persistance/audit standard à généraliser. `CLUB-002` reste partiel car le statut `SCHEDULED` n'est pas encore implémenté.
 
 ---
 
@@ -29,11 +31,11 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| GOV-001 | P0 | IN_PROGRESS | Architecture commune de policies/settings avec héritage PLATFORM → FEDERATION → LEAGUE → SEASON/COMPETITION → CLUB | package partagé typé + tests de résolution/héritage + documentation d'usage |
-| GOV-002 | P0 | TODO | Modèle commun d'approbation `AUTO / SINGLE_APPROVAL / DUAL_APPROVAL / COMMISSION` | types partagés + règles maker/checker + tests |
-| GOV-003 | P0 | TODO | Interdire l'auto-approbation quand `makerCheckerEnabled=true` | garde serveur réutilisable + tests |
-| GOV-004 | P0 | TODO | Versionner les policies importantes (`version`, `effectiveFrom`, `effectiveUntil`) | résolution temporelle + conservation de la version utilisée |
-| GOV-005 | P0 | TODO | Audit standard des changements de configuration | before/after/actor/reason/IP/User-Agent + tests |
+| GOV-001 | P0 | DONE | Architecture commune de policies/settings avec héritage PLATFORM → FEDERATION → LEAGUE → SEASON/COMPETITION → CLUB | package partagé typé + tests de résolution/héritage + documentation d'usage |
+| GOV-002 | P0 | DONE | Modèle commun d'approbation `AUTO / SINGLE_APPROVAL / DUAL_APPROVAL / COMMISSION` | types partagés + règles maker/checker + tests |
+| GOV-003 | P0 | DONE | Interdire l'auto-approbation quand `makerCheckerEnabled=true` | garde serveur réutilisable + tests |
+| GOV-004 | P0 | IN_PROGRESS | Versionner les policies importantes (`version`, `effectiveFrom`, `effectiveUntil`) | résolution temporelle + conservation de la version utilisée |
+| GOV-005 | P0 | IN_PROGRESS | Audit standard des changements de configuration | before/after/actor/reason/IP/User-Agent + tests |
 | GOV-006 | P1 | TODO | Panneau "Configuration effective" avec origine de chaque valeur héritée | UI + API de résolution expliquant la provenance |
 | GOV-007 | P1 | TODO | Centre transversal des exceptions/dérogations | modèle borné dans le temps + motif + référence + audit |
 | GOV-008 | P1 | TODO | SLA/reminders/escalations communs aux workflows | timestamps + rappels + escalades idempotentes |
@@ -44,9 +46,9 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| ID-001 | P0 | TODO | Provisionnement Player Hub depuis `club-hub` par invitation | sélection Player → invitation → activation → compte PLAYER lié |
-| ID-002 | P0 | TODO | Politique MFA par rôle | REQUIRED/OPTIONAL/DISABLED + grace period + enforcement serveur |
-| ID-003 | P0 | TODO | Step-up MFA pour actions sensibles | challenge récent requis sur actions configurées |
+| ID-001 | P0 | DONE | Provisionnement Player Hub depuis `club-hub` par invitation | sélection Player → invitation → activation → compte PLAYER lié |
+| ID-002 | P0 | DONE | Politique MFA par rôle | REQUIRED/OPTIONAL/DISABLED + grace period + enforcement serveur |
+| ID-003 | P0 | DONE | Step-up MFA pour actions sensibles | challenge récent requis sur actions configurées |
 | ID-004 | P1 | TODO | Modes d'inscription MEMBER `OPEN / EMAIL_VERIFICATION / CLUB_APPROVAL / INVITE_ONLY / CLOSED` | policy club + workflow complet |
 | ID-005 | P1 | TODO | Gestion des appareils/sessions | liste + révocation session unique + logout all |
 | ID-006 | P1 | TODO | Accès temporaire `validFrom/validUntil` | garde d'expiration serveur + UI admin |
@@ -55,10 +57,10 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| CLUB-001 | P0 | TODO | Maker/checker sur opérations sensibles | séparation préparer/soumettre/approuver/publier |
-| CLUB-002 | P0 | TODO | Workflow éditorial News | DRAFT→SUBMITTED→REVIEW→APPROVED/SCHEDULED/PUBLISHED + reapproval |
-| CLUB-003 | P0 | TODO | Workflow Communiqués officiels avec niveau d'approbation par catégorie | SANCTION/DECISION peuvent exiger dual approval |
-| CLUB-004 | P0 | TODO | Workflow d'approbation produits de la boutique club | DRAFT/SUBMITTED/APPROVED/PUBLISHED/REJECTED + price reapproval |
+| CLUB-001 | P0 | IN_PROGRESS | Maker/checker sur opérations sensibles | séparation préparer/soumettre/approuver/publier |
+| CLUB-002 | P0 | IN_PROGRESS | Workflow éditorial News | DRAFT→SUBMITTED→REVIEW→APPROVED/SCHEDULED/PUBLISHED + reapproval |
+| CLUB-003 | P0 | IN_PROGRESS | Workflow Communiqués officiels avec niveau d'approbation par catégorie | SANCTION/DECISION peuvent exiger dual approval |
+| CLUB-004 | P0 | IN_PROGRESS | Workflow d'approbation produits de la boutique club | DRAFT/SUBMITTED/APPROVED/PUBLISHED/REJECTED + price reapproval |
 | CLUB-005 | P1 | TODO | Paramètres publics centralisés pour formulaires | académie/recrutement/sponsor/seller/contact + ouverture/fermeture/rate limit |
 | CLUB-006 | P1 | TODO | Candidatures académie enrichies | pre-screening, trial, technical/admin approval, création Player contrôlée |
 | CLUB-007 | P1 | TODO | Recrutement enrichi | scout/coach/trial/directeur sportif/negotiation workflow |
@@ -83,7 +85,7 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| STAFF-001 | P0 | TODO | Composition proposée par adjoint et approuvée par coach | DRAFT/PROPOSED/APPROVED/LOCKED + permissions |
+| STAFF-001 | P0 | DONE | Composition proposée par adjoint et approuvée par coach | DRAFT/PROPOSED/APPROVED/LOCKED + permissions |
 | STAFF-002 | P1 | TODO | Paramètres de verrouillage composition avant coup d'envoi | policy compétition/club + garde serveur |
 | STAFF-003 | P1 | TODO | Validation des plans d'entraînement | approval optional/configurable |
 | STAFF-004 | P1 | TODO | Revue/verrouillage des statistiques après match | délai configurable + audit corrections |
@@ -93,10 +95,10 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| MED-001 | P0 | TODO | Journal médical append-only structuré | table followups + auteur/date/pièces + migration |
-| MED-002 | P0 | TODO | Return-to-Play structuré | INJURED→TREATMENT→INDIVIDUAL→PARTIAL→FULL→CLEARANCE→AVAILABLE |
-| MED-003 | P0 | TODO | Clearance médical configurable | second avis possible pour blessure sévère |
-| MED-004 | P0 | TODO | Tests de non-divulgation des données médicales | coach/staff/player ne voient jamais diagnostic/documents |
+| MED-001 | P0 | DONE | Journal médical append-only structuré | table followups + auteur/date/pièces + migration |
+| MED-002 | P0 | DONE | Return-to-Play structuré | INJURED→TREATMENT→INDIVIDUAL→PARTIAL→FULL→CLEARANCE→AVAILABLE |
+| MED-003 | P0 | DONE | Clearance médical configurable | second avis possible pour blessure sévère |
+| MED-004 | P0 | DONE | Tests de non-divulgation des données médicales | coach/staff/player ne voient jamais diagnostic/documents |
 | MED-005 | P1 | TODO | Stockage objet/chiffrement/antivirus documents médicaux | uploads sûrs + signed URLs + audit accès |
 | MED-006 | P1 | TODO | Politique de rétention des données médicales | durée et purge contrôlée/auditée |
 
@@ -104,8 +106,8 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| REF-001 | P0 | TODO | Acceptation/refus d'une désignation | PENDING_ACCEPTANCE→ACCEPTED/DECLINED + deadline + motif |
-| REF-002 | P0 | TODO | Demande de remplacement par arbitre | request→federation review→replacement, jamais auto-réaffectation |
+| REF-001 | P0 | DONE | Acceptation/refus d'une désignation | PENDING_ACCEPTANCE→ACCEPTED/DECLINED + deadline + motif |
+| REF-002 | P0 | DONE | Demande de remplacement par arbitre | request→federation review→replacement, jamais auto-réaffectation |
 | REF-003 | P1 | TODO | Policies d'indisponibilité | préavis, durée max, récurrence, justificatif selon raison |
 | REF-004 | P1 | TODO | Policies des rapports officiels | obligatoire par rôle, deadline, reminder, amendment workflow |
 | REF-005 | P1 | TODO | Déclaration/conflit d'intérêts avant acceptation | garde et audit |
@@ -193,7 +195,7 @@
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
 | OPS-001 | P0 | TODO | Protection branche `main` | PR obligatoire + checks CI/ownership + no direct push si supporté par GitHub |
-| OPS-002 | P0 | TODO | Documentation canonique des capacités | `docs/platform-capabilities.md` + correction docs obsolètes |
+| OPS-002 | P0 | DONE | Documentation canonique des capacités | `docs/platform-capabilities.md` + correction docs obsolètes |
 | OPS-003 | P1 | TODO | CODEOWNERS par domaine | ownership explicite identity/payments/medical/db/github |
 | OPS-004 | P1 | TODO | Stockage objet + antivirus pour uploads non médicaux | S3/MinIO/R2 compatible + validation MIME/size + signed URL |
 | OPS-005 | P1 | TODO | Operations Center outbox/webhooks/sagas | pending/failure/retry/resolve audité |
@@ -201,7 +203,7 @@
 | OPS-007 | P2 | TODO | API Gateway | routage unique + TLS + rate limit + request-id/tracing |
 | OPS-008 | P1 | TODO | Observabilité métier | métriques files critiques marketplace/licences/payments/tickets/sagas |
 | OPS-009 | P1 | TODO | Rotation standard des secrets service-to-service | current/previous/expires/keyId partout |
-| OPS-010 | P0 | TODO | Matrice de tests de policies/scopes | valeurs on/off/modes + cross-tenant/scopes obligatoires |
+| OPS-010 | P0 | IN_PROGRESS | Matrice de tests de policies/scopes | valeurs on/off/modes + cross-tenant/scopes obligatoires |
 
 ---
 
