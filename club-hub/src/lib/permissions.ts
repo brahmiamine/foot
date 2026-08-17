@@ -167,6 +167,15 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    key: "community",
+    label: "Communauté supporters",
+    permissions: [
+      { key: "community.view", label: "Voir la communauté et les files de modération" },
+      { key: "community.moderate", label: "Approuver ou rejeter les contenus supporters" },
+      { key: "community.manage", label: "Créer sondages, publications officielles, groupes et événements" },
+    ],
+  },
+  {
     key: "stats",
     label: "Statistiques",
     permissions: [
