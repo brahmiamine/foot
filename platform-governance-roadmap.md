@@ -24,6 +24,7 @@
 - 2026-08-17 — backlog initial créé après audit des applications et services du monorepo.
 - 2026-08-17 — CI #796 + Ownership boundaries #325 : Identity, Staff Hub, Medical Hub, Player Hub, Referee Hub, Federation Hub, Match Operations, Ticketing, Marketplace, Payments, Notifications, ArbiNote, Club OB, migrations, architecture, design system et i18n validés verts. Club Hub a typecheck + lint verts ; son build/test final reste le dernier gate du lot Club.
 - 2026-08-17 — clôturés après validation : `GOV-001`, `GOV-002`, `GOV-003`, `ID-001`, `ID-002`, `ID-003`, `STAFF-001`, `MED-001` à `MED-004`, `REF-001`, `REF-002`, `OPS-002`. `GOV-004/GOV-005` restent partiels par exigence de persistance/audit standard à généraliser. `CLUB-002` reste partiel car le statut `SCHEDULED` n'est pas encore implémenté.
+- 2026-08-17 — CI #817 : lot Club Hub validé avec typecheck, lint, build et 191 tests verts, plus migrations/architecture/i18n et le reste de la matrice verts. Clôture de `CLUB-001` à `CLUB-004` : maker/checker, News avec `SCHEDULED` serveur et revalidation contenu/médias, Communiqués avec niveau d'approbation par catégorie, boutique club avec approbation/reapproval.
 
 ---
 
@@ -57,10 +58,10 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| CLUB-001 | P0 | IN_PROGRESS | Maker/checker sur opérations sensibles | séparation préparer/soumettre/approuver/publier |
-| CLUB-002 | P0 | IN_PROGRESS | Workflow éditorial News | DRAFT→SUBMITTED→REVIEW→APPROVED/SCHEDULED/PUBLISHED + reapproval |
-| CLUB-003 | P0 | IN_PROGRESS | Workflow Communiqués officiels avec niveau d'approbation par catégorie | SANCTION/DECISION peuvent exiger dual approval |
-| CLUB-004 | P0 | IN_PROGRESS | Workflow d'approbation produits de la boutique club | DRAFT/SUBMITTED/APPROVED/PUBLISHED/REJECTED + price reapproval |
+| CLUB-001 | P0 | DONE | Maker/checker sur opérations sensibles | séparation préparer/soumettre/approuver/publier |
+| CLUB-002 | P0 | DONE | Workflow éditorial News | DRAFT→SUBMITTED→REVIEW→APPROVED/SCHEDULED/PUBLISHED + reapproval |
+| CLUB-003 | P0 | DONE | Workflow Communiqués officiels avec niveau d'approbation par catégorie | SANCTION/DECISION peuvent exiger dual approval |
+| CLUB-004 | P0 | DONE | Workflow d'approbation produits de la boutique club | DRAFT/SUBMITTED/APPROVED/PUBLISHED/REJECTED + price reapproval |
 | CLUB-005 | P1 | TODO | Paramètres publics centralisés pour formulaires | académie/recrutement/sponsor/seller/contact + ouverture/fermeture/rate limit |
 | CLUB-006 | P1 | TODO | Candidatures académie enrichies | pre-screening, trial, technical/admin approval, création Player contrôlée |
 | CLUB-007 | P1 | TODO | Recrutement enrichi | scout/coach/trial/directeur sportif/negotiation workflow |
