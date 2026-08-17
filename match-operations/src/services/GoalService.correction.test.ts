@@ -75,7 +75,7 @@ describe("GoalService.cancel — annulation sans suppression (TASK-P0-009)", () 
     await expect(goalService.cancel(goal.id, { reason: "Nouvelle tentative", ...actor })).rejects.toThrow(/déjà été annulé/);
   });
 
-  it("refuse toute correction/annulation sur une feuille clôturée", async () => {
+  it("refuse toute correction/annulation sur une feuille clôturée sans amendement", async () => {
     const { GoalService } = await import("./GoalService");
     const { match, sheet, homeTeam, player } = await seedBaseGraph(dataSource);
     const goalService = new GoalService();
@@ -83,7 +83,7 @@ describe("GoalService.cancel — annulation sans suppression (TASK-P0-009)", () 
 
     await dataSource.getRepository(Sheet).update(sheet.id, { status: "CLOSED" });
 
-    await expect(goalService.cancel(goal.id, { reason: "Motif suffisant", ...actor })).rejects.toThrow(/clôturée/);
+    await expect(goalService.cancel(goal.id, { reason: "Motif suffisant", ...actor })).rejects.toThrow(/ouvrez un amendement/);
   });
 });
 
@@ -115,12 +115,10 @@ describe("computeLiveScore — recalcul déterministe (TASK-P0-009)", () => {
 
     const g1 = await goalService.create({ sheetId: sheet.id, matchId: match.id, teamId: homeTeam.id, playerId: player.id, minute: 10, period: "H1" });
     await goalService.create({ sheetId: sheet.id, matchId: match.id, teamId: awayTeam.id, playerId: null, minute: 20, period: "H1" });
-    // csc de l'équipe domicile : marque pour l'équipe visiteuse.
     await goalService.create({ sheetId: sheet.id, matchId: match.id, teamId: homeTeam.id, playerId: player.id, minute: 30, period: "H1", isOwnGoal: true });
 
     expect(await computeLiveScore(match.id, homeTeam.id, awayTeam.id)).toEqual({ home: 1, away: 2 });
 
-    // Annuler le but du but domicile ramène le score à 0-2.
     await goalService.cancel(g1.id, { reason: "But annulé par la commission", ...actor });
     expect(await computeLiveScore(match.id, homeTeam.id, awayTeam.id)).toEqual({ home: 0, away: 2 });
   });
@@ -152,11 +150,9 @@ describe("SignatureService.isPhaseValid — invalidation après correction (TASK
 
     await goalService.correct(goal.id, { minute: 11 }, { reason: "Minute corrigée après signature", ...actor });
 
-    // Complet (3 rôles ont signé) mais plus valide : le contenu a changé depuis.
     expect(await signatureService.isPhaseComplete(sheet.id, "POST_MATCH")).toBe(true);
     expect(await signatureService.isPhaseValid(sheet.id, match.id, "POST_MATCH")).toBe(false);
 
-    // Une nouvelle signature de chaque acteur rend la phase de nouveau valide.
     for (const actorRole of ["TEAM_HOME", "TEAM_AWAY", "REFEREE"] as const) {
       await signatureService.save(
         sheet.id,
