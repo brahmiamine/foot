@@ -41,9 +41,10 @@ export class FlouciController {
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
-    await this.routingPolicyService.assertProviderEnabled(
+    await this.routingPolicyService.assertProviderEnabledForInitiation(
       service.application,
       PaymentProviderName.FLOUCI,
+      idempotencyKey,
     );
     try {
       return await this.paymentService.initiateFlouciPayment(
