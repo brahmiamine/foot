@@ -17,7 +17,7 @@ export default async function CompositionPage({ searchParams }: { searchParams: 
   const { match: matchParam } = await searchParams;
 
   const matches = await staffPortalService.listMatches(teamId);
-  const upcoming = matches.filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED");
+  const upcoming = matches.filter((match) => match.status !== "FINISHED" && match.status !== "CANCELLED");
   const selectedKey = matchParam ?? (upcoming[0] ? `${upcoming[0].kind}-${upcoming[0].id}` : null);
 
   return (
@@ -32,10 +32,10 @@ export default async function CompositionPage({ searchParams }: { searchParams: 
             <div style={{ flex: 1 }}>
               <FormField label="Match">
                 <Select name="match" defaultValue={selectedKey ?? undefined}>
-                  {upcoming.map((m) => (
-                    <option key={`${m.kind}-${m.id}`} value={`${m.kind}-${m.id}`}>
-                      {m.isHome ? "vs " : "@ "}
-                      {m.opponentName}
+                  {upcoming.map((match) => (
+                    <option key={`${match.kind}-${match.id}`} value={`${match.kind}-${match.id}`}>
+                      {match.isHome ? "vs " : "@ "}
+                      {match.opponentName}
                     </option>
                   ))}
                 </Select>
@@ -51,7 +51,14 @@ export default async function CompositionPage({ searchParams }: { searchParams: 
 
           {selectedKey && (
             <Card>
-              <CompositionEditor teamId={teamId} matchKey={selectedKey} categories={access.categories} canEdit={can(access, "lineups.edit")} />
+              <CompositionEditor
+                teamId={teamId}
+                matchKey={selectedKey}
+                categories={access.categories}
+                canEdit={can(access, "lineups.edit")}
+                canPropose={can(access, "lineups.propose")}
+                canApprove={can(access, "lineups.approve")}
+              />
             </Card>
           )}
         </>
@@ -65,11 +72,15 @@ async function CompositionEditor({
   matchKey,
   categories,
   canEdit,
+  canPropose,
+  canApprove,
 }: {
   teamId: string;
   matchKey: string;
   categories: Awaited<ReturnType<typeof getUserAccess>>["categories"];
   canEdit: boolean;
+  canPropose: boolean;
+  canApprove: boolean;
 }) {
   const [kind, id] = matchKey.split("-", 2) as ["OFFICIAL" | "FRIENDLY", string];
   const matchId = kind === "OFFICIAL" ? id : undefined;
@@ -81,21 +92,24 @@ async function CompositionEditor({
     staffPortalService.getFormation(teamId, kind, matchId, friendlyMatchId),
   ]);
 
-  const lineupByPlayer = new Map(lineup.map((l) => [l.playerId, l]));
+  const lineupByPlayer = new Map(lineup.map((entry) => [entry.playerId, entry]));
+  const workflowStatus = formation?.isLocked ? "LOCKED" : (formation?.workflowStatus ?? "DRAFT");
+  const canInteract = canEdit || canPropose || canApprove;
 
-  if (!canEdit) {
+  if (!canInteract) {
     return (
       <div style={{ display: "grid", gap: 8 }}>
         <div style={{ fontWeight: 600 }}>Formation : {formation?.formation ?? "—"}</div>
+        <div style={{ fontSize: "0.82rem", color: "var(--sh-text-muted)" }}>Statut : {workflowStatus}</div>
         {lineup.length === 0 ? (
           <p style={{ color: "var(--sh-text-muted)", fontSize: "0.85rem" }}>Aucune composition enregistrée.</p>
         ) : (
-          lineup.map((l) => {
-            const player = roster.find((p) => p.id === l.playerId);
+          lineup.map((entry) => {
+            const player = roster.find((item) => item.id === entry.playerId);
             return (
-              <div key={l.id} style={{ fontSize: "0.88rem" }}>
-                {l.role === "STARTER" ? "Titulaire" : "Remplaçant"} — {player ? `${player.firstNameFr} ${player.lastNameFr}` : l.playerId}
-                {l.isCaptain ? " (C)" : ""}
+              <div key={entry.id} style={{ fontSize: "0.88rem" }}>
+                {entry.role === "STARTER" ? "Titulaire" : "Remplaçant"} — {player ? `${player.firstNameFr} ${player.lastNameFr}` : entry.playerId}
+                {entry.isCaptain ? " (C)" : ""}
               </div>
             );
           })
@@ -110,13 +124,17 @@ async function CompositionEditor({
       matchId={matchId}
       friendlyMatchId={friendlyMatchId}
       initialFormation={formation?.formation ?? "4-3-3"}
-      initialRoster={roster.map((p) => {
-        const existing = lineupByPlayer.get(p.id);
+      workflowStatus={workflowStatus}
+      canEdit={canEdit}
+      canPropose={canPropose}
+      canApprove={canApprove}
+      initialRoster={roster.map((player) => {
+        const existing = lineupByPlayer.get(player.id);
         return {
-          id: p.id,
-          label: `${p.number} — ${p.firstNameFr} ${p.lastNameFr}`,
+          id: player.id,
+          label: `${player.number} — ${player.firstNameFr} ${player.lastNameFr}`,
           role: existing?.role ?? "NONE",
-          shirtNumber: existing?.shirtNumber ?? p.number,
+          shirtNumber: existing?.shirtNumber ?? player.number,
           isCaptain: existing?.isCaptain ?? false,
         };
       })}
