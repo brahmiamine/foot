@@ -30,7 +30,7 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-/** TS-36 — restrictions membre : /espace-membre/* exige une session SSO MEMBER. */
+/** Restrictions membre : /espace-membre/* exige une session SSO MEMBER. */
 describe("EspaceMembreLayout", () => {
   it("redirects to the member login when there is no SSO session", async () => {
     getSsoSession.mockResolvedValue(null);
@@ -40,6 +40,16 @@ describe("EspaceMembreLayout", () => {
     await expect(EspaceMembreLayout({ children: null })).rejects.toThrow("NEXT_REDIRECT");
 
     expect(redirect).toHaveBeenCalledWith("http://localhost/membre/login?redirect=/espace-membre");
+    expect(fetchUnreadCount).not.toHaveBeenCalled();
+  });
+
+  it("redirects authenticated staff sessions instead of treating them as supporters", async () => {
+    getSsoSession.mockResolvedValue({ id: "admin-1", name: "Admin", email: "admin@example.com", role: "ADMIN" });
+    buildMemberLoginUrlForPath.mockResolvedValue("http://localhost/membre/login?redirect=/espace-membre");
+    const { default: EspaceMembreLayout } = await import("./layout");
+
+    await expect(EspaceMembreLayout({ children: null })).rejects.toThrow("NEXT_REDIRECT");
+
     expect(fetchUnreadCount).not.toHaveBeenCalled();
   });
 
