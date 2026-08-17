@@ -8,12 +8,13 @@ import { AuditLogService } from "@/services/AuditLogService";
 import { SupporterCommunityAdminService, type CommunityModerationStatus } from "@/services/SupporterCommunityAdminService";
 
 type Result = { success: true } | { success: false; error: string };
+type CommunityPermission = "community.moderate" | "community.manage";
 
-async function context() {
+async function context(permission: CommunityPermission) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Non authentifié");
   const access = await getUserAccess();
-  requirePermission(access, "notifications.send");
+  requirePermission(access, permission);
   const teamId = await requireTeamId();
   return {
     teamId,
@@ -35,7 +36,7 @@ function text(formData: FormData, name: string): string {
 
 export async function moderateCommunityPostAction(id: string, status: CommunityModerationStatus): Promise<Result> {
   try {
-    const { teamId, actorId, service, audit } = await context();
+    const { teamId, actorId, service, audit } = await context("community.moderate");
     await service.moderatePost(teamId, id, actorId, status);
     await audit.create({
       userId: actorId,
@@ -53,7 +54,7 @@ export async function moderateCommunityPostAction(id: string, status: CommunityM
 
 export async function moderateCommunityCommentAction(id: string, status: CommunityModerationStatus): Promise<Result> {
   try {
-    const { teamId, actorId, service, audit } = await context();
+    const { teamId, actorId, service, audit } = await context("community.moderate");
     await service.moderateComment(teamId, id, actorId, status);
     await audit.create({
       userId: actorId,
@@ -71,7 +72,7 @@ export async function moderateCommunityCommentAction(id: string, status: Communi
 
 export async function createCommunityPollAction(formData: FormData): Promise<Result> {
   try {
-    const { teamId, actorId, service, audit } = await context();
+    const { teamId, actorId, service, audit } = await context("community.manage");
     const optionsFr = text(formData, "optionsFr").split(/\r?\n/).filter(Boolean);
     const optionsAr = text(formData, "optionsAr").split(/\r?\n/);
     const id = await service.createPoll({
@@ -93,7 +94,7 @@ export async function createCommunityPollAction(formData: FormData): Promise<Res
 
 export async function closeCommunityPollAction(id: string): Promise<Result> {
   try {
-    const { teamId, actorId, service, audit } = await context();
+    const { teamId, actorId, service, audit } = await context("community.manage");
     await service.closePoll(teamId, id);
     await audit.create({ userId: actorId, action: "UPDATE", entity: "SupporterCommunityPoll", entityId: id, after: { status: "CLOSED", teamId } });
     done();
@@ -105,7 +106,7 @@ export async function closeCommunityPollAction(id: string): Promise<Result> {
 
 export async function publishCommunityClubPostAction(formData: FormData): Promise<Result> {
   try {
-    const { teamId, actorId, actorName, service, audit } = await context();
+    const { teamId, actorId, actorName, service, audit } = await context("community.manage");
     const visibility = text(formData, "visibility") === "MEMBER" ? "MEMBER" : "PUBLIC";
     const id = await service.publishClubPost({
       teamId,
@@ -125,7 +126,7 @@ export async function publishCommunityClubPostAction(formData: FormData): Promis
 
 export async function createSupporterGroupAction(formData: FormData): Promise<Result> {
   try {
-    const { teamId, actorId, service, audit } = await context();
+    const { teamId, actorId, service, audit } = await context("community.manage");
     const id = await service.createGroup({
       teamId,
       actorId,
@@ -142,7 +143,7 @@ export async function createSupporterGroupAction(formData: FormData): Promise<Re
 
 export async function createSupporterGroupEventAction(formData: FormData): Promise<Result> {
   try {
-    const { teamId, actorId, service, audit } = await context();
+    const { teamId, actorId, service, audit } = await context("community.manage");
     const id = await service.createGroupEvent({
       teamId,
       actorId,
