@@ -21,6 +21,7 @@ const items: NavItem[] = [
   { labelKey: "nav.availability", href: "/disponibilites", icon: "✅", permission: "medical.view" },
   { labelKey: "nav.documents", href: "/documents", icon: "📄", permission: "medical.view" },
   { labelKey: "nav.history", href: "/historique", icon: "🗂", permission: "medical.view" },
+  { labelKey: "nav.settings", href: "/parametres", icon: "⚙", permission: "medical.manage" },
   { labelKey: "nav.license", href: "/licence", icon: "🪪" },
   { labelKey: "nav.notifications", href: "/notifications", icon: "🔔" },
 ];
