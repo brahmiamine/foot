@@ -1,4 +1,10 @@
-import { ArrayNotEmpty, ArrayUnique, IsArray, IsEnum, IsOptional } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
 import { PaymentProviderName } from '../enums/payment-provider.enum';
 
 export class UpdatePaymentRoutingPolicyDto {
