@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { UpdatePaymentRoutingPolicyDto } from './dto/update-payment-routing-policy.dto';
+import { Payment } from './entities/payment.entity';
 import { PaymentRoutingPolicy } from './entities/payment-routing-policy.entity';
 import { PaymentProviderName } from './enums/payment-provider.enum';
 import { PaymentRoutingPolicyService } from './payment-routing-policy.service';
@@ -9,6 +10,7 @@ describe('PaymentRoutingPolicyService', () => {
   let repository: jest.Mocked<
     Pick<Repository<PaymentRoutingPolicy>, 'findOne' | 'create' | 'save'>
   >;
+  let paymentRepository: jest.Mocked<Pick<Repository<Payment>, 'findOne'>>;
   let service: PaymentRoutingPolicyService;
 
   beforeEach(() => {
@@ -17,8 +19,10 @@ describe('PaymentRoutingPolicyService', () => {
       create: jest.fn((value) => value as PaymentRoutingPolicy),
       save: jest.fn((value) => Promise.resolve(value as PaymentRoutingPolicy)),
     };
+    paymentRepository = { findOne: jest.fn() };
     service = new PaymentRoutingPolicyService(
       repository as unknown as Repository<PaymentRoutingPolicy>,
+      paymentRepository as unknown as Repository<Payment>,
     );
   });
 
@@ -56,7 +60,8 @@ describe('PaymentRoutingPolicyService', () => {
     ).resolves.toBe(PaymentProviderName.PAYMEE);
   });
 
-  it('blocks a provider-specific route when that provider is disabled', async () => {
+  it('blocks a new provider-specific initiation when that provider is disabled', async () => {
+    paymentRepository.findOne.mockResolvedValue(null);
     repository.findOne.mockResolvedValue({
       consumerApplication: 'marketplace',
       enabledProviders: [PaymentProviderName.PAYMEE],
@@ -66,8 +71,30 @@ describe('PaymentRoutingPolicyService', () => {
     } as PaymentRoutingPolicy);
 
     await expect(
-      service.assertProviderEnabled('marketplace', PaymentProviderName.KONNECT),
+      service.assertProviderEnabledForInitiation(
+        'marketplace',
+        PaymentProviderName.KONNECT,
+        'new-key',
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows an existing idempotent replay even after that provider is disabled', async () => {
+    paymentRepository.findOne.mockResolvedValue({
+      id: 'payment-existing',
+      callerApplication: 'marketplace',
+      idempotencyKey: 'retry-key',
+      provider: PaymentProviderName.KONNECT,
+    } as Payment);
+
+    await expect(
+      service.assertProviderEnabledForInitiation(
+        'marketplace',
+        PaymentProviderName.KONNECT,
+        'retry-key',
+      ),
+    ).resolves.toBeUndefined();
+    expect(repository.findOne).not.toHaveBeenCalled();
   });
 
   it('rejects a policy whose default provider is disabled', async () => {
