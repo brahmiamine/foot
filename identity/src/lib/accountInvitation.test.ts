@@ -101,7 +101,7 @@ describe("player account invitations", () => {
   });
 
   it("rejects an email already owned by another identity", async () => {
-    const { invitePlayerAccount, AccountInvitationError } = await import("./accountInvitation");
+    const { invitePlayerAccount } = await import("./accountInvitation");
     const userRepo = dataSource.getRepository(User);
     await userRepo.save(
       userRepo.create({
@@ -124,7 +124,7 @@ describe("player account invitations", () => {
         teamId: "team-1",
         playerId: "player-1",
       }),
-    ).rejects.toMatchObject<Partial<InstanceType<typeof AccountInvitationError>>>({ code: "EMAIL_TAKEN" });
+    ).rejects.toMatchObject({ code: "EMAIL_TAKEN" });
   });
 
   it("does not issue a new activation link for an already active player account", async () => {
