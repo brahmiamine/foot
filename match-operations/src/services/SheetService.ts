@@ -4,6 +4,7 @@ import { Match } from "@/entities/Match";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { Not, Repository } from "typeorm";
 import { isDuplicateKeyError } from "@/lib/dbErrors";
+import { CompetitionMatchProtocolService } from "./CompetitionMatchProtocolService";
 
 /**
  * TASK-P0-023 : levée quand `expectedVersion` (fourni par l'appelant) ne
@@ -23,6 +24,8 @@ export class SheetVersionConflictError extends Error {
  * horodatage des deux phases de signature).
  */
 export class SheetService {
+  private protocolService = new CompetitionMatchProtocolService();
+
   private async getRepository(): Promise<Repository<Sheet>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(Sheet);
@@ -65,6 +68,15 @@ export class SheetService {
    */
   async updateStatus(id: number, status: SheetStatus, expectedVersion?: number): Promise<Sheet> {
     const repository = await this.getRepository();
+
+    if (status === "PRE_MATCH_SIGNED") {
+      const sheet = await repository.findOne({ where: { id } });
+      if (!sheet) throw new Error("Feuille de match non trouvée");
+      // MATCH-001 : enforcement serveur du protocole de la saison. Une UI
+      // ou un appel direct ne peut pas contourner deadline, banc, signatures
+      // ni officiels requis pour finaliser le pré-match.
+      await this.protocolService.validatePreMatch(sheet.id, sheet.matchId);
+    }
 
     const fields: Partial<Sheet> = { status };
     if (status === "PRE_MATCH_SIGNED") fields.preMatchSignedAt = new Date();
@@ -145,7 +157,7 @@ export class SheetService {
 
     if (sheet.status !== "CLOSED") {
       throw new Error(
-        `Impossible de rouvrir une feuille au statut ${sheet.status} (seule une feuille CLOSED peut être rouverte)`
+        `Impossible de rouvrir une feuille au statut ${sheet.status} (seule une feuille CLOSED peut être rouverte)`,
       );
     }
     if (expectedVersion !== undefined && sheet.version !== expectedVersion) {
@@ -170,7 +182,7 @@ export class SheetService {
     const matchRepository = await this.getMatchRepository();
     await matchRepository.update(
       { id: matchId, status: Not("CANCELLED") },
-      { status: "IN_PROGRESS", actualFinishedAt: null }
+      { status: "IN_PROGRESS", actualFinishedAt: null },
     );
 
     if (idempotencyKey) {
@@ -178,27 +190,12 @@ export class SheetService {
         await dataSource.getRepository(MatchReopenLog).insert({ matchId, idempotencyKey, sheetId: sheet.id });
       } catch (error) {
         if (!isDuplicateKeyError(error)) throw error;
-        // Course entre deux appels concurrents avec la même clé : la
-        // réouverture elle-même reste exactly-once (garantie par l'UPDATE
-        // conditionnel ci-dessus), seul l'enregistrement du journal a
-        // perdu la course — rien de plus à faire.
       }
     }
 
     return saved;
   }
 
-  /**
-   * Répercute le statut de la feuille sur `matches.status`
-   * (UPCOMING/IN_PROGRESS/FINISHED/CANCELLED) — colonne partagée déjà lue
-   * par `ob` (résultats, classement) et `ticketing` (fenêtre de vente),
-   * mais jusqu'ici jamais écrite par aucune app : chaque match restait
-   * `UPCOMING` pour toujours, laissant la page résultats/classement d'`ob`
-   * en permanence vide (voir avancement.md, rang 5). `match-operations` est le
-   * seul endroit qui sait, avec certitude, quand un match démarre et
-   * finit réellement — c'est donc lui qui pilote cette transition, pas
-   * une estimation basée sur la date programmée.
-   */
   private async mirrorMatchStatus(matchId: string, sheetStatus: SheetStatus): Promise<void> {
     let matchStatus: Match["status"] | null = null;
     if (sheetStatus === "IN_PROGRESS") matchStatus = "IN_PROGRESS";
@@ -206,14 +203,8 @@ export class SheetService {
     if (!matchStatus) return;
 
     const matchRepository = await this.getMatchRepository();
-    // Un match CANCELLED (federation-hub, voir avancement.md) ne doit jamais
-    // redevenir IN_PROGRESS/FINISHED parce qu'une feuille de match progresse
-    // encore côté opérateur — l'annulation n'est réversible depuis aucune app.
     const update: Partial<Match> = { status: matchStatus };
     if (matchStatus === "IN_PROGRESS") {
-      // Ne jamais écraser l'heure de début initiale : actual_started_at
-      // n'est fixé qu'une seule fois, au tout premier passage IN_PROGRESS
-      // (une réouverture passe par reopen() ci-dessus, jamais par ici).
       const match = await matchRepository.findOne({ where: { id: matchId } });
       if (match && !match.actualStartedAt) {
         update.actualStartedAt = new Date();
