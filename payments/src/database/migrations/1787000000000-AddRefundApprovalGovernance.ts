@@ -32,6 +32,17 @@ export class AddRefundApprovalGovernance1787000000000 implements MigrationInterf
         ADD COLUMN approval2At timestamp NULL AFTER approval2ByUser,
         ADD COLUMN approvedAt timestamp NULL AFTER approval2At
     `);
+
+    // Existing refunds predate PAY-002. Grandfather them explicitly so an old
+    // FAILED/MANUAL_REVIEW operation can still be reconciled after deployment;
+    // every refund created by the new runtime receives a fresh policy snapshot.
+    await queryRunner.query(`
+      UPDATE refunds
+      SET approvalMode = 'AUTO',
+          approvalMakerCheckerEnabled = 0,
+          approvedAt = COALESCE(createdAt, CURRENT_TIMESTAMP)
+      WHERE approvalPolicyVersion = 0
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
