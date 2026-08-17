@@ -4,11 +4,9 @@ import { getUserAccess, can, categoryAllowed, selectableCategories } from "@/lib
 import { AGE_CATEGORIES } from "@/types/categories";
 import { PlayerForm } from "../../PlayerForm";
 import { notFound } from "next/navigation";
+import { PlayerAccountProvisioningCard } from "./PlayerAccountProvisioningCard";
 
-/**
- * Admin Players Edit Page
- * Page for editing an existing player
- */
+/** Admin Players Edit Page. */
 export default async function EditPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -46,5 +44,10 @@ export default async function EditPlayerPage({ params }: { params: Promise<{ id:
     updatedAt: updatedAtStr,
   };
 
-  return <PlayerForm mode="edit" initialData={playerData} allowedCategories={selectableCategories(access, AGE_CATEGORIES)} />;
+  return (
+    <>
+      <PlayerForm mode="edit" initialData={playerData} allowedCategories={selectableCategories(access, AGE_CATEGORIES)} />
+      {access.isClubAdmin && <PlayerAccountProvisioningCard playerId={player.id} />}
+    </>
+  );
 }
