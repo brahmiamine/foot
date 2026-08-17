@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { createTestDataSource } from "@/test/testDataSource";
+import { ClubApprovalRequest, ClubGovernanceSettings } from "@/entities/ClubGovernance";
 import { News } from "@/entities/News";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
 import { NotificationOutboxService } from "@/services/NotificationOutboxService";
@@ -60,27 +61,80 @@ function buildForm(fields: Record<string, string>): FormData {
   return form;
 }
 
+async function enableAutomaticNewsPublication() {
+  const repo = dataSource.getRepository(ClubGovernanceSettings);
+  await repo.save(
+    repo.create({
+      teamId: "team-1",
+      makerCheckerEnabled: true,
+      newsApprovalMode: "AUTO",
+      newsReapprovalOnSensitiveChange: true,
+      announcementDefaultApprovalMode: "SINGLE_APPROVAL",
+      announcementDecisionApprovalMode: "DUAL_APPROVAL",
+      announcementSanctionApprovalMode: "DUAL_APPROVAL",
+      announcementReapprovalOnSensitiveChange: true,
+      shopProductApprovalMode: "SINGLE_APPROVAL",
+      shopProductReapprovalOnSensitiveChange: true,
+      version: 1,
+      updatedBy: "admin-1",
+    }),
+  );
+}
+
 describe("createNews", () => {
-  it("enqueues exactly one outbox event when publishing a news article", async () => {
+  it("creates a draft plus one pending approval when publication requires review", async () => {
     const { createNews } = await import("./actions");
 
     const result = await createNews(
       buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }),
     );
 
-    expect(result.success).toBe(true);
+    expect(result.success, JSON.stringify(result)).toBe(true);
+    const news = await dataSource.getRepository(News).findOneByOrFail({ id: result.id! });
+    expect(news).toMatchObject({ status: "DRAFT", isPublished: false });
+
+    const requests = await dataSource.getRepository(ClubApprovalRequest).find();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      teamId: "team-1",
+      domain: "NEWS",
+      entityId: String(result.id),
+      status: "PENDING",
+      approvalMode: "SINGLE_APPROVAL",
+      makerUserId: "user-1",
+    });
+    expect(await dataSource.getRepository(NotificationOutboxEvent).find()).toHaveLength(0);
+  });
+
+  it("publishes immediately and enqueues one event when the policy is AUTO", async () => {
+    await enableAutomaticNewsPublication();
+    const { createNews } = await import("./actions");
+
+    const result = await createNews(
+      buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }),
+    );
+
+    expect(result.success, JSON.stringify(result)).toBe(true);
+    const news = await dataSource.getRepository(News).findOneByOrFail({ id: result.id! });
+    expect(news).toMatchObject({ status: "PUBLISHED", isPublished: true });
+    expect(await dataSource.getRepository(ClubApprovalRequest).find()).toHaveLength(0);
+
     const events = await dataSource.getRepository(NotificationOutboxEvent).find();
     expect(events).toHaveLength(1);
     expect(events[0].payload).toMatchObject({ type: "NEWS_PUBLISHED", teamId: "team-1" });
   });
 
-  it("does not enqueue anything for a DRAFT article", async () => {
+  it("does not create an approval or outbox event for a DRAFT article", async () => {
     const { createNews } = await import("./actions");
-    await createNews(buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "DRAFT" }));
+    const result = await createNews(buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "DRAFT" }));
+
+    expect(result.success, JSON.stringify(result)).toBe(true);
+    expect(await dataSource.getRepository(ClubApprovalRequest).find()).toHaveLength(0);
     expect(await dataSource.getRepository(NotificationOutboxEvent).find()).toHaveLength(0);
   });
 
-  it("rolls back the News row if the outbox enqueue fails (atomicity)", async () => {
+  it("keeps the draft but rolls back AUTO publication if outbox enqueue fails", async () => {
+    await enableAutomaticNewsPublication();
     vi.spyOn(NotificationOutboxService.prototype, "enqueue").mockRejectedValue(new Error("outbox insert failed"));
     const { createNews } = await import("./actions");
 
@@ -89,7 +143,10 @@ describe("createNews", () => {
     );
 
     expect(result.success).toBe(false);
-    expect(await dataSource.getRepository(News).find()).toHaveLength(0);
+    const rows = await dataSource.getRepository(News).find();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "DRAFT", isPublished: false });
+    expect(await dataSource.getRepository(NotificationOutboxEvent).find()).toHaveLength(0);
   });
 
   it("blocks creation when news.create is missing", async () => {
@@ -102,7 +159,7 @@ describe("createNews", () => {
     expect(await dataSource.getRepository(News).find()).toHaveLength(0);
   });
 
-  it("blocks direct publication when news.publish is missing", async () => {
+  it("blocks a publication request when news.publish is missing", async () => {
     accessState.denied.add("news.publish");
     const { createNews } = await import("./actions");
 
@@ -112,27 +169,41 @@ describe("createNews", () => {
 
     expect(result.success).toBe(false);
     expect(await dataSource.getRepository(News).find()).toHaveLength(0);
+    expect(await dataSource.getRepository(ClubApprovalRequest).find()).toHaveLength(0);
   });
 });
 
 describe("updateNews", () => {
-  it("enqueues an outbox event only when the status transitions to PUBLISHED", async () => {
+  it("creates a pending approval instead of publishing directly", async () => {
     const { createNews, updateNews } = await import("./actions");
     const created = await createNews(buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "DRAFT" }));
     expect(created.success, JSON.stringify(created)).toBe(true);
 
-    await updateNews(created.id!, buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }));
+    const result = await updateNews(
+      created.id!,
+      buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }),
+    );
 
-    expect(await dataSource.getRepository(NotificationOutboxEvent).find()).toHaveLength(1);
+    expect(result.success, JSON.stringify(result)).toBe(true);
+    expect(await dataSource.getRepository(NotificationOutboxEvent).find()).toHaveLength(0);
+    expect(await dataSource.getRepository(ClubApprovalRequest).find()).toHaveLength(1);
+    expect((await dataSource.getRepository(News).findOneByOrFail({ id: created.id! })).status).toBe("DRAFT");
   });
 
-  it("does not enqueue again when the article was already PUBLISHED", async () => {
+  it("does not enqueue again for a non-sensitive update of an AUTO-published article", async () => {
+    await enableAutomaticNewsPublication();
     const { createNews, updateNews } = await import("./actions");
     const created = await createNews(buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }));
+    expect(created.success, JSON.stringify(created)).toBe(true);
 
-    await updateNews(created.id!, buildForm({ title: "Titre modifié", contentHtml: "<p>x</p>", status: "PUBLISHED" }));
+    const result = await updateNews(
+      created.id!,
+      buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }),
+    );
 
+    expect(result.success, JSON.stringify(result)).toBe(true);
     expect(await dataSource.getRepository(NotificationOutboxEvent).find()).toHaveLength(1);
+    expect((await dataSource.getRepository(News).findOneByOrFail({ id: created.id! })).status).toBe("PUBLISHED");
   });
 
   it("blocks a publication transition when news.publish is missing", async () => {
@@ -140,9 +211,13 @@ describe("updateNews", () => {
     const created = await createNews(buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "DRAFT" }));
     accessState.denied.add("news.publish");
 
-    const result = await updateNews(created.id!, buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }));
+    const result = await updateNews(
+      created.id!,
+      buildForm({ title: "Titre", contentHtml: "<p>x</p>", status: "PUBLISHED" }),
+    );
 
     expect(result.success).toBe(false);
     expect((await dataSource.getRepository(News).findOneByOrFail({ id: created.id! })).status).toBe("DRAFT");
+    expect(await dataSource.getRepository(ClubApprovalRequest).find()).toHaveLength(0);
   });
 });
