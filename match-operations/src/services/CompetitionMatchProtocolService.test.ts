@@ -4,12 +4,11 @@ import { createTestDataSource } from "@/test/testDataSource";
 import { CompetitionMatchProtocol } from "@/entities/CompetitionMatchProtocol";
 import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
-import { MatchLineup } from "@/entities/MatchLineup";
 import { MatchOfficialAssignment } from "@/entities/MatchOfficialAssignment";
-import { Player } from "@/entities/Player";
 import { Sheet } from "@/entities/Sheet";
 import { Signature } from "@/entities/Signature";
 import { Team } from "@/entities/Team";
+import type { ClubLineupReadPort, ClubMatchLineupEntry } from "../../../packages/domain-contracts/src/club-lineup";
 
 let dataSource: DataSource;
 
@@ -22,6 +21,17 @@ const awayId = "00000000-0000-0000-0000-000000000002";
 const matchdayId = "00000000-0000-0000-0000-000000000003";
 const seasonId = "00000000-0000-0000-0000-000000000004";
 const matchId = "00000000-0000-0000-0000-000000000005";
+
+function createLineupPort(entries: ClubMatchLineupEntry[] = []): ClubLineupReadPort {
+  return {
+    async findByMatch(requestedMatchId) {
+      return entries.filter((entry) => entry.matchId === requestedMatchId);
+    },
+    async findByMatchAndTeam(requestedMatchId, teamId) {
+      return entries.filter((entry) => entry.matchId === requestedMatchId && entry.teamId === teamId);
+    },
+  };
+}
 
 async function seedBase() {
   const teamRepo = dataSource.getRepository(Team);
@@ -75,7 +85,7 @@ describe("CompetitionMatchProtocolService", () => {
   it("preserves the legacy transition when no season protocol row exists", async () => {
     const sheet = await seedBase();
     const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
-    const service = new CompetitionMatchProtocolService();
+    const service = new CompetitionMatchProtocolService(createLineupPort());
 
     const protocol = await service.getForMatch(matchId);
     expect(protocol).toMatchObject({
@@ -95,7 +105,7 @@ describe("CompetitionMatchProtocolService", () => {
     const sheet = await seedBase();
     const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
     const { SheetService } = await import("./SheetService");
-    const protocolService = new CompetitionMatchProtocolService();
+    const protocolService = new CompetitionMatchProtocolService(createLineupPort());
     await protocolService.updateForSeason(
       seasonId,
       {
@@ -118,7 +128,11 @@ describe("CompetitionMatchProtocolService", () => {
   it("enforces configured bench size, signatures and required officials", async () => {
     const sheet = await seedBase();
     const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
-    const service = new CompetitionMatchProtocolService();
+    const lineupEntries: ClubMatchLineupEntry[] = [
+      { id: 1, matchId, teamId: homeId, playerId: "p1", role: "SUBSTITUTE", isCaptain: false },
+      { id: 2, matchId, teamId: homeId, playerId: "p2", role: "SUBSTITUTE", isCaptain: false },
+    ];
+    const service = new CompetitionMatchProtocolService(createLineupPort(lineupEntries));
     await service.updateForSeason(
       seasonId,
       {
@@ -130,18 +144,6 @@ describe("CompetitionMatchProtocolService", () => {
         requiredAssistantReferees: 2,
       },
       "federation-admin",
-    );
-
-    const playerRepo = dataSource.getRepository(Player);
-    const players = await playerRepo.save([
-      playerRepo.create({ id: "p1", firstNameFr: "A", lastNameFr: "A", number: 12, teamId: homeId, status: "SUBSTITUTE", isActive: true }),
-      playerRepo.create({ id: "p2", firstNameFr: "B", lastNameFr: "B", number: 13, teamId: homeId, status: "SUBSTITUTE", isActive: true }),
-    ]);
-    const lineupRepo = dataSource.getRepository(MatchLineup);
-    await lineupRepo.save(
-      players.map((player) =>
-        lineupRepo.create({ teamId: homeId, matchId, playerId: player.id, role: "SUBSTITUTE", isCaptain: false }),
-      ),
     );
     await addSignature(sheet.id, "REFEREE");
 
@@ -170,7 +172,7 @@ describe("CompetitionMatchProtocolService", () => {
   it("enforces an explicitly configured pre-match deadline", async () => {
     const sheet = await seedBase();
     const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
-    const service = new CompetitionMatchProtocolService();
+    const service = new CompetitionMatchProtocolService(createLineupPort());
     await service.updateForSeason(
       seasonId,
       {
@@ -190,7 +192,7 @@ describe("CompetitionMatchProtocolService", () => {
   it("rejects malformed configuration before persistence", async () => {
     await seedBase();
     const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
-    const service = new CompetitionMatchProtocolService();
+    const service = new CompetitionMatchProtocolService(createLineupPort());
 
     await expect(
       service.updateForSeason(seasonId, { requiredAssistantReferees: 5 }, "federation-admin"),
