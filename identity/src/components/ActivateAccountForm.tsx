@@ -42,7 +42,7 @@ export default function ActivateAccountForm({ token }: { token: string }) {
       <div className="sso-form">
         <p className="sso-success">Votre compte est activé. Vous pouvez maintenant vous connecter à votre espace joueur.</p>
         <Link href="/joueur/login" className="sso-submit sso-submit-link">
-          Se connecter à l'espace joueur
+          Se connecter à l&apos;espace joueur
         </Link>
       </div>
     );
