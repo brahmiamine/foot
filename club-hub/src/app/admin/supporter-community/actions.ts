@@ -19,7 +19,7 @@ async function context(permission: CommunityPermission) {
   return {
     teamId,
     actorId: session.user.id,
-    actorName: session.user.name ?? session.user.email ?? "Club",
+    actorName: "Club",
     service: new SupporterCommunityAdminService(),
     audit: new AuditLogService(),
   };
