@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { requireTeamId } from "@/lib/team-context";
 import { getUserAccess, selectableCategories } from "@/lib/access";
+import { getLocale } from "@/i18n/server";
+import { supporterCommunityAdminT } from "@/i18n/supporterCommunity";
 import { NotificationService } from "@/services/NotificationService";
 import { MatchService } from "@/services/MatchService";
 import { AGE_CATEGORIES } from "@/types/categories";
@@ -11,6 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function NotificationsPage() {
   const teamId = await requireTeamId();
   const access = await getUserAccess();
+  const locale = await getLocale();
   const notificationService = new NotificationService();
   const matchService = new MatchService();
 
@@ -36,11 +40,18 @@ export default async function NotificationsPage() {
   }));
 
   return (
-    <NotificationsManagement
-      initialNotifications={notifications}
-      matches={matches}
-      allowedCategories={selectableCategories(access, AGE_CATEGORIES)}
-      canSendGlobal={access.categories === "ALL"}
-    />
+    <>
+      <div className="d-flex justify-content-end mb-3">
+        <Link href="/admin/supporter-community" className="btn btn-outline-primary">
+          {supporterCommunityAdminT(locale, "title")}
+        </Link>
+      </div>
+      <NotificationsManagement
+        initialNotifications={notifications}
+        matches={matches}
+        allowedCategories={selectableCategories(access, AGE_CATEGORIES)}
+        canSendGlobal={access.categories === "ALL"}
+      />
+    </>
   );
 }
