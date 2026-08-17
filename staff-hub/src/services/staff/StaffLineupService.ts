@@ -1,5 +1,8 @@
 import { MatchLineup, type LineupRole } from "@/entities/MatchLineup";
-import { MatchFormation } from "@/entities/MatchFormation";
+import {
+  MatchFormation,
+  type FormationWorkflowStatus,
+} from "@/entities/MatchFormation";
 import { TacticsBoard } from "@/entities/TacticsBoard";
 import type { AgeCategory } from "@/types/categories";
 import { StaffConvocationService } from "./StaffConvocationService";
@@ -21,6 +24,51 @@ export class StaffLineupService extends StaffConvocationService {
     });
   }
 
+  private async getOrCreateFormation(
+    teamId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<MatchFormation> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(MatchFormation);
+    const existing = await this.getFormation(teamId, matchType, matchId, friendlyMatchId);
+    if (existing) return existing;
+    return repo.save(
+      repo.create({
+        teamId,
+        matchType,
+        matchId: matchId ?? null,
+        friendlyMatchId: friendlyMatchId ?? null,
+        formation: "4-3-3",
+        isLocked: false,
+        workflowStatus: "DRAFT",
+        workflowVersion: 1,
+      }),
+    );
+  }
+
+  private ensureEditable(formation: MatchFormation): void {
+    if (formation.isLocked || formation.workflowStatus === "LOCKED") {
+      throw new Error("La composition est verrouillée");
+    }
+    if (formation.workflowStatus === "APPROVED") {
+      throw new Error("La composition approuvée ne peut plus être modifiée");
+    }
+  }
+
+  private async markDraftAfterEdit(formation: MatchFormation): Promise<void> {
+    if (formation.workflowStatus !== "PROPOSED") return;
+    const ds = await this.ds();
+    formation.workflowStatus = "DRAFT";
+    formation.proposedBy = null;
+    formation.proposedAt = null;
+    formation.approvedBy = null;
+    formation.approvedAt = null;
+    formation.workflowVersion += 1;
+    await ds.getRepository(MatchFormation).save(formation);
+  }
+
   async setFormation(
     teamId: string,
     matchType: "OFFICIAL" | "FRIENDLY",
@@ -30,19 +78,13 @@ export class StaffLineupService extends StaffConvocationService {
   ): Promise<void> {
     const ds = await this.ds();
     const repo = ds.getRepository(MatchFormation);
-    let entry = await this.getFormation(teamId, matchType, matchId, friendlyMatchId);
-    if (!entry) {
-      entry = repo.create({
-        teamId,
-        matchType,
-        matchId: matchId ?? null,
-        friendlyMatchId: friendlyMatchId ?? null,
-        formation,
-      });
-    } else {
+    const entry = await this.getOrCreateFormation(teamId, matchType, matchId, friendlyMatchId);
+    this.ensureEditable(entry);
+    if (entry.formation !== formation) {
       entry.formation = formation;
+      await repo.save(entry);
+      await this.markDraftAfterEdit(entry);
     }
-    await repo.save(entry);
   }
 
   async getLineup(
@@ -73,6 +115,14 @@ export class StaffLineupService extends StaffConvocationService {
       isCaptain?: boolean;
     },
   ): Promise<void> {
+    const formation = await this.getOrCreateFormation(
+      teamId,
+      matchType,
+      options.matchId,
+      options.friendlyMatchId,
+    );
+    this.ensureEditable(formation);
+
     const ds = await this.ds();
     const repo = ds.getRepository(MatchLineup);
     const where =
@@ -94,13 +144,104 @@ export class StaffLineupService extends StaffConvocationService {
     entry.position = options.position ?? null;
     entry.isCaptain = options.isCaptain ?? false;
     await repo.save(entry);
+    await this.markDraftAfterEdit(formation);
   }
 
   async removeLineupEntry(id: number, teamId: string): Promise<void> {
     const ds = await this.ds();
     const repo = ds.getRepository(MatchLineup);
     const entry = await repo.findOne({ where: { id, teamId } });
-    if (entry) await repo.remove(entry);
+    if (!entry) return;
+
+    const formation = await this.getOrCreateFormation(
+      teamId,
+      entry.matchType,
+      entry.matchId ?? undefined,
+      entry.friendlyMatchId ?? undefined,
+    );
+    this.ensureEditable(formation);
+    await repo.remove(entry);
+    await this.markDraftAfterEdit(formation);
+  }
+
+  async proposeLineup(
+    teamId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    actorUserId: string,
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<MatchFormation> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(MatchFormation);
+    const formation = await this.getOrCreateFormation(teamId, matchType, matchId, friendlyMatchId);
+    this.ensureEditable(formation);
+    const lineup = await this.getLineup(teamId, matchType, matchId, friendlyMatchId);
+    if (lineup.length === 0) throw new Error("Ajoutez au moins un joueur avant de soumettre la composition");
+
+    formation.workflowStatus = "PROPOSED";
+    formation.proposedBy = actorUserId;
+    formation.proposedAt = new Date();
+    formation.approvedBy = null;
+    formation.approvedAt = null;
+    formation.workflowVersion += 1;
+    return repo.save(formation);
+  }
+
+  async approveLineup(
+    teamId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    actorUserId: string,
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<MatchFormation> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(MatchFormation);
+    const formation = await this.getOrCreateFormation(teamId, matchType, matchId, friendlyMatchId);
+    if (formation.workflowStatus !== "PROPOSED") {
+      throw new Error("La composition doit être proposée avant approbation");
+    }
+    if (formation.proposedBy === actorUserId) {
+      throw new Error("Le proposant ne peut pas approuver sa propre composition");
+    }
+
+    formation.workflowStatus = "APPROVED";
+    formation.approvedBy = actorUserId;
+    formation.approvedAt = new Date();
+    formation.workflowVersion += 1;
+    return repo.save(formation);
+  }
+
+  async lockLineup(
+    teamId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    actorUserId: string,
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<MatchFormation> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(MatchFormation);
+    const formation = await this.getOrCreateFormation(teamId, matchType, matchId, friendlyMatchId);
+    if (formation.workflowStatus !== "APPROVED") {
+      throw new Error("La composition doit être approuvée avant verrouillage");
+    }
+
+    formation.workflowStatus = "LOCKED";
+    formation.isLocked = true;
+    formation.lockedBy = actorUserId;
+    formation.lockedAt = new Date();
+    formation.workflowVersion += 1;
+    return repo.save(formation);
+  }
+
+  async getLineupWorkflowStatus(
+    teamId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<FormationWorkflowStatus> {
+    const formation = await this.getFormation(teamId, matchType, matchId, friendlyMatchId);
+    if (formation?.isLocked) return "LOCKED";
+    return formation?.workflowStatus ?? "DRAFT";
   }
 
   async listTacticsBoards(teamId: string, categories: CategoryScope): Promise<TacticsBoard[]> {
