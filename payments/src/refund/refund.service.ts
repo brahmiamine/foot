@@ -20,21 +20,21 @@ import {
   RefundApprovalMode,
   requiredRefundApprovalCount,
 } from './enums/refund-approval-mode.enum';
-import { REFUND_MANUAL_REVIEW_EVENT_TYPE as LEGACY_MANUAL_REVIEW_EVENT_TYPE } from './refund-event.constants';
 import {
   RESERVING_REFUND_STATUSES,
   RefundStatus,
 } from './enums/refund-status.enum';
+import {
+  EffectiveRefundApprovalPolicy,
+  RefundApprovalPolicyService,
+} from './refund-approval-policy.service';
+import { REFUND_MANUAL_REVIEW_EVENT_TYPE as LEGACY_MANUAL_REVIEW_EVENT_TYPE } from './refund-event.constants';
 import {
   RefundAmountExceedsRemainingError,
   RefundInvalidStateError,
   RefundNotFoundError,
   RefundPaymentNotPaidError,
 } from './refund.exceptions';
-import {
-  EffectiveRefundApprovalPolicy,
-  RefundApprovalPolicyService,
-} from './refund-approval-policy.service';
 
 export const REFUND_SUCCEEDED_EVENT_TYPE = 'REFUND_SUCCEEDED';
 export const REFUND_FAILED_EVENT_TYPE = 'REFUND_FAILED';
@@ -124,6 +124,7 @@ export class RefundService {
     if (this.approvalPolicyService) {
       return this.approvalPolicyService.getEffectivePolicy(callerApplication);
     }
+
     // Direct unit construction predates PAY-002. Nest production always injects
     // RefundApprovalPolicyService through RefundModule; this preserves the old
     // provider-focused unit tests without weakening the runtime DI path.
@@ -184,7 +185,10 @@ export class RefundService {
     manager: EntityManager,
     payment: Payment,
   ): Promise<number> {
-    return Number(payment.amount) - (await this.computeReserved(manager, payment.id));
+    return (
+      Number(payment.amount) -
+      (await this.computeReserved(manager, payment.id))
+    );
   }
 
   private async findByIdempotencyKey(
@@ -257,7 +261,10 @@ export class RefundService {
     idempotencyKey?: string,
     trustedInitiatorUser?: string,
   ): Promise<Refund> {
-    const existing = await this.findByIdempotencyKey(paymentId, idempotencyKey);
+    const existing = await this.findByIdempotencyKey(
+      paymentId,
+      idempotencyKey,
+    );
     if (existing) return existing;
 
     const policy = await this.getEffectiveApprovalPolicy(callerApplication);
@@ -309,7 +316,8 @@ export class RefundService {
           approval1At: null,
           approval2ByUser: null,
           approval2At: null,
-          approvedAt: approvalMode === RefundApprovalMode.AUTO ? new Date() : null,
+          approvedAt:
+            approvalMode === RefundApprovalMode.AUTO ? new Date() : null,
         });
         await refundRepo.save(created);
         await this.insertHistory(
@@ -354,7 +362,10 @@ export class RefundService {
       payment = result.payment;
     } catch (error) {
       if (this.isDuplicateIdempotencyKeyError(error)) {
-        const raced = await this.findByIdempotencyKey(paymentId, idempotencyKey);
+        const raced = await this.findByIdempotencyKey(
+          paymentId,
+          idempotencyKey,
+        );
         if (raced) return raced;
       }
       throw error;
@@ -367,7 +378,10 @@ export class RefundService {
     return refund;
   }
 
-  async approveRefund(refundId: string, operatorUserId: string): Promise<Refund> {
+  async approveRefund(
+    refundId: string,
+    operatorUserId: string,
+  ): Promise<Refund> {
     const result = await this.dataSource.transaction(async (manager) => {
       const refundRepo = manager.getRepository(Refund);
       const refund = await refundRepo.findOne({
