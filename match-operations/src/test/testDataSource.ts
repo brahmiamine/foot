@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { Card } from "@/entities/Card";
 import { CardReason } from "@/entities/CardReason";
+import { CompetitionMatchProtocol } from "@/entities/CompetitionMatchProtocol";
 import { Federation } from "@/entities/Federation";
 import { Goal } from "@/entities/Goal";
 import { Injury } from "@/entities/Injury";
@@ -28,9 +29,9 @@ export async function createTestDataSource(): Promise<DataSource> {
     dropSchema: true,
     synchronize: true,
     entities: [
-      Card, CardReason, Federation, Goal, Injury, Match, Matchday, MatchEventCorrection,
-      MatchOfficialAssignment, MatchReopenLog, MatchStaffAssignment, MatchStaffRead,
-      CoachQualificationRead, Player, Sheet, Signature, Substitution, Team,
+      Card, CardReason, CompetitionMatchProtocol, Federation, Goal, Injury, Match, Matchday,
+      MatchEventCorrection, MatchOfficialAssignment, MatchReopenLog, MatchStaffAssignment,
+      MatchStaffRead, CoachQualificationRead, Player, Sheet, Signature, Substitution, Team,
       RefereeUnavailability, MatchLineup, TeamMembership, CompetitionRegistrationRead,
       EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead,
       PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead,
