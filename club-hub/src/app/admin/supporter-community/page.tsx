@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SupporterCommunityPage() {
   const access = await getUserAccess();
-  requirePermission(access, "notifications.send");
+  requirePermission(access, "community.view");
   const teamId = await requireTeamId();
   const data = await new SupporterCommunityAdminService().dashboard(teamId);
 
