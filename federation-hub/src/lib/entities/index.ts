@@ -28,6 +28,12 @@ export { OfficialRefereeCriterion } from './OfficialRefereeCriterion'
 export { RefereeUnavailability } from './RefereeUnavailability'
 export { RefereeMatchReport } from './RefereeMatchReport'
 export {
+  RefereeAssignmentResponse,
+  RefereeReplacementRequest,
+  type RefereeAssignmentResponseStatus,
+  type RefereeReplacementRequestStatus,
+} from './RefereeAssignmentWorkflow'
+export {
   ClubLicenseApplication,
   ClubLicenseRequirement,
   ClubLicenseDocument,
