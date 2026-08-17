@@ -38,9 +38,15 @@ async function seedOffer(price = "20.000") {
     }),
   );
   await dataSource.getRepository(TicketCategory).save(
-    dataSource
-      .getRepository(TicketCategory)
-      .create({ id: categoryId, name: "Gradin", isActive: true }),
+    dataSource.getRepository(TicketCategory).create({
+      id: categoryId,
+      clubId,
+      name: "Gradin",
+      slug: "gradin",
+      description: null,
+      basePrice: price,
+      isActive: true,
+    }),
   );
   return dataSource.getRepository(MatchTicketCategory).save(
     dataSource.getRepository(MatchTicketCategory).create({
