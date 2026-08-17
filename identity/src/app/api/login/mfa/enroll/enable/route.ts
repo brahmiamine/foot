@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       leagueId: user.leagueId ?? null,
       playerId: user.playerId ?? null,
       tokenVersion: user.tokenVersion,
+      mfaVerifiedAt: Date.now(),
     };
     const response = NextResponse.json({
       success: true,
