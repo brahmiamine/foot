@@ -5,6 +5,7 @@ import { Repository } from "typeorm";
 import { assertSheetEditable } from "./sheetGuard";
 import { isDuplicateKeyError } from "@/lib/dbErrors";
 import { EventCorrectionService, assertReason } from "./EventCorrectionService";
+import { CompetitionMatchProtocolService } from "./CompetitionMatchProtocolService";
 
 interface CreateSubstitutionInput {
   sheetId: number;
@@ -57,6 +58,7 @@ function snapshot(substitution: Substitution) {
 
 export class SubstitutionService {
   private correctionService = new EventCorrectionService();
+  private protocolService = new CompetitionMatchProtocolService();
 
   private async getRepository(): Promise<Repository<Substitution>> {
     const dataSource = await getDataSource();
@@ -77,6 +79,18 @@ export class SubstitutionService {
   async create(data: CreateSubstitutionInput): Promise<Substitution> {
     await assertSheetEditable(data.sheetId);
     const repository = await this.getRepository();
+
+    // Un retry idempotent doit retourner l'événement existant même si la
+    // limite de substitutions est désormais atteinte par ce premier appel.
+    if (data.clientRequestId) {
+      const existing = await repository.findOne({
+        where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId },
+      });
+      if (existing) return existing;
+    }
+
+    await this.protocolService.assertSubstitutionAllowed(data.matchId, data.teamId);
+
     const substitution = repository.create({ ...data, clientRequestId: data.clientRequestId ?? null });
     try {
       return await repository.save(substitution);
