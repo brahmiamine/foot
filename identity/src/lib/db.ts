@@ -6,6 +6,7 @@ import { MemberTeamAffiliation } from "@/entities/MemberTeamAffiliation";
 import { PasswordResetToken } from "@/entities/PasswordResetToken";
 import { SecurityEvent } from "@/entities/SecurityEvent";
 import { AccountInvitation } from "@/entities/AccountInvitation";
+import { MfaRolePolicy } from "@/entities/MfaRolePolicy";
 
 const globalForDataSource = globalThis as unknown as {
   dataSource?: DataSource;
@@ -28,7 +29,15 @@ function createDataSource() {
     database: DB_NAME,
     logging: DB_LOGGING === "true",
     synchronize: false,
-    entities: [User, Team, MemberTeamAffiliation, PasswordResetToken, SecurityEvent, AccountInvitation],
+    entities: [
+      User,
+      Team,
+      MemberTeamAffiliation,
+      PasswordResetToken,
+      SecurityEvent,
+      AccountInvitation,
+      MfaRolePolicy,
+    ],
   });
 }
 
