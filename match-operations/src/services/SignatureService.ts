@@ -7,6 +7,7 @@ import { Card } from "@/entities/Card";
 import { Substitution } from "@/entities/Substitution";
 import { Injury } from "@/entities/Injury";
 import { Repository } from "typeorm";
+import { CompetitionMatchProtocolService } from "./CompetitionMatchProtocolService";
 
 export interface RecordedBy {
   userId: string | null;
@@ -17,10 +18,7 @@ export interface RecordedBy {
  * TASK-P0-024 : SHA256 (hex) d'un instantané canonique du contenu de la
  * feuille (statut + tous les événements à ce jour, triés par id pour un
  * ordre déterministe) — pas les signatures elles-mêmes (sans quoi le hash
- * dépendrait de son propre historique). Recalculer ce hash plus tard et le
- * comparer à celui stocké sur une signature révèle si le contenu de la
- * feuille a changé depuis cette signature (événement ajouté/modifié après
- * coup).
+ * dépendrait de son propre historique).
  */
 export async function computeSheetContentHash(sheetId: number, matchId: string): Promise<string> {
   const dataSource = await getDataSource();
@@ -44,21 +42,22 @@ export async function computeSheetContentHash(sheetId: number, matchId: string):
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
 
-/**
- * Service for Signature operations (signature dessinée par l'un des trois
- * acteurs — équipe domicile, équipe extérieure, arbitre — pour chaque phase).
- */
 export class SignatureService {
+  private protocolService = new CompetitionMatchProtocolService();
+
   private async getRepository(): Promise<Repository<Signature>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(Signature);
   }
 
-  /**
-   * TASK-P0-024 : renvoie la signature la PLUS RÉCENTE par (phase,
-   * actorRole) — save() est append-only (voir plus bas), il peut donc
-   * exister plusieurs lignes historiques pour le même acteur/phase.
-   */
+  private async requiredRolesForSheet(sheetId: number): Promise<ActorRole[]> {
+    const dataSource = await getDataSource();
+    const sheet = await dataSource.getRepository(Sheet).findOne({ where: { id: sheetId } });
+    if (!sheet) throw new Error("Feuille de match introuvable");
+    const protocol = await this.protocolService.getForMatch(sheet.matchId);
+    return this.protocolService.requiredSignatureRoles(protocol);
+  }
+
   async findBySheet(sheetId: number): Promise<Signature[]> {
     const repository = await this.getRepository();
     const all = await repository.find({ where: { sheetId }, order: { signedAt: "ASC" } });
@@ -69,23 +68,11 @@ export class SignatureService {
     return Array.from(latestByKey.values());
   }
 
-  /** Historique complet (toutes les re-signatures), pour audit. */
   async findHistoryBySheet(sheetId: number): Promise<Signature[]> {
     const repository = await this.getRepository();
     return repository.find({ where: { sheetId }, order: { signedAt: "ASC" } });
   }
 
-  /**
-   * Enregistre la signature d'un acteur pour une phase donnée.
-   *
-   * TASK-P0-024 : append-only — une re-signature (ex: correction d'une
-   * erreur) insère une NOUVELLE ligne plutôt que d'écraser l'ancienne, pour
-   * conserver un historique complet (voir avancement.md, exigence
-   * "Audit: historique signatures append-only"). Chaque ligne porte
-   * l'identité SSO de l'opérateur l'ayant enregistrée (traçabilité, pas
-   * preuve cryptographique du signataire physique — voir Signature.ts) et
-   * un hash du contenu de la feuille à cet instant.
-   */
   async save(
     sheetId: number,
     matchId: string,
@@ -111,10 +98,9 @@ export class SignatureService {
   }
 
   /**
-   * Vrai si les 3 acteurs (domicile, extérieur, arbitre) ont signé pour
-   * cette phase. Compte les RÔLES distincts (pas les lignes) : depuis que
-   * save() est append-only, une re-signature ne doit pas fausser ce
-   * calcul.
+   * Vrai si tous les rôles exigés par le CompetitionMatchProtocol de la
+   * saison ont signé. Sans protocole spécifique, les trois rôles historiques
+   * restent obligatoires, donc le comportement legacy est inchangé.
    */
   async isPhaseComplete(sheetId: number, phase: SignaturePhase): Promise<boolean> {
     const repository = await this.getRepository();
@@ -122,27 +108,26 @@ export class SignatureService {
       .createQueryBuilder("signature")
       .select("DISTINCT signature.actor_role", "actorRole")
       .where("signature.sheet_id = :sheetId AND signature.phase = :phase", { sheetId, phase })
-      .getRawMany<{ actorRole: string }>();
-    return rows.length >= 3;
+      .getRawMany<{ actorRole: ActorRole }>();
+    const present = new Set(rows.map((row) => row.actorRole));
+    const required = await this.requiredRolesForSheet(sheetId);
+    return required.every((role) => present.has(role));
   }
 
   /**
-   * TASK-P0-009 : vrai si la phase est complète (3 acteurs) ET si chacune
-   * des 3 signatures les plus récentes porte encore le hash du contenu
-   * ACTUEL de la feuille — c'est-à-dire qu'aucun événement n'a été corrigé
-   * ou annulé depuis que cet acteur a signé. `isPhaseComplete` seul ne
-   * détecte pas ce cas (il ne compare jamais `contentHash` à rien) : une
-   * correction après coup laissait jusqu'ici les signatures existantes
-   * "valides" alors que le contenu qu'elles couvraient a changé. À utiliser
-   * pour bloquer la clôture d'une feuille tant qu'une re-signature n'a pas
-   * été recueillie après correction.
+   * Vérifie seulement les signatures requises par la policy : une signature
+   * optionnelle historique ne doit pas rendre la phase invalide après une
+   * correction si cette policy ne l'exige plus.
    */
   async isPhaseValid(sheetId: number, matchId: string, phase: SignaturePhase): Promise<boolean> {
     const signatures = await this.findBySheet(sheetId);
-    const phaseSignatures = signatures.filter((s) => s.phase === phase);
-    if (phaseSignatures.length < 3) return false;
+    const required = await this.requiredRolesForSheet(sheetId);
+    const byRole = new Map(
+      signatures.filter((signature) => signature.phase === phase).map((signature) => [signature.actorRole, signature]),
+    );
+    if (!required.every((role) => byRole.has(role))) return false;
 
     const currentHash = await computeSheetContentHash(sheetId, matchId);
-    return phaseSignatures.every((s) => s.contentHash === currentHash);
+    return required.every((role) => byRole.get(role)?.contentHash === currentHash);
   }
 }
