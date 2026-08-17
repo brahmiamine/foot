@@ -16,7 +16,7 @@ import { getTranslator } from "@/i18n/server";
 
 async function requireMember() {
   const session = await getSsoSession();
-  if (!session) throw new Error("Not authenticated");
+  if (!session || session.role !== "MEMBER") throw new Error("Member authentication required");
   return session;
 }
 
