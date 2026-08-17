@@ -30,6 +30,8 @@ export interface SsoUser {
   leagueId?: string | null;
   playerId?: string | null;
   tokenVersion: number;
+  /** Epoch milliseconds of the most recent MFA proof bound to this session. */
+  mfaVerifiedAt?: number | null;
 }
 
 export const SSO_JWT_AUDIENCE = "foot-platform";
@@ -45,6 +47,7 @@ async function signSession(user: SsoUser): Promise<string> {
     leagueId: user.leagueId ?? null,
     playerId: user.playerId ?? null,
     tokenVersion: user.tokenVersion,
+    mfaVerifiedAt: user.mfaVerifiedAt ?? null,
   })
     .setProtectedHeader({ alg: "RS256", kid })
     .setSubject(user.id)
@@ -91,6 +94,10 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
       leagueId: typeof payload.leagueId === "string" ? payload.leagueId : null,
       playerId: typeof payload.playerId === "string" ? payload.playerId : null,
       tokenVersion: user.tokenVersion,
+      mfaVerifiedAt:
+        typeof payload.mfaVerifiedAt === "number" && Number.isFinite(payload.mfaVerifiedAt)
+          ? payload.mfaVerifiedAt
+          : null,
     };
   } catch {
     return null;
