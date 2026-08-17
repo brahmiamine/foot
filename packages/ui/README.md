@@ -130,6 +130,36 @@ render/props smoke test for every component, plus behavioral tests (click, keybo
 ARIA-state assertions, disabled-state guards, Escape-to-close, focus trapping, …) for
 every interactive one.
 
+## Storybook
+
+Storybook is the primary, richer way to browse every component and every variant/state it
+supports (sizes, disabled/invalid states, dark mode, compound examples for `Table`, `Tabs`,
+`Menu`, `RadioGroup`, etc.). Every one of the 45 exported components has a colocated
+`<Name>.stories.tsx` next to `<Name>.tsx`.
+
+```bash
+# from the repo root
+
+# Storybook dev server — http://localhost:6006
+pnpm --filter @foot/ui storybook
+
+# static build (packages/ui/storybook-static)
+pnpm --filter @foot/ui build-storybook
+```
+
+- Config lives entirely under `packages/ui/.storybook` (`main.ts`, `preview.tsx`), is not a
+  pnpm workspace member, and is not a dependency of any app — same isolation pattern as
+  `playground/` below.
+- Every story is wrapped in `FootThemeProvider` + `FootGlobalStyle` so components render
+  on-brand, with the `@foot/design-tokens` CSS variables loaded globally.
+- A **Theme** toggle in the toolbar (sun/moon icon) switches every story between light and
+  dark by toggling the `dark` class on `<html>`, matching `:root.dark` in
+  `packages/design-tokens/src/index.css`.
+- Overlay components (`Modal`, `Drawer`, `Popover`, `Tooltip`, `Toast`) have interactive
+  stories with local state so they can actually be opened/closed from the canvas.
+- See the "Introduction" page in the sidebar for a summary of the design system and token
+  system.
+
 ## Local preview (playground)
 
 `playground/` is a small, self-contained Vite + React app that imports components directly

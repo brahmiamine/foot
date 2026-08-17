@@ -16,3 +16,6 @@ node_modules/
 
 # Worktrees créés par les agents Claude Code (session-local, non versionnés).
 .claude/worktrees/
+
+# Static Storybook build output (packages/ui) — generated, not versioned.
+storybook-static/
