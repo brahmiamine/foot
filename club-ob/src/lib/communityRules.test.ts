@@ -46,10 +46,12 @@ describe("communityRules", () => {
     expect(() => normalizeHttpsImageUrl("http://example.com/photo.jpg")).toThrow("INVALID_IMAGE_URL");
   });
 
-  it("accepts only supported reactions and closed return paths", () => {
+  it("accepts only supported reactions and internal return paths", () => {
     expect(isCommunityReaction("BRAVO")).toBe(true);
     expect(isCommunityReaction("ANGRY")).toBe(false);
     expect(safeCommunityReturnPath("/espace-membre/communaute")).toBe("/espace-membre/communaute");
+    expect(safeCommunityReturnPath("/actualites/42")).toBe("/actualites/42");
+    expect(safeCommunityReturnPath("/actualites/../../admin")).toBe("/communaute");
     expect(safeCommunityReturnPath("https://evil.example")).toBe("/communaute");
   });
 });
