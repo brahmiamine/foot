@@ -10,20 +10,18 @@ import {
 import { SellerStatus } from '../enums/seller-status.enum';
 import type { SellerUser } from './seller-user.entity';
 
-/**
- * Le vendeur tiers. Porte le catalogue produits/commandes de son club.
- * Mappée sur `sp_sellers`, la table existante de `seller-portal` (base
- * partagée `foot`, voir database.config.ts) — même ligne physique, pas une
- * copie. `clubId` référence logiquement `teams.id` : pas de contrainte FK
- * réelle, comme dans seller-portal.
- */
+export interface SellerDocument {
+  label: string;
+  url: string;
+}
+
 @Entity('sp_sellers')
 export class Seller {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Index()
-  @Column({ type: 'varchar', length: 36 })
+  @Column({ type: 'varchar', length: 36, name: 'club_id' })
   clubId: string;
 
   @Column({ type: 'varchar', length: 191 })
@@ -63,14 +61,15 @@ export class Seller {
   @Column({ type: 'varchar', length: 500, nullable: true })
   logoUrl: string | null;
 
+  @Column({ type: 'json', nullable: true })
+  documents?: SellerDocument[] | null;
+
   @Column({ type: 'enum', enum: SellerStatus, default: SellerStatus.PENDING })
   status: SellerStatus;
 
   @Column({ type: 'text', nullable: true })
   statusReason: string | null;
 
-  // Taux de commission par défaut appliqué à ce vendeur, défini par le club
-  // uniquement. Pourcentage, ex: 10.00 = 10%.
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 10 })
   commissionRate: string;
 

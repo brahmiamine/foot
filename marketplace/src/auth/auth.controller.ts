@@ -1,9 +1,18 @@
-import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  GoneException,
+  Post,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  SellerStatus,
+  SellerUserStatus,
+} from '../sellers/enums/seller-status.enum';
 import { SellersService } from '../sellers/sellers.service';
-import { SellerJwtService } from './seller-jwt.service';
-import { RegisterSellerDto } from './dto/register-seller.dto';
+import { ActivateSellerDto } from './dto/activate-seller.dto';
 import { LoginDto } from './dto/login.dto';
-import { Seller } from '../sellers/entities/seller.entity';
+import { SellerJwtService } from './seller-jwt.service';
 
 @Controller('auth')
 export class AuthController {
@@ -11,33 +20,37 @@ export class AuthController {
     private readonly sellersService: SellersService,
     private readonly sellerJwtService: SellerJwtService,
   ) {}
-
-  /** Inscription publique d'un vendeur — compte créé PENDING (voir ModerationModule pour l'activation). */
-  @Post('register')
-  async register(@Body() dto: RegisterSellerDto): Promise<Seller> {
-    return this.sellersService.register(dto);
+  @Post('register') register(): never {
+    throw new GoneException(
+      "L'inscription vendeur directe est désactivée. Utilisez le formulaire du site officiel du club.",
+    );
   }
-
-  @Post('login')
-  async login(
+  @Post('activate') async activate(@Body() dto: ActivateSellerDto) {
+    const user = await this.sellersService.activateInvitation(
+      dto.token,
+      dto.password,
+    );
+    return { activated: true, email: user.email };
+  }
+  @Post('login') async login(
     @Body() dto: LoginDto,
   ): Promise<{ token: string; sellerId: string; role: string }> {
     const user = await this.sellersService.findUserByEmail(dto.email);
-    if (!user) {
+    if (
+      !user ||
+      !(await this.sellersService.verifyPassword(user, dto.password))
+    )
       throw new UnauthorizedException('Identifiants invalides');
-    }
-
-    const valid = await this.sellersService.verifyPassword(user, dto.password);
-    if (!valid) {
-      throw new UnauthorizedException('Identifiants invalides');
-    }
-
+    if (
+      user.status !== SellerUserStatus.ACTIVE ||
+      user.seller.status !== SellerStatus.ACTIVE
+    )
+      throw new UnauthorizedException('Compte vendeur inactif');
     const token = await this.sellerJwtService.sign({
       sellerUserId: user.id,
       sellerId: user.sellerId,
       role: user.role,
     });
-
     return { token, sellerId: user.sellerId, role: user.role };
   }
 }

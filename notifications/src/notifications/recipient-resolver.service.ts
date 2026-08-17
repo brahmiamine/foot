@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { SharedDirectoryService } from '../database/shared-directory.service';
+import { createHash } from 'node:crypto';
 import { NotificationTargetType } from '../common/enums/target-type.enum';
+import { SharedDirectoryService } from '../database/shared-directory.service';
 import { CreateInternalNotificationDto } from '../internal/dto/create-internal-notification.dto';
 
 export interface ResolvedRecipients {
@@ -8,14 +9,6 @@ export interface ResolvedRecipients {
   teamId: string | null;
 }
 
-/**
- * Traduit un payload /internal/notifications (destinataire unique ou cible
- * broadcast, §22) en liste concrète de `userId`. USER/TEAM/ROLE/MEMBERS sont
- * résolus génériquement via la base partagée `foot` (aucune connaissance
- * football/marketplace, §32). CATEGORY/SELLER n'ont pas d'équivalent
- * générique : l'application appelante doit fournir `target.userIds`
- * pré-résolus.
- */
 @Injectable()
 export class RecipientResolverService {
   constructor(private readonly directory: SharedDirectoryService) {}
@@ -23,21 +16,36 @@ export class RecipientResolverService {
   async resolve(
     dto: CreateInternalNotificationDto,
   ): Promise<ResolvedRecipients> {
-    if (dto.userId && dto.target) {
+    const recipientModes = [
+      Boolean(dto.userId),
+      Boolean(dto.target),
+      Boolean(dto.email),
+    ].filter(Boolean).length;
+
+    if (recipientModes !== 1) {
       throw new BadRequestException(
-        'Provide either userId or target, not both',
+        'Provide exactly one of userId, target or email',
       );
+    }
+
+    if (dto.email) {
+      const normalizedEmail = dto.email.trim().toLowerCase();
+      const digest = createHash('sha256').update(normalizedEmail).digest('hex');
+      return {
+        userIds: [`external-email:${digest}`],
+        teamId: dto.teamId ?? null,
+      };
     }
 
     if (dto.userId) {
       return { userIds: [dto.userId], teamId: dto.teamId ?? null };
     }
 
-    if (!dto.target) {
-      throw new BadRequestException('Either userId or target is required');
+    const { target } = dto;
+    if (!target) {
+      throw new BadRequestException('A notification target is required');
     }
 
-    const { target } = dto;
     switch (target.type) {
       case NotificationTargetType.USER: {
         if (!target.userIds?.length) {

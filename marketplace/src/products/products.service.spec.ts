@@ -2,14 +2,17 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
-import { ProductsService } from './products.service';
-import { Product } from './entities/product.entity';
+import { CentralNotificationsClient } from '../notifications/central-notifications.client';
+import { MarketplaceClubSettings } from '../sellers/entities/marketplace-club-settings.entity';
+import { Seller } from '../sellers/entities/seller.entity';
 import { ProductImage } from './entities/product-image.entity';
+import { Product } from './entities/product.entity';
 import { ProductStatus } from './enums/product-status.enum';
+import { ProductsService } from './products.service';
 
 describe('ProductsService', () => {
   let repository: { findOne: jest.Mock; save: jest.Mock };
-  let dataSource: { transaction: jest.Mock };
+  let dataSource: { transaction: jest.Mock; getRepository: jest.Mock };
   let productTxRepository: { create: jest.Mock; save: jest.Mock };
   let imageTxRepository: {
     create: jest.Mock;
@@ -17,19 +20,21 @@ describe('ProductsService', () => {
     delete: jest.Mock;
   };
   let inventoryTxRepository: { create: jest.Mock; save: jest.Mock };
+  let centralNotifications: { notifyClubAdmins: jest.Mock };
   let service: ProductsService;
-
-  function buildProduct(overrides: Partial<Product> = {}): Product {
-    return {
+  const buildProduct = (overrides: Partial<Product> = {}) =>
+    ({
       id: 'product-1',
       sellerId: 'seller-1',
+      name: 'Maillot',
       status: ProductStatus.DRAFT,
       rejectionReason: null,
+      reviewedBy: null,
+      reviewedAt: null,
       price: '19.990',
       deletedAt: null,
       ...overrides,
-    } as Product;
-  }
+    }) as Product;
 
   beforeEach(() => {
     repository = {
@@ -57,10 +62,38 @@ describe('ProductsService', () => {
         throw new Error('unexpected repository');
       }),
     };
-    dataSource = { transaction: jest.fn((callback) => callback(manager)) };
+    const sellerRepo = {
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ id: 'seller-1', clubId: 'club-1' }),
+    };
+    const settingsRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        clubId: 'club-1',
+        productApprovalRequired: true,
+        productReapprovalOnSensitiveChange: true,
+      }),
+      create: jest.fn((v) => v),
+    };
+    dataSource = {
+      transaction: jest.fn((callback) => callback(manager)),
+      getRepository: jest.fn((entity) =>
+        entity === Seller
+          ? sellerRepo
+          : entity === MarketplaceClubSettings
+            ? settingsRepo
+            : (() => {
+                throw new Error('unexpected repository');
+              })(),
+      ),
+    };
+    centralNotifications = {
+      notifyClubAdmins: jest.fn().mockResolvedValue(undefined),
+    };
     service = new ProductsService(
       repository as unknown as Repository<Product>,
       dataSource as unknown as DataSource,
+      centralNotifications as unknown as CentralNotificationsClient,
     );
   });
 
@@ -72,7 +105,6 @@ describe('ProductsService', () => {
       price: 49.9,
       images: ['https://cdn.example/a.jpg'],
     });
-
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(result.id).toBe('product-1');
     expect(imageTxRepository.save).toHaveBeenCalled();
@@ -88,12 +120,10 @@ describe('ProductsService', () => {
   it('replaces product images inside the marketplace transaction', async () => {
     const product = buildProduct();
     repository.findOne.mockResolvedValue(product);
-
     await service.update('product-1', 'seller-1', {
       name: 'Maillot 2',
       images: ['https://cdn.example/new.jpg'],
     });
-
     expect(imageTxRepository.delete).toHaveBeenCalledWith({
       productId: 'product-1',
     });
@@ -106,9 +136,8 @@ describe('ProductsService', () => {
     ]);
   });
 
-  it('allows DRAFT -> SUBMITTED', async () => {
+  it('keeps approval workflow and notifies club on submission', async () => {
     repository.findOne.mockResolvedValue(buildProduct());
-
     expect(
       (
         await service.sellerTransition(
@@ -118,13 +147,23 @@ describe('ProductsService', () => {
         )
       ).status,
     ).toBe(ProductStatus.SUBMITTED);
+    expect(centralNotifications.notifyClubAdmins).toHaveBeenCalled();
+  });
+
+  it('requires reapproval after a sensitive published product change', async () => {
+    repository.findOne.mockResolvedValue(
+      buildProduct({ status: ProductStatus.PUBLISHED }),
+    );
+    expect(
+      (await service.update('product-1', 'seller-1', { price: 25 })).status,
+    ).toBe(ProductStatus.SUBMITTED);
+    expect(centralNotifications.notifyClubAdmins).toHaveBeenCalled();
   });
 
   it('rejects a transition reserved to club moderation', async () => {
     repository.findOne.mockResolvedValue(
       buildProduct({ status: ProductStatus.SUBMITTED }),
     );
-
     await expect(
       service.sellerTransition('product-1', 'seller-1', ProductStatus.APPROVED),
     ).rejects.toThrow(ConflictException);
@@ -132,7 +171,6 @@ describe('ProductsService', () => {
 
   it('throws NotFoundException when product is not owned by seller', async () => {
     repository.findOne.mockResolvedValue(null);
-
     await expect(
       service.sellerTransition('product-1', 'other', ProductStatus.SUBMITTED),
     ).rejects.toThrow(NotFoundException);

@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsDateString,
+  IsEmail,
   IsEnum,
   IsObject,
   IsOptional,
@@ -13,14 +14,9 @@ import { NotificationPriority } from '../../common/enums/priority.enum';
 import { TargetDto } from '../../notifications/dto/target.dto';
 
 /**
- * Payload de POST /internal/notifications (§20). `application` n'est
- * délibérément pas repris ici : l'identité de l'appelant est celle
- * authentifiée par ServiceAuthGuard (x-api-key), jamais une valeur fournie
- * par le corps de la requête (voir InternalNotificationsController).
- *
- * Un seul destinataire : fournir `userId`. Plusieurs/broadcast : fournir
- * `target` (voir TargetDto, §22). Les deux sont mutuellement exclusifs ;
- * la validation croisée est faite dans NotificationsService.
+ * Payload de POST /internal/notifications. Un seul mode de destinataire est
+ * accepté : `userId`, `target`, ou `email` pour un destinataire externe qui
+ * ne possède pas encore de compte plateforme.
  */
 export class CreateInternalNotificationDto {
   @IsOptional()
@@ -33,6 +29,14 @@ export class CreateInternalNotificationDto {
   @IsOptional()
   @IsString()
   userId?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  recipientName?: string;
 
   @IsOptional()
   @ValidateNested()

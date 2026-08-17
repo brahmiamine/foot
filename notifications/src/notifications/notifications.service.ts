@@ -1,15 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
-import { NotificationChannelType } from '../common/enums/channel.enum';
-import { NotificationPriority } from '../common/enums/priority.enum';
 import { isMandatoryNotificationType } from '../common/constants/mandatory-types';
 import { PaginatedResult, PaginationDto } from '../common/dto/pagination.dto';
+import { NotificationChannelType } from '../common/enums/channel.enum';
+import { NotificationPriority } from '../common/enums/priority.enum';
 import { DeliveriesService } from '../deliveries/deliveries.service';
 import { IdempotencyService } from '../events/idempotency.service';
+import { CreateInternalNotificationDto } from '../internal/dto/create-internal-notification.dto';
 import { PreferencesService } from '../preferences/preferences.service';
 import { QueueDispatchProducer } from '../queue/dispatch.producer';
-import { CreateInternalNotificationDto } from '../internal/dto/create-internal-notification.dto';
 import { Notification } from './entities/notification.entity';
 import { RecipientResolverService } from './recipient-resolver.service';
 
@@ -48,21 +48,6 @@ export class NotificationsService {
     private readonly dispatchProducer: QueueDispatchProducer,
   ) {}
 
-  /**
-   * Point d'entrée unique pour /internal/notifications (§20) : idempotence
-   * (§19), résolution de cible (§22), application des préférences (§11),
-   * bypass des types obligatoires (§12), persistance et mise en file des
-   * canaux asynchrones (§17).
-   *
-   * Idempotence (§P0-017) : quand `dto.eventId` est fourni, la création des
-   * notifications et l'enregistrement de la clé d'idempotence sont faits
-   * dans une seule transaction (`IdempotencyService.withIdempotency`) — pas
-   * de fenêtre où les notifications existent sans que l'événement soit
-   * marqué traité, ni l'inverse. Les jobs de canaux asynchrones (email/push/
-   * sms) ne sont mis en file qu'après le commit, pour ne jamais référencer
-   * une notification dont l'écriture a finalement été annulée (course
-   * perdue face à une requête concurrente portant le même eventId).
-   */
   async dispatchEvent(
     application: string,
     dto: CreateInternalNotificationDto,
@@ -150,14 +135,25 @@ export class NotificationsService {
 
     const category = dto.category ?? dto.type;
     const mandatory = isMandatoryNotificationType(dto.type);
-    const candidateChannels = dto.channels ?? DEFAULT_CANDIDATE_CHANNELS;
-    const channels = mandatory
-      ? candidateChannels
-      : await this.preferences.resolveEnabledChannels(
-          userId,
-          category,
-          candidateChannels,
-        );
+    const externalEmail = dto.email?.trim().toLowerCase() ?? null;
+    const candidateChannels = externalEmail
+      ? [NotificationChannelType.EMAIL]
+      : (dto.channels ?? DEFAULT_CANDIDATE_CHANNELS);
+    const channels =
+      externalEmail || mandatory
+        ? candidateChannels
+        : await this.preferences.resolveEnabledChannels(
+            userId,
+            category,
+            candidateChannels,
+          );
+    const notificationData = externalEmail
+      ? {
+          ...(dto.data ?? {}),
+          _externalEmail: externalEmail,
+          _externalName: dto.recipientName ?? null,
+        }
+      : (dto.data ?? null);
 
     const notification = notificationRepo.create({
       userId,
@@ -168,7 +164,7 @@ export class NotificationsService {
       priority: dto.priority ?? NotificationPriority.NORMAL,
       title: dto.title,
       body: dto.body,
-      data: dto.data ?? null,
+      data: notificationData,
       channels,
       mandatory,
       notificationEventId: null,
@@ -190,7 +186,6 @@ export class NotificationsService {
         manager,
       );
       if (channel === NotificationChannelType.IN_APP) {
-        // La ligne `notifications` est déjà la notification in-app (§10) : rien à mettre en file.
         await this.deliveries.markSent(delivery.id, 'in-app', manager);
         await this.deliveries.markDelivered(delivery.id, manager);
         continue;
@@ -245,7 +240,6 @@ export class NotificationsService {
     const notification = await this.repository.findOne({ where: { id } });
     if (!notification) throw new NotFoundException('Notification not found');
     if (notification.userId !== userId) {
-      // 404 plutôt que 403 pour ne pas confirmer l'existence d'une notification d'un autre utilisateur.
       throw new NotFoundException('Notification not found');
     }
     return notification;
@@ -283,7 +277,6 @@ export class NotificationsService {
     return notification;
   }
 
-  /** Nettoyage périodique des notifications expirées/anciennes (§24, §27). */
   async deleteExpiredAndStale(retentionDays: number): Promise<number> {
     const now = new Date();
     const retentionCutoff = new Date(
