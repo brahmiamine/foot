@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/session";
 import { listMfaRolePolicies, updateMfaRolePolicy } from "@/lib/mfaPolicy";
 import { hasRecentMfa, getStepUpMaxAgeSeconds } from "@/lib/stepUp";
+import { getClientIP } from "@/lib/getClientIP";
 import type { MfaPolicyMode } from "@/entities/MfaRolePolicy";
 import type { User } from "@/entities/User";
 import { isTrustedOrigin } from "@/lib/csrf";
@@ -54,6 +55,7 @@ export async function PATCH(request: NextRequest) {
     const role = typeof body?.role === "string" && ROLES.includes(body.role) ? body.role : null;
     const mode = typeof body?.mode === "string" && MODES.includes(body.mode) ? body.mode : null;
     const gracePeriodDays = Number(body?.gracePeriodDays);
+    const reason = typeof body?.reason === "string" ? body.reason : "";
     if (!role || !mode || !Number.isInteger(gracePeriodDays)) {
       return NextResponse.json({ error: "INVALID_POLICY" }, { status: 400 });
     }
@@ -63,6 +65,10 @@ export async function PATCH(request: NextRequest) {
       mode,
       gracePeriodDays,
       updatedBy: session.id,
+      actorRole: session.role,
+      reason,
+      ipAddress: getClientIP(request),
+      userAgent: request.headers.get("user-agent"),
     });
     return NextResponse.json({ policy });
   } catch (error) {
