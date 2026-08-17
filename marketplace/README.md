@@ -2,45 +2,95 @@
 
 ## Rôle du projet
 
-API NestJS du domaine marketplace pour vendeurs, catalogue, modération et exécution des commandes.
+API NestJS du domaine Marketplace : demandes vendeurs, comptes vendeurs, catalogue, modération, stock, checkout multi-vendeur, commandes, retours, payouts et notifications vendeur.
 
-## Fonctionnalités publiques
+## Onboarding vendeur
 
-`GET /health`, `GET /health/inventory`, `GET /health/checkout`, `GET /health/returns` (TASK-P0-006); `POST /auth/register|login`; lecture publique des catégories (`GET /categories`); webhook applicatif entrant `POST /payments/webhook` (appelé par payments, jamais par un navigateur — voir "Checkout").
+Depuis la gouvernance vendeur introduite par la PR #93, Marketplace possède le workflow d'admission :
 
-**Pages inventoriées :** Aucune page (service HTTP uniquement).
+```text
+site public du club
+  → SellerApplication
+  → revue club-hub (ou auto-approval selon settings)
+  → Seller ACTIVE + SellerUser INVITED
+  → SellerInvite à usage unique
+  → seller-portal /activate
+  → SellerUser ACTIVE
+```
 
-## Fonctionnalités administratives
+`POST /auth/register` est volontairement conservé comme endpoint de compatibilité mais renvoie `410 Gone`. Il ne crée plus de vendeur. Le mot de passe n'est choisi qu'au moment de l'activation de l'invitation.
 
-API sans pages. Routes de service pour catégories, modération produits, lecture commande et gestion/statut des vendeurs; routes vendeur pour profil, produits, variantes, inventaire, commandes, retours, payouts et notifications; routes internes panier/checkout (`/internal/cart`, `/internal/checkout`, TASK-P0-004) pour les applications appelantes (ex. `ob`).
+## Fonctionnalités publiques / externes
 
-## API
+- `GET /health`, `GET /health/inventory`, `GET /health/checkout`, `GET /health/returns` ;
+- `POST /auth/login` ;
+- `POST /auth/activate` ;
+- `POST /auth/register` : désactivé (`410 Gone`) ;
+- lecture publique des catégories lorsque le contrôleur l'autorise ;
+- webhook applicatif entrant `POST /payments/webhook`, signé et destiné aux services.
 
-Contrôleurs: health (+ `health/inventory` TASK-P0-005, `health/checkout` TASK-P0-004); auth; categories; sellers; products et internal-products; variants; inventory; cart; checkout (+ webhook payments); seller-orders et orders; returns; payouts; notifications; moderation. Les verbes et gardes sont ceux des décorateurs NestJS; Swagger est exposé par l'application en développement.
+## Fonctionnalités administratives et internes
 
-**Réservation de stock (TASK-P0-005)** : `InventoryService.reserveStock/confirmReservation/releaseReservation/expireStaleReservations` — primitive transactionnelle (UPDATE SQL conditionnel, jamais de stock négatif même sous requêtes concurrentes sur la dernière unité). `GET /health/inventory` expose la métrique d'oversell (compte des `InventoryItem.available < 0`, cible zéro).
+- demandes vendeurs : création depuis une application publique autorisée, listing/revue par le club, approbation/rejet ;
+- settings marketplace par club : ouverture des demandes, approbation vendeur, approbation produit, revalidation après modification sensible ;
+- administration vendeurs : statut, commission, suspension/réactivation ;
+- catégories et modération produits ;
+- routes vendeur pour profil, produits, variantes, inventaire, commandes, retours, payouts et notifications ;
+- panier/checkout interne service-to-service.
 
-**Checkout multi-vendeur (TASK-P0-004)** : `POST /internal/cart` (`GET`/`POST items`/`PATCH items/:id`/`DELETE items/:id`) puis `POST /internal/checkout` — les deux réservés aux applications appelantes (`ServiceAuthGuard`, `memberId` explicite en paramètre : marketplace n'a pas de session membre, la confiance vient de l'appelant, ex. `ob`, qui a déjà authentifié le membre lui-même). `checkout` revalide prix/statut publié/vendeur/stock depuis la base (jamais le panier), crée un snapshot immuable par ligne, une `MarketOrder` + une `SellerOrder` par vendeur impliqué, réserve le stock de chaque ligne (TASK-P0-005) et initie un paiement idempotent auprès de payments — tout dans une seule transaction pour la création+réservation ; le paiement lui-même s'initie hors transaction et toute commande dont l'initiation échoue est explicitement annulée (stock relâché). `POST /payments/webhook` (signature HMAC `PAYMENT_WEBHOOK_SECRET`) et `CheckoutReconciliationService` (scheduler périodique, filet de sécurité si le webhook est perdu, + expiration des commandes `PENDING` abandonnées) confirment ou annulent la commande une fois le paiement résolu.
-
-**Retours ↔ remboursements/payouts (TASK-P0-006)** : `POST /returns/:id/complete` (article physiquement reçu) déclenche automatiquement une demande de remboursement auprès de payments pour le montant de la ligne retournée (`ReturnsService.complete`/`triggerRefund`) — `COMPLETED` ne signifie plus « remboursé », seul un remboursement confirmé `SUCCEEDED` fait passer le retour et la sous-commande à `REFUNDED`. Un échec de la demande (payments indisponible, etc.) est visible (`ReturnStatus.REFUND_FAILED`, `refundError`) et rejouable via `POST /returns/:id/retry-refund` (même clé d'idempotence `return:<id>`, jamais de double remboursement). `ReturnRefundReconciliationService` (scheduler 10 min, `GET /health/returns`) relit le statut chez payments tant qu'un remboursement reste `REQUESTED`/`PROCESSING`/`MANUAL_REVIEW` (pas de webhook de remboursement entrant, voir payments § Remboursements) et fait avancer le retour dès que la réponse financière est connue. Commission/payout vendeur se recalculent automatiquement : `PayoutsService.computeAvailableBalance` ne somme que les sous-commandes `DELIVERED`, donc une commande `RETURNED`/`REFUNDED` sort mécaniquement du solde disponible dès le prochain payout.
-
-> Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
+Les identifiants de club venant d'une application publique doivent être résolus côté serveur par cette application. Une clé `SERVICE_API_KEYS` n'est jamais exposée au navigateur.
 
 ## Authentification et autorisations
 
-`SellerJwtGuard` protège les ressources vendeur et impose l'identité portée par le JWT. `ServiceAuthGuard` protège `/internal/products`, modération, commandes, mutations catégories et administration vendeurs via une clé appartenant à `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`, TASK-P0-003). Ne jamais exposer ces clés au navigateur.
+- `SellerJwtGuard` protège les ressources vendeur ;
+- `ServiceAuthGuard` protège les routes service-to-service ;
+- les clés service supportent la rotation via `SERVICE_API_KEYS_PREVIOUS` / `SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT` ;
+- le login vendeur exige à la fois `Seller.status=ACTIVE` et `SellerUser.status=ACTIVE` ;
+- les invitations d'activation sont aléatoires, stockées uniquement sous forme de hash, expirables et à usage unique.
 
-## Données possédées
+## Politique produit
 
-Base dédiée configurée par `DB_*`: vendeurs/utilisateurs, catégories, produits/images/variantes, inventaire (+ réservations de stock, TASK-P0-005), panier/lignes (TASK-P0-004), commandes vendeur/lignes, commandes marché, retours, payouts et notifications.
+Marketplace est la source métier de la policy de publication :
 
-**Migrations réellement présentes :** Aucun dossier `migrations/`, `mysql/` ou `sql/` dans `marketplace` lui-même — le schéma des tables `sp_*` est possédé par `seller-portal` (`sql/schema.sql` + `sql/migration_*.sql`, voir `src/config/database.config.ts`), pas par ce service. `sp_stock_reservations` (TASK-P0-005) et le panier/checkout (`sp_carts`, `sp_cart_items`, colonnes `memberId`/`idempotencyKey`/`status`/`paymentId` sur `sp_market_orders`, `reservationId` sur `sp_seller_order_items`, TASK-P0-004) sont ajoutés par `seller-portal/sql/migration_add_stock_reservations.sql` et `seller-portal/sql/migration_add_marketplace_checkout.sql`. `seller-portal/sql/migration_add_return_refunds.sql` (TASK-P0-006) étend `sp_return_requests` (`refundId`/`refundStatus`/`refundRequestedAt`/`refundError`, statuts `REFUND_FAILED`/`REFUNDED`) et corrige à cette occasion l'ENUM `sp_notifications.type`, qui n'avait jamais été mis à jour pour `SELLER_ACTIVATED`/`SELLER_SUSPENDED`/`LOW_STOCK`.
+- si `productApprovalRequired=true`, la soumission suit la modération club ;
+- si `productApprovalRequired=false`, la soumission peut être publiée automatiquement selon le workflow serveur ;
+- si `productReapprovalOnSensitiveChange=true`, une modification sensible d'un produit publié le renvoie vers la validation ;
+- une mise à jour de stock seule ne doit pas contourner ni redéclencher une validation de contenu sans raison métier.
+
+## Stock et checkout
+
+`InventoryService.reserveStock/confirmReservation/releaseReservation/expireStaleReservations` fournit une réservation transactionnelle avec UPDATE conditionnel afin d'éviter le stock négatif sous concurrence.
+
+Le checkout interne revalide toujours produit publié, vendeur actif, prix et stock depuis la base. Il crée les snapshots de lignes, commandes marché/sous-commandes vendeur, réserve le stock et initie le paiement de façon idempotente. Les webhooks et la réconciliation périodique rattrapent les callbacks perdus.
+
+## Retours et remboursements
+
+La réception d'un retour déclenche la demande de remboursement auprès de `payments`. Un retour n'est `REFUNDED` qu'après confirmation financière. Les échecs restent visibles et rejouables avec une clé d'idempotence stable ; une réconciliation périodique suit les remboursements `REQUESTED/PROCESSING/MANUAL_REVIEW`.
+
+## Données et migrations
+
+Marketplace accède aux tables `sp_*`. Le schéma SQL reste historiquement versionné sous `seller-portal/sql` : `marketplace` ne doit pas activer `synchronize` pour modifier la base implicitement.
+
+Migrations pertinentes côté `seller-portal/sql` :
+
+- schéma et cloisonnement `club_id` ;
+- modération produits ;
+- stock reservations ;
+- checkout ;
+- retours/remboursements ;
+- `migration_add_seller_governance.sql` : demandes vendeurs, settings et invitations.
+
+Cette propriété de schéma est transitoire ; la logique métier nouvelle doit rester centralisée dans Marketplace.
 
 ## Intégrations
 
-Consommée par seller-portal/club-hub via `MARKETPLACE_API_URL` et clé de service. TypeORM crée/accède au schéma configuré. Appelle payments (initiation de paiement idempotente, lecture de statut, réception du webhook applicatif — TASK-P0-004) et notifications (best-effort, confirmation/annulation de commande envoyée au membre acheteur — le `NotificationsService` local ne notifie que les vendeurs).
+- `club-ob` ou autre site de club : dépôt public de demande vendeur via backend autorisé ;
+- `club-hub` : revue des demandes, vendeurs, commissions, settings et modération ;
+- `seller-portal` : espace privé vendeur et activation ;
+- `payments` : checkout, lecture de statut et remboursements ;
+- `notifications` : notifications administrateurs, candidats, membres et vendeurs selon l'événement.
 
-## Variables d’environnement
+## Variables d'environnement
 
 Copier le fichier réellement versionné :
 
@@ -48,11 +98,9 @@ Copier le fichier réellement versionné :
 cp .env.example .env.local
 ```
 
-Variables déclarées dans `.env.example` : `NODE_ENV`, `PORT`, `SELLER_JWT_SECRET`, `SERVICE_API_KEYS`, `SERVICE_API_KEYS_PREVIOUS(_EXPIRES_AT)`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `PAYMENT_API_URL`, `PAYMENT_API_KEY`, `PAYMENT_PROVIDER`, `PAYMENT_WEBHOOK_SECRET`, `NOTIFICATION_API_URL`, `NOTIFICATION_API_KEY`. Pour les API NestJS, utiliser `.env` si le chargeur de configuration de l'environnement ne lit pas `.env.local`. Ne jamais committer de valeurs réelles.
+Variables principales : `NODE_ENV`, `PORT`, `SELLER_JWT_SECRET`, `SERVICE_API_KEYS`, rotation des clés service, `DB_*`, `PAYMENT_*`, `NOTIFICATION_*` et `SELLER_PORTAL_URL` pour les invitations. Ne jamais committer de secret réel.
 
-## Démarrage
-
-Prérequis : Node.js, pnpm, et les dépendances MariaDB/Redis éventuelles configurées.
+## Démarrage / validation
 
 ```bash
 pnpm install
@@ -60,16 +108,17 @@ pnpm dev
 pnpm build
 pnpm start
 pnpm lint
+pnpm test
 ```
 
-**Port :** 3011 par défaut dans `src/main.ts` et `.env.example`, pour `start`, `start:dev` et `start:prod`.
-
-Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `match-operations`, `federation-hub` et `club-hub`, avec MariaDB partagée. Les autres projets se lancent séparément. `payments` et `notifications` possèdent leur base; `marketplace` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (seller-portal inclus).
-
-## Tests
-
-`pnpm test`, `pnpm test:e2e`, `pnpm test:cov`. Les scripts `lint` des API NestJS utilisent `--fix` et peuvent donc modifier les fichiers.
+Port conventionnel : `3011`.
 
 ## Limites connues
 
-Aucune migration SQL n'est présente dans ce dépôt (le schéma `sp_*` est possédé par `seller-portal`, voir "Données possédées"); le déploiement doit s'assurer qu'elle est appliquée là-bas. Le checkout (TASK-P0-004) n'a de surface HTTP que côté `marketplace` : aucune page `ob` (panier, tunnel d'achat) n'existe pour l'appeler — voir `todo.md` pour la portée exacte retenue cette passe. Frais de livraison/taxe non calculés dynamiquement (pas de transporteur/zone configurable, voir TASK-P1-006) — seul le sous-total des lignes (prix × quantité) entre dans le total de la commande aujourd'hui. Le webhook de paiement entrant (`POST /payments/webhook`) n'a pas de table de déduplication dédiée (contrairement à ticketing/club-hub) : la réconciliation reste sûre par idempotence des transitions elles-mêmes (rejouer sur une commande déjà résolue est un no-op), mais un webhook rejoué relit toujours le statut auprès de payments plutôt que d'être filtré en amont. Pas de paiement/expédition externe réels testés (fournisseurs mockés dans les tests). Deux modèles existent encore avec seller-portal local. Le solde vendeur calculé pour un payout (TASK-P0-021/US-47) reste un agrégat plancé à zéro, pas un grand livre par commande (voir TASK-P1-007) : si un payout couvrant une commande a déjà été marqué `PAID` avant qu'elle ne soit retournée/remboursée (TASK-P0-006), la perte n'est pas activement recouvrée auprès du vendeur, seulement absorbée sur ses payouts futurs.
+- propriété du schéma `sp_*` encore située sous `seller-portal/sql` ;
+- transition vers Marketplace comme source de vérité unique encore incomplète dans certaines lectures historiques du portail ;
+- payout sans grand livre financier complet par commande ;
+- frais de livraison/taxe non pilotés par un moteur de zones/transporteur ;
+- les fournisseurs externes ne sont pas tous vérifiés en environnement réel dans les tests.
+
+Voir [`../docs/platform-capabilities.md`](../docs/platform-capabilities.md) pour le statut canonique et [`../platform-governance-roadmap.md`](../platform-governance-roadmap.md) pour les prochaines policies/workflows.
