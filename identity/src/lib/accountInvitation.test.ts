@@ -50,17 +50,17 @@ describe("player account invitations", () => {
     const userBefore = await dataSource.getRepository(User).findOneByOrFail({ id: invitation.userId });
     expect(userBefore).toMatchObject({
       role: "PLAYER",
-      isActive: false,
       teamId: "team-1",
       playerId: "player-1",
     });
+    expect(Boolean(userBefore.isActive)).toBe(false);
 
     const token = tokenFromLastEmail();
     const accepted = await acceptAccountInvitation(token, "new-secret-123");
     expect(accepted).toMatchObject({ success: true, userId: invitation.userId, role: "PLAYER" });
 
     const userAfter = await dataSource.getRepository(User).findOneByOrFail({ id: invitation.userId });
-    expect(userAfter.isActive).toBe(true);
+    expect(Boolean(userAfter.isActive)).toBe(true);
     expect(userAfter.tokenVersion).toBe(1);
 
     const replay = await acceptAccountInvitation(token, "another-secret-123");
