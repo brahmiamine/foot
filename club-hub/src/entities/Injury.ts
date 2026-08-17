@@ -5,14 +5,15 @@ import { User } from "./User";
 
 export type InjurySeverity = "MINOR" | "MODERATE" | "SEVERE";
 export type InjuryStatus = "ONGOING" | "RECOVERING" | "RESOLVED";
+export type ReturnToPlayStage =
+  | "INJURED"
+  | "TREATMENT"
+  | "INDIVIDUAL"
+  | "PARTIAL"
+  | "FULL"
+  | "CLEARANCE"
+  | "AVAILABLE";
 
-/**
- * Injury Entity — dossier de blessure d'un joueur (zone, gravité,
- * diagnostic, indisponibilité, reprise). Module à accès strictement
- * restreint (permission "medical.*", voir lib/permissions.ts) : ni Coach ni
- * Adjoint n'y ont accès par défaut. Table propre à cette app, scopée par
- * team_id.
- */
 @Entity("cms_injuries")
 export class Injury {
   @PrimaryGeneratedColumn({ type: "bigint" })
@@ -62,13 +63,24 @@ export class Injury {
   @Column({ type: "varchar", length: 500, nullable: true, name: "progressive_return_notes" })
   progressiveReturnNotes?: string | null;
 
-  /** JSON: [{ name: string, url: string }] — documents médicaux uploadés. */
+  @Column({
+    type: "enum",
+    enum: ["INJURED", "TREATMENT", "INDIVIDUAL", "PARTIAL", "FULL", "CLEARANCE", "AVAILABLE"],
+    default: "INJURED",
+    name: "rtp_stage",
+  })
+  rtpStage!: ReturnToPlayStage;
+
+  @Column({ type: "int", default: 1, name: "rtp_version" })
+  rtpVersion!: number;
+
   @Column({ type: "text", nullable: true })
   documents?: string | null;
 
   @Column({ type: "enum", enum: ["ONGOING", "RECOVERING", "RESOLVED"], default: "ONGOING" })
   status!: InjuryStatus;
 
+  /** Compatibilité historique ; nouveaux suivis dans cms_injury_followups. */
   @Column({ type: "text", nullable: true })
   notes?: string | null;
 
