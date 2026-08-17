@@ -28,6 +28,18 @@ function sensitiveNewsChanged(
   );
 }
 
+function hasProtectedEditorialReview(before: { editorialStatus: string }): boolean {
+  return ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "SCHEDULED"].includes(before.editorialStatus);
+}
+
+function sensitiveEditNeedsApprovalRefresh(before: {
+  status: "DRAFT" | "PUBLISHED";
+  editorialStatus: string;
+  isPublished: boolean;
+}): boolean {
+  return (before.status === "PUBLISHED" && before.isPublished) || hasProtectedEditorialReview(before);
+}
+
 export async function createNews(formData: FormData) {
   try {
     const data = {
@@ -113,11 +125,38 @@ export async function updateNews(id: number, formData: FormData) {
     if (!before) throw new Error("Actualité non trouvée");
 
     const publicationRequested = validatedData.status === "PUBLISHED" || validatedData.isPublished === true;
-    const explicitUnpublish = validatedData.status === "DRAFT" || validatedData.isPublished === false;
-    const sensitiveChanged = sensitiveNewsChanged(before, validatedData);
     const wasPublished = before.status === "PUBLISHED" && before.isPublished;
+    const explicitUnpublish =
+      wasPublished && (validatedData.status === "DRAFT" || validatedData.isPublished === false);
+    const sensitiveChanged = sensitiveNewsChanged(before, validatedData);
+    const protectedEditorialEdit = sensitiveChanged && hasProtectedEditorialReview(before);
 
-    if (publicationRequested || explicitUnpublish) requirePermission(access, "news.publish");
+    if (publicationRequested || explicitUnpublish || protectedEditorialEdit) {
+      requirePermission(access, "news.publish");
+    }
+
+    // A scheduled/pending-review News is represented by legacy status=DRAFT.
+    // Editing its protected content must not be mistaken for an ordinary
+    // unpublish: keep the requested schedule and refresh the approval flow.
+    if (protectedEditorialEdit && !publicationRequested) {
+      await newsService.update(id, teamId, {
+        ...validatedData,
+        status: "DRAFT",
+        isPublished: false,
+        publishedAt: null,
+      });
+      const result = await approvalService.requireReapprovalAfterSensitiveEdit(
+        "NEWS",
+        String(id),
+        teamId,
+        access.userId,
+      );
+      revalidateNews(id);
+      return {
+        success: true,
+        message: result?.message ?? "Actualité modifiée selon la politique de revalidation",
+      };
+    }
 
     if (publicationRequested && (!wasPublished || sensitiveChanged)) {
       await newsService.update(id, teamId, {
@@ -125,6 +164,7 @@ export async function updateNews(id: number, formData: FormData) {
         status: "DRAFT",
         isPublished: false,
         publishedAt: null,
+        scheduledAt: null,
       });
       const result = await approvalService.submitPublication("NEWS", String(id), teamId, access.userId);
       revalidateNews(id);
@@ -135,8 +175,10 @@ export async function updateNews(id: number, formData: FormData) {
       await newsService.update(id, teamId, {
         ...validatedData,
         status: "DRAFT",
+        editorialStatus: "DRAFT",
         isPublished: false,
         publishedAt: null,
+        scheduledAt: null,
       });
       revalidateNews(id);
       return { success: true, message: "Actualité repassée en brouillon" };
@@ -181,7 +223,7 @@ export async function addMediaToNews(newsId: number, mediaItemId: number, displa
     if (!before) throw new Error("Actualité non trouvée");
 
     await newsService.addMediaToNews(newsId, mediaItemId, access.teamId, displayOrder);
-    if (before.status === "PUBLISHED" && before.isPublished) {
+    if (sensitiveEditNeedsApprovalRefresh(before)) {
       await approvalService.requireReapprovalAfterSensitiveEdit(
         "NEWS",
         String(newsId),
@@ -208,7 +250,7 @@ export async function removeMediaFromNews(newsId: number, mediaItemId: number) {
     if (!before) throw new Error("Actualité non trouvée");
 
     await newsService.removeMediaFromNews(newsId, mediaItemId, access.teamId);
-    if (before.status === "PUBLISHED" && before.isPublished) {
+    if (sensitiveEditNeedsApprovalRefresh(before)) {
       await approvalService.requireReapprovalAfterSensitiveEdit(
         "NEWS",
         String(newsId),
@@ -238,7 +280,7 @@ export async function updateNewsMediaOrder(
     if (!before) throw new Error("Actualité non trouvée");
 
     await newsService.updateNewsMediaOrder(newsId, items, access.teamId);
-    if (before.status === "PUBLISHED" && before.isPublished) {
+    if (sensitiveEditNeedsApprovalRefresh(before)) {
       await approvalService.requireReapprovalAfterSensitiveEdit(
         "NEWS",
         String(newsId),
