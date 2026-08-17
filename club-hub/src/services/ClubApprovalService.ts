@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { EntityManager } from "typeorm";
 import { getDataSource } from "@/lib/database";
 import { News } from "@/entities/News";
+import { NewsMedia } from "@/entities/NewsMedia";
 import { Announcement } from "@/entities/Announcement";
 import { Product } from "@/entities/Product";
 import {
@@ -11,7 +12,7 @@ import {
   type ClubApprovalDomain,
   type ClubApprovalMode,
 } from "@/entities/ClubGovernance";
-import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
+import { NotificationOutboxService } from "@/services/NotificationOutboxService";
 import {
   registerApproval,
   type ApprovalPolicy,
@@ -114,6 +115,11 @@ export class ClubApprovalService {
     });
   }
 
+  async getRequest(requestId: string, teamId: string): Promise<ClubApprovalRequest | null> {
+    const ds = await getDataSource();
+    return ds.getRepository(ClubApprovalRequest).findOne({ where: { id: requestId, teamId } });
+  }
+
   async submitPublication(
     domain: ClubApprovalDomain,
     entityId: string,
@@ -194,7 +200,9 @@ export class ClubApprovalService {
         .setLock("pessimistic_write")
         .where("request.id = :requestId AND request.teamId = :teamId", { requestId, teamId })
         .getOne();
-      if (!request || request.status !== "PENDING") throw new Error("Demande d'approbation introuvable ou déjà résolue");
+      if (!request || request.status !== "PENDING") {
+        throw new Error("Demande d'approbation introuvable ou déjà résolue");
+      }
 
       const currentFingerprint = await this.currentFingerprint(
         manager,
@@ -256,7 +264,9 @@ export class ClubApprovalService {
         .setLock("pessimistic_write")
         .where("request.id = :requestId AND request.teamId = :teamId", { requestId, teamId })
         .getOne();
-      if (!request || request.status !== "PENDING") throw new Error("Demande d'approbation introuvable ou déjà résolue");
+      if (!request || request.status !== "PENDING") {
+        throw new Error("Demande d'approbation introuvable ou déjà résolue");
+      }
       if (request.makerCheckerEnabled && request.makerUserId === actorUserId) {
         throw new Error("Le créateur ne peut pas rejeter sa propre demande en mode maker/checker");
       }
@@ -276,11 +286,6 @@ export class ClubApprovalService {
     });
   }
 
-  /**
-   * Called after a sensitive edit. If policy requires a new approval, the
-   * entity is immediately removed from public visibility and a fresh request
-   * is created against the new fingerprint.
-   */
   async requireReapprovalAfterSensitiveEdit(
     domain: ClubApprovalDomain,
     entityId: string,
@@ -331,9 +336,19 @@ export class ClubApprovalService {
     teamId: string,
   ): Promise<string> {
     if (domain === "NEWS") {
-      const item = await manager.getRepository(News).findOne({ where: { id: Number(entityId), teamId } });
+      const newsId = Number(entityId);
+      const item = await manager.getRepository(News).findOne({ where: { id: newsId, teamId } });
       if (!item) throw new Error("Actualité introuvable");
-      return stableHash({ title: item.title, contentHtml: item.contentHtml, coverImage: item.coverImage });
+      const media = await manager.getRepository(NewsMedia).find({
+        where: { newsId },
+        order: { displayOrder: "ASC" },
+      });
+      return stableHash({
+        title: item.title,
+        contentHtml: item.contentHtml,
+        coverImage: item.coverImage,
+        media: media.map(({ mediaItemId, displayOrder }) => ({ mediaItemId, displayOrder })),
+      });
     }
     if (domain === "ANNOUNCEMENT") {
       const item = await manager.getRepository(Announcement).findOne({ where: { id: Number(entityId), teamId } });
@@ -369,22 +384,16 @@ export class ClubApprovalService {
       item.publishedAt = new Date();
       await repo.save(item);
       if (newlyPublished) {
-        await manager.getRepository(NotificationOutboxEvent).save(
-          manager.getRepository(NotificationOutboxEvent).create({
-            eventId: `news-published:${item.id}`,
-            type: "NEWS_PUBLISHED",
-            payload: {
-              eventId: `news-published:${item.id}`,
-              type: "NEWS_PUBLISHED",
-              target: { type: "MEMBERS", teamId },
-              teamId,
-              category: "NEWS_PUBLISHED",
-              title: "Nouvelle actualité",
-              body: item.title,
-              data: { newsId: item.id, newsTitle: item.title },
-            },
-          }),
-        );
+        await new NotificationOutboxService().enqueue(manager, {
+          eventId: `news-published:${item.id}`,
+          type: "NEWS_PUBLISHED",
+          target: { type: "MEMBERS", teamId },
+          teamId,
+          category: "NEWS_PUBLISHED",
+          title: "Nouvelle actualité",
+          body: item.title,
+          data: { newsId: item.id, newsTitle: item.title },
+        });
       }
       return;
     }
