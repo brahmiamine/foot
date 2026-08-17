@@ -4,8 +4,10 @@ export const DEFAULT_STEP_UP_MAX_AGE_SECONDS = 10 * 60;
 
 type StepUpEnv = { MFA_STEP_UP_MAX_AGE_SECONDS?: string };
 
-export function getStepUpMaxAgeSeconds(env: StepUpEnv = process.env): number {
-  const configured = Number(env.MFA_STEP_UP_MAX_AGE_SECONDS ?? DEFAULT_STEP_UP_MAX_AGE_SECONDS);
+export function getStepUpMaxAgeSeconds(env?: StepUpEnv): number {
+  const configuredValue =
+    env?.MFA_STEP_UP_MAX_AGE_SECONDS ?? process.env.MFA_STEP_UP_MAX_AGE_SECONDS;
+  const configured = Number(configuredValue ?? DEFAULT_STEP_UP_MAX_AGE_SECONDS);
   return Number.isFinite(configured) && configured >= 60 && configured <= 60 * 60
     ? Math.floor(configured)
     : DEFAULT_STEP_UP_MAX_AGE_SECONDS;
