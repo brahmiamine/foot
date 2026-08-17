@@ -15,7 +15,6 @@ interface CreateSubstitutionInput {
   playerInId: string;
   minute: number;
   period: MatchPeriod;
-  /** TASK-P0-025 : voir Goal.clientRequestId — un doublon renvoie l'événement déjà créé, sans erreur. */
   clientRequestId?: string | null;
 }
 
@@ -79,33 +78,23 @@ export class SubstitutionService {
   async create(data: CreateSubstitutionInput): Promise<Substitution> {
     await assertSheetEditable(data.sheetId);
     const repository = await this.getRepository();
-
-    // Un retry idempotent doit retourner l'événement existant même si la
-    // limite de substitutions est désormais atteinte par ce premier appel.
     if (data.clientRequestId) {
-      const existing = await repository.findOne({
-        where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId },
-      });
+      const existing = await repository.findOne({ where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId } });
       if (existing) return existing;
     }
-
     await this.protocolService.assertSubstitutionAllowed(data.matchId, data.teamId);
-
     const substitution = repository.create({ ...data, clientRequestId: data.clientRequestId ?? null });
     try {
       return await repository.save(substitution);
     } catch (error) {
       if (data.clientRequestId && isDuplicateKeyError(error)) {
-        const existing = await repository.findOne({
-          where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId },
-        });
+        const existing = await repository.findOne({ where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId } });
         if (existing) return existing;
       }
       throw error;
     }
   }
 
-  /** Corrige un remplacement déjà saisi, avec audit avant/après (TASK-P0-009). */
   async correct(id: number, updates: CorrectSubstitutionInput, actor: Actor): Promise<Substitution> {
     const reason = assertReason(actor.reason);
     const repository = await this.getRepository();
@@ -113,16 +102,14 @@ export class SubstitutionService {
     if (!substitution) throw new SubstitutionNotFoundError();
     if (substitution.cancelledAt) throw new SubstitutionAlreadyCancelledError();
 
-    await assertSheetEditable(substitution.sheetId);
+    await assertSheetEditable(substitution.sheetId, { allowSignedAmendment: true });
     const before = snapshot(substitution);
-
     if (updates.playerOutId !== undefined) substitution.playerOutId = updates.playerOutId;
     if (updates.playerInId !== undefined) substitution.playerInId = updates.playerInId;
     if (updates.minute !== undefined) substitution.minute = updates.minute;
     if (updates.period !== undefined) substitution.period = updates.period;
 
     const saved = await repository.save(substitution);
-
     await this.correctionService.record({
       sheetId: saved.sheetId,
       matchId: saved.matchId,
@@ -135,11 +122,9 @@ export class SubstitutionService {
       actorUserId: actor.actorUserId,
       actorName: actor.actorName,
     });
-
     return saved;
   }
 
-  /** Annule un remplacement sans le supprimer (TASK-P0-009) — voir GoalService.cancel. */
   async cancel(id: number, actor: Actor): Promise<Substitution> {
     const reason = assertReason(actor.reason);
     const repository = await this.getRepository();
@@ -147,13 +132,11 @@ export class SubstitutionService {
     if (!substitution) throw new SubstitutionNotFoundError();
     if (substitution.cancelledAt) throw new SubstitutionAlreadyCancelledError();
 
-    await assertSheetEditable(substitution.sheetId);
+    await assertSheetEditable(substitution.sheetId, { allowSignedAmendment: true });
     const before = snapshot(substitution);
-
     substitution.cancelledAt = new Date();
     substitution.cancelledReason = reason;
     const saved = await repository.save(substitution);
-
     await this.correctionService.record({
       sheetId: saved.sheetId,
       matchId: saved.matchId,
@@ -166,11 +149,9 @@ export class SubstitutionService {
       actorUserId: actor.actorUserId,
       actorName: actor.actorName,
     });
-
     return saved;
   }
 
-  /** @deprecated Conservé pour compatibilité interne — préférer `cancel()`. */
   async delete(id: number): Promise<void> {
     const repository = await this.getRepository();
     await repository.delete({ id });
