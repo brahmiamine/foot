@@ -8,21 +8,15 @@ import { Substitution } from "@/entities/Substitution";
 import { Injury } from "@/entities/Injury";
 import { Repository } from "typeorm";
 import { CompetitionMatchProtocolService } from "./CompetitionMatchProtocolService";
+import { SheetAmendmentService } from "./SheetAmendmentService";
 
 export interface RecordedBy {
   userId: string | null;
   name: string | null;
 }
 
-/**
- * TASK-P0-024 : SHA256 (hex) d'un instantané canonique du contenu de la
- * feuille (statut + tous les événements à ce jour, triés par id pour un
- * ordre déterministe) — pas les signatures elles-mêmes (sans quoi le hash
- * dépendrait de son propre historique).
- */
 export async function computeSheetContentHash(sheetId: number, matchId: string): Promise<string> {
   const dataSource = await getDataSource();
-
   const [sheet, goals, cards, substitutions, injuries] = await Promise.all([
     dataSource.getRepository(Sheet).findOne({ where: { id: sheetId } }),
     dataSource.getRepository(Goal).find({ where: { sheetId }, order: { id: "ASC" } }),
@@ -38,12 +32,12 @@ export async function computeSheetContentHash(sheetId: number, matchId: string):
     substitutions: substitutions.map((s) => ({ id: s.id, playerOutId: s.playerOutId, playerInId: s.playerInId, minute: s.minute, period: s.period })),
     injuries: injuries.map((i) => ({ id: i.id, playerId: i.playerId, minute: i.minute, period: i.period, requiresSubstitution: i.requiresSubstitution })),
   };
-
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
 
 export class SignatureService {
   private protocolService = new CompetitionMatchProtocolService();
+  private amendmentService = new SheetAmendmentService();
 
   private async getRepository(): Promise<Repository<Signature>> {
     const dataSource = await getDataSource();
@@ -62,9 +56,7 @@ export class SignatureService {
     const repository = await this.getRepository();
     const all = await repository.find({ where: { sheetId }, order: { signedAt: "ASC" } });
     const latestByKey = new Map<string, Signature>();
-    for (const signature of all) {
-      latestByKey.set(`${signature.phase}:${signature.actorRole}`, signature);
-    }
+    for (const signature of all) latestByKey.set(`${signature.phase}:${signature.actorRole}`, signature);
     return Array.from(latestByKey.values());
   }
 
@@ -83,25 +75,28 @@ export class SignatureService {
   ): Promise<Signature> {
     const repository = await this.getRepository();
     const contentHash = await computeSheetContentHash(sheetId, matchId);
+    const saved = await repository.save(
+      repository.create({
+        sheetId,
+        phase,
+        actorRole,
+        signerName: data.signerName ?? null,
+        signatureData: data.signatureData,
+        recordedByUserId: recordedBy.userId,
+        recordedByName: recordedBy.name,
+        contentHash,
+      }),
+    );
 
-    const signature = repository.create({
-      sheetId,
-      phase,
-      actorRole,
-      signerName: data.signerName ?? null,
-      signatureData: data.signatureData,
-      recordedByUserId: recordedBy.userId,
-      recordedByName: recordedBy.name,
-      contentHash,
-    });
-    return repository.save(signature);
+    // Après une correction post-signature, les anciennes signatures restent
+    // dans l'historique mais leur hash devient invalide. L'amendement ne se
+    // ferme que lorsque tous les rôles requis ont re-signé le nouveau hash.
+    if (phase === "POST_MATCH" && (await this.isPhaseValid(sheetId, matchId, phase))) {
+      await this.amendmentService.markReSigned(sheetId);
+    }
+    return saved;
   }
 
-  /**
-   * Vrai si tous les rôles exigés par le CompetitionMatchProtocol de la
-   * saison ont signé. Sans protocole spécifique, les trois rôles historiques
-   * restent obligatoires, donc le comportement legacy est inchangé.
-   */
   async isPhaseComplete(sheetId: number, phase: SignaturePhase): Promise<boolean> {
     const repository = await this.getRepository();
     const rows = await repository
@@ -114,11 +109,6 @@ export class SignatureService {
     return required.every((role) => present.has(role));
   }
 
-  /**
-   * Vérifie seulement les signatures requises par la policy : une signature
-   * optionnelle historique ne doit pas rendre la phase invalide après une
-   * correction si cette policy ne l'exige plus.
-   */
   async isPhaseValid(sheetId: number, matchId: string, phase: SignaturePhase): Promise<boolean> {
     const signatures = await this.findBySheet(sheetId);
     const required = await this.requiredRolesForSheet(sheetId);
