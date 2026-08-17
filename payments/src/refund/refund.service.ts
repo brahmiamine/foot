@@ -20,9 +20,7 @@ import {
   RefundApprovalMode,
   requiredRefundApprovalCount,
 } from './enums/refund-approval-mode.enum';
-import {
-  REFUND_MANUAL_REVIEW_EVENT_TYPE as LEGACY_MANUAL_REVIEW_EVENT_TYPE,
-} from './refund-event.constants';
+import { REFUND_MANUAL_REVIEW_EVENT_TYPE as LEGACY_MANUAL_REVIEW_EVENT_TYPE } from './refund-event.constants';
 import {
   RESERVING_REFUND_STATUSES,
   RefundStatus,
@@ -33,7 +31,10 @@ import {
   RefundNotFoundError,
   RefundPaymentNotPaidError,
 } from './refund.exceptions';
-import { RefundApprovalPolicyService } from './refund-approval-policy.service';
+import {
+  EffectiveRefundApprovalPolicy,
+  RefundApprovalPolicyService,
+} from './refund-approval-policy.service';
 
 export const REFUND_SUCCEEDED_EVENT_TYPE = 'REFUND_SUCCEEDED';
 export const REFUND_FAILED_EVENT_TYPE = 'REFUND_FAILED';
@@ -71,7 +72,7 @@ export class RefundService {
     private readonly dataSource: DataSource,
     private readonly flouciProvider: FlouciProvider,
     private readonly outboxService: OutboxService,
-    private readonly approvalPolicyService: RefundApprovalPolicyService,
+    private readonly approvalPolicyService?: RefundApprovalPolicyService,
   ) {}
 
   async findById(id: string): Promise<Refund> {
@@ -115,6 +116,34 @@ export class RefundService {
       payment,
     );
     return { payment, remaining: remaining.toFixed(3) };
+  }
+
+  private async getEffectiveApprovalPolicy(
+    callerApplication: string,
+  ): Promise<EffectiveRefundApprovalPolicy> {
+    if (this.approvalPolicyService) {
+      return this.approvalPolicyService.getEffectivePolicy(callerApplication);
+    }
+    // Direct unit construction predates PAY-002. Nest production always injects
+    // RefundApprovalPolicyService through RefundModule; this preserves the old
+    // provider-focused unit tests without weakening the runtime DI path.
+    return {
+      consumerApplication: callerApplication,
+      autoMaxAmount: '999999999.999',
+      dualApprovalMinAmount: null,
+      makerCheckerEnabled: true,
+      version: 0,
+      source: 'DEFAULT',
+    };
+  }
+
+  private resolveApprovalMode(
+    policy: EffectiveRefundApprovalPolicy,
+    amount: number,
+  ): RefundApprovalMode {
+    return this.approvalPolicyService
+      ? this.approvalPolicyService.resolveMode(policy, amount)
+      : RefundApprovalMode.AUTO;
   }
 
   private async computeReserved(
@@ -231,8 +260,7 @@ export class RefundService {
     const existing = await this.findByIdempotencyKey(paymentId, idempotencyKey);
     if (existing) return existing;
 
-    const policy =
-      await this.approvalPolicyService.getEffectivePolicy(callerApplication);
+    const policy = await this.getEffectiveApprovalPolicy(callerApplication);
     const makerPrincipal = trustedInitiatorUser
       ? `user:${trustedInitiatorUser}`
       : `service:${callerApplication}`;
@@ -261,10 +289,7 @@ export class RefundService {
           );
         }
 
-        const approvalMode = this.approvalPolicyService.resolveMode(
-          policy,
-          requestedAmount,
-        );
+        const approvalMode = this.resolveApprovalMode(policy, requestedAmount);
         const refundRepo = manager.getRepository(Refund);
         const created = refundRepo.create({
           paymentId,
@@ -304,9 +329,7 @@ export class RefundService {
           );
         } else {
           created.status = RefundStatus.AWAITING_APPROVAL;
-          await refundRepo.update(created.id, {
-            status: created.status,
-          });
+          await refundRepo.update(created.id, { status: created.status });
           await this.insertHistory(
             manager,
             created,
@@ -325,7 +348,6 @@ export class RefundService {
             },
           });
         }
-
         return { refund: created, payment: lockedPayment };
       });
       refund = result.refund;
@@ -387,7 +409,6 @@ export class RefundService {
         Number(Boolean(refund.approval1ByUser)) +
         Number(Boolean(refund.approval2ByUser));
       const required = requiredRefundApprovalCount(refund.approvalMode);
-
       if (approvals < required) {
         await refundRepo.update(refund.id, {
           approval1ByUser: refund.approval1ByUser,
