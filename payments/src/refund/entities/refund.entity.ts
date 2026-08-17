@@ -7,9 +7,9 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { RefundStatus } from '../enums/refund-status.enum';
 import { PaymentProviderName } from '../../payment/enums/payment-provider.enum';
 import { RefundApprovalMode } from '../enums/refund-approval-mode.enum';
+import { RefundStatus } from '../enums/refund-status.enum';
 
 /**
  * A single refund operation against a Payment. Several Refund rows may exist
@@ -54,37 +54,42 @@ export class Refund {
   @Column({ type: 'varchar', length: 100, nullable: true })
   initiatedByUser: string | null;
 
-  /** PAY-002 — immutable approval-policy snapshot used for this request. */
+  /**
+   * PAY-002 immutable approval-policy snapshot. These fields are optional at
+   * the TypeScript boundary so legacy pre-migration fixtures/records remain
+   * representable during rolling upgrades; the migration backfills existing
+   * rows and the database columns/defaults govern every persisted new row.
+   */
   @Column({
     type: 'enum',
     enum: RefundApprovalMode,
     default: RefundApprovalMode.SINGLE_APPROVAL,
   })
-  approvalMode: RefundApprovalMode;
+  approvalMode?: RefundApprovalMode;
 
   @Column({ type: 'int', default: 0 })
-  approvalPolicyVersion: number;
+  approvalPolicyVersion?: number;
 
   @Column({ type: 'tinyint', default: 1 })
-  approvalMakerCheckerEnabled: boolean;
+  approvalMakerCheckerEnabled?: boolean;
 
   @Column({ type: 'varchar', length: 191, nullable: true })
-  approvalMakerPrincipal: string | null;
+  approvalMakerPrincipal?: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  approval1ByUser: string | null;
+  approval1ByUser?: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  approval1At: Date | null;
+  approval1At?: Date | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  approval2ByUser: string | null;
+  approval2ByUser?: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  approval2At: Date | null;
+  approval2At?: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  approvedAt: Date | null;
+  approvedAt?: Date | null;
 
   @Column({ type: 'varchar', length: 191, nullable: true })
   providerRefundRef: string | null;
