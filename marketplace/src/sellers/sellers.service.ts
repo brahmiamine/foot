@@ -87,11 +87,29 @@ export class SellersService {
       application.status = SellerApplicationStatus.APPROVED; application.reviewedBy = actorId; application.reviewedAt = new Date(); application.rejectionReason = null; application.sellerId = seller.id; await manager.save(application); return { seller };
     });
     const portalUrl = this.config.get<string>('SELLER_PORTAL_URL') ?? 'http://localhost:3006'; const activationUrl = `${portalUrl.replace(/\/$/, '')}/activate?token=${encodeURIComponent(rawToken)}`;
-    await this.centralNotifications.notifyExternalEmail(application.email, application.ownerName, application.clubId, 'SELLER_APPLICATION_APPROVED', 'Votre demande vendeur a été approuvée', `Votre demande pour ${application.businessName} a été approuvée. Activez votre compte vendeur avec le lien reçu.`, { applicationId: application.id, sellerId: result.seller.id, activationUrl, expiresAt: expiresAt.toISOString() }, `seller-application:${application.id}:approved`);
+    await this.centralNotifications.notifyExternalEmail(application.email, application.ownerName, application.clubId, 'SELLER_APPLICATION_APPROVED', 'Votre demande vendeur a été approuvée', `Votre demande pour ${application.businessName} a été approuvée. Activez votre compte vendeur ici : ${activationUrl}`, { applicationId: application.id, sellerId: result.seller.id, activationUrl, expiresAt: expiresAt.toISOString() }, `seller-application:${application.id}:approved`, expiresAt.toISOString());
     return { application, seller: result.seller };
   }
   async rejectApplication(id: string, clubId: string, actorId: string, reason?: string): Promise<SellerApplication> { if (!reason?.trim()) throw new ConflictException('Un motif de rejet est obligatoire'); const application = await this.findApplication(id, clubId); if (![SellerApplicationStatus.PENDING, SellerApplicationStatus.UNDER_REVIEW].includes(application.status)) throw new ConflictException(`Demande non rejetable dans le statut ${application.status}`); application.status = SellerApplicationStatus.REJECTED; application.rejectionReason = reason.trim(); application.reviewedBy = actorId; application.reviewedAt = new Date(); const saved = await this.applicationRepository.save(application); await this.centralNotifications.notifyExternalEmail(saved.email, saved.ownerName, saved.clubId, 'SELLER_APPLICATION_REJECTED', 'Votre demande vendeur a été refusée', `Votre demande pour ${saved.businessName} a été refusée. Motif : ${saved.rejectionReason}`, { applicationId: saved.id, rejectionReason: saved.rejectionReason }, `seller-application:${saved.id}:rejected`); return saved; }
-  async activateInvitation(token: string, password: string): Promise<SellerUser> { const invite = await this.inviteRepository.findOne({ where: { tokenHash: this.hashToken(token) } }); if (!invite || invite.usedAt || invite.expiresAt.getTime() <= Date.now()) throw new GoneException("Ce lien d'activation est invalide ou a expiré"); const user = await this.sellerUserRepository.findOne({ where: { id: invite.sellerUserId } }); if (!user || user.status !== SellerUserStatus.INVITED) throw new GoneException("Ce lien d'activation n'est plus utilisable"); user.passwordHash = await bcrypt.hash(password, SALT_ROUNDS); user.status = SellerUserStatus.ACTIVE; user.emailVerifiedAt = new Date(); invite.usedAt = new Date(); await this.dataSource.transaction(async (manager) => { await manager.save(user); await manager.save(invite); }); return user; }
+
+  async activateInvitation(token: string, password: string): Promise<SellerUser> {
+    const tokenHash = this.hashToken(token);
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    return this.dataSource.transaction(async (manager) => {
+      const invite = await manager
+        .getRepository(SellerInvite)
+        .createQueryBuilder('invite')
+        .setLock('pessimistic_write')
+        .where('invite.tokenHash = :tokenHash', { tokenHash })
+        .getOne();
+      if (!invite || invite.usedAt || invite.expiresAt.getTime() <= Date.now()) throw new GoneException("Ce lien d'activation est invalide ou a expiré");
+      const user = await manager.getRepository(SellerUser).findOne({ where: { id: invite.sellerUserId } });
+      if (!user || user.status !== SellerUserStatus.INVITED) throw new GoneException("Ce lien d'activation n'est plus utilisable");
+      user.passwordHash = passwordHash; user.status = SellerUserStatus.ACTIVE; user.emailVerifiedAt = new Date(); invite.usedAt = new Date();
+      await manager.save(user); await manager.save(invite);
+      return user;
+    });
+  }
   private hashToken(token: string): string { return createHash('sha256').update(token).digest('hex'); }
 
   findUserByEmail(email: string): Promise<SellerUser | null> { return this.sellerUserRepository.findOne({ where: { email: email.trim().toLowerCase() }, relations: { seller: true } }); }

@@ -12,6 +12,7 @@ interface InternalNotificationPayload {
   body: string;
   data?: Record<string, unknown>;
   channels?: Array<'IN_APP' | 'EMAIL' | 'PUSH'>;
+  expiresAt?: string;
 }
 
 @Injectable()
@@ -43,7 +44,7 @@ export class CentralNotificationsClient {
     return this.dispatch({ eventId, type, teamId: clubId, target: { type: 'ROLE', role: 'ADMIN', teamId: clubId }, title, body, data, channels: ['IN_APP', 'EMAIL', 'PUSH'] });
   }
 
-  notifyExternalEmail(email: string, recipientName: string, clubId: string, type: string, title: string, body: string, data?: Record<string, unknown>, eventId?: string): Promise<void> {
-    return this.dispatch({ eventId, type, email, recipientName, teamId: clubId, title, body, data, channels: ['EMAIL'] });
+  notifyExternalEmail(email: string, recipientName: string, clubId: string, type: string, title: string, body: string, data?: Record<string, unknown>, eventId?: string, expiresAt?: string): Promise<void> {
+    return this.dispatch({ eventId, type, email, recipientName, teamId: clubId, title, body, data, channels: ['EMAIL'], expiresAt });
   }
 }
