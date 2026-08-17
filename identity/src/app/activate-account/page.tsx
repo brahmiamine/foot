@@ -11,7 +11,7 @@ export default async function ActivateAccountPage({
     <div className="sso-page">
       <div className="sso-card">
         <h1>Activer mon compte</h1>
-        <p className="sso-help">Choisissez votre mot de passe pour finaliser l'accès à votre espace joueur.</p>
+        <p className="sso-help">Choisissez votre mot de passe pour finaliser l&apos;accès à votre espace joueur.</p>
         {token ? (
           <ActivateAccountForm token={token} />
         ) : (
