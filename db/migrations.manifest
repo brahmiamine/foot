@@ -223,6 +223,8 @@ match-operations/sql/migration_add_match_staff_assignments.sql
 referee-hub/sql/migration_add_referee_private_workflows.sql
 # Typage des rapports d'arbitres, commissaires de match et observateurs.
 referee-hub/sql/migration_extend_match_reports_for_officials.sql
+# Acceptation/refus de désignation + demandes de remplacement revues par la Fédération.
+referee-hub/sql/migration_add_assignment_responses_replacements.sql
 
 # --- payments (base payment_api, remboursements multi-provider) ---
 payments/sql/migration_add_refunds.sql
