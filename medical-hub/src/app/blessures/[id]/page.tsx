@@ -7,9 +7,13 @@ import { Badge } from "@/components/ui/Badge";
 import { InjuryEditForm } from "@/components/portal/InjuryEditForm";
 import { FollowUpNoteForm } from "@/components/portal/FollowUpNoteForm";
 import { AddDocumentForm } from "@/components/portal/AddDocumentForm";
-import { MarkResolvedButton } from "@/components/portal/MarkResolvedButton";
+import { ReturnToPlayPanel } from "@/components/portal/ReturnToPlayPanel";
 import { formatDate } from "@/lib/format";
 import type { InjuryDocument } from "@/entities/Injury";
+import {
+  countLatestClearances,
+  requiredClearances,
+} from "@/services/medical/returnToPlayPolicy";
 
 const STATUS_LABEL: Record<string, { label: string; tone: "danger" | "warning" | "success" }> = {
   ONGOING: { label: "En cours", tone: "danger" },
@@ -34,12 +38,21 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
   const access = await getUserAccess();
   if (!can(access, "medical.view")) redirect("/");
 
-  const injury = await medicalPortalService.getInjury(Number(id), session.user.teamId);
+  const injuryId = Number(id);
+  const injury = await medicalPortalService.getInjury(injuryId, session.user.teamId);
   if (!injury) redirect("/blessures");
 
-  const player = (await medicalPortalService.rosterInCategories(session.user.teamId, "ALL")).find((p) => p.id === injury.playerId);
+  const [roster, followUps, clearances, settings] = await Promise.all([
+    medicalPortalService.rosterInCategories(session.user.teamId, "ALL"),
+    medicalPortalService.listFollowUps(injuryId, session.user.teamId),
+    medicalPortalService.listClearances(injuryId, session.user.teamId),
+    medicalPortalService.getSettings(session.user.teamId),
+  ]);
+  const player = roster.find((item) => item.id === injury.playerId);
   const documents = parseDocuments(injury.documents);
   const canManage = can(access, "medical.manage");
+  const neededClearances = requiredClearances(injury.severity, settings);
+  const currentClearances = countLatestClearances(clearances);
 
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
@@ -53,8 +66,21 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
             <span style={{ color: "var(--mh-text-muted)", fontSize: "0.82rem" }}>Blessé le {formatDate(injury.injuryDate)}</span>
           </div>
         </div>
-        {canManage && injury.status !== "RESOLVED" && <MarkResolvedButton injuryId={injury.id} />}
       </div>
+
+      <Card>
+        <div style={{ fontSize: "0.8rem", color: "var(--mh-text-muted)", fontWeight: 600, marginBottom: 10 }}>
+          Return-to-Play
+        </div>
+        <ReturnToPlayPanel
+          injuryId={injury.id}
+          stage={injury.rtpStage}
+          clearanceRequired={settings.clearanceRequired}
+          requiredClearances={neededClearances}
+          currentClearances={currentClearances}
+          canManage={canManage}
+        />
+      </Card>
 
       <Card>
         <div style={{ fontSize: "0.8rem", color: "var(--mh-text-muted)", fontWeight: 600, marginBottom: 10 }}>Dossier médical</div>
@@ -79,11 +105,35 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
       </Card>
 
       <Card>
-        <div style={{ fontSize: "0.8rem", color: "var(--mh-text-muted)", fontWeight: 600, marginBottom: 10 }}>Suivi quotidien</div>
+        <div style={{ fontSize: "0.8rem", color: "var(--mh-text-muted)", fontWeight: 600, marginBottom: 10 }}>
+          Journal médical append-only
+        </div>
         {canManage && <FollowUpNoteForm injuryId={injury.id} />}
-        <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "0.85rem", marginTop: 12, marginBottom: 0 }}>
-          {injury.notes || "Aucune note pour l'instant."}
-        </pre>
+        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+          {followUps.length === 0 && !injury.notes ? (
+            <p style={{ color: "var(--mh-text-muted)", fontSize: "0.85rem", margin: 0 }}>Aucune entrée de suivi.</p>
+          ) : (
+            followUps.map((entry) => (
+              <div key={entry.id} style={{ borderTop: "1px solid var(--mh-border)", paddingTop: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: "0.8rem" }}>{entry.entryType}</strong>
+                  <span style={{ color: "var(--mh-text-muted)", fontSize: "0.76rem" }}>
+                    {entry.createdAt.toLocaleString("fr-FR")} · {entry.authorUserId}
+                  </span>
+                </div>
+                <div style={{ fontSize: "0.86rem", marginTop: 4 }}>{entry.note}</div>
+              </div>
+            ))
+          )}
+          {injury.notes && (
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: "0.8rem", color: "var(--mh-text-muted)" }}>
+                Notes historiques legacy
+              </summary>
+              <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "0.82rem" }}>{injury.notes}</pre>
+            </details>
+          )}
+        </div>
       </Card>
 
       <Card>
