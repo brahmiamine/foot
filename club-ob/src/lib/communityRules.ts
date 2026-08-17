@@ -76,6 +76,16 @@ export function canSubmitPrediction(status: string, matchDate: Date | string | n
   return Number.isFinite(kickoff.getTime()) && now.getTime() < kickoff.getTime();
 }
 
-export function safeCommunityReturnPath(value: FormDataEntryValue | null): "/communaute" | "/espace-membre/communaute" {
-  return value === "/espace-membre/communaute" ? "/espace-membre/communaute" : "/communaute";
+/**
+ * Les Server Actions de la communauté ne redirigent que vers des chemins
+ * internes connus. Les articles acceptent uniquement un identifiant numérique.
+ */
+export function safeCommunityReturnPath(
+  value: FormDataEntryValue | null,
+): "/communaute" | "/espace-membre/communaute" | `/actualites/${number}` {
+  if (value === "/espace-membre/communaute") return value;
+  if (typeof value === "string" && /^\/actualites\/[1-9]\d*$/.test(value)) {
+    return value as `/actualites/${number}`;
+  }
+  return "/communaute";
 }
