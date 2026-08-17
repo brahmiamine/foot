@@ -42,7 +42,10 @@ describe('PaymentRoutingPolicyService', () => {
   it('routes to the configured fallback when a preferred provider is disabled', async () => {
     repository.findOne.mockResolvedValue({
       consumerApplication: 'ticketing',
-      enabledProviders: [PaymentProviderName.KONNECT, PaymentProviderName.PAYMEE],
+      enabledProviders: [
+        PaymentProviderName.KONNECT,
+        PaymentProviderName.PAYMEE,
+      ],
       defaultProvider: PaymentProviderName.KONNECT,
       fallbackProvider: PaymentProviderName.PAYMEE,
       version: 3,
