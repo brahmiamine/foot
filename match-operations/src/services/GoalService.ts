@@ -15,11 +15,9 @@ interface CreateGoalInput {
   period: MatchPeriod;
   isOwnGoal?: boolean;
   isPenalty?: boolean;
-  /** TASK-P0-025 : voir Goal.clientRequestId — un doublon renvoie l'événement déjà créé, sans erreur. */
   clientRequestId?: string | null;
 }
 
-/** Champs corrigeables d'un but déjà enregistré (TASK-P0-009). */
 interface CorrectGoalInput {
   playerId?: string | null;
   minute?: number;
@@ -67,7 +65,6 @@ export class GoalService {
     return dataSource.getRepository(Goal);
   }
 
-  /** Exclut par défaut les buts annulés (TASK-P0-009) : traçabilité en base, invisibles du live/décompte. */
   async findBySheet(sheetId: number, options?: { includeCancelled?: boolean }): Promise<Goal[]> {
     const repository = await this.getRepository();
     const goals = await repository.find({ where: { sheetId }, relations: ["player", "team"], order: { minute: "ASC" } });
@@ -93,22 +90,13 @@ export class GoalService {
       return await repository.save(goal);
     } catch (error) {
       if (data.clientRequestId && isDuplicateKeyError(error)) {
-        const existing = await repository.findOne({
-          where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId },
-        });
+        const existing = await repository.findOne({ where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId } });
         if (existing) return existing;
       }
       throw error;
     }
   }
 
-  /**
-   * Corrige un but déjà saisi (joueur/minute/période/csc/penalty) en place,
-   * en conservant valeur avant/après, auteur, motif et date dans le ledger
-   * d'audit (TASK-P0-009) — jamais un delete+recreate qui perdrait
-   * l'historique.
-   * @throws GoalNotFoundError, GoalAlreadyCancelledError, MissingCorrectionReasonError, SheetClosedError
-   */
   async correct(id: number, updates: CorrectGoalInput, actor: Actor): Promise<Goal> {
     const reason = assertReason(actor.reason);
     const repository = await this.getRepository();
@@ -116,7 +104,7 @@ export class GoalService {
     if (!goal) throw new GoalNotFoundError();
     if (goal.cancelledAt) throw new GoalAlreadyCancelledError();
 
-    await assertSheetEditable(goal.sheetId);
+    await assertSheetEditable(goal.sheetId, { allowSignedAmendment: true });
     const before = snapshot(goal);
 
     if (updates.playerId !== undefined) goal.playerId = updates.playerId;
@@ -126,7 +114,6 @@ export class GoalService {
     if (updates.isPenalty !== undefined) goal.isPenalty = updates.isPenalty;
 
     const saved = await repository.save(goal);
-
     await this.correctionService.record({
       sheetId: saved.sheetId,
       matchId: saved.matchId,
@@ -139,15 +126,9 @@ export class GoalService {
       actorUserId: actor.actorUserId,
       actorName: actor.actorName,
     });
-
     return saved;
   }
 
-  /**
-   * Annule un but sans le supprimer (TASK-P0-009) — la ligne reste en base
-   * pour l'audit, exclue du décompte/affichage par défaut via `cancelledAt`.
-   * @throws GoalNotFoundError, GoalAlreadyCancelledError, MissingCorrectionReasonError, SheetClosedError
-   */
   async cancel(id: number, actor: Actor): Promise<Goal> {
     const reason = assertReason(actor.reason);
     const repository = await this.getRepository();
@@ -155,13 +136,11 @@ export class GoalService {
     if (!goal) throw new GoalNotFoundError();
     if (goal.cancelledAt) throw new GoalAlreadyCancelledError();
 
-    await assertSheetEditable(goal.sheetId);
+    await assertSheetEditable(goal.sheetId, { allowSignedAmendment: true });
     const before = snapshot(goal);
-
     goal.cancelledAt = new Date();
     goal.cancelledReason = reason;
     const saved = await repository.save(goal);
-
     await this.correctionService.record({
       sheetId: saved.sheetId,
       matchId: saved.matchId,
@@ -174,11 +153,9 @@ export class GoalService {
       actorUserId: actor.actorUserId,
       actorName: actor.actorName,
     });
-
     return saved;
   }
 
-  /** @deprecated Conservé pour compatibilité interne (tests, scripts) — préférer `cancel()` qui audite et ne supprime rien. */
   async delete(id: number): Promise<void> {
     const repository = await this.getRepository();
     await repository.delete({ id });
