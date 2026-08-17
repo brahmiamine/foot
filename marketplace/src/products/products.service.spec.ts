@@ -35,6 +35,7 @@ describe('ProductsService', () => {
       deletedAt: null,
       ...overrides,
     }) as Product;
+
   beforeEach(() => {
     repository = {
       findOne: jest.fn(),
@@ -62,18 +63,14 @@ describe('ProductsService', () => {
       }),
     };
     const sellerRepo = {
-      findOne: jest
-        .fn()
-        .mockResolvedValue({ id: 'seller-1', clubId: 'club-1' }),
+      findOne: jest.fn().mockResolvedValue({ id: 'seller-1', clubId: 'club-1' }),
     };
     const settingsRepo = {
-      findOne: jest
-        .fn()
-        .mockResolvedValue({
-          clubId: 'club-1',
-          productApprovalRequired: true,
-          productReapprovalOnSensitiveChange: true,
-        }),
+      findOne: jest.fn().mockResolvedValue({
+        clubId: 'club-1',
+        productApprovalRequired: true,
+        productReapprovalOnSensitiveChange: true,
+      }),
       create: jest.fn((v) => v),
     };
     dataSource = {
@@ -97,6 +94,7 @@ describe('ProductsService', () => {
       centralNotifications as unknown as CentralNotificationsClient,
     );
   });
+
   it('creates product, images and initial inventory in one transaction', async () => {
     const result = await service.create('seller-1', {
       name: 'Maillot',
@@ -116,6 +114,7 @@ describe('ProductsService', () => {
       }),
     );
   });
+
   it('replaces product images inside the marketplace transaction', async () => {
     const product = buildProduct();
     repository.findOne.mockResolvedValue(product);
@@ -134,6 +133,7 @@ describe('ProductsService', () => {
       }),
     ]);
   });
+
   it('keeps approval workflow and notifies club on submission', async () => {
     repository.findOne.mockResolvedValue(buildProduct());
     expect(
@@ -147,6 +147,7 @@ describe('ProductsService', () => {
     ).toBe(ProductStatus.SUBMITTED);
     expect(centralNotifications.notifyClubAdmins).toHaveBeenCalled();
   });
+
   it('requires reapproval after a sensitive published product change', async () => {
     repository.findOne.mockResolvedValue(
       buildProduct({ status: ProductStatus.PUBLISHED }),
@@ -156,6 +157,7 @@ describe('ProductsService', () => {
     ).toBe(ProductStatus.SUBMITTED);
     expect(centralNotifications.notifyClubAdmins).toHaveBeenCalled();
   });
+
   it('rejects a transition reserved to club moderation', async () => {
     repository.findOne.mockResolvedValue(
       buildProduct({ status: ProductStatus.SUBMITTED }),
@@ -164,6 +166,7 @@ describe('ProductsService', () => {
       service.sellerTransition('product-1', 'seller-1', ProductStatus.APPROVED),
     ).rejects.toThrow(ConflictException);
   });
+
   it('throws NotFoundException when product is not owned by seller', async () => {
     repository.findOne.mockResolvedValue(null);
     await expect(

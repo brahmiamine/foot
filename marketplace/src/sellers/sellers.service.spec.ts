@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, Repository } from 'typeorm';
@@ -20,7 +21,11 @@ describe('SellersService governance', () => {
     create: jest.Mock;
     save: jest.Mock;
   };
-  let settingsRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let settingsRepository: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+  };
   let centralNotifications: {
     notifyClubAdmins: jest.Mock;
     notifyExternalEmail: jest.Mock;
