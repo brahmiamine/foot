@@ -183,6 +183,8 @@ club-hub/sql/migration_add_notification_outbox.sql
 club-hub/sql/migration_add_processed_webhook_events.sql
 # Gouvernance interne : settings maker/checker et files d'approbation publication.
 club-hub/sql/migration_add_club_governance_approvals.sql
+# Workflow composition DRAFT→PROPOSED→APPROVED→LOCKED + backfill Coach/Adjoint.
+club-hub/sql/migration_add_lineup_approval_workflow.sql
 # Module central de transfert/homologation (migration.md §19-21, Phase 3).
 # Dépend de Player (migration_unify_players.sql) et teams (déjà en base).
 club-hub/sql/migration_add_player_transfers.sql
