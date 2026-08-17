@@ -5,6 +5,7 @@ import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
 import { Player } from "@/entities/Player";
 import { Sheet } from "@/entities/Sheet";
+import { Substitution } from "@/entities/Substitution";
 import { Team } from "@/entities/Team";
 
 let dataSource: DataSource;
@@ -117,6 +118,6 @@ describe("SubstitutionService + CompetitionMatchProtocol", () => {
     });
 
     expect(replay.id).toBe(first.id);
-    expect(await dataSource.getRepository("ms_substitutions").count()).toBe(1);
+    expect(await dataSource.getRepository(Substitution).count()).toBe(1);
   });
 });
