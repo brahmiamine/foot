@@ -3,10 +3,11 @@ import { getDataSource } from "@/lib/db";
 import { CompetitionMatchProtocol } from "@/entities/CompetitionMatchProtocol";
 import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
-import { MatchLineup } from "@/entities/MatchLineup";
 import { MatchOfficialAssignment, type MatchOfficialAssignmentRole } from "@/entities/MatchOfficialAssignment";
 import { Signature, type ActorRole } from "@/entities/Signature";
 import { Substitution } from "@/entities/Substitution";
+import { createClubLineupAdapter } from "@/adapters/club/createClubLineupAdapter";
+import type { ClubLineupReadPort } from "../../../packages/domain-contracts/src/club-lineup";
 
 export interface CompetitionMatchProtocolValue {
   seasonId: string;
@@ -107,6 +108,8 @@ function toValue(row: CompetitionMatchProtocol | null, seasonId: string): Compet
 }
 
 export class CompetitionMatchProtocolService {
+  constructor(private readonly clubLineup: ClubLineupReadPort = createClubLineupAdapter()) {}
+
   async getForSeason(seasonId: string): Promise<CompetitionMatchProtocolValue> {
     const ds = await getDataSource();
     const row = await ds.getRepository(CompetitionMatchProtocol).findOne({ where: { seasonId } });
@@ -182,9 +185,6 @@ export class CompetitionMatchProtocolService {
   async validatePreMatch(sheetId: number, matchId: string, now = new Date()): Promise<void> {
     const ds = await getDataSource();
     const protocol = await this.getForMatch(matchId);
-    // Sans ligne configurée, la transition serveur conserve strictement le
-    // comportement historique. Les 3 signatures restent toutefois exigées
-    // par SignatureService.isPhaseComplete()/isPhaseValid(), comme avant.
     if (protocol.version === 0) return;
 
     const match = await ds.getRepository(Match).findOne({ where: { id: matchId } });
@@ -201,9 +201,9 @@ export class CompetitionMatchProtocolService {
     }
 
     if (protocol.maxBenchPlayers != null) {
-      const lineupRepo = ds.getRepository(MatchLineup);
       for (const teamId of [match.equipeHome, match.equipeAway]) {
-        const benchCount = await lineupRepo.count({ where: { matchId, teamId, role: "SUBSTITUTE" } });
+        const lineup = await this.clubLineup.findByMatchAndTeam(matchId, teamId);
+        const benchCount = lineup.filter((entry) => entry.role === "SUBSTITUTE").length;
         if (benchCount > protocol.maxBenchPlayers) {
           throw new Error(
             `Le banc de l'équipe ${teamId} dépasse la limite autorisée (${protocol.maxBenchPlayers})`,
