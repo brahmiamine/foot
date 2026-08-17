@@ -37,6 +37,9 @@ export class ClubGovernanceSettings {
   @Column({ type: "simple-enum", enum: ["AUTO", "SINGLE_APPROVAL", "DUAL_APPROVAL"], default: "DUAL_APPROVAL", name: "announcement_sanction_approval_mode" })
   announcementSanctionApprovalMode!: ClubApprovalMode;
 
+  @Column({ type: "tinyint", default: 1, name: "announcement_reapproval_on_sensitive_change" })
+  announcementReapprovalOnSensitiveChange!: boolean;
+
   @Column({ type: "simple-enum", enum: ["AUTO", "SINGLE_APPROVAL", "DUAL_APPROVAL"], default: "SINGLE_APPROVAL", name: "shop_product_approval_mode" })
   shopProductApprovalMode!: ClubApprovalMode;
 
@@ -74,6 +77,10 @@ export class ClubApprovalRequest {
 
   @Column({ type: "varchar", length: 191, name: "maker_user_id" })
   makerUserId!: string;
+
+  /** Snapshot de la policy au dépôt : les settings futurs ne réécrivent pas cette demande. */
+  @Column({ type: "tinyint", default: 1, name: "maker_checker_enabled" })
+  makerCheckerEnabled!: boolean;
 
   @Column({ type: "simple-enum", enum: ["SINGLE_APPROVAL", "DUAL_APPROVAL"] })
   approvalMode!: Exclude<ClubApprovalMode, "AUTO">;
