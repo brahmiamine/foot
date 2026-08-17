@@ -46,31 +46,39 @@ class FakeDb {
     return {
       manager: this.manager(),
       create: (data: Partial<Refund>) => ({ ...data }) as Refund,
-      save: async (refund: Refund) => {
+      save: (refund: Refund) => {
         if (!refund.id) refund.id = `refund-${++this.refundSeq}`;
         this.refunds.set(refund.id, { ...refund });
-        return refund;
+        return Promise.resolve(refund);
       },
-      update: async (id: string, patch: Partial<Refund>) => {
+      update: (id: string, patch: Partial<Refund>) => {
         const current = this.refunds.get(id);
         if (current) this.refunds.set(id, { ...current, ...patch });
-        return { affected: current ? 1 : 0 };
+        return Promise.resolve({ affected: current ? 1 : 0 });
       },
-      findOne: async ({ where }: { where: Partial<Refund> }) => {
+      findOne: ({ where }: { where: Partial<Refund> }) => {
         for (const refund of this.refunds.values()) {
           if (where.id !== undefined && refund.id !== where.id) continue;
-          if (where.paymentId !== undefined && refund.paymentId !== where.paymentId)
+          if (
+            where.paymentId !== undefined &&
+            refund.paymentId !== where.paymentId
+          ) {
             continue;
+          }
           if (
             'idempotencyKey' in where &&
             refund.idempotencyKey !== where.idempotencyKey
-          )
+          ) {
             continue;
-          return { ...refund };
+          }
+          return Promise.resolve({ ...refund });
         }
-        return null;
+        return Promise.resolve(null);
       },
-      find: async () => [...this.refunds.values()].map((item) => ({ ...item })),
+      find: () =>
+        Promise.resolve(
+          [...this.refunds.values()].map((item) => ({ ...item })),
+        ),
       createQueryBuilder: () => {
         let targetPaymentId = '';
         let excluded = '';
@@ -89,7 +97,7 @@ class FakeDb {
             if (params.statuses) statuses = params.statuses;
             return qb;
           },
-          getRawOne: async () => {
+          getRawOne: () => {
             const total = [...this.refunds.values()]
               .filter(
                 (refund) =>
@@ -98,7 +106,7 @@ class FakeDb {
                   statuses.includes(refund.status),
               )
               .reduce((sum, refund) => sum + Number(refund.amount), 0);
-            return { total: total.toFixed(3) };
+            return Promise.resolve({ total: total.toFixed(3) });
           },
         };
         return qb;
@@ -111,20 +119,21 @@ class FakeDb {
       if (entity === Refund) return this.refundRepo();
       if (entity === RefundStatusHistory) {
         return {
-          insert: async (data: Partial<RefundStatusHistory>) => {
+          insert: (data: Partial<RefundStatusHistory>) => {
             this.history.push({
               id: `history-${this.history.length + 1}`,
               createdAt: new Date(),
               ...data,
             } as RefundStatusHistory);
+            return Promise.resolve();
           },
-          find: async () => this.history,
+          find: () => Promise.resolve(this.history),
         };
       }
       if (entity === Payment) {
         return {
-          findOne: async ({ where }: { where: { id: string } }) =>
-            this.payments.get(where.id) ?? null,
+          findOne: ({ where }: { where: { id: string } }) =>
+            Promise.resolve(this.payments.get(where.id) ?? null),
         };
       }
       throw new Error('Unexpected entity');
@@ -138,7 +147,7 @@ class FakeDb {
           id = params.id;
           return qb;
         },
-        getOne: async () => this.payments.get(id) ?? null,
+        getOne: () => Promise.resolve(this.payments.get(id) ?? null),
       };
       return qb;
     };
@@ -150,8 +159,9 @@ function buildService(mode: RefundApprovalMode) {
   const db = new FakeDb();
   db.payments.set('payment-1', payment());
   const dataSource = {
-    transaction: jest.fn(async (callback: (manager: EntityManager) => unknown) =>
-      callback(db.manager()),
+    transaction: jest.fn(
+      (callback: (manager: EntityManager) => unknown) =>
+        Promise.resolve(callback(db.manager())),
     ),
   };
   const flouciProvider = {
@@ -175,13 +185,13 @@ function buildService(mode: RefundApprovalMode) {
   const refundRepo = db.refundRepo();
   const service = new RefundService(
     {
-      findOne: jest.fn(async ({ where }: { where: { id: string } }) =>
-        db.payments.get(where.id) ?? null,
+      findOne: jest.fn(({ where }: { where: { id: string } }) =>
+        Promise.resolve(db.payments.get(where.id) ?? null),
       ),
     } as never,
     refundRepo as never,
     {
-      find: jest.fn(async () => db.history),
+      find: jest.fn(() => Promise.resolve(db.history)),
     } as never,
     dataSource as unknown as DataSource,
     flouciProvider as unknown as FlouciProvider,
@@ -206,9 +216,9 @@ describe('RefundService approval governance', () => {
     expect(created.status).toBe(RefundStatus.AWAITING_APPROVAL);
     expect(flouciProvider.refundPayment).not.toHaveBeenCalled();
 
-    await expect(service.approveRefund(created.id, 'maker-1')).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.approveRefund(created.id, 'maker-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
     const approved = await service.approveRefund(created.id, 'checker-1');
     expect(approved.status).toBe(RefundStatus.SUCCEEDED);
     expect(flouciProvider.refundPayment).toHaveBeenCalledTimes(1);
@@ -229,9 +239,9 @@ describe('RefundService approval governance', () => {
     const first = await service.approveRefund(created.id, 'checker-1');
     expect(first.status).toBe(RefundStatus.AWAITING_APPROVAL);
     expect(flouciProvider.refundPayment).not.toHaveBeenCalled();
-    await expect(service.approveRefund(created.id, 'checker-1')).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.approveRefund(created.id, 'checker-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
 
     const second = await service.approveRefund(created.id, 'checker-2');
     expect(second.status).toBe(RefundStatus.SUCCEEDED);
