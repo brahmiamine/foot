@@ -15,3 +15,23 @@ UPDATE cms_match_formations
 SET workflow_status = CASE WHEN is_locked = 1 THEN 'LOCKED' ELSE 'DRAFT' END,
     workflow_version = 1
 WHERE workflow_status = 'DRAFT';
+
+-- Les presets corrigent les nouveaux clubs ; ce backfill aligne aussi les
+-- rôles système déjà présents sans retirer leurs permissions existantes.
+UPDATE cms_roles
+SET permissions = JSON_ARRAY_APPEND(permissions, '$', 'lineups.edit')
+WHERE is_system = 1
+  AND name = 'Adjoint'
+  AND JSON_CONTAINS(permissions, JSON_QUOTE('lineups.edit'), '$') = 0;
+
+UPDATE cms_roles
+SET permissions = JSON_ARRAY_APPEND(permissions, '$', 'lineups.propose')
+WHERE is_system = 1
+  AND name IN ('Coach', 'Adjoint', 'Secrétaire Général')
+  AND JSON_CONTAINS(permissions, JSON_QUOTE('lineups.propose'), '$') = 0;
+
+UPDATE cms_roles
+SET permissions = JSON_ARRAY_APPEND(permissions, '$', 'lineups.approve')
+WHERE is_system = 1
+  AND name IN ('Coach', 'Secrétaire Général')
+  AND JSON_CONTAINS(permissions, JSON_QUOTE('lineups.approve'), '$') = 0;
