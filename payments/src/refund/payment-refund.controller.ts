@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -19,6 +20,15 @@ import { RefundService } from './refund.service';
 import { Refund } from './entities/refund.entity';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { RemainingRefundableDto } from './dto/refund-response.dto';
+
+function optionalActorUserId(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const actorUserId = value.trim();
+  if (!actorUserId || actorUserId.length > 100) {
+    throw new BadRequestException('Invalid x-actor-user-id header');
+  }
+  return actorUserId;
+}
 
 @Controller('payments/:paymentId/refunds')
 @UseGuards(ServiceAuthGuard)
@@ -45,6 +55,7 @@ export class PaymentRefundController {
     @Body() dto: CreateRefundDto,
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('x-actor-user-id') actorUserHeader?: string,
   ): Promise<Refund> {
     await this.assertPaymentOwnedByCaller(paymentId, service);
     return this.refundService.createRefund(
@@ -52,6 +63,7 @@ export class PaymentRefundController {
       dto,
       service.application,
       idempotencyKey,
+      optionalActorUserId(actorUserHeader),
     );
   }
 
