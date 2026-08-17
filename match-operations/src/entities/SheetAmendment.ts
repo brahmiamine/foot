@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 
 import type { SheetStatus } from "./Sheet";
 
 export type SheetAmendmentStatus = "AMENDMENT_REQUESTED" | "AMENDED" | "RE_SIGNED";
+export type SheetAmendmentApprovalStatus = "NOT_REQUIRED" | "PENDING" | "APPROVED" | "REJECTED";
 
 @Entity("ms_sheet_amendments")
 @Index(["sheetId", "status"])
@@ -29,6 +30,30 @@ export class SheetAmendment {
 
   @Column({ type: "varchar", length: 191, nullable: true, name: "requested_by_name" })
   requestedByName?: string | null;
+
+  /** Version exacte du CompetitionMatchProtocol appliquée à la demande. */
+  @Column({ type: "int", default: 0, name: "protocol_version_used" })
+  protocolVersionUsed!: number;
+
+  @Column({
+    type: "enum",
+    enum: ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"],
+    default: "NOT_REQUIRED",
+    name: "approval_status",
+  })
+  approvalStatus!: SheetAmendmentApprovalStatus;
+
+  @Column({ type: "varchar", length: 36, nullable: true, name: "decided_by_user_id" })
+  decidedByUserId?: string | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "decided_by_name" })
+  decidedByName?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "decision_reason" })
+  decisionReason?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "decided_at" })
+  decidedAt?: Date | null;
 
   @CreateDateColumn({ type: "datetime", name: "requested_at" })
   requestedAt!: Date;
