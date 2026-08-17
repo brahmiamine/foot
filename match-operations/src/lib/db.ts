@@ -9,6 +9,7 @@ import { Card } from "@/entities/Card";
 import { CardReason } from "@/entities/CardReason";
 import { MatchLineup } from "@/entities/MatchLineup";
 import { Sheet } from "@/entities/Sheet";
+import { SheetAmendment } from "@/entities/SheetAmendment";
 import { Signature } from "@/entities/Signature";
 import { Goal } from "@/entities/Goal";
 import { Injury } from "@/entities/Injury";
@@ -42,7 +43,7 @@ export async function getDataSource(): Promise<DataSource> {
       logging: process.env.NODE_ENV === "development",
       entities: [
         Federation, Team, Matchday, Match, Player, Card, CardReason, MatchLineup,
-        Sheet, Signature, Goal, Injury, Substitution, Reservation, MatchOfficial,
+        Sheet, SheetAmendment, Signature, Goal, Injury, Substitution, Reservation, MatchOfficial,
         MatchOfficialAssignment, MatchStaffAssignment, MatchStaffRead, CoachQualificationRead,
         PlayerControl, MatchReopenLog, TeamMembership, RefereeUnavailability,
         CompetitionMatchProtocol,
