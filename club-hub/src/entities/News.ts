@@ -1,9 +1,20 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from "typeorm";
 import { Team } from "./Team";
 
+export type NewsEditorialStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "SCHEDULED"
+  | "PUBLISHED"
+  | "REJECTED";
+
 /**
  * News Entity
  * Table propre à cette app, scopée par team_id vers la table partagée `teams`.
+ * `status` reste le contrat legacy DRAFT/PUBLISHED consommé par le public ;
+ * `editorialStatus` porte le workflow complet d'administration.
  */
 @Entity("cms_news")
 export class News {
@@ -32,11 +43,22 @@ export class News {
   @Column({ type: "enum", enum: ["DRAFT", "PUBLISHED"], default: "DRAFT" })
   status!: "DRAFT" | "PUBLISHED";
 
+  @Column({
+    type: "enum",
+    enum: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "SCHEDULED", "PUBLISHED", "REJECTED"],
+    default: "DRAFT",
+    name: "editorial_status",
+  })
+  editorialStatus!: NewsEditorialStatus;
+
   @Column({ type: "boolean", default: false, name: "is_published" })
   isPublished!: boolean;
 
   @Column({ type: "datetime", nullable: true, name: "published_at" })
   publishedAt?: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "scheduled_at" })
+  scheduledAt?: Date | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
