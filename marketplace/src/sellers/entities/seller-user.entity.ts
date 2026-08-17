@@ -11,11 +11,6 @@ import {
 import { SellerUserRole, SellerUserStatus } from '../enums/seller-status.enum';
 import { Seller } from './seller.entity';
 
-/**
- * Compte pouvant se connecter aux endpoints self-service vendeur (voir
- * SellerJwtGuard). En V1 un seul compte OWNER par vendeur suffit, mais le
- * modèle supporte déjà plusieurs comptes (MANAGER, STAFF) par vendeur.
- */
 @Entity('sp_seller_users')
 export class SellerUser {
   @PrimaryGeneratedColumn('uuid')
@@ -51,6 +46,15 @@ export class SellerUser {
     default: SellerUserStatus.ACTIVE,
   })
   status: SellerUserStatus;
+
+  @Column({ type: 'datetime', nullable: true })
+  emailVerifiedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 191, nullable: true })
+  passwordResetTokenHash: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  passwordResetExpiresAt: Date | null;
 
   @Column({ type: 'datetime', nullable: true })
   lastLoginAt: Date | null;

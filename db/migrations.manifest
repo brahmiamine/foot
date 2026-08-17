@@ -236,3 +236,4 @@ seller-portal/sql/migration_add_moderation_fields.sql
 seller-portal/sql/migration_add_stock_reservations.sql
 seller-portal/sql/migration_add_marketplace_checkout.sql
 seller-portal/sql/migration_add_return_refunds.sql
+seller-portal/sql/migration_add_seller_governance.sql
