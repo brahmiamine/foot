@@ -58,12 +58,18 @@ export class PaymentRefundController {
     @Headers('x-actor-user-id') actorUserHeader?: string,
   ): Promise<Refund> {
     await this.assertPaymentOwnedByCaller(paymentId, service);
+    const actorUserId = optionalActorUserId(actorUserHeader);
+    if (service.application === 'federation-hub' && !actorUserId) {
+      throw new BadRequestException(
+        'x-actor-user-id is required for federation-hub refund requests',
+      );
+    }
     return this.refundService.createRefund(
       paymentId,
       dto,
       service.application,
       idempotencyKey,
-      optionalActorUserId(actorUserHeader),
+      actorUserId,
     );
   }
 
