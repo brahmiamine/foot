@@ -40,9 +40,10 @@ export class PaymeeController {
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymeePaymentResultDto> {
-    await this.routingPolicyService.assertProviderEnabled(
+    await this.routingPolicyService.assertProviderEnabledForInitiation(
       service.application,
       PaymentProviderName.PAYMEE,
+      idempotencyKey,
     );
     try {
       return await this.paymentService.initiatePaymeePayment(
