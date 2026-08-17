@@ -21,6 +21,7 @@ import { PlayerControl } from "@/entities/PlayerControl";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { TeamMembership } from "@/entities/TeamMembership";
 import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
+import { CompetitionMatchProtocol } from "@/entities/CompetitionMatchProtocol";
 import { CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead, SeasonRegulation, SuspensionRead } from "@/entities/Eligibility";
 
 let dataSource: DataSource | null = null;
@@ -44,6 +45,7 @@ export async function getDataSource(): Promise<DataSource> {
         Sheet, Signature, Goal, Injury, Substitution, Reservation, MatchOfficial,
         MatchOfficialAssignment, MatchStaffAssignment, MatchStaffRead, CoachQualificationRead,
         PlayerControl, MatchReopenLog, TeamMembership, RefereeUnavailability,
+        CompetitionMatchProtocol,
         CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead,
         PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead,
         RegulatoryLegacyConfirmationRead, SeasonRegulation, SuspensionRead,
