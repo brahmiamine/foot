@@ -30,6 +30,10 @@ export default function MfaPolicyManager({ initialPolicies }: { initialPolicies:
         }),
       });
       const payload = await response.json().catch(() => ({}));
+      if (response.status === 428 && payload.error === "STEP_UP_REQUIRED") {
+        window.location.href = "/account/mfa/step-up?redirect=%2Fsecurity-policies%2Fmfa";
+        return;
+      }
       if (!response.ok) throw new Error(payload.error || "Impossible d'enregistrer la policy");
       setPolicies((current) => current.map((item) => (item.role === policy.role ? payload.policy : item)));
       setMessage(`Policy ${policy.role} enregistrée.`);
