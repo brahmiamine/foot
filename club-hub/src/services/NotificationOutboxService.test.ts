@@ -46,6 +46,31 @@ describe("NotificationOutboxService", () => {
       expect(events[0].eventId).toBe("news-published:1");
     });
 
+    it("treats eventId as an idempotency key", async () => {
+      const { NotificationOutboxService } = await import("./NotificationOutboxService");
+      const service = new NotificationOutboxService();
+      const payload = {
+        eventId: "news-published:42",
+        type: "NEWS_PUBLISHED",
+        teamId: "team-1",
+        title: "Nouvelle actualité",
+        body: "Titre",
+      };
+
+      await dataSource.transaction(async (manager) => {
+        await service.enqueue(manager, payload);
+        await service.enqueue(manager, payload);
+      });
+
+      const events = await dataSource.getRepository(NotificationOutboxEvent).find();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        eventId: "news-published:42",
+        status: "PENDING",
+        attempts: 0,
+      });
+    });
+
     it("rolls back with the rest of the transaction on failure", async () => {
       const { NotificationOutboxService } = await import("./NotificationOutboxService");
       const service = new NotificationOutboxService();
