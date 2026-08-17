@@ -2,6 +2,14 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 
 export type InjurySeverity = "MINOR" | "MODERATE" | "SEVERE";
 export type InjuryStatus = "ONGOING" | "RECOVERING" | "RESOLVED";
+export type ReturnToPlayStage =
+  | "INJURED"
+  | "TREATMENT"
+  | "INDIVIDUAL"
+  | "PARTIAL"
+  | "FULL"
+  | "CLEARANCE"
+  | "AVAILABLE";
 
 export interface InjuryDocument {
   name: string;
@@ -9,11 +17,8 @@ export interface InjuryDocument {
 }
 
 /**
- * `cms_injuries` (possédée par club-hub) — voir club-hub/src/entities/Injury.ts.
- * medical-hub est la SEULE app qui expose le dossier complet (diagnostic,
- * documents, notes) ; club-hub (module "medical.*") reste le propriétaire
- * de la donnée, player-hub/staff-hub n'en lisent qu'un statut simplifié
- * (disponible/blessé), jamais ces champs.
+ * `cms_injuries` (possédée par club-hub). Medical Hub expose seul le dossier
+ * complet ; staff/player n'en consomment qu'un statut opérationnel réduit.
  */
 @Entity("cms_injuries")
 export class Injury {
@@ -56,13 +61,25 @@ export class Injury {
   @Column({ type: "varchar", length: 500, nullable: true, name: "progressive_return_notes" })
   progressiveReturnNotes?: string | null;
 
-  /** JSON: [{ name: string, url: string }] — documents médicaux uploadés. */
+  @Column({
+    type: "enum",
+    enum: ["INJURED", "TREATMENT", "INDIVIDUAL", "PARTIAL", "FULL", "CLEARANCE", "AVAILABLE"],
+    default: "INJURED",
+    name: "rtp_stage",
+  })
+  rtpStage!: ReturnToPlayStage;
+
+  @Column({ type: "int", default: 1, name: "rtp_version" })
+  rtpVersion!: number;
+
+  /** JSON: [{ name: string, url: string }] — compatibilité historique. */
   @Column({ type: "text", nullable: true })
   documents?: string | null;
 
   @Column({ type: "enum", enum: ["ONGOING", "RECOVERING", "RESOLVED"], default: "ONGOING" })
   status!: InjuryStatus;
 
+  /** Notes historiques seulement ; les nouveaux suivis vont dans cms_injury_followups. */
   @Column({ type: "text", nullable: true })
   notes?: string | null;
 
