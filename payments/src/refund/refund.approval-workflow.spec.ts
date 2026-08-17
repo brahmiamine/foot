@@ -159,9 +159,8 @@ function buildService(mode: RefundApprovalMode) {
   const db = new FakeDb();
   db.payments.set('payment-1', payment());
   const dataSource = {
-    transaction: jest.fn(
-      (callback: (manager: EntityManager) => unknown) =>
-        Promise.resolve(callback(db.manager())),
+    transaction: jest.fn((callback: (manager: EntityManager) => unknown) =>
+      Promise.resolve(callback(db.manager())),
     ),
   };
   const flouciProvider = {
