@@ -63,6 +63,7 @@ export class PaymentRoutingPolicyService {
   async updatePolicy(
     consumerApplication: string,
     dto: UpdatePaymentRoutingPolicyDto,
+    actorApplication: string,
   ): Promise<EffectivePaymentRoutingPolicy> {
     this.validatePolicy(dto);
 
@@ -77,7 +78,7 @@ export class PaymentRoutingPolicyService {
       defaultProvider: dto.defaultProvider,
       fallbackProvider: dto.fallbackProvider ?? null,
       version,
-      updatedByApplication: consumerApplication,
+      updatedByApplication: actorApplication,
     });
     await this.repository.save(entity);
 
