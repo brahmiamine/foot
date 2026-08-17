@@ -30,7 +30,7 @@ export function PlayerAccountProvisioningCard({ playerId }: { playerId: string }
       <div className="card-header bg-transparent">
         <h5 className="card-title mb-1">Accès Player Hub</h5>
         <p className="text-muted small mb-0">
-          Le joueur recevra un lien personnel pour choisir son mot de passe. Aucun mot de passe temporaire n'est créé par le club.
+          Le joueur recevra un lien personnel pour choisir son mot de passe. Aucun mot de passe temporaire n&apos;est créé par le club.
         </p>
       </div>
       <div className="card-body">
