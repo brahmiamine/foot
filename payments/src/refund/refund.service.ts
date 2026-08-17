@@ -392,13 +392,24 @@ export class RefundService {
       if (refund.status !== RefundStatus.AWAITING_APPROVAL) {
         throw new RefundInvalidStateError('approve', refund.status);
       }
-      if (refund.approvalMode === RefundApprovalMode.AUTO) {
+
+      const approvalMode =
+        refund.approvalMode ?? RefundApprovalMode.SINGLE_APPROVAL;
+      if (approvalMode === RefundApprovalMode.AUTO) {
         throw new RefundInvalidStateError('manually approve', refund.status);
+      }
+
+      const makerCheckerEnabled =
+        refund.approvalMakerCheckerEnabled !== false;
+      if (makerCheckerEnabled && !refund.approvalMakerPrincipal) {
+        throw new ConflictException(
+          'Refund maker identity is missing; approval is blocked.',
+        );
       }
 
       const approverPrincipal = `user:${operatorUserId}`;
       if (
-        refund.approvalMakerCheckerEnabled &&
+        makerCheckerEnabled &&
         refund.approvalMakerPrincipal === approverPrincipal
       ) {
         throw new ConflictException('The refund maker cannot approve it.');
@@ -422,7 +433,7 @@ export class RefundService {
       const approvals =
         Number(Boolean(refund.approval1ByUser)) +
         Number(Boolean(refund.approval2ByUser));
-      const required = requiredRefundApprovalCount(refund.approvalMode);
+      const required = requiredRefundApprovalCount(approvalMode);
       if (approvals < required) {
         await refundRepo.update(refund.id, {
           approval1ByUser: refund.approval1ByUser,
@@ -680,7 +691,8 @@ export class RefundService {
           throw new RefundInvalidStateError('retry', current.status);
         }
         if (
-          current.approvalMode !== RefundApprovalMode.AUTO &&
+          (current.approvalMode ?? RefundApprovalMode.SINGLE_APPROVAL) !==
+            RefundApprovalMode.AUTO &&
           !current.approvedAt
         ) {
           throw new RefundInvalidStateError(
@@ -743,7 +755,8 @@ export class RefundService {
       }
       if (
         refund.status === RefundStatus.FAILED &&
-        refund.approvalMode !== RefundApprovalMode.AUTO &&
+        (refund.approvalMode ?? RefundApprovalMode.SINGLE_APPROVAL) !==
+          RefundApprovalMode.AUTO &&
         !refund.approvedAt
       ) {
         throw new RefundInvalidStateError(
