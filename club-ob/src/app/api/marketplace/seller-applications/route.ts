@@ -1,0 +1,7 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { getObTeam } from '@/lib/ob-team';
+import { submitSellerApplication } from '@/lib/marketplaceApi';
+const documentSchema=z.object({label:z.string().trim().min(1).max(120),url:z.string().url().max(500).refine(v=>v.startsWith('https://'),'HTTPS obligatoire')});
+const schema=z.object({businessName:z.string().trim().min(2).max(191),ownerName:z.string().trim().min(2).max(191),email:z.string().email().max(191),phone:z.string().trim().max(32).optional(),address:z.string().trim().max(255).optional(),city:z.string().trim().max(120).optional(),country:z.string().trim().max(120).optional(),description:z.string().trim().max(2000).optional(),activityCategory:z.string().trim().max(120).optional(),taxId:z.string().trim().max(120).optional(),tradeRegister:z.string().trim().max(120).optional(),documents:z.array(documentSchema).max(5).optional()});
+export async function POST(req:NextRequest){try{const team=await getObTeam();if(!team)return NextResponse.json({error:'Club indisponible'},{status:503});const body=schema.parse(await req.json());const application=await submitSellerApplication(team.id,body);return NextResponse.json(application,{status:201});}catch(error){if(error instanceof z.ZodError)return NextResponse.json({error:'Données invalides',details:error.issues},{status:400});return NextResponse.json({error:error instanceof Error?error.message:'Demande impossible'},{status:502});}}

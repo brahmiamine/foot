@@ -1,0 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+const schema=z.object({token:z.string().min(32).max(256),password:z.string().min(8).max(100)});
+export async function POST(req:NextRequest){try{const body=schema.parse(await req.json());const base=process.env.MARKETPLACE_API_URL;if(!base)return NextResponse.json({error:'Marketplace non configurée'},{status:503});const response=await fetch(`${base.replace(/\/$/,'')}/auth/activate`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),cache:'no-store'});const text=await response.text();return new NextResponse(text,{status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json'}});}catch{return NextResponse.json({error:'Lien ou mot de passe invalide'},{status:400});}}
