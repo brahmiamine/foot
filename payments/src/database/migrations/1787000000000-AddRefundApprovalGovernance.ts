@@ -1,9 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /** PAY-002 — approval thresholds and immutable approval snapshots on refunds. */
-export class AddRefundApprovalGovernance1787000000000
-  implements MigrationInterface
-{
+export class AddRefundApprovalGovernance1787000000000 implements MigrationInterface {
   name = 'AddRefundApprovalGovernance1787000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
