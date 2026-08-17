@@ -7,6 +7,7 @@ import { PasswordResetToken } from "@/entities/PasswordResetToken";
 import { SecurityEvent } from "@/entities/SecurityEvent";
 import { AccountInvitation } from "@/entities/AccountInvitation";
 import { MfaRolePolicy } from "@/entities/MfaRolePolicy";
+import { IdentityPolicyAudit } from "@/entities/IdentityPolicyAudit";
 
 const globalForDataSource = globalThis as unknown as {
   dataSource?: DataSource;
@@ -37,6 +38,7 @@ function createDataSource() {
       SecurityEvent,
       AccountInvitation,
       MfaRolePolicy,
+      IdentityPolicyAudit,
     ],
   });
 }
