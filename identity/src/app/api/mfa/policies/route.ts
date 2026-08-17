@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/session";
 import { listMfaRolePolicies, updateMfaRolePolicy } from "@/lib/mfaPolicy";
+import { hasRecentMfa, getStepUpMaxAgeSeconds } from "@/lib/stepUp";
 import type { MfaPolicyMode } from "@/entities/MfaRolePolicy";
 import type { User } from "@/entities/User";
 import { isTrustedOrigin } from "@/lib/csrf";
@@ -39,6 +40,13 @@ export async function PATCH(request: NextRequest) {
   const session = await getCurrentSession();
   if (!session || !canManage(session.role)) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
+  const maxAgeSeconds = getStepUpMaxAgeSeconds();
+  if (!hasRecentMfa(session, maxAgeSeconds)) {
+    return NextResponse.json(
+      { error: "STEP_UP_REQUIRED", maxAgeSeconds },
+      { status: 428 },
+    );
   }
 
   try {
