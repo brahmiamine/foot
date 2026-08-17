@@ -1,9 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /** PAY-001 — consumer-scoped provider enabled/default/fallback routing. */
-export class AddPaymentRoutingPolicies1786990000000
-  implements MigrationInterface
-{
+export class AddPaymentRoutingPolicies1786990000000 implements MigrationInterface {
   name = 'AddPaymentRoutingPolicies1786990000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
