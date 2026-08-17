@@ -51,6 +51,8 @@ identity/sql/migration_add_member_profile_fields.sql
 identity/sql/migration_add_member_role.sql
 identity/sql/migration_add_member_team_affiliations.sql
 identity/sql/migration_add_mfa_enrollment_challenges.sql
+# Policy MFA par rôle : REQUIRED/OPTIONAL/DISABLED + période de grâce.
+identity/sql/migration_add_mfa_role_policies.sql
 # Rôles cibles PLATFORM_SUPERADMIN/FEDERATION_ADMIN/LEAGUE_ADMIN + scope
 # federation_id/league_id sur `User` (migration.md §7-8, Phase 1).
 identity/sql/migration_add_federation_league_scope.sql
