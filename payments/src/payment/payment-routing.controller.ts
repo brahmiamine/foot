@@ -1,12 +1,16 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
+  Inject,
+  Param,
   Post,
   Put,
   UseGuards,
 } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CurrentService } from '../auth/decorators/current-service.decorator';
@@ -17,6 +21,7 @@ import { RoutedInitPaymentResultDto } from './dto/routed-init-payment-result.dto
 import { UpdatePaymentRoutingPolicyDto } from './dto/update-payment-routing-policy.dto';
 import { Payment } from './entities/payment.entity';
 import { PaymentProviderName } from './enums/payment-provider.enum';
+import { paymentRoutingConfig } from './payment-routing.config';
 import {
   EffectivePaymentRoutingPolicy,
   PaymentRoutingPolicyService,
@@ -44,6 +49,8 @@ export class PaymentRoutingController {
     private readonly routingPolicyService: PaymentRoutingPolicyService,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @Inject(paymentRoutingConfig.KEY)
+    private readonly routingConfig: ConfigType<typeof paymentRoutingConfig>,
   ) {}
 
   // Two path segments deliberately avoid colliding with GET /payments/:id.
@@ -54,12 +61,23 @@ export class PaymentRoutingController {
     return this.routingPolicyService.getEffectivePolicy(service.application);
   }
 
-  @Put('routing/policy')
+  /**
+   * Policy administration is deliberately separate from policy consumption.
+   * A compromised consumer key therefore cannot simply re-enable a provider
+   * that was disabled for that same consumer.
+   */
+  @Put('routing/policies/:consumerApplication')
   async updateRoutingPolicy(
+    @Param('consumerApplication') consumerApplication: string,
     @Body() dto: UpdatePaymentRoutingPolicyDto,
     @CurrentService() service: AuthenticatedService,
   ): Promise<EffectivePaymentRoutingPolicy> {
-    return this.routingPolicyService.updatePolicy(service.application, dto);
+    this.assertRoutingAdministrator(service.application);
+    return this.routingPolicyService.updatePolicy(
+      consumerApplication,
+      dto,
+      service.application,
+    );
   }
 
   /**
@@ -146,6 +164,14 @@ export class PaymentRoutingController {
       if (error instanceof PaymeeError) throw paymeeToHttpException(error);
       if (error instanceof FlouciError) throw flouciToHttpException(error);
       throw error;
+    }
+  }
+
+  private assertRoutingAdministrator(application: string): void {
+    if (!this.routingConfig.adminApplications.includes(application)) {
+      throw new ForbiddenException(
+        'This application is not allowed to administer payment routing policies',
+      );
     }
   }
 
