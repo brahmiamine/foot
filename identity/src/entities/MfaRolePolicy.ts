@@ -9,10 +9,10 @@ export class MfaRolePolicy {
   @PrimaryColumn({ type: "varchar", length: 50 })
   role!: User["role"];
 
-  @Column({ type: "enum", enum: ["REQUIRED", "OPTIONAL", "DISABLED"], default: "OPTIONAL" })
+  @Column({ type: "simple-enum", enum: ["REQUIRED", "OPTIONAL", "DISABLED"], default: "OPTIONAL" })
   mode!: MfaPolicyMode;
 
-  /** Reserved for staged enforcement; zero means immediate enforcement. */
+  /** Zero means immediate enforcement; positive values stage REQUIRED rollout. */
   @Column({ type: "int", name: "grace_period_days", default: 0 })
   gracePeriodDays!: number;
 
