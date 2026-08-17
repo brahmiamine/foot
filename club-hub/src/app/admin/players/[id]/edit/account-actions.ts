@@ -20,8 +20,8 @@ export async function invitePlayerHubAccount(playerId: string, formData: FormDat
 
     await new AuditLogService().create({
       userId: session.user.id,
-      action: "INVITE",
-      entity: "PlayerHubAccount",
+      action: "CREATE",
+      entity: "PlayerHubAccountInvitation",
       entityId: playerId,
       after: {
         email: invitation.email,
