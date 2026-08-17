@@ -83,7 +83,7 @@ export default async function GovernanceSettingsPage() {
             <h2 className="h6">Boutique du club</h2>
             <div className="row g-3 align-items-end">
               <div className="col-md-6">
-                <label className="form-label">Activation d'un produit</label>
+                <label className="form-label">Activation d&apos;un produit</label>
                 <ModeSelect name="shopProductApprovalMode" value={settings.shopProductApprovalMode} />
               </div>
               <div className="col-md-6">
@@ -93,7 +93,7 @@ export default async function GovernanceSettingsPage() {
                 </div>
               </div>
             </div>
-            <p className="small text-muted mt-2 mb-0">Une mise à jour de stock seule ne redemande pas d'approbation.</p>
+            <p className="small text-muted mt-2 mb-0">Une mise à jour de stock seule ne redemande pas d&apos;approbation.</p>
           </section>
         </div>
         <div className="card-footer bg-transparent d-flex justify-content-between align-items-center">
