@@ -84,7 +84,9 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     label: "Compositions & formations",
     permissions: [
       { key: "lineups.view", label: "Voir la composition" },
-      { key: "lineups.edit", label: "Modifier la composition / formation" },
+      { key: "lineups.edit", label: "Modifier un brouillon de composition / formation" },
+      { key: "lineups.propose", label: "Soumettre une composition à l'approbation" },
+      { key: "lineups.approve", label: "Approuver et verrouiller une composition" },
     ],
   },
   {
@@ -298,6 +300,8 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "trainings.invite",
       "lineups.view",
       "lineups.edit",
+      "lineups.propose",
+      "lineups.approve",
       "convocations.view",
       "convocations.send",
       "convocations.respond",
@@ -314,7 +318,7 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
   },
   {
     name: "Adjoint",
-    description: "Assiste le coach : consultation et proposition de composition, sans validation finale.",
+    description: "Assiste le coach : prépare et soumet une composition, sans validation finale.",
     isGlobal: false,
     permissions: [
       "players.view",
@@ -324,6 +328,8 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "trainings.view",
       "trainings.invite",
       "lineups.view",
+      "lineups.edit",
+      "lineups.propose",
       "convocations.view",
       "stats.view",
     ],
