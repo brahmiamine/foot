@@ -45,15 +45,47 @@ const LEGACY_DEFAULTS = {
   requireRefereeObserver: false,
 } as const;
 
-const BOOLEAN_FIELDS = [
-  "requireHomeSignature",
-  "requireAwaySignature",
-  "requireRefereeSignature",
-  "requireCenterReferee",
-  "requireFourthOfficial",
-  "requireMatchDelegate",
-  "requireRefereeObserver",
-] as const;
+function hasOwn(value: Record<string, unknown>, field: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, field);
+}
+
+function sanitizeUpdate(values: UpdateCompetitionMatchProtocolInput): UpdateCompetitionMatchProtocolInput {
+  // `values` may originate from JSON despite its TS type. Copy only the
+  // public contract fields so `id`, `seasonId`, `version`, `updatedBy`, etc.
+  // can never be mass-assigned into the persisted entity.
+  const raw = values as Record<string, unknown>;
+  return {
+    ...(hasOwn(raw, "preMatchSigningDeadlineMinutes")
+      ? { preMatchSigningDeadlineMinutes: raw.preMatchSigningDeadlineMinutes as number | null }
+      : {}),
+    ...(hasOwn(raw, "maxBenchPlayers") ? { maxBenchPlayers: raw.maxBenchPlayers as number | null } : {}),
+    ...(hasOwn(raw, "maxSubstitutions") ? { maxSubstitutions: raw.maxSubstitutions as number | null } : {}),
+    ...(hasOwn(raw, "requireHomeSignature")
+      ? { requireHomeSignature: raw.requireHomeSignature as boolean }
+      : {}),
+    ...(hasOwn(raw, "requireAwaySignature")
+      ? { requireAwaySignature: raw.requireAwaySignature as boolean }
+      : {}),
+    ...(hasOwn(raw, "requireRefereeSignature")
+      ? { requireRefereeSignature: raw.requireRefereeSignature as boolean }
+      : {}),
+    ...(hasOwn(raw, "requireCenterReferee")
+      ? { requireCenterReferee: raw.requireCenterReferee as boolean }
+      : {}),
+    ...(hasOwn(raw, "requiredAssistantReferees")
+      ? { requiredAssistantReferees: raw.requiredAssistantReferees as number }
+      : {}),
+    ...(hasOwn(raw, "requireFourthOfficial")
+      ? { requireFourthOfficial: raw.requireFourthOfficial as boolean }
+      : {}),
+    ...(hasOwn(raw, "requireMatchDelegate")
+      ? { requireMatchDelegate: raw.requireMatchDelegate as boolean }
+      : {}),
+    ...(hasOwn(raw, "requireRefereeObserver")
+      ? { requireRefereeObserver: raw.requireRefereeObserver as boolean }
+      : {}),
+  };
+}
 
 function assertNullableNonNegative(value: number | null | undefined, field: string): void {
   if (value == null) return;
@@ -70,8 +102,16 @@ function validateUpdate(values: UpdateCompetitionMatchProtocolInput): void {
   if (values.requiredAssistantReferees != null && values.requiredAssistantReferees > 4) {
     throw new Error("requiredAssistantReferees ne peut pas dépasser 4");
   }
-  for (const field of BOOLEAN_FIELDS) {
-    const value = values[field];
+  const booleans = [
+    ["requireHomeSignature", values.requireHomeSignature],
+    ["requireAwaySignature", values.requireAwaySignature],
+    ["requireRefereeSignature", values.requireRefereeSignature],
+    ["requireCenterReferee", values.requireCenterReferee],
+    ["requireFourthOfficial", values.requireFourthOfficial],
+    ["requireMatchDelegate", values.requireMatchDelegate],
+    ["requireRefereeObserver", values.requireRefereeObserver],
+  ] as const;
+  for (const [field, value] of booleans) {
     if (value !== undefined && typeof value !== "boolean") {
       throw new Error(`${field} doit être un booléen`);
     }
@@ -121,7 +161,8 @@ export class CompetitionMatchProtocolService {
     values: UpdateCompetitionMatchProtocolInput,
     actorUserId: string,
   ): Promise<CompetitionMatchProtocolValue> {
-    validateUpdate(values);
+    const safeValues = sanitizeUpdate(values);
+    validateUpdate(safeValues);
 
     const ds = await getDataSource();
     await ds.transaction(async (manager) => {
@@ -135,7 +176,7 @@ export class CompetitionMatchProtocolService {
           version: 1,
           updatedBy: actorUserId,
         });
-      Object.assign(row, values);
+      Object.assign(row, safeValues);
       row.version = current ? current.version + 1 : 1;
       row.updatedBy = actorUserId;
       await repo.save(row);
