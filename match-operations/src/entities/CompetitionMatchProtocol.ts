@@ -49,6 +49,14 @@ export class CompetitionMatchProtocol {
   @Column({ type: "tinyint", default: 0, name: "require_referee_observer" })
   requireRefereeObserver!: boolean;
 
+  /** Fenêtre après signature/clôture pendant laquelle un amendement peut être demandé. NULL = pas de limite. */
+  @Column({ type: "int", nullable: true, name: "post_signature_correction_window_minutes" })
+  postSignatureCorrectionWindowMinutes?: number | null;
+
+  /** Si vrai, une demande d'amendement reste bloquée jusqu'à décision Fédération. */
+  @Column({ type: "tinyint", default: 0, name: "post_signature_federation_approval_required" })
+  postSignatureFederationApprovalRequired!: boolean;
+
   @Column({ type: "int", default: 1 })
   version!: number;
 
