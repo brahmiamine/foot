@@ -9,6 +9,15 @@ import { SellersService } from './sellers.service';
 @UseGuards(ServiceAuthGuard, AllowedApplicationsGuard)
 export class MarketplaceSettingsController {
   constructor(private readonly sellersService: SellersService) {}
-  @Get() @AllowedApplications('club-ob', 'club-hub', 'federation-hub', 'seller-portal') get(@Query('clubId') clubId: string) { return this.sellersService.getClubSettings(clubId); }
-  @Patch() @AllowedApplications('club-hub', 'federation-hub') update(@Query('clubId') clubId: string, @Body() dto: UpdateMarketplaceSettingsDto) { return this.sellersService.updateClubSettings(clubId, dto); }
+  @Get()
+  @AllowedApplications('club-ob', 'club-hub', 'federation-hub', 'seller-portal')
+  get(@Query('clubId') clubId: string) {
+    return this.sellersService.getClubSettings(clubId);
+  }
+  @Patch() @AllowedApplications('club-hub', 'federation-hub') update(
+    @Query('clubId') clubId: string,
+    @Body() dto: UpdateMarketplaceSettingsDto,
+  ) {
+    return this.sellersService.updateClubSettings(clubId, dto);
+  }
 }

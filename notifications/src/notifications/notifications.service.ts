@@ -139,13 +139,14 @@ export class NotificationsService {
     const candidateChannels = externalEmail
       ? [NotificationChannelType.EMAIL]
       : (dto.channels ?? DEFAULT_CANDIDATE_CHANNELS);
-    const channels = externalEmail || mandatory
-      ? candidateChannels
-      : await this.preferences.resolveEnabledChannels(
-          userId,
-          category,
-          candidateChannels,
-        );
+    const channels =
+      externalEmail || mandatory
+        ? candidateChannels
+        : await this.preferences.resolveEnabledChannels(
+            userId,
+            category,
+            candidateChannels,
+          );
     const notificationData = externalEmail
       ? {
           ...(dto.data ?? {}),

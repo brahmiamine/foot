@@ -13,8 +13,22 @@ import { SellersController } from './sellers.controller';
 import { SellersService } from './sellers.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Seller, SellerUser, SellerApplication, SellerInvite, MarketplaceClubSettings]), NotificationsModule],
-  controllers: [SellersController, InternalSellersController, SellerApplicationsController, MarketplaceSettingsController],
+  imports: [
+    TypeOrmModule.forFeature([
+      Seller,
+      SellerUser,
+      SellerApplication,
+      SellerInvite,
+      MarketplaceClubSettings,
+    ]),
+    NotificationsModule,
+  ],
+  controllers: [
+    SellersController,
+    InternalSellersController,
+    SellerApplicationsController,
+    MarketplaceSettingsController,
+  ],
   providers: [SellersService],
   exports: [SellersService],
 })
