@@ -13,3 +13,6 @@ node_modules/
 
 # Cache local Turborepo (turbo run build/lint/test/typecheck).
 .turbo/
+
+# Worktrees créés par les agents Claude Code (session-local, non versionnés).
+.claude/worktrees/
