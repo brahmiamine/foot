@@ -22,7 +22,7 @@ async function entityLabel(domain: ClubApprovalDomain, entityId: string, teamId:
     return item?.title ?? `Actualité #${entityId}`;
   }
   if (domain === "ANNOUNCEMENT") {
-    const item = await new AnnouncementService().getById(Number(entityId), teamId);
+    const item = await new AnnouncementService().findById(Number(entityId), teamId);
     return item?.title ?? `Communiqué #${entityId}`;
   }
   const item = await new ProductService().findById(Number(entityId), teamId);
@@ -60,7 +60,9 @@ export default async function ClubApprovalsPage() {
       </div>
 
       {rows.length === 0 ? (
-        <div className="card"><div className="card-body text-muted">Aucune publication en attente.</div></div>
+        <div className="card">
+          <div className="card-body text-muted">Aucune publication en attente.</div>
+        </div>
       ) : (
         <div className="card">
           <div className="table-responsive">
@@ -77,7 +79,9 @@ export default async function ClubApprovalsPage() {
               <tbody>
                 {rows.map(({ request, label }) => (
                   <tr key={request.id}>
-                    <td><span className="badge bg-light text-dark">{request.domain}</span></td>
+                    <td>
+                      <span className="badge bg-light text-dark">{request.domain}</span>
+                    </td>
                     <td>
                       <strong>{label}</strong>
                       <div className="small text-muted">#{request.entityId}</div>
