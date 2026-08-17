@@ -9,6 +9,7 @@ import {
   approveLineupAction,
   lockLineupAction,
   proposeLineupAction,
+  removeLineupEntryAction,
   setFormationAction,
   setLineupEntryAction,
 } from "@/app/actions";
@@ -17,6 +18,7 @@ import type { FormationWorkflowStatus } from "@/entities/MatchFormation";
 
 interface RosterRow {
   id: string;
+  entryId: number | null;
   label: string;
   role: LineupRole | "NONE";
   shirtNumber: number | null;
@@ -66,7 +68,10 @@ export function LineupEditor({
   async function persistDraft() {
     await setFormationAction(matchType, formation, matchId, friendlyMatchId);
     for (const row of rows) {
-      if (row.role === "NONE") continue;
+      if (row.role === "NONE") {
+        if (row.entryId != null) await removeLineupEntryAction(row.entryId);
+        continue;
+      }
       await setLineupEntryAction(matchType, row.id, row.role, {
         matchId,
         friendlyMatchId,
