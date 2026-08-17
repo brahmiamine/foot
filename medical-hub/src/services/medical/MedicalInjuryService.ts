@@ -14,6 +14,11 @@ import {
 import { MedicalSettings } from "@/entities/MedicalSettings";
 import { Player } from "@/entities/Player";
 import { MedicalServiceBase, parseInjuryDocuments, type CategoryScope } from "./MedicalServiceBase";
+import {
+  countLatestClearances,
+  expectedNextStage,
+  requiredClearances,
+} from "./returnToPlayPolicy";
 
 export interface InjuryWithPlayer {
   injury: Injury;
@@ -26,14 +31,6 @@ export interface EffectiveMedicalSettings {
   severeSecondOpinionRequired: boolean;
   source: "DEFAULT" | "DATABASE";
 }
-
-const NEXT_STAGE: Partial<Record<ReturnToPlayStage, ReturnToPlayStage>> = {
-  INJURED: "TREATMENT",
-  TREATMENT: "INDIVIDUAL",
-  INDIVIDUAL: "PARTIAL",
-  PARTIAL: "FULL",
-  FULL: "CLEARANCE",
-};
 
 function statusForStage(stage: ReturnToPlayStage): InjuryStatus {
   if (stage === "AVAILABLE") return "RESOLVED";
@@ -230,10 +227,7 @@ export class MedicalInjuryService extends MedicalServiceBase {
       }
 
       const settings = await this.getSettingsWithManager(manager, teamId);
-      const expected =
-        injury.rtpStage === "FULL" && !settings.clearanceRequired
-          ? "AVAILABLE"
-          : NEXT_STAGE[injury.rtpStage];
+      const expected = expectedNextStage(injury.rtpStage, settings);
       if (!expected || targetStage !== expected) {
         throw new Error(`Transition Return-to-Play invalide : ${injury.rtpStage} → ${targetStage}`);
       }
@@ -313,16 +307,14 @@ export class MedicalInjuryService extends MedicalServiceBase {
       );
 
       const settings = await this.getSettingsWithManager(manager, teamId);
-      const requiredClearances = injury.severity === "SEVERE" && settings.severeSecondOpinionRequired ? 2 : 1;
+      const needed = requiredClearances(injury.severity, settings);
       const decisions = await clearanceRepo.find({
         where: { injuryId: id, teamId },
         order: { createdAt: "ASC" },
       });
-      const latestByReviewer = new Map<string, InjuryClearanceDecision>();
-      for (const item of decisions) latestByReviewer.set(item.reviewerUserId, item.decision);
-      const currentClearances = [...latestByReviewer.values()].filter((value) => value === "CLEAR").length;
+      const current = countLatestClearances(decisions);
 
-      if (currentClearances >= requiredClearances) {
+      if (current >= needed) {
         const fromStage = injury.rtpStage;
         injury.rtpStage = "AVAILABLE";
         injury.rtpVersion += 1;
@@ -340,15 +332,15 @@ export class MedicalInjuryService extends MedicalServiceBase {
             metadata: {
               fromStage,
               toStage: "AVAILABLE",
-              requiredClearances,
-              currentClearances,
+              requiredClearances: needed,
+              currentClearances: current,
               rtpVersion: injury.rtpVersion,
             },
           }),
         );
       }
 
-      return { injury, requiredClearances, currentClearances };
+      return { injury, requiredClearances: needed, currentClearances: current };
     });
   }
 
