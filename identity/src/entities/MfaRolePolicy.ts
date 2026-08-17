@@ -16,6 +16,10 @@ export class MfaRolePolicy {
   @Column({ type: "int", name: "grace_period_days", default: 0 })
   gracePeriodDays!: number;
 
+  /** Monotonic snapshot version, incremented on every effective change. */
+  @Column({ type: "int", default: 1 })
+  version!: number;
+
   @Column({ type: "varchar", length: 191, nullable: true, name: "updated_by" })
   updatedBy?: string | null;
 
