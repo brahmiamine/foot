@@ -25,6 +25,8 @@
 - 2026-08-17 — CI #796 + Ownership boundaries #325 : Identity, Staff Hub, Medical Hub, Player Hub, Referee Hub, Federation Hub, Match Operations, Ticketing, Marketplace, Payments, Notifications, ArbiNote, Club OB, migrations, architecture, design system et i18n validés verts. Club Hub a typecheck + lint verts ; son build/test final reste le dernier gate du lot Club.
 - 2026-08-17 — clôturés après validation : `GOV-001`, `GOV-002`, `GOV-003`, `ID-001`, `ID-002`, `ID-003`, `STAFF-001`, `MED-001` à `MED-004`, `REF-001`, `REF-002`, `OPS-002`. `GOV-004/GOV-005` restent partiels par exigence de persistance/audit standard à généraliser. `CLUB-002` reste partiel car le statut `SCHEDULED` n'est pas encore implémenté.
 - 2026-08-17 — CI #817 : lot Club Hub validé avec typecheck, lint, build et 191 tests verts, plus migrations/architecture/i18n et le reste de la matrice verts. Clôture de `CLUB-001` à `CLUB-004` : maker/checker, News avec `SCHEDULED` serveur et revalidation contenu/médias, Communiqués avec niveau d'approbation par catégorie, boutique club avec approbation/reapproval.
+- 2026-08-17 — CI #836 + Ownership : `MATCH-001` validé avec `CompetitionMatchProtocol` par saison, enforcement serveur des deadlines/banc/substitutions/signatures/officiels, API interne et respect de `ClubLineupReadPort` ; typecheck/lint/build/tests Match Operations, architecture et manifest verts.
+- 2026-08-17 — CI #852 + Ownership #381 : `MATCH-002` validé. Les feuilles post-match signées/clôturées exigent un amendement explicite avant correction, chaque correction reste dans le ledger append-only, les créations live/hard-delete non audités restent bloqués, et l'amendement se ferme en `RE_SIGNED` uniquement après re-signatures valides du nouveau hash.
 
 ---
 
@@ -128,8 +130,8 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| MATCH-001 | P0 | TODO | `CompetitionMatchProtocol` configurable | deadlines, joueurs banc, substitutions, signatures, officiels requis |
-| MATCH-002 | P0 | TODO | Workflow d'amendement d'une feuille signée | AMENDMENT_REQUESTED→AMENDED→RE_SIGNED, jamais mutation silencieuse |
+| MATCH-001 | P0 | DONE | `CompetitionMatchProtocol` configurable | deadlines, joueurs banc, substitutions, signatures, officiels requis |
+| MATCH-002 | P0 | DONE | Workflow d'amendement d'une feuille signée | AMENDMENT_REQUESTED→AMENDED→RE_SIGNED, jamais mutation silencieuse |
 | MATCH-003 | P0 | TODO | Policy corrections post-signature | fenêtre + approbation fédération configurable |
 | MATCH-004 | P1 | TODO | Policy offline PWA | durée, signature locale, idempotence, conflits de synchro |
 
