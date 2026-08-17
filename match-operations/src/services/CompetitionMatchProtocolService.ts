@@ -22,6 +22,8 @@ export interface CompetitionMatchProtocolValue {
   requireFourthOfficial: boolean;
   requireMatchDelegate: boolean;
   requireRefereeObserver: boolean;
+  postSignatureCorrectionWindowMinutes: number | null;
+  postSignatureFederationApprovalRequired: boolean;
   version: number;
   updatedBy: string | null;
   updatedAt: Date | null;
@@ -43,6 +45,8 @@ const LEGACY_DEFAULTS = {
   requireFourthOfficial: false,
   requireMatchDelegate: false,
   requireRefereeObserver: false,
+  postSignatureCorrectionWindowMinutes: null,
+  postSignatureFederationApprovalRequired: false,
 } as const;
 
 function hasOwn(value: Record<string, unknown>, field: string): boolean {
@@ -50,9 +54,6 @@ function hasOwn(value: Record<string, unknown>, field: string): boolean {
 }
 
 function sanitizeUpdate(values: UpdateCompetitionMatchProtocolInput): UpdateCompetitionMatchProtocolInput {
-  // `values` may originate from JSON despite its TS type. Copy only the
-  // public contract fields so `id`, `seasonId`, `version`, `updatedBy`, etc.
-  // can never be mass-assigned into the persisted entity.
   const raw = values as Record<string, unknown>;
   return {
     ...(hasOwn(raw, "preMatchSigningDeadlineMinutes")
@@ -60,29 +61,21 @@ function sanitizeUpdate(values: UpdateCompetitionMatchProtocolInput): UpdateComp
       : {}),
     ...(hasOwn(raw, "maxBenchPlayers") ? { maxBenchPlayers: raw.maxBenchPlayers as number | null } : {}),
     ...(hasOwn(raw, "maxSubstitutions") ? { maxSubstitutions: raw.maxSubstitutions as number | null } : {}),
-    ...(hasOwn(raw, "requireHomeSignature")
-      ? { requireHomeSignature: raw.requireHomeSignature as boolean }
-      : {}),
-    ...(hasOwn(raw, "requireAwaySignature")
-      ? { requireAwaySignature: raw.requireAwaySignature as boolean }
-      : {}),
-    ...(hasOwn(raw, "requireRefereeSignature")
-      ? { requireRefereeSignature: raw.requireRefereeSignature as boolean }
-      : {}),
-    ...(hasOwn(raw, "requireCenterReferee")
-      ? { requireCenterReferee: raw.requireCenterReferee as boolean }
-      : {}),
+    ...(hasOwn(raw, "requireHomeSignature") ? { requireHomeSignature: raw.requireHomeSignature as boolean } : {}),
+    ...(hasOwn(raw, "requireAwaySignature") ? { requireAwaySignature: raw.requireAwaySignature as boolean } : {}),
+    ...(hasOwn(raw, "requireRefereeSignature") ? { requireRefereeSignature: raw.requireRefereeSignature as boolean } : {}),
+    ...(hasOwn(raw, "requireCenterReferee") ? { requireCenterReferee: raw.requireCenterReferee as boolean } : {}),
     ...(hasOwn(raw, "requiredAssistantReferees")
       ? { requiredAssistantReferees: raw.requiredAssistantReferees as number }
       : {}),
-    ...(hasOwn(raw, "requireFourthOfficial")
-      ? { requireFourthOfficial: raw.requireFourthOfficial as boolean }
+    ...(hasOwn(raw, "requireFourthOfficial") ? { requireFourthOfficial: raw.requireFourthOfficial as boolean } : {}),
+    ...(hasOwn(raw, "requireMatchDelegate") ? { requireMatchDelegate: raw.requireMatchDelegate as boolean } : {}),
+    ...(hasOwn(raw, "requireRefereeObserver") ? { requireRefereeObserver: raw.requireRefereeObserver as boolean } : {}),
+    ...(hasOwn(raw, "postSignatureCorrectionWindowMinutes")
+      ? { postSignatureCorrectionWindowMinutes: raw.postSignatureCorrectionWindowMinutes as number | null }
       : {}),
-    ...(hasOwn(raw, "requireMatchDelegate")
-      ? { requireMatchDelegate: raw.requireMatchDelegate as boolean }
-      : {}),
-    ...(hasOwn(raw, "requireRefereeObserver")
-      ? { requireRefereeObserver: raw.requireRefereeObserver as boolean }
+    ...(hasOwn(raw, "postSignatureFederationApprovalRequired")
+      ? { postSignatureFederationApprovalRequired: raw.postSignatureFederationApprovalRequired as boolean }
       : {}),
   };
 }
@@ -99,6 +92,7 @@ function validateUpdate(values: UpdateCompetitionMatchProtocolInput): void {
   assertNullableNonNegative(values.maxBenchPlayers, "maxBenchPlayers");
   assertNullableNonNegative(values.maxSubstitutions, "maxSubstitutions");
   assertNullableNonNegative(values.requiredAssistantReferees, "requiredAssistantReferees");
+  assertNullableNonNegative(values.postSignatureCorrectionWindowMinutes, "postSignatureCorrectionWindowMinutes");
   if (values.requiredAssistantReferees != null && values.requiredAssistantReferees > 4) {
     throw new Error("requiredAssistantReferees ne peut pas dépasser 4");
   }
@@ -110,6 +104,7 @@ function validateUpdate(values: UpdateCompetitionMatchProtocolInput): void {
     ["requireFourthOfficial", values.requireFourthOfficial],
     ["requireMatchDelegate", values.requireMatchDelegate],
     ["requireRefereeObserver", values.requireRefereeObserver],
+    ["postSignatureFederationApprovalRequired", values.postSignatureFederationApprovalRequired],
   ] as const;
   for (const [field, value] of booleans) {
     if (value !== undefined && typeof value !== "boolean") {
@@ -120,13 +115,7 @@ function validateUpdate(values: UpdateCompetitionMatchProtocolInput): void {
 
 function toValue(row: CompetitionMatchProtocol | null, seasonId: string): CompetitionMatchProtocolValue {
   if (!row) {
-    return {
-      seasonId,
-      ...LEGACY_DEFAULTS,
-      version: 0,
-      updatedBy: null,
-      updatedAt: null,
-    };
+    return { seasonId, ...LEGACY_DEFAULTS, version: 0, updatedBy: null, updatedAt: null };
   }
   return {
     seasonId: row.seasonId,
@@ -141,6 +130,8 @@ function toValue(row: CompetitionMatchProtocol | null, seasonId: string): Compet
     requireFourthOfficial: Boolean(row.requireFourthOfficial),
     requireMatchDelegate: Boolean(row.requireMatchDelegate),
     requireRefereeObserver: Boolean(row.requireRefereeObserver),
+    postSignatureCorrectionWindowMinutes: row.postSignatureCorrectionWindowMinutes ?? null,
+    postSignatureFederationApprovalRequired: Boolean(row.postSignatureFederationApprovalRequired),
     version: row.version,
     updatedBy: row.updatedBy ?? null,
     updatedAt: row.updatedAt ?? null,
@@ -168,14 +159,7 @@ export class CompetitionMatchProtocolService {
     await ds.transaction(async (manager) => {
       const repo = manager.getRepository(CompetitionMatchProtocol);
       const current = await repo.findOne({ where: { seasonId } });
-      const row =
-        current ??
-        repo.create({
-          seasonId,
-          ...LEGACY_DEFAULTS,
-          version: 1,
-          updatedBy: actorUserId,
-        });
+      const row = current ?? repo.create({ seasonId, ...LEGACY_DEFAULTS, version: 1, updatedBy: actorUserId });
       Object.assign(row, safeValues);
       row.version = current ? current.version + 1 : 1;
       row.updatedBy = actorUserId;
@@ -213,11 +197,8 @@ export class CompetitionMatchProtocolService {
   async assertSubstitutionAllowed(matchId: string, teamId: string): Promise<void> {
     const protocol = await this.getForMatch(matchId);
     if (protocol.version === 0 || protocol.maxSubstitutions == null) return;
-
     const ds = await getDataSource();
-    const count = await ds.getRepository(Substitution).count({
-      where: { matchId, teamId, cancelledAt: IsNull() },
-    });
+    const count = await ds.getRepository(Substitution).count({ where: { matchId, teamId, cancelledAt: IsNull() } });
     if (count >= protocol.maxSubstitutions) {
       throw new Error(`Nombre maximal de remplacements atteint (${protocol.maxSubstitutions})`);
     }
@@ -235,9 +216,7 @@ export class CompetitionMatchProtocolService {
       if (!match.date) throw new Error("Le match doit avoir une date pour appliquer la deadline pré-match");
       const cutoff = new Date(match.date.getTime() - protocol.preMatchSigningDeadlineMinutes * 60_000);
       if (now.getTime() > cutoff.getTime()) {
-        throw new Error(
-          `La deadline pré-match (${protocol.preMatchSigningDeadlineMinutes} min avant le coup d'envoi) est dépassée`,
-        );
+        throw new Error(`La deadline pré-match (${protocol.preMatchSigningDeadlineMinutes} min avant le coup d'envoi) est dépassée`);
       }
     }
 
@@ -246,9 +225,7 @@ export class CompetitionMatchProtocolService {
         const lineup = await this.clubLineup.findByMatchAndTeam(matchId, teamId);
         const benchCount = lineup.filter((entry) => entry.role === "SUBSTITUTE").length;
         if (benchCount > protocol.maxBenchPlayers) {
-          throw new Error(
-            `Le banc de l'équipe ${teamId} dépasse la limite autorisée (${protocol.maxBenchPlayers})`,
-          );
+          throw new Error(`Le banc de l'équipe ${teamId} dépasse la limite autorisée (${protocol.maxBenchPlayers})`);
         }
       }
     }
@@ -258,29 +235,21 @@ export class CompetitionMatchProtocolService {
       const signatures = await ds.getRepository(Signature).find({ where: { sheetId, phase: "PRE_MATCH" } });
       const present = new Set(signatures.map((signature) => signature.actorRole));
       const missing = requiredSignatureRoles.filter((role) => !present.has(role));
-      if (missing.length > 0) {
-        throw new Error(`Signatures pré-match manquantes : ${missing.join(", ")}`);
-      }
+      if (missing.length > 0) throw new Error(`Signatures pré-match manquantes : ${missing.join(", ")}`);
     }
 
     const requiredOfficials = new Map<MatchOfficialAssignmentRole, number>();
     if (protocol.requireCenterReferee) requiredOfficials.set("CENTER_REFEREE", 1);
-    if (protocol.requiredAssistantReferees > 0) {
-      requiredOfficials.set("ASSISTANT_REFEREE", protocol.requiredAssistantReferees);
-    }
+    if (protocol.requiredAssistantReferees > 0) requiredOfficials.set("ASSISTANT_REFEREE", protocol.requiredAssistantReferees);
     if (protocol.requireFourthOfficial) requiredOfficials.set("FOURTH_OFFICIAL", 1);
     if (protocol.requireMatchDelegate) requiredOfficials.set("MATCH_DELEGATE", 1);
     if (protocol.requireRefereeObserver) requiredOfficials.set("REFEREE_OBSERVER", 1);
 
     if (requiredOfficials.size > 0) {
-      const assignments = await ds.getRepository(MatchOfficialAssignment).find({
-        where: { matchId, status: "ACTIVE" },
-      });
+      const assignments = await ds.getRepository(MatchOfficialAssignment).find({ where: { matchId, status: "ACTIVE" } });
       for (const [role, requiredCount] of requiredOfficials) {
         const actualCount = assignments.filter((assignment) => assignment.role === role).length;
-        if (actualCount < requiredCount) {
-          throw new Error(`Officiels requis manquants : ${role} (${actualCount}/${requiredCount})`);
-        }
+        if (actualCount < requiredCount) throw new Error(`Officiels requis manquants : ${role} (${actualCount}/${requiredCount})`);
       }
     }
   }
