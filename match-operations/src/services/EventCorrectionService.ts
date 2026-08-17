@@ -1,6 +1,7 @@
 import { getDataSource } from "@/lib/db";
 import { MatchEventCorrection, CorrectableEventType, CorrectionAction } from "@/entities/MatchEventCorrection";
 import { Repository } from "typeorm";
+import { SheetAmendmentService } from "./SheetAmendmentService";
 
 export interface RecordCorrectionInput {
   sheetId: number;
@@ -34,14 +35,14 @@ export function assertReason(reason: string | null | undefined): string {
 }
 
 /**
- * Ledger d'audit des corrections/annulations d'événements de match. Ne
- * porte aucune règle métier (recalcul de score, invalidation de
- * signatures) : ces effets de bord sont orchestrés par les services
- * d'événement eux-mêmes (GoalService.correct/cancel, etc.) après écriture
- * ici, pour que chaque type d'événement garde le contrôle de ce qui
- * déclenche quoi.
+ * Ledger d'audit des corrections/annulations d'événements de match.
+ * Lorsqu'une correction concerne une feuille déjà signée, l'amendement
+ * ouvert passe à AMENDED uniquement après l'écriture du ledger : une simple
+ * demande d'amendement ne prétend donc jamais qu'une modification a eu lieu.
  */
 export class EventCorrectionService {
+  private amendmentService = new SheetAmendmentService();
+
   private async getRepository(): Promise<Repository<MatchEventCorrection>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(MatchEventCorrection);
@@ -61,7 +62,9 @@ export class EventCorrectionService {
       actorUserId: input.actorUserId,
       actorName: input.actorName,
     });
-    return repository.save(entry);
+    const saved = await repository.save(entry);
+    await this.amendmentService.markAmended(input.sheetId);
+    return saved;
   }
 
   async findByMatch(matchId: string): Promise<MatchEventCorrection[]> {
