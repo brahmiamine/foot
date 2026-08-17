@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
@@ -6,30 +6,39 @@ import {
   QueryFailedError,
   Repository,
 } from 'typeorm';
-import { Payment } from '../payment/entities/payment.entity';
-import { PaymentStatus } from '../payment/enums/payment-status.enum';
-import { PaymentProviderName } from '../payment/enums/payment-provider.enum';
-import { FlouciProvider } from '../payment/providers/flouci/flouci.provider';
-import { FlouciError } from '../payment/providers/flouci/flouci.exceptions';
 import { OutboxService } from '../outbox/outbox.service';
+import { Payment } from '../payment/entities/payment.entity';
+import { PaymentProviderName } from '../payment/enums/payment-provider.enum';
+import { PaymentStatus } from '../payment/enums/payment-status.enum';
+import { FlouciError } from '../payment/providers/flouci/flouci.exceptions';
+import { FlouciProvider } from '../payment/providers/flouci/flouci.provider';
+import { CreateRefundDto } from './dto/create-refund.dto';
+import { ResolveRefundDto } from './dto/resolve-refund.dto';
 import { Refund } from './entities/refund.entity';
 import { RefundStatusHistory } from './entities/refund-status-history.entity';
 import {
-  RefundStatus,
+  RefundApprovalMode,
+  requiredRefundApprovalCount,
+} from './enums/refund-approval-mode.enum';
+import {
+  REFUND_MANUAL_REVIEW_EVENT_TYPE as LEGACY_MANUAL_REVIEW_EVENT_TYPE,
+} from './refund-event.constants';
+import {
   RESERVING_REFUND_STATUSES,
+  RefundStatus,
 } from './enums/refund-status.enum';
-import { CreateRefundDto } from './dto/create-refund.dto';
-import { ResolveRefundDto } from './dto/resolve-refund.dto';
 import {
   RefundAmountExceedsRemainingError,
   RefundInvalidStateError,
   RefundNotFoundError,
   RefundPaymentNotPaidError,
 } from './refund.exceptions';
+import { RefundApprovalPolicyService } from './refund-approval-policy.service';
 
 export const REFUND_SUCCEEDED_EVENT_TYPE = 'REFUND_SUCCEEDED';
 export const REFUND_FAILED_EVENT_TYPE = 'REFUND_FAILED';
-export const REFUND_MANUAL_REVIEW_EVENT_TYPE = 'REFUND_MANUAL_REVIEW';
+export const REFUND_MANUAL_REVIEW_EVENT_TYPE = LEGACY_MANUAL_REVIEW_EVENT_TYPE;
+export const REFUND_APPROVAL_REQUIRED_EVENT_TYPE = 'REFUND_APPROVAL_REQUIRED';
 
 export interface RefundEvent {
   refundId: string;
@@ -43,12 +52,6 @@ export interface RefundEvent {
   reason: string | null;
 }
 
-/**
- * Only Flouci exposes an automated refund API (verified against provider
- * docs — see flouci.provider.ts). Konnect and Paymee refunds always go to
- * MANUAL_REVIEW: never simulate a success payments cannot actually
- * cause.
- */
 const AUTO_REFUNDABLE_PROVIDERS: ReadonlySet<PaymentProviderName> = new Set([
   PaymentProviderName.FLOUCI,
 ]);
@@ -68,6 +71,7 @@ export class RefundService {
     private readonly dataSource: DataSource,
     private readonly flouciProvider: FlouciProvider,
     private readonly outboxService: OutboxService,
+    private readonly approvalPolicyService: RefundApprovalPolicyService,
   ) {}
 
   async findById(id: string): Promise<Refund> {
@@ -113,7 +117,6 @@ export class RefundService {
     return { payment, remaining: remaining.toFixed(3) };
   }
 
-  /** Sum of amounts still "claimed" against the payment — see RESERVING_REFUND_STATUSES. */
   private async computeReserved(
     manager: EntityManager,
     paymentId: string,
@@ -130,12 +133,29 @@ export class RefundService {
     return Number(rows?.total ?? 0);
   }
 
+  private async computeReservedExcluding(
+    manager: EntityManager,
+    paymentId: string,
+    excludeRefundId: string,
+  ): Promise<number> {
+    const rows = await manager
+      .getRepository(Refund)
+      .createQueryBuilder('r')
+      .select('COALESCE(SUM(r.amount), 0)', 'total')
+      .where('r.paymentId = :paymentId', { paymentId })
+      .andWhere('r.id != :excludeRefundId', { excludeRefundId })
+      .andWhere('r.status IN (:...statuses)', {
+        statuses: RESERVING_REFUND_STATUSES,
+      })
+      .getRawOne<{ total: string }>();
+    return Number(rows?.total ?? 0);
+  }
+
   private async computeRemaining(
     manager: EntityManager,
     payment: Payment,
   ): Promise<number> {
-    const reserved = await this.computeReserved(manager, payment.id);
-    return Number(payment.amount) - reserved;
+    return Number(payment.amount) - (await this.computeReserved(manager, payment.id));
   }
 
   private async findByIdempotencyKey(
@@ -189,14 +209,6 @@ export class RefundService {
     };
   }
 
-  /**
-   * A partial-amount refund can never be dispatched automatically to
-   * Flouci: its refund_payment endpoint documents no partial-amount
-   * parameter and always refunds the payment's full amount. Dispatching it
-   * anyway would refund more than the caller asked for. So "automated" only
-   * applies when the requested amount closes out the payment entirely, on a
-   * payment provider that supports it at all.
-   */
   private canAutoRefund(
     payment: Payment,
     requestedAmount: number,
@@ -209,27 +221,21 @@ export class RefundService {
     );
   }
 
-  /**
-   * TASK-P0-001 (todo.md). Creates a refund request for `paymentId`,
-   * validating the remaining refundable amount under a row lock (so two
-   * concurrent partial-refund requests can never together exceed the
-   * payment's amount), then dispatches it: an automated provider call for
-   * Flouci full refunds, MANUAL_REVIEW for everything else — never a
-   * simulated success.
-   */
   async createRefund(
     paymentId: string,
     dto: CreateRefundDto,
     callerApplication: string,
     idempotencyKey?: string,
+    trustedInitiatorUser?: string,
   ): Promise<Refund> {
     const existing = await this.findByIdempotencyKey(paymentId, idempotencyKey);
-    if (existing) {
-      this.logger.log(
-        `Idempotent replay of refund request for payment ${paymentId}, returning refund ${existing.id}.`,
-      );
-      return existing;
-    }
+    if (existing) return existing;
+
+    const policy =
+      await this.approvalPolicyService.getEffectivePolicy(callerApplication);
+    const makerPrincipal = trustedInitiatorUser
+      ? `user:${trustedInitiatorUser}`
+      : `service:${callerApplication}`;
 
     let refund: Refund;
     let payment: Payment;
@@ -248,7 +254,6 @@ export class RefundService {
         const reserved = await this.computeReserved(manager, paymentId);
         const remaining = Number(lockedPayment.amount) - reserved;
         const requestedAmount = dto.amount ?? remaining;
-
         if (requestedAmount <= 0 || requestedAmount > remaining) {
           throw new RefundAmountExceedsRemainingError(
             remaining.toFixed(3),
@@ -256,6 +261,10 @@ export class RefundService {
           );
         }
 
+        const approvalMode = this.approvalPolicyService.resolveMode(
+          policy,
+          requestedAmount,
+        );
         const refundRepo = manager.getRepository(Refund);
         const created = refundRepo.create({
           paymentId,
@@ -266,7 +275,16 @@ export class RefundService {
           status: RefundStatus.REQUESTED,
           reason: dto.reason,
           initiatedByApplication: callerApplication,
-          initiatedByUser: dto.initiatedByUser ?? null,
+          initiatedByUser: trustedInitiatorUser ?? dto.initiatedByUser ?? null,
+          approvalMode,
+          approvalPolicyVersion: policy.version,
+          approvalMakerCheckerEnabled: policy.makerCheckerEnabled,
+          approvalMakerPrincipal: makerPrincipal,
+          approval1ByUser: null,
+          approval1At: null,
+          approval2ByUser: null,
+          approval2At: null,
+          approvedAt: approvalMode === RefundApprovalMode.AUTO ? new Date() : null,
         });
         await refundRepo.save(created);
         await this.insertHistory(
@@ -277,12 +295,36 @@ export class RefundService {
           `${callerApplication}:init`,
         );
 
-        await this.dispatchWithinTransaction(
-          manager,
-          created,
-          lockedPayment,
-          reserved,
-        );
+        if (approvalMode === RefundApprovalMode.AUTO) {
+          await this.dispatchWithinTransaction(
+            manager,
+            created,
+            lockedPayment,
+            reserved,
+          );
+        } else {
+          created.status = RefundStatus.AWAITING_APPROVAL;
+          await refundRepo.update(created.id, {
+            status: created.status,
+          });
+          await this.insertHistory(
+            manager,
+            created,
+            RefundStatus.REQUESTED,
+            `${approvalMode} required by refund policy v${policy.version}.`,
+            'payments:refund-governance',
+          );
+          await this.outboxService.enqueue(manager, {
+            eventType: REFUND_APPROVAL_REQUIRED_EVENT_TYPE,
+            aggregateId: created.id,
+            payload: {
+              ...this.toEvent(created, lockedPayment, dto.reason),
+              approvalMode,
+              approvalPolicyVersion: policy.version,
+              requiredApprovals: requiredRefundApprovalCount(approvalMode),
+            },
+          });
+        }
 
         return { refund: created, payment: lockedPayment };
       });
@@ -290,10 +332,7 @@ export class RefundService {
       payment = result.payment;
     } catch (error) {
       if (this.isDuplicateIdempotencyKeyError(error)) {
-        const raced = await this.findByIdempotencyKey(
-          paymentId,
-          idempotencyKey,
-        );
+        const raced = await this.findByIdempotencyKey(paymentId, idempotencyKey);
         if (raced) return raced;
       }
       throw error;
@@ -303,17 +342,164 @@ export class RefundService {
       await this.attemptAutomatedRefund(refund, payment);
       return this.findById(refund.id);
     }
-
     return refund;
   }
 
-  /**
-   * Decides REQUESTED -> PROCESSING (Flouci will be called right after the
-   * transaction commits, see attemptAutomatedRefund) or REQUESTED ->
-   * MANUAL_REVIEW (committed here, nothing further to dispatch). Runs
-   * inside the same transaction/lock as the insert so the routing decision
-   * is made against a consistent view of "how much is already reserved".
-   */
+  async approveRefund(refundId: string, operatorUserId: string): Promise<Refund> {
+    const result = await this.dataSource.transaction(async (manager) => {
+      const refundRepo = manager.getRepository(Refund);
+      const refund = await refundRepo.findOne({
+        where: { id: refundId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!refund) throw new RefundNotFoundError();
+      if (refund.status !== RefundStatus.AWAITING_APPROVAL) {
+        throw new RefundInvalidStateError('approve', refund.status);
+      }
+      if (refund.approvalMode === RefundApprovalMode.AUTO) {
+        throw new RefundInvalidStateError('manually approve', refund.status);
+      }
+
+      const approverPrincipal = `user:${operatorUserId}`;
+      if (
+        refund.approvalMakerCheckerEnabled &&
+        refund.approvalMakerPrincipal === approverPrincipal
+      ) {
+        throw new ConflictException('The refund maker cannot approve it.');
+      }
+      if (
+        refund.approval1ByUser === operatorUserId ||
+        refund.approval2ByUser === operatorUserId
+      ) {
+        throw new ConflictException('The same operator cannot approve twice.');
+      }
+
+      const now = new Date();
+      if (!refund.approval1ByUser) {
+        refund.approval1ByUser = operatorUserId;
+        refund.approval1At = now;
+      } else if (!refund.approval2ByUser) {
+        refund.approval2ByUser = operatorUserId;
+        refund.approval2At = now;
+      }
+
+      const approvals =
+        Number(Boolean(refund.approval1ByUser)) +
+        Number(Boolean(refund.approval2ByUser));
+      const required = requiredRefundApprovalCount(refund.approvalMode);
+
+      if (approvals < required) {
+        await refundRepo.update(refund.id, {
+          approval1ByUser: refund.approval1ByUser,
+          approval1At: refund.approval1At,
+          approval2ByUser: refund.approval2ByUser,
+          approval2At: refund.approval2At,
+        });
+        await this.insertHistory(
+          manager,
+          refund,
+          RefundStatus.AWAITING_APPROVAL,
+          `Approval ${approvals}/${required} recorded.`,
+          `operator:${operatorUserId}`,
+        );
+        return { refund, payment: null as Payment | null };
+      }
+
+      refund.approvedAt = now;
+      refund.status = RefundStatus.REQUESTED;
+      await refundRepo.update(refund.id, {
+        approval1ByUser: refund.approval1ByUser,
+        approval1At: refund.approval1At,
+        approval2ByUser: refund.approval2ByUser,
+        approval2At: refund.approval2At,
+        approvedAt: refund.approvedAt,
+        status: refund.status,
+      });
+      await this.insertHistory(
+        manager,
+        refund,
+        RefundStatus.AWAITING_APPROVAL,
+        `Required ${required} approval(s) collected.`,
+        `operator:${operatorUserId}`,
+      );
+
+      const payment = await manager
+        .createQueryBuilder(Payment, 'p')
+        .setLock('pessimistic_write')
+        .where('p.id = :id', { id: refund.paymentId })
+        .getOne();
+      if (!payment) throw new RefundNotFoundError();
+      const reservedExcludingThis = await this.computeReservedExcluding(
+        manager,
+        refund.paymentId,
+        refund.id,
+      );
+      await this.dispatchWithinTransaction(
+        manager,
+        refund,
+        payment,
+        reservedExcludingThis,
+      );
+      return { refund, payment };
+    });
+
+    if (result.refund.status === RefundStatus.PROCESSING && result.payment) {
+      await this.attemptAutomatedRefund(result.refund, result.payment);
+      return this.findById(result.refund.id);
+    }
+    return result.refund;
+  }
+
+  async rejectApproval(
+    refundId: string,
+    dto: ResolveRefundDto,
+  ): Promise<Refund> {
+    return this.dataSource.transaction(async (manager) => {
+      const refundRepo = manager.getRepository(Refund);
+      const refund = await refundRepo.findOne({
+        where: { id: refundId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!refund) throw new RefundNotFoundError();
+      if (refund.status !== RefundStatus.AWAITING_APPROVAL) {
+        throw new RefundInvalidStateError('reject approval for', refund.status);
+      }
+
+      refund.status = RefundStatus.FAILED;
+      refund.failureReason = dto.note;
+      refund.resolvedByUser = dto.resolvedByUser;
+      refund.resolutionNote = dto.note;
+      await refundRepo.update(refund.id, {
+        status: refund.status,
+        failureReason: refund.failureReason,
+        resolvedByUser: refund.resolvedByUser,
+        resolutionNote: refund.resolutionNote,
+      });
+      await this.insertHistory(
+        manager,
+        refund,
+        RefundStatus.AWAITING_APPROVAL,
+        dto.note,
+        `operator:${dto.resolvedByUser}`,
+      );
+
+      const payment = await manager
+        .getRepository(Payment)
+        .findOne({ where: { id: refund.paymentId } });
+      if (payment) {
+        await this.outboxService.enqueue(manager, {
+          eventType: REFUND_FAILED_EVENT_TYPE,
+          aggregateId: refund.id,
+          payload: this.toEvent(refund, payment, dto.note) as unknown as Record<
+            string,
+            unknown
+          >,
+        });
+      }
+      return refund;
+    });
+  }
+
   private async dispatchWithinTransaction(
     manager: EntityManager,
     refund: Refund,
@@ -321,7 +507,6 @@ export class RefundService {
     reservedBeforeThisRefund: number,
   ): Promise<void> {
     const refundRepo = manager.getRepository(Refund);
-
     if (
       this.canAutoRefund(
         payment,
@@ -330,7 +515,7 @@ export class RefundService {
       )
     ) {
       refund.status = RefundStatus.PROCESSING;
-      await refundRepo.update(refund.id, { status: RefundStatus.PROCESSING });
+      await refundRepo.update(refund.id, { status: refund.status });
       await this.insertHistory(
         manager,
         refund,
@@ -349,7 +534,7 @@ export class RefundService {
     refund.status = RefundStatus.MANUAL_REVIEW;
     refund.manualReviewReason = manualReviewReason;
     await refundRepo.update(refund.id, {
-      status: RefundStatus.MANUAL_REVIEW,
+      status: refund.status,
       manualReviewReason,
     });
     await this.insertHistory(
@@ -384,13 +569,6 @@ export class RefundService {
     return `Flouci only refunds a payment in full; ${requestedAmount} is a partial amount. Process manually and confirm via POST /refunds/:id/confirm.`;
   }
 
-  /**
-   * Calls Flouci after the creating transaction has committed (never holds
-   * the payment row lock across an external HTTP call), then records the
-   * outcome in its own transaction. Never throws to the HTTP caller for a
-   * provider-side failure — that's a legitimate terminal FAILED refund, not
-   * a 500; ops can retry via POST /refunds/:id/retry.
-   */
   private async attemptAutomatedRefund(
     refund: Refund,
     payment: Payment,
@@ -422,7 +600,6 @@ export class RefundService {
           >,
         });
       });
-      this.logger.log(`Refund ${refund.id} succeeded via Flouci.`);
     } catch (error) {
       const message =
         error instanceof FlouciError
@@ -430,11 +607,10 @@ export class RefundService {
           : 'Unexpected error calling Flouci.';
       if (!(error instanceof FlouciError)) {
         this.logger.error(
-          `Refund ${refund.id}: unexpected (non-Flouci) error during automated refund`,
+          `Refund ${refund.id}: unexpected error during automated refund`,
           error instanceof Error ? error.stack : String(error),
         );
       }
-      this.logger.warn(`Refund ${refund.id} failed via Flouci: ${message}`);
       await this.dataSource.transaction(async (manager) => {
         await manager.getRepository(Refund).update(refund.id, {
           status: RefundStatus.FAILED,
@@ -459,13 +635,6 @@ export class RefundService {
     }
   }
 
-  /**
-   * Operator reconciliation: re-attempts a FAILED refund. Re-runs the same
-   * routing decision as creation (a Flouci refund retries the provider
-   * call; anything else — or a Flouci refund that no longer qualifies for
-   * automation, e.g. another refund succeeded meanwhile — goes back to
-   * MANUAL_REVIEW rather than silently doing nothing).
-   */
   async retryRefund(refundId: string): Promise<Refund> {
     const { refund, payment } = await this.dataSource.transaction(
       async (manager) => {
@@ -475,6 +644,15 @@ export class RefundService {
         if (current.status !== RefundStatus.FAILED) {
           throw new RefundInvalidStateError('retry', current.status);
         }
+        if (
+          current.approvalMode !== RefundApprovalMode.AUTO &&
+          !current.approvedAt
+        ) {
+          throw new RefundInvalidStateError(
+            'retry a refund rejected before approval',
+            current.status,
+          );
+        }
 
         const lockedPayment = await manager
           .createQueryBuilder(Payment, 'p')
@@ -482,15 +660,13 @@ export class RefundService {
           .where('p.id = :id', { id: current.paymentId })
           .getOne();
         if (!lockedPayment) throw new RefundNotFoundError();
-
         const reservedExcludingThis = await this.computeReservedExcluding(
           manager,
           current.paymentId,
           current.id,
         );
-
         current.status = RefundStatus.REQUESTED;
-        await refundRepo.update(current.id, { status: RefundStatus.REQUESTED });
+        await refundRepo.update(current.id, { status: current.status });
         await this.insertHistory(
           manager,
           current,
@@ -498,14 +674,12 @@ export class RefundService {
           'Operator-triggered retry.',
           'payments:refund-retry',
         );
-
         await this.dispatchWithinTransaction(
           manager,
           current,
           lockedPayment,
           reservedExcludingThis,
         );
-
         return { refund: current, payment: lockedPayment };
       },
     );
@@ -517,30 +691,6 @@ export class RefundService {
     return refund;
   }
 
-  private async computeReservedExcluding(
-    manager: EntityManager,
-    paymentId: string,
-    excludeRefundId: string,
-  ): Promise<number> {
-    const rows = await manager
-      .getRepository(Refund)
-      .createQueryBuilder('r')
-      .select('COALESCE(SUM(r.amount), 0)', 'total')
-      .where('r.paymentId = :paymentId', { paymentId })
-      .andWhere('r.id != :excludeRefundId', { excludeRefundId })
-      .andWhere('r.status IN (:...statuses)', {
-        statuses: RESERVING_REFUND_STATUSES,
-      })
-      .getRawOne<{ total: string }>();
-    return Number(rows?.total ?? 0);
-  }
-
-  /**
-   * Operator confirms a MANUAL_REVIEW (or previously FAILED) refund was
-   * actually completed outside payments (e.g. a manual bank transfer for
-   * Konnect/Paymee). Idempotent: confirming an already-SUCCEEDED refund
-   * just returns it, without re-emitting the event.
-   */
   async confirmManualRefund(
     refundId: string,
     dto: ResolveRefundDto,
@@ -555,6 +705,16 @@ export class RefundService {
         refund.status !== RefundStatus.FAILED
       ) {
         throw new RefundInvalidStateError('confirm', refund.status);
+      }
+      if (
+        refund.status === RefundStatus.FAILED &&
+        refund.approvalMode !== RefundApprovalMode.AUTO &&
+        !refund.approvedAt
+      ) {
+        throw new RefundInvalidStateError(
+          'confirm a refund rejected before approval',
+          refund.status,
+        );
       }
 
       const fromStatus = refund.status;
@@ -589,12 +749,10 @@ export class RefundService {
           >,
         });
       }
-
       return refund;
     });
   }
 
-  /** Operator rejects a MANUAL_REVIEW refund: it will not be paid out. Terminal (FAILED). */
   async rejectManualRefund(
     refundId: string,
     dto: ResolveRefundDto,
@@ -639,7 +797,6 @@ export class RefundService {
           >,
         });
       }
-
       return refund;
     });
   }
