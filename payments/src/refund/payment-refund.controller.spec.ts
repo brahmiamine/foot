@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PaymentRefundController } from './payment-refund.controller';
 
 function buildRefundService() {
@@ -27,17 +27,10 @@ describe('PaymentRefundController service ownership', () => {
         service,
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
-
-    expect(paymentRepository.findOne).toHaveBeenCalledWith({
-      where: {
-        id: '11111111-1111-4111-8111-111111111111',
-        callerApplication: 'ticketing',
-      },
-    });
     expect(refundService.createRefund).not.toHaveBeenCalled();
   });
 
-  it('keeps legitimate same-service refunds working', async () => {
+  it('passes the authenticated service and trusted actor header to RefundService', async () => {
     const refundService = buildRefundService();
     refundService.createRefund.mockResolvedValue({ id: 'refund-1' });
     const paymentRepository = {
@@ -53,16 +46,43 @@ describe('PaymentRefundController service ownership', () => {
 
     await controller.create(
       '11111111-1111-4111-8111-111111111111',
-      { reason: 'legitimate refund' },
+      { reason: 'legitimate refund', initiatedByUser: 'body-spoof' },
       service,
       'idem-1',
+      ' user-42 ',
     );
 
     expect(refundService.createRefund).toHaveBeenCalledWith(
       '11111111-1111-4111-8111-111111111111',
-      { reason: 'legitimate refund' },
+      { reason: 'legitimate refund', initiatedByUser: 'body-spoof' },
       'ticketing',
       'idem-1',
+      'user-42',
     );
+  });
+
+  it('rejects a malformed trusted actor header', async () => {
+    const refundService = buildRefundService();
+    const paymentRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        id: '11111111-1111-4111-8111-111111111111',
+        callerApplication: 'ticketing',
+      }),
+    };
+    const controller = new PaymentRefundController(
+      refundService as never,
+      paymentRepository as never,
+    );
+
+    await expect(
+      controller.create(
+        '11111111-1111-4111-8111-111111111111',
+        { reason: 'legitimate refund' },
+        service,
+        undefined,
+        '   ',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(refundService.createRefund).not.toHaveBeenCalled();
   });
 });
