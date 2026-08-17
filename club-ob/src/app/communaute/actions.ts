@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSsoSession } from "@/lib/ssoSession";
 import { getObTeam } from "@/lib/ob-team";
+import { supporterPublicName } from "@/lib/supporterPublicIdentity";
 import {
   isCommunityReaction,
   normalizeCommunityText,
@@ -20,7 +21,12 @@ async function context() {
   if (!session || session.role !== "MEMBER") throw new Error("MEMBER_REQUIRED");
   const team = await getObTeam();
   if (!team) throw new Error("TEAM_NOT_FOUND");
-  return { session, teamId: team.id, service: new SupporterCommunityService() };
+  return {
+    session,
+    teamId: team.id,
+    publicName: supporterPublicName(session.id, team.id),
+    service: new SupporterCommunityService(),
+  };
 }
 
 function finish(returnTo: FormDataEntryValue | null, result: string, success: boolean): never {
@@ -34,12 +40,12 @@ function finish(returnTo: FormDataEntryValue | null, result: string, success: bo
 export async function submitPredictionAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const matchId = normalizeCommunityText(formData.get("matchId"), 36);
     const homeScore = parsePredictionScore(formData.get("homeScore"));
     const awayScore = parsePredictionScore(formData.get("awayScore"));
     const firstScorerId = normalizeOptionalCommunityText(formData.get("firstScorerId"), 191);
-    await service.savePrediction({ userId: session.id, teamId, memberName: session.name, matchId, homeScore, awayScore, firstScorerId });
+    await service.savePrediction({ userId: session.id, teamId, memberName: publicName, matchId, homeScore, awayScore, firstScorerId });
     ok = true;
   } catch (error) {
     console.error("submitPredictionAction failed", error);
@@ -50,10 +56,10 @@ export async function submitPredictionAction(formData: FormData): Promise<never>
 export async function voteManOfMatchAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const matchId = normalizeCommunityText(formData.get("matchId"), 36);
     const playerId = normalizeCommunityText(formData.get("playerId"), 191);
-    await service.voteManOfMatch({ userId: session.id, teamId, memberName: session.name, matchId, playerId });
+    await service.voteManOfMatch({ userId: session.id, teamId, memberName: publicName, matchId, playerId });
     ok = true;
   } catch (error) {
     console.error("voteManOfMatchAction failed", error);
@@ -64,10 +70,10 @@ export async function voteManOfMatchAction(formData: FormData): Promise<never> {
 export async function votePollAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const pollId = normalizeCommunityText(formData.get("pollId"), 36);
     const optionId = normalizeCommunityText(formData.get("optionId"), 36);
-    await service.votePoll({ userId: session.id, teamId, memberName: session.name, pollId, optionId });
+    await service.votePoll({ userId: session.id, teamId, memberName: publicName, pollId, optionId });
     ok = true;
   } catch (error) {
     console.error("votePollAction failed", error);
@@ -78,7 +84,7 @@ export async function votePollAction(formData: FormData): Promise<never> {
 export async function setCommunityReactionAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const targetType = formData.get("targetType");
     if (targetType !== "NEWS" && targetType !== "POST") throw new Error("INVALID_TARGET");
     const targetId = normalizeCommunityText(formData.get("targetId"), 191);
@@ -91,7 +97,7 @@ export async function setCommunityReactionAction(formData: FormData): Promise<ne
       await service.setReaction({
         userId: session.id,
         teamId,
-        memberName: session.name,
+        memberName: publicName,
         targetType: "POST",
         targetId,
         reaction,
@@ -107,7 +113,7 @@ export async function setCommunityReactionAction(formData: FormData): Promise<ne
 export async function submitCommunityCommentAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const targetType = formData.get("targetType");
     if (targetType !== "NEWS" && targetType !== "POST") throw new Error("INVALID_TARGET");
     const targetId = normalizeCommunityText(formData.get("targetId"), 191);
@@ -117,7 +123,7 @@ export async function submitCommunityCommentAction(formData: FormData): Promise<
       await new SupporterNewsCommunityService().submitComment({
         userId: session.id,
         teamId,
-        memberName: session.name,
+        memberName: publicName,
         targetId,
         body,
       });
@@ -125,7 +131,7 @@ export async function submitCommunityCommentAction(formData: FormData): Promise<
       await service.submitComment({
         userId: session.id,
         teamId,
-        memberName: session.name,
+        memberName: publicName,
         targetType: "POST",
         targetId,
         body,
@@ -141,10 +147,10 @@ export async function submitCommunityCommentAction(formData: FormData): Promise<
 export async function submitCommunityPostAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const body = normalizeCommunityText(formData.get("body"), 1500);
     const imageUrl = normalizeHttpsImageUrl(formData.get("imageUrl"));
-    await service.submitPost({ userId: session.id, teamId, memberName: session.name, body, imageUrl });
+    await service.submitPost({ userId: session.id, teamId, memberName: publicName, body, imageUrl });
     ok = true;
   } catch (error) {
     console.error("submitCommunityPostAction failed", error);
@@ -155,10 +161,10 @@ export async function submitCommunityPostAction(formData: FormData): Promise<nev
 export async function saveSupporterPreferencesAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const favoritePlayerId = normalizeOptionalCommunityText(formData.get("favoritePlayerId"), 191);
     const favoriteStand = normalizeOptionalCommunityText(formData.get("favoriteStand"), 120);
-    await service.savePreferences({ userId: session.id, teamId, memberName: session.name, favoritePlayerId, favoriteStand });
+    await service.savePreferences({ userId: session.id, teamId, memberName: publicName, favoritePlayerId, favoriteStand });
     ok = true;
   } catch (error) {
     console.error("saveSupporterPreferencesAction failed", error);
@@ -169,9 +175,9 @@ export async function saveSupporterPreferencesAction(formData: FormData): Promis
 export async function joinSupporterGroupAction(formData: FormData): Promise<never> {
   let ok = false;
   try {
-    const { session, teamId, service } = await context();
+    const { session, teamId, publicName, service } = await context();
     const groupId = normalizeCommunityText(formData.get("groupId"), 36);
-    await service.joinGroup({ userId: session.id, teamId, memberName: session.name, groupId });
+    await service.joinGroup({ userId: session.id, teamId, memberName: publicName, groupId });
     ok = true;
   } catch (error) {
     console.error("joinSupporterGroupAction failed", error);
