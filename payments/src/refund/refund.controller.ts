@@ -29,12 +29,6 @@ function requireOperatorUserId(value: string | undefined): string {
   return operatorUserId;
 }
 
-/**
- * File de réconciliation opérateur. Contrairement aux routes
- * /payments/:paymentId/refunds, elle donne une vision globale et peut
- * confirmer/rejeter des mouvements financiers : elle est donc réservée à
- * federation-hub après authentification service-à-service.
- */
 @Controller('refunds')
 @UseGuards(ServiceAuthGuard, RefundOperatorGuard)
 export class RefundController {
@@ -54,6 +48,30 @@ export class RefundController {
     const refund = await this.refundService.findById(id);
     const history = await this.refundService.getHistory(id);
     return { refund, history };
+  }
+
+  @Post(':id/approve')
+  async approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-operator-user-id') operatorUserHeader?: string,
+  ): Promise<Refund> {
+    return this.refundService.approveRefund(
+      id,
+      requireOperatorUserId(operatorUserHeader),
+    );
+  }
+
+  @Post(':id/reject-approval')
+  async rejectApproval(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResolveRefundDto,
+    @Headers('x-operator-user-id') operatorUserHeader?: string,
+  ): Promise<Refund> {
+    const operatorUserId = requireOperatorUserId(operatorUserHeader);
+    return this.refundService.rejectApproval(id, {
+      ...dto,
+      resolvedByUser: operatorUserId,
+    });
   }
 
   @Post(':id/retry')
