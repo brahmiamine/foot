@@ -32,6 +32,8 @@ Les actualités acceptent également réactions et commentaires communautaires.
 
 Les présences sont dérivées des billets `tk_tickets` réellement scannés (`status = USED`, non révoqués). Les points sont idempotents par source et le supporter du mois n'est jamais calculé sur le montant dépensé.
 
+Les surfaces publiques n'utilisent jamais automatiquement le nom ou l'email SSO : chaque membre reçoit un pseudonyme stable du type `Supporter A1B2C3`, imposé également au niveau de la base pour éviter une régression applicative.
+
 ## Modération et administration
 
 La communauté est administrée dans `club-hub` sur `/admin/supporter-community` :
@@ -42,7 +44,11 @@ La communauté est administrée dans `club-hub` sur `/admin/supporter-community`
 - créer des groupes supporters et événements ;
 - audit des mutations via `AuditLogService`.
 
-L'accès réutilise la permission de communication `notifications.send`.
+Le RBAC est dédié et sépare :
+
+- `community.view` : lecture du back-office et des files ;
+- `community.moderate` : approbation/rejet des contenus supporters ;
+- `community.manage` : sondages, publications officielles, groupes et événements.
 
 ## Données
 
@@ -92,7 +98,7 @@ pnpm test
 
 ## Tests
 
-Le projet possède des tests Vitest, dont les règles communautaires et la restriction stricte du layout membre. L'audit i18n racine reste applicable via `pnpm test:i18n`.
+Le projet possède des tests Vitest, dont les règles communautaires, la pseudonymisation et la restriction stricte du layout membre. L'audit i18n racine reste applicable via `pnpm test:i18n`.
 
 ## Limites connues
 
