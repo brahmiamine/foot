@@ -5,6 +5,7 @@ import { Team } from "@/entities/Team";
 import { MemberTeamAffiliation } from "@/entities/MemberTeamAffiliation";
 import { PasswordResetToken } from "@/entities/PasswordResetToken";
 import { SecurityEvent } from "@/entities/SecurityEvent";
+import { AccountInvitation } from "@/entities/AccountInvitation";
 
 const globalForDataSource = globalThis as unknown as {
   dataSource?: DataSource;
@@ -26,17 +27,15 @@ function createDataSource() {
     password: DB_PASSWORD,
     database: DB_NAME,
     logging: DB_LOGGING === "true",
-    // Base partagée avec les 4 autres apps : jamais de synchronize ici.
     synchronize: false,
-    entities: [User, Team, MemberTeamAffiliation, PasswordResetToken, SecurityEvent],
+    entities: [User, Team, MemberTeamAffiliation, PasswordResetToken, SecurityEvent, AccountInvitation],
   });
 }
 
 /**
  * Next.js peut déclencher plusieurs appels concurrents à getDataSource()
  * avant la fin de la première initialisation ; on mémorise la promesse en
- * cours pour que tout le monde attende la même instance (même pattern que
- * arbinote/federation-hub/club-hub/match-operations).
+ * cours pour que tout le monde attende la même instance.
  */
 export async function getDataSource(): Promise<DataSource> {
   if (globalForDataSource.dataSource?.isInitialized) {
