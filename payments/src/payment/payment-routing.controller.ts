@@ -26,9 +26,7 @@ import {
   KonnectError,
   toHttpException as konnectToHttpException,
 } from './providers/konnect/konnect.exceptions';
-import {
-  PaymeeIntegrationMode,
-} from './providers/paymee/dto/init-paymee-payment.dto';
+import { PaymeeIntegrationMode } from './providers/paymee/dto/init-paymee-payment.dto';
 import {
   PaymeeError,
   toHttpException as paymeeToHttpException,
@@ -48,14 +46,15 @@ export class PaymentRoutingController {
     private readonly paymentRepository: Repository<Payment>,
   ) {}
 
-  @Get('routing-policy')
+  // Two path segments deliberately avoid colliding with GET /payments/:id.
+  @Get('routing/policy')
   async getRoutingPolicy(
     @CurrentService() service: AuthenticatedService,
   ): Promise<EffectivePaymentRoutingPolicy> {
     return this.routingPolicyService.getEffectivePolicy(service.application);
   }
 
-  @Put('routing-policy')
+  @Put('routing/policy')
   async updateRoutingPolicy(
     @Body() dto: UpdatePaymentRoutingPolicyDto,
     @CurrentService() service: AuthenticatedService,
@@ -84,6 +83,8 @@ export class PaymentRoutingController {
         })
       : null;
 
+    // A retry keeps the provider selected by the original request even if
+    // the routing policy changed in the meantime.
     if (existing) {
       return this.fromExisting(existing);
     }
@@ -94,6 +95,7 @@ export class PaymentRoutingController {
     );
 
     try {
+      let paymentId: string;
       switch (provider) {
         case PaymentProviderName.KONNECT: {
           const result = await this.paymentService.initiateKonnectPayment(
@@ -101,12 +103,8 @@ export class PaymentRoutingController {
             service.application,
             idempotencyKey,
           );
-          return {
-            paymentId: result.paymentId,
-            provider,
-            providerRef: result.providerRef,
-            payUrl: result.payUrl,
-          };
+          paymentId = result.paymentId;
+          break;
         }
         case PaymentProviderName.PAYMEE: {
           const result = await this.paymentService.initiatePaymeePayment(
@@ -123,12 +121,8 @@ export class PaymentRoutingController {
             service.application,
             idempotencyKey,
           );
-          return {
-            paymentId: result.paymentId,
-            provider,
-            providerRef: result.token,
-            payUrl: result.payUrl ?? '',
-          };
+          paymentId = result.paymentId;
+          break;
         }
         case PaymentProviderName.FLOUCI: {
           const result = await this.paymentService.initiateFlouciPayment(
@@ -136,14 +130,17 @@ export class PaymentRoutingController {
             service.application,
             idempotencyKey,
           );
-          return {
-            paymentId: result.paymentId,
-            provider,
-            providerRef: result.providerRef,
-            payUrl: result.payUrl,
-          };
+          paymentId = result.paymentId;
+          break;
         }
+        default:
+          throw new Error(`Unsupported payment provider: ${String(provider)}`);
       }
+
+      // Read back the durable record instead of trusting the selected enum:
+      // under a concurrent idempotent race the provider service may return
+      // the payment created by another request, whose provider is authoritative.
+      return this.fromExisting(await this.paymentService.findById(paymentId));
     } catch (error) {
       if (error instanceof KonnectError) throw konnectToHttpException(error);
       if (error instanceof PaymeeError) throw paymeeToHttpException(error);
