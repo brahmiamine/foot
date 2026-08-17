@@ -3,6 +3,7 @@ import { getLocale } from "@/i18n/server";
 import { communityT } from "@/i18n/community";
 import { getObTeam } from "@/lib/ob-team";
 import { getSsoSession } from "@/lib/ssoSession";
+import { supporterPublicName } from "@/lib/supporterPublicIdentity";
 import { SupporterCommunityService } from "@/services/SupporterCommunityService";
 import { saveSupporterPreferencesAction } from "@/app/communaute/actions";
 import styles from "../../communaute/community.module.css";
@@ -21,7 +22,7 @@ export default async function SupporterDashboardPage({
 
   const snapshot = await new SupporterCommunityService().getSnapshot(team.id, locale, {
     id: session.id,
-    name: session.name,
+    name: supporterPublicName(session.id, team.id),
   });
   const profile = snapshot.profile;
   const state = (await searchParams).community;
