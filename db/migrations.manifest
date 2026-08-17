@@ -44,6 +44,8 @@
 identity/sql/migration_add_token_version_to_user.sql
 identity/sql/migration_add_mfa_to_user.sql
 identity/sql/migration_add_password_reset_tokens.sql
+# Provisionnement par invitation (Player Hub et futurs parcours administrés).
+identity/sql/migration_add_account_invitations.sql
 identity/sql/migration_add_security_events.sql
 identity/sql/migration_add_member_profile_fields.sql
 identity/sql/migration_add_member_role.sql
