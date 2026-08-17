@@ -14,7 +14,6 @@ export const IDENTITY_ROLES = [
 
 export type IdentityRole = (typeof IDENTITY_ROLES)[number]
 
-/** Minimal account profile safe to consume from other bounded contexts. */
 export interface IdentityUserProfile {
   id: string
   name: string
@@ -37,7 +36,6 @@ export interface IdentityUserRecord extends IdentityUserProfile {
 export interface IdentityUserSearch {
   teamId?: string
   roles?: IdentityRole[]
-  /** true = only users attached to a team; false = only users without team. */
   hasTeam?: boolean
 }
 
@@ -61,7 +59,22 @@ export interface UpdateIdentityAccountInput {
   password?: string
 }
 
-/** Narrow lookup used by profile-oriented applications such as referee-hub. */
+export interface InvitePlayerAccountInput {
+  name: string
+  email: string
+  teamId: string
+  playerId: string
+  invitedByUserId?: string | null
+}
+
+export interface IdentityAccountInvitationResult {
+  userId: string
+  email: string
+  teamId: string
+  playerId: string
+  expiresAt: string
+}
+
 export interface IdentityProfilePort {
   getUserProfile(id: string): Promise<IdentityUserProfile | null>
 }
@@ -76,4 +89,9 @@ export interface IdentityAccountProvisioningPort {
   createUser(input: CreateIdentityAccountInput): Promise<IdentityUserRecord>
   updateUser(id: string, input: UpdateIdentityAccountInput): Promise<IdentityUserRecord>
   deleteUser(id: string): Promise<void>
+}
+
+/** Dedicated capability: callers never provide or generate a temporary password. */
+export interface IdentityPlayerInvitationPort {
+  invitePlayerAccount(input: InvitePlayerAccountInput): Promise<IdentityAccountInvitationResult>
 }
