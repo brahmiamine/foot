@@ -221,6 +221,8 @@ match-operations/sql/migration_add_match_official_assignments.sql
 match-operations/sql/migration_add_match_staff_assignments.sql
 # MATCH-001 : protocole opérationnel configurable par saison/édition.
 match-operations/sql/migration_add_competition_match_protocols.sql
+# MATCH-002 : amendement explicite des feuilles post-match signées/clôturées.
+match-operations/sql/migration_add_sheet_amendments.sql
 
 # --- referee-hub (données privées personnelles des officiels) ---
 # Dépend de match_official_assignments et matches pour les rapports.
