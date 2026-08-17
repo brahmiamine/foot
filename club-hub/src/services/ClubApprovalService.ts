@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { EntityManager } from "typeorm";
+import { LessThanOrEqual, type EntityManager } from "typeorm";
 import { getDataSource } from "@/lib/database";
 import { News } from "@/entities/News";
 import { NewsMedia } from "@/entities/NewsMedia";
@@ -42,6 +42,11 @@ export interface PublicationSubmissionResult {
   published: boolean;
   request: ClubApprovalRequest | null;
   message: string;
+}
+
+export interface ScheduledNewsProcessResult {
+  processed: number;
+  publishedIds: number[];
 }
 
 function stableHash(value: unknown): string {
@@ -144,8 +149,23 @@ export class ClubApprovalService {
     const mode = await this.modeFor(manager, domain, entityId, teamId, settings);
 
     if (mode === "AUTO") {
-      await this.publishEntity(manager, domain, entityId, teamId);
-      return { published: true, request: null, message: "Publication effectuée automatiquement" };
+      const published = await this.finalizeApprovedEntity(manager, domain, entityId, teamId);
+      return {
+        published,
+        request: null,
+        message: published ? "Publication effectuée automatiquement" : "Publication planifiée automatiquement",
+      };
+    }
+
+    if (domain === "NEWS") {
+      const newsRepo = manager.getRepository(News);
+      const news = await newsRepo.findOne({ where: { id: Number(entityId), teamId } });
+      if (!news) throw new Error("Actualité introuvable");
+      news.editorialStatus = "SUBMITTED";
+      news.status = "DRAFT";
+      news.isPublished = false;
+      news.publishedAt = null;
+      await newsRepo.save(news);
     }
 
     const requestRepo = manager.getRepository(ClubApprovalRequest);
@@ -157,6 +177,14 @@ export class ClubApprovalService {
       (request) => request.contentFingerprint === fingerprint && request.makerUserId === makerUserId,
     );
     if (reusable) {
+      if (domain === "NEWS") {
+        const newsRepo = manager.getRepository(News);
+        const news = await newsRepo.findOne({ where: { id: Number(entityId), teamId } });
+        if (news) {
+          news.editorialStatus = "UNDER_REVIEW";
+          await newsRepo.save(news);
+        }
+      }
       return { published: false, request: reusable, message: "Demande déjà en attente d'approbation" };
     }
     for (const request of active) {
@@ -181,6 +209,16 @@ export class ClubApprovalService {
         resolvedAt: null,
       }),
     );
+
+    if (domain === "NEWS") {
+      const newsRepo = manager.getRepository(News);
+      const news = await newsRepo.findOne({ where: { id: Number(entityId), teamId } });
+      if (news) {
+        news.editorialStatus = "UNDER_REVIEW";
+        await newsRepo.save(news);
+      }
+    }
+
     return {
       published: false,
       request,
@@ -239,7 +277,14 @@ export class ClubApprovalService {
       );
 
       if (registered.evaluation.canFinalize) {
-        await this.publishEntity(manager, request.domain, request.entityId, request.teamId);
+        if (request.domain === "NEWS") {
+          const newsRepo = manager.getRepository(News);
+          const news = await newsRepo.findOne({ where: { id: Number(request.entityId), teamId: request.teamId } });
+          if (!news) throw new Error("Actualité introuvable");
+          news.editorialStatus = "APPROVED";
+          await newsRepo.save(news);
+        }
+        await this.finalizeApprovedEntity(manager, request.domain, request.entityId, request.teamId);
         request.status = "APPROVED";
         request.resolvedAt = new Date();
         await requestRepo.save(request);
@@ -282,7 +327,20 @@ export class ClubApprovalService {
       request.status = "REJECTED";
       request.rejectionReason = normalizedReason;
       request.resolvedAt = new Date();
-      return requestRepo.save(request);
+      await requestRepo.save(request);
+
+      if (request.domain === "NEWS") {
+        const newsRepo = manager.getRepository(News);
+        const news = await newsRepo.findOne({ where: { id: Number(request.entityId), teamId } });
+        if (news) {
+          news.editorialStatus = "REJECTED";
+          news.status = "DRAFT";
+          news.isPublished = false;
+          news.publishedAt = null;
+          await newsRepo.save(news);
+        }
+      }
+      return request;
     });
   }
 
@@ -308,6 +366,45 @@ export class ClubApprovalService {
       await this.unpublishEntity(manager, domain, entityId, teamId);
       return this.submitPublicationWithManager(manager, domain, entityId, teamId, makerUserId);
     });
+  }
+
+  async processScheduledNewsDue(now: Date = new Date(), limit = 20): Promise<ScheduledNewsProcessResult> {
+    const ds = await getDataSource();
+    const due = await ds.getRepository(News).find({
+      where: {
+        editorialStatus: "SCHEDULED",
+        isPublished: false,
+        scheduledAt: LessThanOrEqual(now),
+      },
+      order: { scheduledAt: "ASC" },
+      take: Math.max(1, Math.min(limit, 100)),
+    });
+
+    const publishedIds: number[] = [];
+    for (const dueNews of due) {
+      const published = await ds.transaction(async (manager) => {
+        const repo = manager.getRepository(News);
+        const news = await repo
+          .createQueryBuilder("news")
+          .setLock("pessimistic_write")
+          .where("news.id = :id", { id: dueNews.id })
+          .getOne();
+        if (
+          !news ||
+          news.editorialStatus !== "SCHEDULED" ||
+          news.isPublished ||
+          !news.scheduledAt ||
+          news.scheduledAt.getTime() > now.getTime()
+        ) {
+          return false;
+        }
+        await this.publishNewsNow(manager, news);
+        return true;
+      });
+      if (published) publishedIds.push(dueNews.id);
+    }
+
+    return { processed: publishedIds.length, publishedIds };
   }
 
   private async modeFor(
@@ -347,6 +444,7 @@ export class ClubApprovalService {
         title: item.title,
         contentHtml: item.contentHtml,
         coverImage: item.coverImage,
+        scheduledAt: item.scheduledAt?.toISOString() ?? null,
         media: media.map(({ mediaItemId, displayOrder }) => ({ mediaItemId, displayOrder })),
       });
     }
@@ -368,6 +466,53 @@ export class ClubApprovalService {
     });
   }
 
+  private async finalizeApprovedEntity(
+    manager: EntityManager,
+    domain: ClubApprovalDomain,
+    entityId: string,
+    teamId: string,
+  ): Promise<boolean> {
+    if (domain === "NEWS") {
+      const repo = manager.getRepository(News);
+      const news = await repo.findOne({ where: { id: Number(entityId), teamId } });
+      if (!news) throw new Error("Actualité introuvable");
+      if (news.scheduledAt && news.scheduledAt.getTime() > Date.now()) {
+        news.status = "DRAFT";
+        news.editorialStatus = "SCHEDULED";
+        news.isPublished = false;
+        news.publishedAt = null;
+        await repo.save(news);
+        return false;
+      }
+      await this.publishNewsNow(manager, news);
+      return true;
+    }
+    await this.publishEntity(manager, domain, entityId, teamId);
+    return true;
+  }
+
+  private async publishNewsNow(manager: EntityManager, item: News): Promise<void> {
+    const repo = manager.getRepository(News);
+    const newlyPublished = item.status !== "PUBLISHED" || !item.isPublished;
+    item.status = "PUBLISHED";
+    item.editorialStatus = "PUBLISHED";
+    item.isPublished = true;
+    item.publishedAt = new Date();
+    await repo.save(item);
+    if (newlyPublished) {
+      await new NotificationOutboxService().enqueue(manager, {
+        eventId: `news-published:${item.id}`,
+        type: "NEWS_PUBLISHED",
+        target: { type: "MEMBERS", teamId: item.teamId },
+        teamId: item.teamId,
+        category: "NEWS_PUBLISHED",
+        title: "Nouvelle actualité",
+        body: item.title,
+        data: { newsId: item.id, newsTitle: item.title },
+      });
+    }
+  }
+
   private async publishEntity(
     manager: EntityManager,
     domain: ClubApprovalDomain,
@@ -378,23 +523,7 @@ export class ClubApprovalService {
       const repo = manager.getRepository(News);
       const item = await repo.findOne({ where: { id: Number(entityId), teamId } });
       if (!item) throw new Error("Actualité introuvable");
-      const newlyPublished = item.status !== "PUBLISHED" || !item.isPublished;
-      item.status = "PUBLISHED";
-      item.isPublished = true;
-      item.publishedAt = new Date();
-      await repo.save(item);
-      if (newlyPublished) {
-        await new NotificationOutboxService().enqueue(manager, {
-          eventId: `news-published:${item.id}`,
-          type: "NEWS_PUBLISHED",
-          target: { type: "MEMBERS", teamId },
-          teamId,
-          category: "NEWS_PUBLISHED",
-          title: "Nouvelle actualité",
-          body: item.title,
-          data: { newsId: item.id, newsTitle: item.title },
-        });
-      }
+      await this.publishNewsNow(manager, item);
       return;
     }
     if (domain === "ANNOUNCEMENT") {
@@ -424,6 +553,7 @@ export class ClubApprovalService {
       const item = await repo.findOne({ where: { id: Number(entityId), teamId } });
       if (!item) throw new Error("Actualité introuvable");
       item.status = "DRAFT";
+      item.editorialStatus = "DRAFT";
       item.isPublished = false;
       item.publishedAt = null;
       await repo.save(item);
