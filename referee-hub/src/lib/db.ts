@@ -1,6 +1,8 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { Assignment } from "@/entities/Assignment";
+import { AssignmentResponse } from "@/entities/AssignmentResponse";
+import { ReplacementRequest } from "@/entities/ReplacementRequest";
 import { League } from "@/entities/League";
 import { Match } from "@/entities/Match";
 import { Matchday } from "@/entities/Matchday";
@@ -29,7 +31,20 @@ export async function getDataSource(): Promise<DataSource> {
       logging: process.env.NODE_ENV === "development",
       charset: "utf8mb4",
       timezone: "Z",
-      entities: [Assignment, League, Match, Matchday, Referee, RefereeMatchReport, RefereeUnavailability, Season, Team, User],
+      entities: [
+        Assignment,
+        AssignmentResponse,
+        ReplacementRequest,
+        League,
+        Match,
+        Matchday,
+        Referee,
+        RefereeMatchReport,
+        RefereeUnavailability,
+        Season,
+        Team,
+        User,
+      ],
     });
     initPromise = nextDataSource.initialize().then((initialized) => {
       dataSource = initialized;
