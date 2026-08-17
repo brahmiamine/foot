@@ -33,6 +33,12 @@ export class AddRefundApprovalGovernance1787000000000 implements MigrationInterf
         ADD COLUMN approvedAt timestamp NULL AFTER approval2At
     `);
 
+    await queryRunner.query(`
+      ALTER TABLE refund_status_history
+        MODIFY fromStatus enum('REQUESTED','AWAITING_APPROVAL','PROCESSING','SUCCEEDED','FAILED','MANUAL_REVIEW') NULL,
+        MODIFY toStatus enum('REQUESTED','AWAITING_APPROVAL','PROCESSING','SUCCEEDED','FAILED','MANUAL_REVIEW') NOT NULL
+    `);
+
     // Existing refunds predate PAY-002. Grandfather them explicitly so an old
     // FAILED/MANUAL_REVIEW operation can still be reconciled after deployment;
     // every refund created by the new runtime receives a fresh policy snapshot.
@@ -49,6 +55,17 @@ export class AddRefundApprovalGovernance1787000000000 implements MigrationInterf
     await queryRunner.query(
       "UPDATE refunds SET status = 'FAILED', failureReason = COALESCE(failureReason, 'Refund approval migration rolled back.') WHERE status = 'AWAITING_APPROVAL'",
     );
+    await queryRunner.query(
+      "UPDATE refund_status_history SET fromStatus = 'REQUESTED' WHERE fromStatus = 'AWAITING_APPROVAL'",
+    );
+    await queryRunner.query(
+      "UPDATE refund_status_history SET toStatus = 'REQUESTED' WHERE toStatus = 'AWAITING_APPROVAL'",
+    );
+    await queryRunner.query(`
+      ALTER TABLE refund_status_history
+        MODIFY fromStatus enum('REQUESTED','PROCESSING','SUCCEEDED','FAILED','MANUAL_REVIEW') NULL,
+        MODIFY toStatus enum('REQUESTED','PROCESSING','SUCCEEDED','FAILED','MANUAL_REVIEW') NOT NULL
+    `);
     await queryRunner.query(`
       ALTER TABLE refunds
         DROP COLUMN approvedAt,
