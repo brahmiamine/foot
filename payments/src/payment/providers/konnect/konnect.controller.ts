@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Headers,
@@ -7,7 +8,6 @@ import {
   Logger,
   Post,
   Query,
-  Body,
   UseGuards,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
@@ -42,9 +42,10 @@ export class KonnectController {
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
-    await this.routingPolicyService.assertProviderEnabled(
+    await this.routingPolicyService.assertProviderEnabledForInitiation(
       service.application,
       PaymentProviderName.KONNECT,
+      idempotencyKey,
     );
     try {
       return await this.paymentService.initiateKonnectPayment(
