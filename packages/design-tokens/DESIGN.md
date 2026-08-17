@@ -42,16 +42,20 @@ Il harmonise les variables Bootstrap avec la marque FOOT, l'état actif de navig
 
 ### `@foot/ui`
 
-Primitives React partagées. Le socle actuel comprend :
+Système de composants React partagé, construit avec `styled-components` et piloté par les tokens ci-dessus (`theme.ts` référence directement les variables CSS `--foot-*`, sans dupliquer de valeurs). Le package est développé et testé en isolation (`packages/ui/playground`, `vitest`) : **aucune application ne dépend encore de `@foot/ui`**, cette intégration reste une décision séparée et volontaire.
 
-- `Button`
-- `Card`
-- `Input`
-- `Badge`
-- `Alert`
-- `PageHeader`
+45 primitives sont disponibles, réparties par catégorie :
 
-Lorsqu'une primitive existe dans `@foot/ui`, les nouveaux développements doivent la préférer à une nouvelle implémentation locale, sauf contrainte produit documentée.
+- **Actions** : `Button`, `IconButton`, `ButtonGroup`, `Link`
+- **Formulaires** : `Input`, `Textarea`, `Select`, `Checkbox`, `Radio`/`RadioGroup`, `Switch`, `Slider`, `FormField`, `SearchInput`, `FileUpload`
+- **Retour utilisateur** : `Alert`, `ToastProvider`/`useToast`, `Spinner`, `ProgressBar`, `Skeleton`, `EmptyState`
+- **Affichage de données** : `Badge`, `Card`, `Table` (+ sous-composants), `Avatar`, `Tag`, `Tooltip`, `Stat`, `Divider`, `List`/`ListItem`
+- **Navigation** : `Tabs`, `Breadcrumb`, `Pagination`, `Menu`, `Stepper`, `PageHeader`
+- **Overlays** : `Modal`, `Drawer`, `Popover` (piège de focus, fermeture Échap, portail)
+- **Layout** : `Container`, `Stack`, `Grid`, `Spacer`
+- **Typographie** : `Heading`, `Text`
+
+Voir `packages/ui/README.md` pour le détail des props et des exemples d'usage. Lorsqu'une primitive existe dans `@foot/ui`, les nouveaux développements doivent la préférer à une nouvelle implémentation locale, sauf contrainte produit documentée.
 
 ### `@foot/app-shell`
 
