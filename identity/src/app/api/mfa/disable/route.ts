@@ -3,15 +3,12 @@ import bcrypt from "bcryptjs";
 import { getCurrentSession, issueSession } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
+import { getMfaRolePolicy } from "@/lib/mfaPolicy";
 import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
-/**
- * Exige le mot de passe (pas seulement la session active) pour désactiver
- * la MFA — déjà résistant à un CSRF aveugle. Vérification d'origine ajoutée
- * par cohérence avec le reste de cette revue (voir lib/csrf.ts).
- */
+/** Exige le mot de passe et refuse toute désactivation interdite par policy. */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
@@ -20,6 +17,10 @@ export async function POST(request: NextRequest) {
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  }
+  const policy = await getMfaRolePolicy(session.role);
+  if (policy.mode === "REQUIRED") {
+    return NextResponse.json({ error: "MFA_REQUIRED_BY_POLICY" }, { status: 409 });
   }
 
   const body = await request.json();
@@ -35,21 +36,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 404 });
   }
 
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) {
+  if (!(await bcrypt.compare(password, user.password))) {
     return NextResponse.json({ error: "INVALID_CURRENT_PASSWORD" }, { status: 401 });
   }
 
   user.mfaEnabled = false;
   user.mfaSecret = null;
   user.mfaRecoveryCodes = null;
-  // Même raisonnement qu'à l'activation : changement de posture de
-  // sécurité, on invalide les sessions déjà émises puis on réémet
-  // immédiatement une session à jour pour ne pas déconnecter l'utilisateur.
   user.tokenVersion += 1;
   await userRepo.save(user);
-
-  console.log(`[MFA] Désactivée pour le compte ${user.email} (${user.id}).`);
 
   const response = NextResponse.json({ success: true });
   await issueSession(response, {
@@ -60,6 +55,7 @@ export async function POST(request: NextRequest) {
     teamId: user.teamId ?? null,
     federationId: user.federationId ?? null,
     leagueId: user.leagueId ?? null,
+    playerId: user.playerId ?? null,
     tokenVersion: user.tokenVersion,
   });
   return response;
