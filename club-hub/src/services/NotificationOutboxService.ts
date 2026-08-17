@@ -35,21 +35,31 @@ export class NotificationOutboxService {
    */
   async enqueue(manager: EntityManager, payload: NotifyPayload): Promise<void> {
     const eventId = payload.eventId ?? randomUUID();
-    await manager
-      .createQueryBuilder()
-      .insert()
-      .into(NotificationOutboxEvent)
-      .values({
-        eventId,
-        payload: { ...payload, eventId },
-        status: "PENDING",
-        attempts: 0,
-        nextRetryAt: null,
-        processedAt: null,
-        lastError: null,
-      })
-      .orIgnore()
-      .execute();
+    const repository = manager.getRepository(NotificationOutboxEvent);
+
+    const existing = await repository.findOne({ where: { eventId } });
+    if (existing) return;
+
+    const event = repository.create({
+      eventId,
+      payload: { ...payload, eventId },
+      status: "PENDING",
+      attempts: 0,
+      nextRetryAt: null,
+      processedAt: null,
+      lastError: null,
+    });
+
+    try {
+      await repository.save(event);
+    } catch (error) {
+      // A concurrent writer may have won between the existence check and
+      // the INSERT. Treat only that verified duplicate as idempotent; any
+      // unrelated persistence failure must still abort the transaction.
+      const raced = await repository.findOne({ where: { eventId } });
+      if (raced) return;
+      throw error;
+    }
   }
 
   /**
