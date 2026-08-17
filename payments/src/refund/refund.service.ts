@@ -185,7 +185,9 @@ export class RefundService {
     manager: EntityManager,
     payment: Payment,
   ): Promise<number> {
-    return Number(payment.amount) - (await this.computeReserved(manager, payment.id));
+    return (
+      Number(payment.amount) - (await this.computeReserved(manager, payment.id))
+    );
   }
 
   private async findByIdempotencyKey(
