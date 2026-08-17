@@ -12,14 +12,14 @@ describe("MFA step-up freshness", () => {
   });
 
   it("bounds the environment configuration to one minute through one hour", () => {
-    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "900" } as NodeJS.ProcessEnv)).toBe(900);
-    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "30" } as NodeJS.ProcessEnv)).toBe(
+    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "900" })).toBe(900);
+    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "30" })).toBe(
       DEFAULT_STEP_UP_MAX_AGE_SECONDS,
     );
-    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "7200" } as NodeJS.ProcessEnv)).toBe(
+    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "7200" })).toBe(
       DEFAULT_STEP_UP_MAX_AGE_SECONDS,
     );
-    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "not-a-number" } as NodeJS.ProcessEnv)).toBe(
+    expect(getStepUpMaxAgeSeconds({ MFA_STEP_UP_MAX_AGE_SECONDS: "not-a-number" })).toBe(
       DEFAULT_STEP_UP_MAX_AGE_SECONDS,
     );
   });
