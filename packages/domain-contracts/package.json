@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./approval": "./src/approval.ts",
     "./club-access": "./src/club-access.ts",
     "./club-lineup": "./src/club-lineup.ts",
     "./club-player-facts": "./src/club-player-facts.ts",
