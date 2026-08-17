@@ -12,7 +12,8 @@ import {
   parsePredictionScore,
   safeCommunityReturnPath,
 } from "@/lib/communityRules";
-import { SupporterCommunityService, type CommunityTargetType } from "@/services/SupporterCommunityService";
+import { SupporterCommunityService } from "@/services/SupporterCommunityService";
+import { SupporterNewsCommunityService } from "@/services/SupporterNewsCommunityService";
 
 async function context() {
   const session = await getSsoSession();
@@ -26,6 +27,7 @@ function finish(returnTo: FormDataEntryValue | null, result: string, success: bo
   const path = safeCommunityReturnPath(returnTo);
   revalidatePath("/communaute");
   revalidatePath("/espace-membre/communaute");
+  revalidatePath(path);
   redirect(`${path}?community=${success ? result : "error"}`);
 }
 
@@ -82,14 +84,19 @@ export async function setCommunityReactionAction(formData: FormData): Promise<ne
     const targetId = normalizeCommunityText(formData.get("targetId"), 191);
     const reaction = formData.get("reaction");
     if (!isCommunityReaction(reaction)) throw new Error("INVALID_REACTION");
-    await service.setReaction({
-      userId: session.id,
-      teamId,
-      memberName: session.name,
-      targetType: targetType as CommunityTargetType,
-      targetId,
-      reaction,
-    });
+
+    if (targetType === "NEWS") {
+      await new SupporterNewsCommunityService().setReaction({ userId: session.id, teamId, targetId, reaction });
+    } else {
+      await service.setReaction({
+        userId: session.id,
+        teamId,
+        memberName: session.name,
+        targetType: "POST",
+        targetId,
+        reaction,
+      });
+    }
     ok = true;
   } catch (error) {
     console.error("setCommunityReactionAction failed", error);
@@ -105,14 +112,25 @@ export async function submitCommunityCommentAction(formData: FormData): Promise<
     if (targetType !== "NEWS" && targetType !== "POST") throw new Error("INVALID_TARGET");
     const targetId = normalizeCommunityText(formData.get("targetId"), 191);
     const body = normalizeCommunityText(formData.get("body"), 1000);
-    await service.submitComment({
-      userId: session.id,
-      teamId,
-      memberName: session.name,
-      targetType: targetType as CommunityTargetType,
-      targetId,
-      body,
-    });
+
+    if (targetType === "NEWS") {
+      await new SupporterNewsCommunityService().submitComment({
+        userId: session.id,
+        teamId,
+        memberName: session.name,
+        targetId,
+        body,
+      });
+    } else {
+      await service.submitComment({
+        userId: session.id,
+        teamId,
+        memberName: session.name,
+        targetType: "POST",
+        targetId,
+        body,
+      });
+    }
     ok = true;
   } catch (error) {
     console.error("submitCommunityCommentAction failed", error);
