@@ -1,0 +1,93 @@
+import { Meta } from '@storybook/blocks'
+
+<Meta title="Introduction" />
+
+# @foot/ui
+
+A standalone React design-system package for the FOOT platform — **45 accessible,
+TypeScript-first UI primitives** built with [`styled-components`](https://styled-components.com),
+driven entirely by the shared design tokens in `@foot/design-tokens`
+(`packages/design-tokens/src/index.css`).
+
+> **Status: not wired into any app yet.** This package is developed and tested in isolation.
+> No consumer application depends on `@foot/ui`, and none should until a deliberate, separate
+> integration decision is made. This Storybook is the primary way to browse every component
+> and every variant/state it supports.
+
+## Styling approach
+
+- Every component is written with `styled-components` v6.
+- Colors, radii, shadows, fonts and spacing are never hardcoded — components read the FOOT
+  CSS custom properties (`var(--foot-color-primary)`, `var(--foot-radius-md)`, …) directly,
+  or via `theme.ts`, which wraps the same CSS variables in a typed styled-components theme
+  object. `@foot/design-tokens` stays the single source of truth; dark mode (`:root.dark`)
+  and any future per-portal token overrides keep working automatically because nothing is
+  duplicated in JS.
+- `FootThemeProvider` seeds the default FOOT theme (used by `Stack`/`Grid`/`Spacer` for their
+  spacing scale) and `FootGlobalStyle` centralizes the visible `:focus-visible` outline and
+  `prefers-reduced-motion` rules. Every story in this Storybook is wrapped in both — see
+  `.storybook/preview.tsx`.
+- Accessibility & i18n baseline applied to every component: correct ARIA roles/attributes,
+  keyboard interaction where relevant, native form elements under the hood, a visible
+  `:focus-visible` state, `prefers-reduced-motion` support, and logical CSS properties
+  (`margin-inline`, `inset-inline-start`, …) instead of physical left/right so RTL locales
+  keep working.
+
+## The token system
+
+All visual values come from `@foot/design-tokens/src/index.css`:
+
+- **Brand** — `--foot-color-primary` (`#c8102e`), `--foot-color-primary-dark`, `--foot-color-secondary`
+- **Semantic** — `--foot-color-success`, `--foot-color-info`, `--foot-color-warning`, `--foot-color-danger`
+- **Surfaces & text** — `--foot-color-background`, `--foot-color-surface`, `--foot-color-text`,
+  `--foot-color-text-muted`, `--foot-color-border`, `--foot-color-dark`
+- **Typography** — `--foot-font-ui` (Manrope), `--foot-font-display` (Bebas Neue)
+- **Radius** — `--foot-radius-sm` / `-md` / `-lg`
+- **Shadows** — `--foot-shadow-card`, `--foot-shadow-card-hover`
+- **Layout** — `--foot-topbar-height`, `--foot-content-max`, `--foot-page-gutter`, `--foot-touch-target`
+
+## Dark mode
+
+`:root.dark` in `@foot/design-tokens/src/index.css` overrides the palette for dark surfaces.
+Components that need dark-specific treatment beyond the CSS variables (e.g. `Badge`, `Stat`,
+`Heading`, `PageHeader`) add their own `:root.dark &` rules directly in their styled-components
+template.
+
+Use the **Theme** toggle in the toolbar above (sun/moon icon) to switch every story between
+light and dark — it toggles the `dark` class on `<html>`, exactly like a real FOOT surface
+would when a user switches appearance.
+
+## Categories
+
+Components are grouped in the sidebar the same way as `packages/ui/README.md`:
+
+- **Actions** — Button, IconButton, ButtonGroup, Link
+- **Forms** — Input, Textarea, Select, Checkbox, Radio/RadioGroup, Switch, Slider, FormField,
+  SearchInput, FileUpload
+- **Feedback** — Alert, ToastProvider/useToast, Spinner, ProgressBar, Skeleton, EmptyState
+- **Data Display** — Badge, Card, Table, Avatar, Tag, Tooltip, Stat, Divider, List/ListItem
+- **Navigation** — Tabs, Breadcrumb, Pagination, Menu, Stepper, PageHeader
+- **Overlay** — Modal, Drawer, Popover
+- **Layout** — Container, Stack, Grid, Spacer
+- **Typography** — Heading, Text
+
+## Local development
+
+```bash
+# from the repo root
+pnpm install
+
+# Storybook dev server (http://localhost:6006)
+pnpm --filter @foot/ui storybook
+
+# static Storybook build (packages/ui/storybook-static)
+pnpm --filter @foot/ui build-storybook
+
+# type-check / test, unaffected by Storybook
+pnpm --filter @foot/ui typecheck
+pnpm --filter @foot/ui test
+```
+
+There is also a lightweight non-Storybook `playground/` (Vite + React, standalone `npm
+install`) — see the main README for details. Storybook is the richer, primary way to browse
+the library going forward.
