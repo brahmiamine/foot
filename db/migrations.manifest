@@ -185,6 +185,8 @@ club-hub/sql/migration_add_processed_webhook_events.sql
 club-hub/sql/migration_add_club_governance_approvals.sql
 # Workflow composition DRAFT→PROPOSED→APPROVED→LOCKED + backfill Coach/Adjoint.
 club-hub/sql/migration_add_lineup_approval_workflow.sql
+# Journal médical append-only + Return-to-Play + clearance/second avis.
+club-hub/sql/migration_add_medical_return_to_play.sql
 # Module central de transfert/homologation (migration.md §19-21, Phase 3).
 # Dépend de Player (migration_unify_players.sql) et teams (déjà en base).
 club-hub/sql/migration_add_player_transfers.sql
