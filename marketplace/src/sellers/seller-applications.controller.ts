@@ -20,25 +20,32 @@ import { SellersService } from './sellers.service';
 @UseGuards(ServiceAuthGuard, AllowedApplicationsGuard)
 export class SellerApplicationsController {
   constructor(private readonly sellersService: SellersService) {}
+
   @Post()
   @AllowedApplications('club-ob')
-  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   create(@Body() dto: CreateSellerApplicationDto) {
     return this.sellersService.createApplication(dto);
   }
-  @Get() @AllowedApplications('club-hub', 'federation-hub') list(
+
+  @Get()
+  @AllowedApplications('club-hub', 'federation-hub')
+  list(
     @Query('clubId') clubId: string,
     @Query('status') status?: SellerApplicationStatus,
   ) {
     return this.sellersService.findApplicationsByClub(clubId, status);
   }
-  @Get(':id') @AllowedApplications('club-hub', 'federation-hub') findOne(
-    @Param('id') id: string,
-    @Query('clubId') clubId: string,
-  ) {
+
+  @Get(':id')
+  @AllowedApplications('club-hub', 'federation-hub')
+  findOne(@Param('id') id: string, @Query('clubId') clubId: string) {
     return this.sellersService.findApplication(id, clubId);
   }
-  @Post(':id/review') @AllowedApplications('club-hub', 'federation-hub') review(
+
+  @Post(':id/review')
+  @AllowedApplications('club-hub', 'federation-hub')
+  review(
     @Param('id') id: string,
     @Query('clubId') clubId: string,
     @Body() dto: ReviewSellerApplicationDto,
@@ -49,6 +56,7 @@ export class SellerApplicationsController {
       dto.actorId,
     );
   }
+
   @Post(':id/approve')
   @AllowedApplications('club-hub', 'federation-hub')
   approve(
@@ -58,7 +66,10 @@ export class SellerApplicationsController {
   ) {
     return this.sellersService.approveApplication(id, clubId, dto.actorId);
   }
-  @Post(':id/reject') @AllowedApplications('club-hub', 'federation-hub') reject(
+
+  @Post(':id/reject')
+  @AllowedApplications('club-hub', 'federation-hub')
+  reject(
     @Param('id') id: string,
     @Query('clubId') clubId: string,
     @Body() dto: ReviewSellerApplicationDto,
