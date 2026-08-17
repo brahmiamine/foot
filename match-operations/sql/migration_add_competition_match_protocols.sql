@@ -1,4 +1,4 @@
--- MATCH-001 — protocole opérationnel configurable par édition de compétition.
+-- MATCH-001/MATCH-003 — protocole opérationnel configurable par édition de compétition.
 -- `saisons` est le référentiel partagé des éditions championnat/coupe/tournoi.
 -- Match Operations reste propriétaire de ces règles et les expose aux autres
 -- domaines via son API interne service-to-service.
@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS ms_competition_match_protocols (
   require_fourth_official TINYINT(1) NOT NULL DEFAULT 0,
   require_match_delegate TINYINT(1) NOT NULL DEFAULT 0,
   require_referee_observer TINYINT(1) NOT NULL DEFAULT 0,
+  post_signature_correction_window_minutes INT NULL,
+  post_signature_federation_approval_required TINYINT(1) NOT NULL DEFAULT 0,
   version INT NOT NULL DEFAULT 1,
   updated_by VARCHAR(191) NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -27,5 +29,6 @@ CREATE TABLE IF NOT EXISTS ms_competition_match_protocols (
   CONSTRAINT chk_ms_protocol_deadline CHECK (pre_match_signing_deadline_minutes IS NULL OR pre_match_signing_deadline_minutes >= 0),
   CONSTRAINT chk_ms_protocol_bench CHECK (max_bench_players IS NULL OR max_bench_players >= 0),
   CONSTRAINT chk_ms_protocol_substitutions CHECK (max_substitutions IS NULL OR max_substitutions >= 0),
-  CONSTRAINT chk_ms_protocol_assistants CHECK (required_assistant_referees BETWEEN 0 AND 4)
+  CONSTRAINT chk_ms_protocol_assistants CHECK (required_assistant_referees BETWEEN 0 AND 4),
+  CONSTRAINT chk_ms_protocol_post_signature_window CHECK (post_signature_correction_window_minutes IS NULL OR post_signature_correction_window_minutes >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
