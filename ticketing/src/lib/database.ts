@@ -7,6 +7,7 @@ import { Match } from "@/entities/Match";
 import { TicketCategory } from "@/entities/TicketCategory";
 import { MatchTicketCategory } from "@/entities/MatchTicketCategory";
 import { TicketSaleRule } from "@/entities/TicketSaleRule";
+import { TicketingGovernanceSettings } from "@/entities/TicketingGovernance";
 import { Ticket } from "@/entities/Ticket";
 import { TicketScanLog } from "@/entities/TicketScanLog";
 import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
@@ -15,17 +16,13 @@ import { MatchCancellationRefund } from "@/entities/MatchCancellationRefund";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
- * apps du monorepo (arbinote/federation-hub/club-hub/identity/ob/seller-portal/...).
- * Les tables propres à cette app sont préfixées `tk_` (Ticketing) ; `teams`
- * et `matches` sont lues en lecture seule, jamais dupliquées ni écrites ici.
+ * apps du monorepo. Les tables propres à cette app sont préfixées `tk_`.
  */
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
 
 export async function getDataSource(): Promise<DataSource> {
-  if (dataSource && dataSource.isInitialized) {
-    return dataSource;
-  }
+  if (dataSource && dataSource.isInitialized) return dataSource;
 
   if (!initPromise) {
     const newDataSource = new DataSource({
@@ -35,9 +32,21 @@ export async function getDataSource(): Promise<DataSource> {
       username: process.env.DB_USER || "root",
       password: process.env.DB_PASSWORD || "",
       database: process.env.DB_NAME || "foot",
-      synchronize: false, // Jamais en production — voir sql/schema.sql
+      synchronize: false,
       logging: process.env.NODE_ENV === "development",
-      entities: [Team, Match, TicketCategory, MatchTicketCategory, TicketSaleRule, Ticket, TicketScanLog, ProcessedWebhookEvent, StockUnavailableRefund, MatchCancellationRefund],
+      entities: [
+        Team,
+        Match,
+        TicketCategory,
+        MatchTicketCategory,
+        TicketSaleRule,
+        TicketingGovernanceSettings,
+        Ticket,
+        TicketScanLog,
+        ProcessedWebhookEvent,
+        StockUnavailableRefund,
+        MatchCancellationRefund,
+      ],
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",
