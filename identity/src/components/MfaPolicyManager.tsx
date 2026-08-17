@@ -6,6 +6,7 @@ type Policy = {
   role: string;
   mode: "REQUIRED" | "OPTIONAL" | "DISABLED";
   gracePeriodDays: number;
+  version: number;
   source: "DEFAULT" | "DATABASE";
   graceEndsAt: string | null;
   requirementEnforced: boolean;
@@ -13,10 +14,17 @@ type Policy = {
 
 export default function MfaPolicyManager({ initialPolicies }: { initialPolicies: Policy[] }) {
   const [policies, setPolicies] = useState(initialPolicies);
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const [savingRole, setSavingRole] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   async function save(policy: Policy) {
+    const reason = (reasons[policy.role] ?? "").trim();
+    if (reason.length < 3) {
+      setMessage(`Un motif est obligatoire pour ${policy.role}.`);
+      return;
+    }
+
     setSavingRole(policy.role);
     setMessage(null);
     try {
@@ -27,6 +35,7 @@ export default function MfaPolicyManager({ initialPolicies }: { initialPolicies:
           role: policy.role,
           mode: policy.mode,
           gracePeriodDays: policy.gracePeriodDays,
+          reason,
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -36,7 +45,8 @@ export default function MfaPolicyManager({ initialPolicies }: { initialPolicies:
       }
       if (!response.ok) throw new Error(payload.error || "Impossible d'enregistrer la policy");
       setPolicies((current) => current.map((item) => (item.role === policy.role ? payload.policy : item)));
-      setMessage(`Policy ${policy.role} enregistrée.`);
+      setReasons((current) => ({ ...current, [policy.role]: "" }));
+      setMessage(`Policy ${policy.role} enregistrée en version ${payload.policy.version}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erreur d'enregistrement");
     } finally {
@@ -56,7 +66,7 @@ export default function MfaPolicyManager({ initialPolicies }: { initialPolicies:
           <div className="policy-row" key={policy.role}>
             <div>
               <strong>{policy.role}</strong>
-              <div className="policy-meta">Source : {policy.source}</div>
+              <div className="policy-meta">Source : {policy.source} · version {policy.version}</div>
             </div>
             <select value={policy.mode} onChange={(event) => patch(policy.role, { mode: event.target.value as Policy["mode"] })}>
               <option value="REQUIRED">REQUIRED</option>
@@ -73,6 +83,16 @@ export default function MfaPolicyManager({ initialPolicies }: { initialPolicies:
                 onChange={(event) => patch(policy.role, { gracePeriodDays: Number(event.target.value) })}
               />
             </label>
+            <label className="reason-field">
+              Motif
+              <input
+                type="text"
+                maxLength={1000}
+                value={reasons[policy.role] ?? ""}
+                onChange={(event) => setReasons((current) => ({ ...current, [policy.role]: event.target.value }))}
+                placeholder="Pourquoi ce changement ?"
+              />
+            </label>
             <button type="button" disabled={savingRole === policy.role} onClick={() => save(policy)}>
               {savingRole === policy.role ? "Enregistrement…" : "Enregistrer"}
             </button>
@@ -82,14 +102,14 @@ export default function MfaPolicyManager({ initialPolicies }: { initialPolicies:
       <style jsx>{`
         .policy-manager { display: flex; flex-direction: column; gap: 16px; }
         .policy-list { display: flex; flex-direction: column; gap: 10px; }
-        .policy-row { display: grid; grid-template-columns: minmax(170px, 1fr) 180px 150px 130px; gap: 12px; align-items: end; padding: 14px; border: 1px solid var(--sso-border); border-radius: 10px; }
+        .policy-row { display: grid; grid-template-columns: minmax(170px, 1fr) 160px 130px minmax(220px, 1.2fr) 125px; gap: 12px; align-items: end; padding: 14px; border: 1px solid var(--sso-border); border-radius: 10px; }
         .policy-meta { color: var(--sso-muted); font-size: .75rem; margin-top: 4px; }
         select, input { width: 100%; background: var(--sso-bg); color: var(--sso-text); border: 1px solid var(--sso-border); border-radius: 8px; padding: 9px 10px; }
-        .grace-field { color: var(--sso-muted); font-size: .75rem; display: flex; flex-direction: column; gap: 4px; }
+        .grace-field, .reason-field { color: var(--sso-muted); font-size: .75rem; display: flex; flex-direction: column; gap: 4px; }
         button { background: var(--sso-accent); color: white; border: 0; border-radius: 8px; padding: 10px 12px; font-weight: 600; cursor: pointer; }
         button:disabled { opacity: .6; cursor: not-allowed; }
         .policy-message { margin: 0; color: var(--sso-text); }
-        @media (max-width: 760px) { .policy-row { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { .policy-row { grid-template-columns: 1fr; } }
       `}</style>
     </div>
   );
