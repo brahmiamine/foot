@@ -1,4 +1,4 @@
-import type { EntityManager } from "typeorm";
+import { IsNull, type EntityManager } from "typeorm";
 import { getDataSource } from "@/lib/db";
 import { CompetitionMatchProtocol } from "@/entities/CompetitionMatchProtocol";
 import { Match } from "@/entities/Match";
@@ -6,6 +6,7 @@ import { Matchday } from "@/entities/Matchday";
 import { MatchLineup } from "@/entities/MatchLineup";
 import { MatchOfficialAssignment, type MatchOfficialAssignmentRole } from "@/entities/MatchOfficialAssignment";
 import { Signature, type ActorRole } from "@/entities/Signature";
+import { Substitution } from "@/entities/Substitution";
 
 export interface CompetitionMatchProtocolValue {
   seasonId: string;
@@ -43,10 +44,36 @@ const LEGACY_DEFAULTS = {
   requireRefereeObserver: false,
 } as const;
 
+const BOOLEAN_FIELDS = [
+  "requireHomeSignature",
+  "requireAwaySignature",
+  "requireRefereeSignature",
+  "requireCenterReferee",
+  "requireFourthOfficial",
+  "requireMatchDelegate",
+  "requireRefereeObserver",
+] as const;
+
 function assertNullableNonNegative(value: number | null | undefined, field: string): void {
   if (value == null) return;
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(`${field} doit être un entier positif ou nul`);
+  }
+}
+
+function validateUpdate(values: UpdateCompetitionMatchProtocolInput): void {
+  assertNullableNonNegative(values.preMatchSigningDeadlineMinutes, "preMatchSigningDeadlineMinutes");
+  assertNullableNonNegative(values.maxBenchPlayers, "maxBenchPlayers");
+  assertNullableNonNegative(values.maxSubstitutions, "maxSubstitutions");
+  assertNullableNonNegative(values.requiredAssistantReferees, "requiredAssistantReferees");
+  if (values.requiredAssistantReferees != null && values.requiredAssistantReferees > 4) {
+    throw new Error("requiredAssistantReferees ne peut pas dépasser 4");
+  }
+  for (const field of BOOLEAN_FIELDS) {
+    const value = values[field];
+    if (value !== undefined && typeof value !== "boolean") {
+      throw new Error(`${field} doit être un booléen`);
+    }
   }
 }
 
@@ -91,13 +118,7 @@ export class CompetitionMatchProtocolService {
     values: UpdateCompetitionMatchProtocolInput,
     actorUserId: string,
   ): Promise<CompetitionMatchProtocolValue> {
-    assertNullableNonNegative(values.preMatchSigningDeadlineMinutes, "preMatchSigningDeadlineMinutes");
-    assertNullableNonNegative(values.maxBenchPlayers, "maxBenchPlayers");
-    assertNullableNonNegative(values.maxSubstitutions, "maxSubstitutions");
-    assertNullableNonNegative(values.requiredAssistantReferees, "requiredAssistantReferees");
-    if (values.requiredAssistantReferees != null && values.requiredAssistantReferees > 4) {
-      throw new Error("requiredAssistantReferees ne peut pas dépasser 4");
-    }
+    validateUpdate(values);
 
     const ds = await getDataSource();
     await ds.transaction(async (manager) => {
@@ -147,16 +168,13 @@ export class CompetitionMatchProtocolService {
 
   async assertSubstitutionAllowed(matchId: string, teamId: string): Promise<void> {
     const protocol = await this.getForMatch(matchId);
-    if (protocol.maxSubstitutions == null) return;
+    if (protocol.version === 0 || protocol.maxSubstitutions == null) return;
 
     const ds = await getDataSource();
-    const [{ count }] = (await ds.query(
-      `SELECT COUNT(*) AS count
-       FROM ms_substitutions
-       WHERE match_id = ? AND team_id = ? AND cancelled_at IS NULL`,
-      [matchId, teamId],
-    )) as Array<{ count: number | string }>;
-    if (Number(count ?? 0) >= protocol.maxSubstitutions) {
+    const count = await ds.getRepository(Substitution).count({
+      where: { matchId, teamId, cancelledAt: IsNull() },
+    });
+    if (count >= protocol.maxSubstitutions) {
       throw new Error(`Nombre maximal de remplacements atteint (${protocol.maxSubstitutions})`);
     }
   }
@@ -164,6 +182,11 @@ export class CompetitionMatchProtocolService {
   async validatePreMatch(sheetId: number, matchId: string, now = new Date()): Promise<void> {
     const ds = await getDataSource();
     const protocol = await this.getForMatch(matchId);
+    // Sans ligne configurée, la transition serveur conserve strictement le
+    // comportement historique. Les 3 signatures restent toutefois exigées
+    // par SignatureService.isPhaseComplete()/isPhaseValid(), comme avant.
+    if (protocol.version === 0) return;
+
     const match = await ds.getRepository(Match).findOne({ where: { id: matchId } });
     if (!match) throw new Error("Match introuvable");
 
