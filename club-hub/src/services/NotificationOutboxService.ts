@@ -28,16 +28,18 @@ export interface OutboxStats {
  */
 export class NotificationOutboxService {
   /**
-   * Insère l'événement dans LA MÊME transaction que l'écriture métier
-   * appelante — `manager` doit provenir de `dataSource.transaction(...)`,
-   * jamais d'un repository obtenu indépendamment (voir
-   * app/admin/news/actions.ts pour un exemple d'appel).
+   * Insère l'événement dans LA MÊME transaction que l'écriture métier.
+   * `eventId` est une clé d'idempotence métier : rejouer le même événement
+   * (par exemple une republication News après revalidation) ne doit jamais
+   * faire échouer la transaction sur l'index unique de l'outbox.
    */
   async enqueue(manager: EntityManager, payload: NotifyPayload): Promise<void> {
     const eventId = payload.eventId ?? randomUUID();
-    const repository = manager.getRepository(NotificationOutboxEvent);
-    await repository.save(
-      repository.create({
+    await manager
+      .createQueryBuilder()
+      .insert()
+      .into(NotificationOutboxEvent)
+      .values({
         eventId,
         payload: { ...payload, eventId },
         status: "PENDING",
@@ -46,7 +48,8 @@ export class NotificationOutboxService {
         processedAt: null,
         lastError: null,
       })
-    );
+      .orIgnore()
+      .execute();
   }
 
   /**
