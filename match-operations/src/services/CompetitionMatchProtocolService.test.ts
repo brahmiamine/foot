@@ -72,7 +72,7 @@ afterEach(async () => {
 });
 
 describe("CompetitionMatchProtocolService", () => {
-  it("preserves legacy defaults when no season protocol exists", async () => {
+  it("preserves the legacy transition when no season protocol row exists", async () => {
     const sheet = await seedBase();
     const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
     const service = new CompetitionMatchProtocolService();
@@ -88,12 +88,31 @@ describe("CompetitionMatchProtocolService", () => {
       requireRefereeSignature: true,
       requireCenterReferee: false,
     });
-
-    await expect(service.validatePreMatch(sheet.id, matchId)).rejects.toThrow("Signatures pré-match manquantes");
-    await addSignature(sheet.id, "TEAM_HOME");
-    await addSignature(sheet.id, "TEAM_AWAY");
-    await addSignature(sheet.id, "REFEREE");
     await expect(service.validatePreMatch(sheet.id, matchId)).resolves.toBeUndefined();
+  });
+
+  it("blocks the real PRE_MATCH_SIGNED transition when a configured signature is missing", async () => {
+    const sheet = await seedBase();
+    const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
+    const { SheetService } = await import("./SheetService");
+    const protocolService = new CompetitionMatchProtocolService();
+    await protocolService.updateForSeason(
+      seasonId,
+      {
+        requireHomeSignature: false,
+        requireAwaySignature: false,
+        requireRefereeSignature: true,
+      },
+      "federation-admin",
+    );
+
+    await expect(new SheetService().updateStatus(sheet.id, "PRE_MATCH_SIGNED")).rejects.toThrow(
+      "Signatures pré-match manquantes",
+    );
+
+    await addSignature(sheet.id, "REFEREE");
+    const signed = await new SheetService().updateStatus(sheet.id, "PRE_MATCH_SIGNED");
+    expect(signed.status).toBe("PRE_MATCH_SIGNED");
   });
 
   it("enforces configured bench size, signatures and required officials", async () => {
@@ -166,5 +185,22 @@ describe("CompetitionMatchProtocolService", () => {
 
     const afterCutoff = new Date(match.date!.getTime() - 30 * 60_000);
     await expect(service.validatePreMatch(sheet.id, matchId, afterCutoff)).rejects.toThrow("deadline pré-match");
+  });
+
+  it("rejects malformed configuration before persistence", async () => {
+    await seedBase();
+    const { CompetitionMatchProtocolService } = await import("./CompetitionMatchProtocolService");
+    const service = new CompetitionMatchProtocolService();
+
+    await expect(
+      service.updateForSeason(seasonId, { requiredAssistantReferees: 5 }, "federation-admin"),
+    ).rejects.toThrow("ne peut pas dépasser 4");
+    await expect(
+      service.updateForSeason(
+        seasonId,
+        { requireCenterReferee: "yes" as unknown as boolean },
+        "federation-admin",
+      ),
+    ).rejects.toThrow("doit être un booléen");
   });
 });
