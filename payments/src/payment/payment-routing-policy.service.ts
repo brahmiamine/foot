@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UpdatePaymentRoutingPolicyDto } from './dto/update-payment-routing-policy.dto';
+import { Payment } from './entities/payment.entity';
 import { PaymentRoutingPolicy } from './entities/payment-routing-policy.entity';
 import { PaymentProviderName } from './enums/payment-provider.enum';
 
@@ -30,6 +31,8 @@ export class PaymentRoutingPolicyService {
   constructor(
     @InjectRepository(PaymentRoutingPolicy)
     private readonly repository: Repository<PaymentRoutingPolicy>,
+    @InjectRepository(Payment)
+    private readonly paymentRepository: Repository<Payment>,
   ) {}
 
   async getEffectivePolicy(
@@ -90,6 +93,23 @@ export class PaymentRoutingPolicyService {
       version: entity.version,
       source: 'CONSUMER',
     };
+  }
+
+  async assertProviderEnabledForInitiation(
+    consumerApplication: string,
+    provider: PaymentProviderName,
+    idempotencyKey?: string,
+  ): Promise<void> {
+    if (idempotencyKey) {
+      const existing = await this.paymentRepository.findOne({
+        where: { callerApplication: consumerApplication, idempotencyKey },
+      });
+      if (existing) {
+        return;
+      }
+    }
+
+    await this.assertProviderEnabled(consumerApplication, provider);
   }
 
   async assertProviderEnabled(
