@@ -63,7 +63,9 @@ describe('ProductsService', () => {
       }),
     };
     const sellerRepo = {
-      findOne: jest.fn().mockResolvedValue({ id: 'seller-1', clubId: 'club-1' }),
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ id: 'seller-1', clubId: 'club-1' }),
     };
     const settingsRepo = {
       findOne: jest.fn().mockResolvedValue({
