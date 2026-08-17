@@ -1,38 +1,60 @@
 import {
   IsEmail,
   IsEnum,
+  IsIn,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   MaxLength,
 } from 'class-validator';
-import { InitPaymentDto } from './init-payment.dto';
 import { PaymentProviderName } from '../enums/payment-provider.enum';
 
 /**
- * Generic routing requests carry the superset required by every currently
- * supported PSP so the router can safely select another enabled provider
- * before any external payment creation call is made.
+ * Provider-agnostic payment request carrying the superset required by every
+ * currently supported PSP. This is intentionally independent from
+ * InitPaymentDto because that DTO makes payer identity fields optional for
+ * Konnect/Flouci, while Paymee requires them. Inheriting @IsOptional metadata
+ * here would make policy-based routing unsafe.
  */
-export class RoutedInitPaymentDto extends InitPaymentDto {
+export class RoutedInitPaymentDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(100)
-  declare firstName: string;
+  orderId: string;
+
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @IsPositive()
+  amount: number;
+
+  @IsOptional()
+  @IsIn(['TND'])
+  currency?: string = 'TND';
 
   @IsNotEmpty()
   @IsString()
   @MaxLength(100)
-  declare lastName: string;
+  firstName: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100)
+  lastName: string;
 
   @IsNotEmpty()
   @IsEmail()
-  declare email: string;
+  email: string;
 
   @IsNotEmpty()
   @IsString()
   @MaxLength(30)
-  declare phoneNumber: string;
+  phoneNumber: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  userId?: string;
 
   /**
    * Optional caller preference. If it is disabled by policy, the configured
