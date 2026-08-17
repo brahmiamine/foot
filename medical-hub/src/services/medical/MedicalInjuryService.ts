@@ -1,11 +1,45 @@
-import { In } from "typeorm";
-import { Injury, type InjuryDocument, type InjurySeverity, type InjuryStatus } from "@/entities/Injury";
+import { In, type EntityManager } from "typeorm";
+import {
+  Injury,
+  type InjuryDocument,
+  type InjurySeverity,
+  type InjuryStatus,
+  type ReturnToPlayStage,
+} from "@/entities/Injury";
+import { InjuryFollowUp } from "@/entities/InjuryFollowUp";
+import {
+  InjuryClearance,
+  type InjuryClearanceDecision,
+} from "@/entities/InjuryClearance";
+import { MedicalSettings } from "@/entities/MedicalSettings";
 import { Player } from "@/entities/Player";
 import { MedicalServiceBase, parseInjuryDocuments, type CategoryScope } from "./MedicalServiceBase";
+import {
+  countLatestClearances,
+  expectedNextStage,
+  requiredClearances,
+} from "./returnToPlayPolicy";
 
 export interface InjuryWithPlayer {
   injury: Injury;
   player: Player | null;
+}
+
+export interface EffectiveMedicalSettings {
+  teamId: string;
+  clearanceRequired: boolean;
+  severeSecondOpinionRequired: boolean;
+  source: "DEFAULT" | "DATABASE";
+}
+
+function statusForStage(stage: ReturnToPlayStage): InjuryStatus {
+  if (stage === "AVAILABLE") return "RESOLVED";
+  if (["INDIVIDUAL", "PARTIAL", "FULL", "CLEARANCE"].includes(stage)) return "RECOVERING";
+  return "ONGOING";
+}
+
+function isoDate(date = new Date()): string {
+  return date.toISOString().slice(0, 10);
 }
 
 export class MedicalInjuryService extends MedicalServiceBase {
@@ -38,14 +72,51 @@ export class MedicalInjuryService extends MedicalServiceBase {
       where,
       order: { injuryDate: "DESC" },
     });
-    const scoped =
-      categories === "ALL" ? injuries : injuries.filter((injury) => rosterIds.has(injury.playerId));
+    const scoped = categories === "ALL" ? injuries : injuries.filter((injury) => rosterIds.has(injury.playerId));
     return this.withPlayers(scoped);
   }
 
   async getInjury(id: number, teamId: string): Promise<Injury | null> {
     const ds = await this.ds();
     return ds.getRepository(Injury).findOne({ where: { id, teamId } });
+  }
+
+  async getSettings(teamId: string): Promise<EffectiveMedicalSettings> {
+    const ds = await this.ds();
+    return this.getSettingsWithManager(ds.manager, teamId);
+  }
+
+  private async getSettingsWithManager(manager: EntityManager, teamId: string): Promise<EffectiveMedicalSettings> {
+    const row = await manager.getRepository(MedicalSettings).findOne({ where: { teamId } });
+    if (!row) {
+      return {
+        teamId,
+        clearanceRequired: true,
+        severeSecondOpinionRequired: true,
+        source: "DEFAULT",
+      };
+    }
+    return {
+      teamId,
+      clearanceRequired: Boolean(row.clearanceRequired),
+      severeSecondOpinionRequired: Boolean(row.severeSecondOpinionRequired),
+      source: "DATABASE",
+    };
+  }
+
+  async updateSettings(
+    teamId: string,
+    actorUserId: string,
+    values: { clearanceRequired: boolean; severeSecondOpinionRequired: boolean },
+  ): Promise<EffectiveMedicalSettings> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(MedicalSettings);
+    const row = (await repo.findOne({ where: { teamId } })) ?? repo.create({ teamId });
+    row.clearanceRequired = values.clearanceRequired;
+    row.severeSecondOpinionRequired = values.severeSecondOpinionRequired;
+    row.updatedBy = actorUserId;
+    await repo.save(row);
+    return this.getSettings(teamId);
   }
 
   async createInjury(data: {
@@ -64,7 +135,14 @@ export class MedicalInjuryService extends MedicalServiceBase {
   }): Promise<Injury> {
     const ds = await this.ds();
     const repo = ds.getRepository(Injury);
-    return repo.save(repo.create({ ...data, status: "ONGOING" }));
+    return repo.save(
+      repo.create({
+        ...data,
+        status: "ONGOING",
+        rtpStage: "INJURED",
+        rtpVersion: 1,
+      }),
+    );
   }
 
   async updateInjury(
@@ -87,30 +165,183 @@ export class MedicalInjuryService extends MedicalServiceBase {
     const repo = ds.getRepository(Injury);
     const injury = await repo.findOne({ where: { id, teamId } });
     if (!injury) return null;
-    Object.assign(injury, data);
+    if (data.status !== undefined && data.status !== injury.status) {
+      throw new Error("Le statut médical est piloté par le workflow Return-to-Play");
+    }
+    const { status: _ignoredStatus, ...editableData } = data;
+    Object.assign(injury, editableData);
     return repo.save(injury);
+  }
+
+  async listFollowUps(id: number, teamId: string): Promise<InjuryFollowUp[]> {
+    const ds = await this.ds();
+    return ds.getRepository(InjuryFollowUp).find({
+      where: { injuryId: id, teamId },
+      order: { createdAt: "DESC" },
+    });
   }
 
   async appendFollowUpNote(
     id: number,
     teamId: string,
     note: string,
-    authorName: string,
-  ): Promise<Injury | null> {
+    authorUserId: string,
+  ): Promise<InjuryFollowUp | null> {
+    const normalized = note.trim();
+    if (normalized.length < 2) throw new Error("La note de suivi est obligatoire");
     const ds = await this.ds();
-    const repo = ds.getRepository(Injury);
-    const injury = await repo.findOne({ where: { id, teamId } });
+    const injury = await ds.getRepository(Injury).findOne({ where: { id, teamId } });
     if (!injury) return null;
+    const repo = ds.getRepository(InjuryFollowUp);
+    return repo.save(
+      repo.create({
+        injuryId: id,
+        teamId,
+        authorUserId,
+        entryType: "NOTE",
+        note: normalized,
+        metadata: null,
+      }),
+    );
+  }
 
-    const stamp = new Intl.DateTimeFormat("fr-FR", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date());
-    const entry = `[${stamp} — ${authorName}] ${note}`;
-    injury.notes = injury.notes ? `${entry}\n\n${injury.notes}` : entry;
-    return repo.save(injury);
+  async transitionReturnToPlay(
+    id: number,
+    teamId: string,
+    targetStage: ReturnToPlayStage,
+    actorUserId: string,
+    note?: string,
+  ): Promise<Injury> {
+    const ds = await this.ds();
+    return ds.transaction(async (manager) => {
+      const injuryRepo = manager.getRepository(Injury);
+      const injury = await injuryRepo
+        .createQueryBuilder("injury")
+        .setLock("pessimistic_write")
+        .where("injury.id = :id AND injury.teamId = :teamId", { id, teamId })
+        .getOne();
+      if (!injury) throw new Error("Blessure introuvable");
+      if (injury.rtpStage === "AVAILABLE") throw new Error("Le joueur est déjà déclaré disponible");
+      if (injury.rtpStage === "CLEARANCE") {
+        throw new Error("La sortie de CLEARANCE nécessite une décision médicale de clearance");
+      }
+
+      const settings = await this.getSettingsWithManager(manager, teamId);
+      const expected = expectedNextStage(injury.rtpStage, settings);
+      if (!expected || targetStage !== expected) {
+        throw new Error(`Transition Return-to-Play invalide : ${injury.rtpStage} → ${targetStage}`);
+      }
+
+      const fromStage = injury.rtpStage;
+      injury.rtpStage = targetStage;
+      injury.rtpVersion += 1;
+      injury.status = statusForStage(targetStage);
+      injury.progressiveReturn = ["INDIVIDUAL", "PARTIAL", "FULL", "CLEARANCE"].includes(targetStage);
+      if (targetStage === "AVAILABLE") injury.actualReturnDate = isoDate();
+      await injuryRepo.save(injury);
+
+      const followUpRepo = manager.getRepository(InjuryFollowUp);
+      await followUpRepo.save(
+        followUpRepo.create({
+          injuryId: injury.id,
+          teamId,
+          authorUserId: actorUserId,
+          entryType: "RTP_TRANSITION",
+          note: note?.trim() || `Return-to-Play : ${fromStage} → ${targetStage}`,
+          metadata: { fromStage, toStage: targetStage, rtpVersion: injury.rtpVersion },
+        }),
+      );
+      return injury;
+    });
+  }
+
+  async listClearances(id: number, teamId: string): Promise<InjuryClearance[]> {
+    const ds = await this.ds();
+    return ds.getRepository(InjuryClearance).find({
+      where: { injuryId: id, teamId },
+      order: { createdAt: "DESC" },
+    });
+  }
+
+  async recordClearance(
+    id: number,
+    teamId: string,
+    reviewerUserId: string,
+    decision: InjuryClearanceDecision,
+    notes?: string,
+  ): Promise<{ injury: Injury; requiredClearances: number; currentClearances: number }> {
+    const ds = await this.ds();
+    return ds.transaction(async (manager) => {
+      const injuryRepo = manager.getRepository(Injury);
+      const injury = await injuryRepo
+        .createQueryBuilder("injury")
+        .setLock("pessimistic_write")
+        .where("injury.id = :id AND injury.teamId = :teamId", { id, teamId })
+        .getOne();
+      if (!injury) throw new Error("Blessure introuvable");
+      if (injury.rtpStage !== "CLEARANCE") {
+        throw new Error("La clearance n'est possible qu'à l'étape CLEARANCE");
+      }
+
+      const clearanceRepo = manager.getRepository(InjuryClearance);
+      await clearanceRepo.save(
+        clearanceRepo.create({
+          injuryId: id,
+          teamId,
+          reviewerUserId,
+          decision,
+          notes: notes?.trim() || null,
+        }),
+      );
+
+      const followUpRepo = manager.getRepository(InjuryFollowUp);
+      await followUpRepo.save(
+        followUpRepo.create({
+          injuryId: id,
+          teamId,
+          authorUserId: reviewerUserId,
+          entryType: "CLEARANCE_DECISION",
+          note: notes?.trim() || (decision === "CLEAR" ? "Avis favorable de clearance" : "Clearance refusée"),
+          metadata: { decision },
+        }),
+      );
+
+      const settings = await this.getSettingsWithManager(manager, teamId);
+      const needed = requiredClearances(injury.severity, settings);
+      const decisions = await clearanceRepo.find({
+        where: { injuryId: id, teamId },
+        order: { createdAt: "ASC" },
+      });
+      const current = countLatestClearances(decisions);
+
+      if (current >= needed) {
+        const fromStage = injury.rtpStage;
+        injury.rtpStage = "AVAILABLE";
+        injury.rtpVersion += 1;
+        injury.status = "RESOLVED";
+        injury.progressiveReturn = false;
+        injury.actualReturnDate = isoDate();
+        await injuryRepo.save(injury);
+        await followUpRepo.save(
+          followUpRepo.create({
+            injuryId: id,
+            teamId,
+            authorUserId: reviewerUserId,
+            entryType: "RTP_TRANSITION",
+            note: "Clearance médicale satisfaite : joueur disponible",
+            metadata: {
+              fromStage,
+              toStage: "AVAILABLE",
+              requiredClearances: needed,
+              currentClearances: current,
+              rtpVersion: injury.rtpVersion,
+            },
+          }),
+        );
+      }
+
+      return { injury, requiredClearances: needed, currentClearances: current };
+    });
   }
 
   async addDocument(id: number, teamId: string, document: InjuryDocument): Promise<Injury | null> {

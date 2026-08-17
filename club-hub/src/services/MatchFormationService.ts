@@ -11,8 +11,8 @@ export interface MatchRef {
 }
 
 /**
- * Service for MatchFormation operations — schéma tactique (ex: "4-3-3") et
- * verrouillage de la composition, pour un match officiel ou amical.
+ * Service for MatchFormation operations — schéma tactique, workflow
+ * d'approbation et verrouillage de la composition.
  */
 export class MatchFormationService {
   private async getRepository(): Promise<Repository<MatchFormation>> {
@@ -42,28 +42,61 @@ export class MatchFormationService {
       friendlyMatchId: ref.matchType === "FRIENDLY" ? ref.friendlyMatchId : null,
       formation: "4-3-3",
       isLocked: false,
+      workflowStatus: "DRAFT",
+      workflowVersion: 1,
     });
     return repository.save(formation);
+  }
+
+  private ensureWorkflowEditable(formation: MatchFormation): void {
+    if (formation.isLocked || formation.workflowStatus === "LOCKED") {
+      throw new Error("La composition est verrouillée");
+    }
+    if (formation.workflowStatus === "APPROVED") {
+      throw new Error("La composition approuvée ne peut plus être modifiée");
+    }
+  }
+
+  async markDraftAfterEdit(teamId: string, ref: MatchRef): Promise<void> {
+    const repository = await this.getRepository();
+    const formation = await this.findByMatch(teamId, ref);
+    if (!formation || formation.workflowStatus !== "PROPOSED") return;
+    formation.workflowStatus = "DRAFT";
+    formation.proposedBy = null;
+    formation.proposedAt = null;
+    formation.approvedBy = null;
+    formation.approvedAt = null;
+    formation.workflowVersion += 1;
+    await repository.save(formation);
   }
 
   async setFormation(teamId: string, ref: MatchRef, formationCode: string): Promise<MatchFormation> {
     const repository = await this.getRepository();
     const formation = await this.getOrCreate(teamId, ref);
-    formation.formation = formationCode;
-    return repository.save(formation);
+    this.ensureWorkflowEditable(formation);
+    if (formation.formation !== formationCode) {
+      formation.formation = formationCode;
+      await repository.save(formation);
+      await this.markDraftAfterEdit(teamId, ref);
+    }
+    return (await this.findByMatch(teamId, ref)) ?? formation;
   }
 
   async setLocked(teamId: string, ref: MatchRef, isLocked: boolean): Promise<MatchFormation> {
     const repository = await this.getRepository();
     const formation = await this.getOrCreate(teamId, ref);
     formation.isLocked = isLocked;
+    if (isLocked) {
+      formation.workflowStatus = "LOCKED";
+      formation.workflowVersion += 1;
+    }
     return repository.save(formation);
   }
 
   /**
-   * Un match terminé/annulé verrouille définitivement sa composition — même
-   * sans verrouillage manuel. Vérifié avant toute écriture sur la
-   * composition (MatchLineupService.saveLineup) ou l'envoi de convocations.
+   * Un match terminé/annulé, une composition APPROVED ou LOCKED interdit toute
+   * modification. `APPROVED` reste distinct de `LOCKED` pour permettre au
+   * coach de réaliser explicitement le verrouillage final.
    */
   async isEffectivelyLocked(teamId: string, ref: MatchRef): Promise<boolean> {
     const dataSource = await getDataSource();
@@ -80,6 +113,10 @@ export class MatchFormationService {
     }
 
     const formation = await this.findByMatch(teamId, ref);
-    return formation?.isLocked ?? false;
+    return Boolean(
+      formation?.isLocked ||
+      formation?.workflowStatus === "APPROVED" ||
+      formation?.workflowStatus === "LOCKED",
+    );
   }
 }

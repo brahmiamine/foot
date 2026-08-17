@@ -5,7 +5,12 @@ import { auth } from "@/lib/auth";
 import { getUserAccess, requirePermission } from "@/lib/access";
 import { medicalPortalService } from "@/services/MedicalPortalService";
 import { markNotificationRead, markAllNotificationsRead } from "@/lib/notificationApi";
-import type { InjurySeverity, InjuryStatus } from "@/entities/Injury";
+import type {
+  InjurySeverity,
+  InjuryStatus,
+  ReturnToPlayStage,
+} from "@/entities/Injury";
+import type { InjuryClearanceDecision } from "@/entities/InjuryClearance";
 
 async function requireMedicalWriteAccess() {
   const session = await auth();
@@ -13,6 +18,14 @@ async function requireMedicalWriteAccess() {
   const access = await getUserAccess();
   requirePermission(access, "medical.manage");
   return session.user;
+}
+
+function revalidateMedical() {
+  revalidatePath("/blessures");
+  revalidatePath("/indisponibles");
+  revalidatePath("/historique");
+  revalidatePath("/disponibilites");
+  revalidatePath("/");
 }
 
 export async function createInjuryAction(data: {
@@ -29,9 +42,7 @@ export async function createInjuryAction(data: {
 }) {
   const user = await requireMedicalWriteAccess();
   await medicalPortalService.createInjury({ teamId: user.teamId, createdBy: user.id, ...data });
-  revalidatePath("/blessures");
-  revalidatePath("/indisponibles");
-  revalidatePath("/");
+  revalidateMedical();
 }
 
 export async function updateInjuryAction(
@@ -47,28 +58,52 @@ export async function updateInjuryAction(
     progressiveReturn: boolean;
     progressiveReturnNotes: string | null;
     status: InjuryStatus;
-  }>
+  }>,
 ) {
   const user = await requireMedicalWriteAccess();
   await medicalPortalService.updateInjury(id, user.teamId, data);
-  revalidatePath("/blessures");
-  revalidatePath("/indisponibles");
-  revalidatePath("/historique");
-  revalidatePath("/");
+  revalidateMedical();
 }
 
-export async function markResolvedAction(id: number, actualReturnDate: string) {
+/** Compatibilité UI : le passage final reste soumis au workflow RTP. */
+export async function markResolvedAction(id: number, _actualReturnDate: string) {
   const user = await requireMedicalWriteAccess();
-  await medicalPortalService.updateInjury(id, user.teamId, { status: "RESOLVED", actualReturnDate });
-  revalidatePath("/blessures");
-  revalidatePath("/indisponibles");
-  revalidatePath("/historique");
-  revalidatePath("/");
+  await medicalPortalService.transitionReturnToPlay(id, user.teamId, "AVAILABLE", user.id);
+  revalidateMedical();
+}
+
+export async function transitionReturnToPlayAction(
+  id: number,
+  targetStage: ReturnToPlayStage,
+  note?: string,
+): Promise<void> {
+  const user = await requireMedicalWriteAccess();
+  await medicalPortalService.transitionReturnToPlay(id, user.teamId, targetStage, user.id, note);
+  revalidateMedical();
+}
+
+export async function recordClearanceAction(
+  id: number,
+  decision: InjuryClearanceDecision,
+  notes?: string,
+): Promise<void> {
+  const user = await requireMedicalWriteAccess();
+  await medicalPortalService.recordClearance(id, user.teamId, user.id, decision, notes);
+  revalidateMedical();
+}
+
+export async function updateMedicalSettingsAction(values: {
+  clearanceRequired: boolean;
+  severeSecondOpinionRequired: boolean;
+}): Promise<void> {
+  const user = await requireMedicalWriteAccess();
+  await medicalPortalService.updateSettings(user.teamId, user.id, values);
+  revalidateMedical();
 }
 
 export async function appendFollowUpNoteAction(id: number, note: string) {
   const user = await requireMedicalWriteAccess();
-  await medicalPortalService.appendFollowUpNote(id, user.teamId, note, user.name);
+  await medicalPortalService.appendFollowUpNote(id, user.teamId, note, user.id);
   revalidatePath("/blessures");
 }
 

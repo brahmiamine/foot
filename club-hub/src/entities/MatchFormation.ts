@@ -4,12 +4,11 @@ import { Match } from "./Match";
 import { FriendlyMatch } from "./FriendlyMatch";
 
 export type MatchKind = "OFFICIAL" | "FRIENDLY";
+export type MatchFormationWorkflowStatus = "DRAFT" | "PROPOSED" | "APPROVED" | "LOCKED";
 
 /**
- * MatchFormation Entity — schéma tactique (ex: "4-3-3") et verrouillage de
- * la composition pour un match (officiel ou amical) de l'équipe du club
- * connecté. Un match terminé/annulé verrouille définitivement sa
- * composition (isLocked), appliqué par MatchFormationService.
+ * MatchFormation Entity — schéma tactique (ex: "4-3-3"), workflow
+ * proposition/approbation et verrouillage de la composition pour un match.
  */
 @Entity("cms_match_formations")
 export class MatchFormation {
@@ -45,6 +44,35 @@ export class MatchFormation {
 
   @Column({ type: "tinyint", default: 0, name: "is_locked" })
   isLocked!: boolean;
+
+  @Column({
+    type: "enum",
+    enum: ["DRAFT", "PROPOSED", "APPROVED", "LOCKED"],
+    default: "DRAFT",
+    name: "workflow_status",
+  })
+  workflowStatus!: MatchFormationWorkflowStatus;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "proposed_by" })
+  proposedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "proposed_at" })
+  proposedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "approved_by" })
+  approvedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "approved_at" })
+  approvedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "locked_by" })
+  lockedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "locked_at" })
+  lockedAt?: Date | null;
+
+  @Column({ type: "int", default: 1, name: "workflow_version" })
+  workflowVersion!: number;
 
   @UpdateDateColumn({ type: "datetime", name: "updated_at" })
   updatedAt!: Date;

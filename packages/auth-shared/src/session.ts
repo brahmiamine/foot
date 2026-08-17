@@ -19,6 +19,8 @@ export interface SsoTokenPayload {
   federationId: string | null;
   leagueId: string | null;
   playerId: string | null;
+  /** Epoch milliseconds of the latest MFA verification represented by this session. */
+  mfaVerifiedAt: number | null;
 }
 
 const ISSUER = "foot-sso";
@@ -61,10 +63,26 @@ export async function verifySsoToken(token: string): Promise<SsoTokenPayload | n
       federationId: typeof payload.federationId === "string" ? payload.federationId : null,
       leagueId: typeof payload.leagueId === "string" ? payload.leagueId : null,
       playerId: typeof payload.playerId === "string" ? payload.playerId : null,
+      mfaVerifiedAt:
+        typeof payload.mfaVerifiedAt === "number" && Number.isFinite(payload.mfaVerifiedAt)
+          ? payload.mfaVerifiedAt
+          : null,
     };
   } catch {
     return null;
   }
+}
+
+/** True only when the session contains an MFA proof no older than maxAgeSeconds. */
+export function hasRecentMfa(
+  payload: Pick<SsoTokenPayload, "mfaVerifiedAt">,
+  maxAgeSeconds: number,
+  nowMs: number = Date.now(),
+): boolean {
+  if (!Number.isFinite(maxAgeSeconds) || maxAgeSeconds < 0) return false;
+  if (payload.mfaVerifiedAt == null || !Number.isFinite(payload.mfaVerifiedAt)) return false;
+  const ageMs = nowMs - payload.mfaVerifiedAt;
+  return ageMs >= 0 && ageMs <= maxAgeSeconds * 1000;
 }
 
 export function getSsoTokenFromRequest(request: CookieReader): string | null {

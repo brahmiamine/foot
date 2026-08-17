@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getDataSource } from "@/lib/db";
 import { Card, CardType, MatchPeriod } from "@/entities/Card";
+import { Sheet } from "@/entities/Sheet";
 import { QueryFailedError, Repository } from "typeorm";
 import { assertSheetEditable } from "./sheetGuard";
 
@@ -15,13 +16,6 @@ interface CreateCardInput {
   commentFr?: string | null;
 }
 
-/**
- * Un carton du même type existe déjà pour ce joueur sur ce match —
- * physiquement impossible en vrai (un carton rouge/double jaune expulse le
- * joueur, un deuxième jaune isolé doit être saisi comme DOUBLE_YELLOW).
- * Voir CardService.create côté club-hub pour le même garde-fou et
- * db/OWNERSHIP.md, « Card a deux écrivains ».
- */
 export class DuplicateCardError extends Error {
   constructor(type: CardType) {
     super(`Un carton ${type} existe déjà pour ce joueur sur ce match.`);
@@ -29,19 +23,10 @@ export class DuplicateCardError extends Error {
   }
 }
 
-/** MySQL/MariaDB : code d'erreur natif d'une violation de contrainte UNIQUE. */
 function isDuplicateEntryError(error: unknown): boolean {
   return error instanceof QueryFailedError && (error.driverError as { code?: string } | undefined)?.code === "ER_DUP_ENTRY";
 }
 
-/**
- * Service for Card operations. match-operations écrit directement dans la table
- * `Card` partagée avec cardManager/club-hub : un carton donné pendant le
- * match reste ainsi immédiatement visible dans le module discipline du
- * club. Le recalcul des suspensions/amendes reste piloté par club-hub
- * (CardService.create y applique les règles de cumul) — match-operations se
- * contente d'enregistrer le fait, à charge pour le club de le retrouver.
- */
 export class CardEventService {
   private async getRepository(): Promise<Repository<Card>> {
     const dataSource = await getDataSource();
@@ -57,7 +42,6 @@ export class CardEventService {
     });
   }
 
-  /** @throws DuplicateCardError si un carton du même type existe déjà pour ce joueur sur ce match. @throws SheetClosedError si la feuille est clôturée. */
   async create(data: CreateCardInput): Promise<Card> {
     await assertSheetEditable(data.sheetId);
     const repository = await this.getRepository();
@@ -82,16 +66,23 @@ export class CardEventService {
     try {
       return await repository.save(card);
     } catch (error) {
-      // Filet de sécurité si un carton identique a été inséré (par
-      // club-hub ou un autre kiosque) entre le SELECT ci-dessus et cet
-      // INSERT — voir contrainte UNIQUE(playerId, matchId, type).
       if (isDuplicateEntryError(error)) throw new DuplicateCardError(data.type);
       throw error;
     }
   }
 
+  /**
+   * Le vieux hard-delete reste utilisable uniquement pendant la saisie live.
+   * Une fois la feuille post-match signée/clôturée, il est interdit même si
+   * un amendement est ouvert car ce chemin n'écrit pas de ledger de correction.
+   */
   async delete(id: string): Promise<void> {
-    const repository = await this.getRepository();
+    const dataSource = await getDataSource();
+    const repository = dataSource.getRepository(Card);
+    const card = await repository.findOne({ where: { id } });
+    if (!card) return;
+    const sheet = await dataSource.getRepository(Sheet).findOne({ where: { matchId: card.matchId } });
+    if (sheet) await assertSheetEditable(sheet.id);
     await repository.delete({ id });
   }
 }

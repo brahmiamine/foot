@@ -28,25 +28,38 @@ export interface OutboxStats {
  */
 export class NotificationOutboxService {
   /**
-   * Insère l'événement dans LA MÊME transaction que l'écriture métier
-   * appelante — `manager` doit provenir de `dataSource.transaction(...)`,
-   * jamais d'un repository obtenu indépendamment (voir
-   * app/admin/news/actions.ts pour un exemple d'appel).
+   * Insère l'événement dans LA MÊME transaction que l'écriture métier.
+   * `eventId` est une clé d'idempotence métier : rejouer le même événement
+   * (par exemple une republication News après revalidation) ne doit jamais
+   * faire échouer la transaction sur l'index unique de l'outbox.
    */
   async enqueue(manager: EntityManager, payload: NotifyPayload): Promise<void> {
     const eventId = payload.eventId ?? randomUUID();
     const repository = manager.getRepository(NotificationOutboxEvent);
-    await repository.save(
-      repository.create({
-        eventId,
-        payload: { ...payload, eventId },
-        status: "PENDING",
-        attempts: 0,
-        nextRetryAt: null,
-        processedAt: null,
-        lastError: null,
-      })
-    );
+
+    const existing = await repository.findOne({ where: { eventId } });
+    if (existing) return;
+
+    const event = repository.create({
+      eventId,
+      payload: { ...payload, eventId },
+      status: "PENDING",
+      attempts: 0,
+      nextRetryAt: null,
+      processedAt: null,
+      lastError: null,
+    });
+
+    try {
+      await repository.save(event);
+    } catch (error) {
+      // A concurrent writer may have won between the existence check and
+      // the INSERT. Treat only that verified duplicate as idempotent; any
+      // unrelated persistence failure must still abort the transaction.
+      const raced = await repository.findOne({ where: { eventId } });
+      if (raced) return;
+      throw error;
+    }
   }
 
   /**

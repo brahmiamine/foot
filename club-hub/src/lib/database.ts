@@ -92,6 +92,7 @@ import { MedicalEligibility, MedicalEligibilityHistory } from "@/entities/Medica
 import { FootballAgent, RepresentationAgreement } from "@/entities/Agent";
 import { Appeal, AppealDocument, AppealEvent } from "@/entities/Appeal";
 import { CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory } from "@/entities/Regulatory";
+import { ClubApprovalDecision, ClubApprovalRequest, ClubGovernanceSettings } from "@/entities/ClubGovernance";
 
 /**
  * Database connection configuration
@@ -100,20 +101,10 @@ import { CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow
  * UUID) ; tout le reste est propre à cette app (préfixe cms_).
  */
 let dataSource: DataSource | null = null;
-// Next.js rend layout + page en parallèle : plusieurs appels concurrents à
-// getDataSource() peuvent arriver avant la fin de la première initialisation.
-// On mémorise la promesse en cours pour que tout le monde attende la MÊME
-// instance au lieu d'en créer une seconde qui écraserait la première.
 let initPromise: Promise<DataSource> | null = null;
 
-/**
- * Get or create database connection
- * @returns DataSource instance
- */
 export async function getDataSource(): Promise<DataSource> {
-  if (dataSource && dataSource.isInitialized) {
-    return dataSource;
-  }
+  if (dataSource && dataSource.isInitialized) return dataSource;
 
   if (!initPromise) {
     const newDataSource = new DataSource({
@@ -123,10 +114,36 @@ export async function getDataSource(): Promise<DataSource> {
       username: process.env.DB_USER || "root",
       password: process.env.DB_PASSWORD || "",
       database: process.env.DB_NAME || "foot",
-      synchronize: false, // Never use synchronize in production
+      synchronize: false,
       logging: process.env.NODE_ENV === "development",
-      entities: [Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff, MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match, User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings, Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest, Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory, PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract, StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent, SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory, BoardMandate, BoardMember, BoardMandateHistory, CoachQualification, CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory, FootballAgent, RepresentationAgreement, Appeal, AppealDocument, AppealEvent, CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory], // Import entities directly instead of using glob patterns
-      migrations: [], // Add migrations as needed
+      entities: [
+        Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff,
+        MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match,
+        User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings,
+        Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest,
+        Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training,
+        TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat,
+        Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant,
+        ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo,
+        PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement,
+        TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory,
+        TicketSaleRule, ShopOrder, ShopOrderItem, NotificationOutboxEvent,
+        ProcessedWebhookEvent, StockUnavailableRefund, PlayerTransfer, TeamAffiliation,
+        ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument,
+        ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory,
+        PlayerRegistration, PlayerRegistrationHistory, PlayerContract,
+        PlayerContractDocument, PlayerContractHistory, StaffContract,
+        StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory,
+        LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
+        SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory,
+        BoardMandate, BoardMember, BoardMandateHistory, CoachQualification,
+        CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory,
+        FootballAgent, RepresentationAgreement, Appeal, AppealDocument, AppealEvent,
+        CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow,
+        TransferWindowHistory, ClubGovernanceSettings, ClubApprovalRequest,
+        ClubApprovalDecision,
+      ],
+      migrations: [],
       charset: "utf8mb4",
       timezone: "Z",
     });
@@ -140,9 +157,6 @@ export async function getDataSource(): Promise<DataSource> {
   return initPromise;
 }
 
-/**
- * Close database connection
- */
 export async function closeDataSource(): Promise<void> {
   if (dataSource && dataSource.isInitialized) {
     await dataSource.destroy();

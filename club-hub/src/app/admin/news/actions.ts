@@ -1,30 +1,43 @@
 "use server";
 
 import { NewsService } from "@/services/NewsService";
-import { NotificationOutboxService } from "@/services/NotificationOutboxService";
+import { ClubApprovalService } from "@/services/ClubApprovalService";
 import { getUserAccess, requirePermission } from "@/lib/access";
 import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { createNewsSchema, updateNewsSchema } from "@/types/news";
 import { revalidatePath } from "next/cache";
-import { getDataSource } from "@/lib/database";
-import type { NotifyPayload } from "@/lib/notificationClient";
-import type { News } from "@/entities/News";
-import type { EntityManager } from "typeorm";
 
 const newsService = new NewsService();
-const notificationOutbox = new NotificationOutboxService();
+const approvalService = new ClubApprovalService();
 
-function newsPublishedPayload(newsId: number, title: string, teamId: string): NotifyPayload {
-  return {
-    eventId: `news-published:${newsId}`,
-    type: "NEWS_PUBLISHED",
-    target: { type: "MEMBERS", teamId },
-    teamId,
-    category: "NEWS_PUBLISHED",
-    title: "Nouvelle actualité",
-    body: title,
-    data: { newsId, newsTitle: title },
-  };
+function revalidateNews(newsId?: number) {
+  revalidatePath("/admin/news");
+  revalidatePath("/admin/approvals");
+  revalidatePath("/");
+  if (newsId != null) revalidatePath(`/admin/news/${newsId}/edit`);
+}
+
+function sensitiveNewsChanged(
+  before: { title: string; contentHtml: string; coverImage?: string | null },
+  next: { title?: string; contentHtml?: string; coverImage?: string | null },
+): boolean {
+  return (
+    (next.title !== undefined && next.title !== before.title) ||
+    (next.contentHtml !== undefined && next.contentHtml !== before.contentHtml) ||
+    (next.coverImage !== undefined && next.coverImage !== before.coverImage)
+  );
+}
+
+function hasProtectedEditorialReview(before: { editorialStatus: string }): boolean {
+  return ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "SCHEDULED"].includes(before.editorialStatus);
+}
+
+function sensitiveEditNeedsApprovalRefresh(before: {
+  status: "DRAFT" | "PUBLISHED";
+  editorialStatus: string;
+  isPublished: boolean;
+}): boolean {
+  return (before.status === "PUBLISHED" && before.isPublished) || hasProtectedEditorialReview(before);
 }
 
 export async function createNews(formData: FormData) {
@@ -43,25 +56,20 @@ export async function createNews(formData: FormData) {
     const validatedData = { ...parsed, contentHtml: sanitizeRichTextHtml(parsed.contentHtml) };
     const access = await getUserAccess();
     requirePermission(access, "news.create");
-    if (validatedData.status === "PUBLISHED" || validatedData.isPublished) {
-      requirePermission(access, "news.publish");
-    }
-    const teamId = access.teamId;
 
-    let news: News;
-    if (validatedData.status === "PUBLISHED") {
-      const dataSource = await getDataSource();
-      news = await dataSource.transaction(async (manager: EntityManager) => {
-        const created = await newsService.create(validatedData, teamId, manager);
-        await notificationOutbox.enqueue(
-          manager,
-          newsPublishedPayload(created.id, validatedData.title, teamId)
-        );
-        return created;
-      });
-    } else {
-      news = await newsService.create(validatedData, teamId);
-    }
+    const publicationRequested = validatedData.status === "PUBLISHED" || validatedData.isPublished;
+    if (publicationRequested) requirePermission(access, "news.publish");
+
+    const teamId = access.teamId;
+    const news = await newsService.create(
+      {
+        ...validatedData,
+        status: "DRAFT",
+        isPublished: false,
+        publishedAt: null,
+      },
+      teamId,
+    );
 
     const mediaIdsStr = formData.get("mediaIds") as string | null;
     if (mediaIdsStr) {
@@ -75,8 +83,14 @@ export async function createNews(formData: FormData) {
       }
     }
 
-    revalidatePath("/admin/news");
-    return { success: true, message: "Actualité créée avec succès", id: news.id };
+    let message = "Actualité créée avec succès";
+    if (publicationRequested) {
+      const result = await approvalService.submitPublication("NEWS", String(news.id), teamId, access.userId);
+      message = result.message;
+    }
+
+    revalidateNews(news.id);
+    return { success: true, message, id: news.id };
   } catch (error) {
     return {
       success: false,
@@ -97,13 +111,11 @@ export async function updateNews(id: number, formData: FormData) {
       publishedAt: formData.get("publishedAt") ? new Date(formData.get("publishedAt") as string) : null,
     };
 
-    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, value]) => value !== undefined));
     const parsed = updateNewsSchema.parse(cleanData);
     const validatedData = {
       ...parsed,
-      ...(parsed.contentHtml !== undefined
-        ? { contentHtml: sanitizeRichTextHtml(parsed.contentHtml) }
-        : {}),
+      ...(parsed.contentHtml !== undefined ? { contentHtml: sanitizeRichTextHtml(parsed.contentHtml) } : {}),
     };
 
     const access = await getUserAccess();
@@ -112,23 +124,72 @@ export async function updateNews(id: number, formData: FormData) {
     const before = await newsService.findById(id, teamId);
     if (!before) throw new Error("Actualité non trouvée");
 
-    const publicationChanged =
-      (validatedData.status !== undefined && validatedData.status !== before.status) ||
-      (validatedData.isPublished !== undefined && validatedData.isPublished !== before.isPublished);
-    if (publicationChanged) requirePermission(access, "news.publish");
+    const publicationRequested = validatedData.status === "PUBLISHED" || validatedData.isPublished === true;
+    const wasPublished = before.status === "PUBLISHED" && before.isPublished;
+    const explicitUnpublish =
+      wasPublished && (validatedData.status === "DRAFT" || validatedData.isPublished === false);
+    const sensitiveChanged = sensitiveNewsChanged(before, validatedData);
+    const protectedEditorialEdit = sensitiveChanged && hasProtectedEditorialReview(before);
 
-    const justPublished = before.status !== "PUBLISHED" && validatedData.status === "PUBLISHED";
-    if (justPublished) {
-      const dataSource = await getDataSource();
-      await dataSource.transaction(async (manager: EntityManager) => {
-        const saved = await newsService.update(id, teamId, validatedData, manager);
-        await notificationOutbox.enqueue(manager, newsPublishedPayload(id, saved.title, teamId));
-      });
-    } else {
-      await newsService.update(id, teamId, validatedData);
+    if (publicationRequested || explicitUnpublish || protectedEditorialEdit) {
+      requirePermission(access, "news.publish");
     }
 
-    revalidatePath("/admin/news");
+    // A scheduled/pending-review News is represented by legacy status=DRAFT.
+    // Editing its protected content must not be mistaken for an ordinary
+    // unpublish: keep the requested schedule and refresh the approval flow.
+    if (protectedEditorialEdit && !publicationRequested) {
+      await newsService.update(id, teamId, {
+        ...validatedData,
+        status: "DRAFT",
+        isPublished: false,
+        publishedAt: null,
+      });
+      const result = await approvalService.requireReapprovalAfterSensitiveEdit(
+        "NEWS",
+        String(id),
+        teamId,
+        access.userId,
+      );
+      revalidateNews(id);
+      return {
+        success: true,
+        message: result?.message ?? "Actualité modifiée selon la politique de revalidation",
+      };
+    }
+
+    if (publicationRequested && (!wasPublished || sensitiveChanged)) {
+      await newsService.update(id, teamId, {
+        ...validatedData,
+        status: "DRAFT",
+        isPublished: false,
+        publishedAt: null,
+        scheduledAt: null,
+      });
+      const result = await approvalService.submitPublication("NEWS", String(id), teamId, access.userId);
+      revalidateNews(id);
+      return { success: true, message: result.message };
+    }
+
+    if (explicitUnpublish && !publicationRequested) {
+      await newsService.update(id, teamId, {
+        ...validatedData,
+        status: "DRAFT",
+        editorialStatus: "DRAFT",
+        isPublished: false,
+        publishedAt: null,
+        scheduledAt: null,
+      });
+      revalidateNews(id);
+      return { success: true, message: "Actualité repassée en brouillon" };
+    }
+
+    await newsService.update(id, teamId, {
+      ...validatedData,
+      ...(wasPublished ? { status: "PUBLISHED", isPublished: true, publishedAt: before.publishedAt } : {}),
+    });
+
+    revalidateNews(id);
     return { success: true, message: "Actualité modifiée avec succès" };
   } catch (error) {
     return {
@@ -144,7 +205,7 @@ export async function deleteNews(id: number) {
     requirePermission(access, "news.delete");
     await newsService.delete(id, access.teamId);
 
-    revalidatePath("/admin/news");
+    revalidateNews(id);
     return { success: true, message: "Actualité supprimée avec succès" };
   } catch (error) {
     return {
@@ -158,10 +219,20 @@ export async function addMediaToNews(newsId: number, mediaItemId: number, displa
   try {
     const access = await getUserAccess();
     requirePermission(access, "news.edit");
-    await newsService.addMediaToNews(newsId, mediaItemId, access.teamId, displayOrder);
+    const before = await newsService.findById(newsId, access.teamId);
+    if (!before) throw new Error("Actualité non trouvée");
 
-    revalidatePath("/admin/news");
-    revalidatePath(`/admin/news/${newsId}/edit`);
+    await newsService.addMediaToNews(newsId, mediaItemId, access.teamId, displayOrder);
+    if (sensitiveEditNeedsApprovalRefresh(before)) {
+      await approvalService.requireReapprovalAfterSensitiveEdit(
+        "NEWS",
+        String(newsId),
+        access.teamId,
+        access.userId,
+      );
+    }
+
+    revalidateNews(newsId);
     return { success: true, message: "Média ajouté à l'actualité avec succès" };
   } catch (error) {
     return {
@@ -175,10 +246,20 @@ export async function removeMediaFromNews(newsId: number, mediaItemId: number) {
   try {
     const access = await getUserAccess();
     requirePermission(access, "news.edit");
-    await newsService.removeMediaFromNews(newsId, mediaItemId, access.teamId);
+    const before = await newsService.findById(newsId, access.teamId);
+    if (!before) throw new Error("Actualité non trouvée");
 
-    revalidatePath("/admin/news");
-    revalidatePath(`/admin/news/${newsId}/edit`);
+    await newsService.removeMediaFromNews(newsId, mediaItemId, access.teamId);
+    if (sensitiveEditNeedsApprovalRefresh(before)) {
+      await approvalService.requireReapprovalAfterSensitiveEdit(
+        "NEWS",
+        String(newsId),
+        access.teamId,
+        access.userId,
+      );
+    }
+
+    revalidateNews(newsId);
     return { success: true, message: "Média retiré de l'actualité avec succès" };
   } catch (error) {
     return {
@@ -190,15 +271,25 @@ export async function removeMediaFromNews(newsId: number, mediaItemId: number) {
 
 export async function updateNewsMediaOrder(
   newsId: number,
-  items: Array<{ mediaItemId: number; displayOrder: number }>
+  items: Array<{ mediaItemId: number; displayOrder: number }>,
 ) {
   try {
     const access = await getUserAccess();
     requirePermission(access, "news.edit");
-    await newsService.updateNewsMediaOrder(newsId, items, access.teamId);
+    const before = await newsService.findById(newsId, access.teamId);
+    if (!before) throw new Error("Actualité non trouvée");
 
-    revalidatePath("/admin/news");
-    revalidatePath(`/admin/news/${newsId}/edit`);
+    await newsService.updateNewsMediaOrder(newsId, items, access.teamId);
+    if (sensitiveEditNeedsApprovalRefresh(before)) {
+      await approvalService.requireReapprovalAfterSensitiveEdit(
+        "NEWS",
+        String(newsId),
+        access.teamId,
+        access.userId,
+      );
+    }
+
+    revalidateNews(newsId);
     return { success: true, message: "Ordre des médias mis à jour avec succès" };
   } catch (error) {
     return {

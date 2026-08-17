@@ -9,6 +9,7 @@ import { Card } from "@/entities/Card";
 import { CardReason } from "@/entities/CardReason";
 import { MatchLineup } from "@/entities/MatchLineup";
 import { Sheet } from "@/entities/Sheet";
+import { SheetAmendment } from "@/entities/SheetAmendment";
 import { Signature } from "@/entities/Signature";
 import { Goal } from "@/entities/Goal";
 import { Injury } from "@/entities/Injury";
@@ -21,6 +22,7 @@ import { PlayerControl } from "@/entities/PlayerControl";
 import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { TeamMembership } from "@/entities/TeamMembership";
 import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
+import { CompetitionMatchProtocol } from "@/entities/CompetitionMatchProtocol";
 import { CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead, SeasonRegulation, SuspensionRead } from "@/entities/Eligibility";
 
 let dataSource: DataSource | null = null;
@@ -41,9 +43,10 @@ export async function getDataSource(): Promise<DataSource> {
       logging: process.env.NODE_ENV === "development",
       entities: [
         Federation, Team, Matchday, Match, Player, Card, CardReason, MatchLineup,
-        Sheet, Signature, Goal, Injury, Substitution, Reservation, MatchOfficial,
+        Sheet, SheetAmendment, Signature, Goal, Injury, Substitution, Reservation, MatchOfficial,
         MatchOfficialAssignment, MatchStaffAssignment, MatchStaffRead, CoachQualificationRead,
         PlayerControl, MatchReopenLog, TeamMembership, RefereeUnavailability,
+        CompetitionMatchProtocol,
         CompetitionRegistrationRead, EligibilityCheckWrite, MedicalEligibilityRead,
         PersonLicenseRead, PlayerContractRead, PlayerRegistrationRead, PlayerTransferRead,
         RegulatoryLegacyConfirmationRead, SeasonRegulation, SuspensionRead,

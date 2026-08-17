@@ -9,26 +9,23 @@ import {
   hashRecoveryCodes,
   verifyTotpCode,
 } from "@/lib/mfa";
+import { getMfaRolePolicy } from "@/lib/mfaPolicy";
 import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
-/**
- * N'exige plus que `code` : le secret vient du challenge d'enrôlement
- * stocké côté serveur par /api/mfa/setup (getPendingMfaSecret), jamais du
- * client — voir avancement.md, "identity" — durcir l'enrôlement MFA. Un CSRF
- * aveugle ne peut déjà pas réussir (l'attaquant ne connaît pas le code TOTP
- * de la victime) ; vérification d'origine ajoutée par cohérence avec le
- * reste de cette revue (voir lib/csrf.ts).
- */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   const session = await getCurrentSession();
-  if (!session || session.role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  }
+  const policy = await getMfaRolePolicy(session.role);
+  if (policy.mode === "DISABLED") {
+    return NextResponse.json({ error: "MFA_ENROLLMENT_DISABLED" }, { status: 403 });
   }
 
   const body = await request.json();
@@ -39,14 +36,9 @@ export async function POST(request: NextRequest) {
 
   const secret = await getPendingMfaSecret(session.id);
   if (!secret) {
-    return NextResponse.json(
-      { error: "MFA_ENROLLMENT_EXPIRED" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "MFA_ENROLLMENT_EXPIRED" }, { status: 400 });
   }
-
-  const valid = await verifyTotpCode(secret, code);
-  if (!valid) {
+  if (!(await verifyTotpCode(secret, code))) {
     return NextResponse.json({ error: "MFA_CODE_INVALID" }, { status: 400 });
   }
   await consumeMfaEnrollmentChallenge(session.id);
@@ -62,17 +54,9 @@ export async function POST(request: NextRequest) {
   user.mfaSecret = secret;
   user.mfaEnabled = true;
   user.mfaRecoveryCodes = await hashRecoveryCodes(recoveryCodes);
-  // Active la MFA = un changement de posture de sécurité du compte : on
-  // invalide les sessions déjà émises (voir User.tokenVersion), mais on
-  // réémet immédiatement une session à jour ci-dessous pour ne pas
-  // déconnecter l'utilisateur qui vient de faire l'action.
   user.tokenVersion += 1;
   await userRepo.save(user);
 
-  console.log(`[MFA] Activée pour le compte ${user.email} (${user.id}).`);
-
-  // Codes affichés une seule fois : jamais renvoyés ni consultables ensuite
-  // (seul leur hash bcrypt est conservé).
   const response = NextResponse.json({ success: true, recoveryCodes });
   await issueSession(response, {
     id: user.id,
@@ -82,7 +66,9 @@ export async function POST(request: NextRequest) {
     teamId: user.teamId ?? null,
     federationId: user.federationId ?? null,
     leagueId: user.leagueId ?? null,
+    playerId: user.playerId ?? null,
     tokenVersion: user.tokenVersion,
+    mfaVerifiedAt: Date.now(),
   });
   return response;
 }

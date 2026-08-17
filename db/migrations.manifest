@@ -44,11 +44,15 @@
 identity/sql/migration_add_token_version_to_user.sql
 identity/sql/migration_add_mfa_to_user.sql
 identity/sql/migration_add_password_reset_tokens.sql
+# Provisionnement par invitation (Player Hub et futurs parcours administrés).
+identity/sql/migration_add_account_invitations.sql
 identity/sql/migration_add_security_events.sql
 identity/sql/migration_add_member_profile_fields.sql
 identity/sql/migration_add_member_role.sql
 identity/sql/migration_add_member_team_affiliations.sql
 identity/sql/migration_add_mfa_enrollment_challenges.sql
+# Policy MFA par rôle : REQUIRED/OPTIONAL/DISABLED + période de grâce.
+identity/sql/migration_add_mfa_role_policies.sql
 # Rôles cibles PLATFORM_SUPERADMIN/FEDERATION_ADMIN/LEAGUE_ADMIN + scope
 # federation_id/league_id sur `User` (migration.md §7-8, Phase 1).
 identity/sql/migration_add_federation_league_scope.sql
@@ -177,6 +181,14 @@ club-hub/sql/migration_add_stock_unavailable_refunds.sql
 club-hub/sql/migration_add_notification_outbox.sql
 # Table propre à club-hub, aucune dépendance (TASK-P0-005, todo.md).
 club-hub/sql/migration_add_processed_webhook_events.sql
+# Gouvernance interne : settings maker/checker et files d'approbation publication.
+club-hub/sql/migration_add_club_governance_approvals.sql
+# Workflow éditorial News avec approbation et publication planifiée serveur.
+club-hub/sql/migration_add_news_editorial_workflow.sql
+# Workflow composition DRAFT→PROPOSED→APPROVED→LOCKED + backfill Coach/Adjoint.
+club-hub/sql/migration_add_lineup_approval_workflow.sql
+# Journal médical append-only + Return-to-Play + clearance/second avis.
+club-hub/sql/migration_add_medical_return_to_play.sql
 # Module central de transfert/homologation (migration.md §19-21, Phase 3).
 # Dépend de Player (migration_unify_players.sql) et teams (déjà en base).
 club-hub/sql/migration_add_player_transfers.sql
@@ -207,12 +219,18 @@ match-operations/sql/migration_add_match_official_assignments.sql
 # P1-004 migration-v2 : staff officiel du match ; HEAD_COACH contrôlé au
 # niveau CAF minimal de la saison avant PRE_MATCH_SIGNED.
 match-operations/sql/migration_add_match_staff_assignments.sql
+# MATCH-001 : protocole opérationnel configurable par saison/édition.
+match-operations/sql/migration_add_competition_match_protocols.sql
+# MATCH-002 : amendement explicite des feuilles post-match signées/clôturées.
+match-operations/sql/migration_add_sheet_amendments.sql
 
 # --- referee-hub (données privées personnelles des officiels) ---
 # Dépend de match_official_assignments et matches pour les rapports.
 referee-hub/sql/migration_add_referee_private_workflows.sql
 # Typage des rapports d'arbitres, commissaires de match et observateurs.
 referee-hub/sql/migration_extend_match_reports_for_officials.sql
+# Acceptation/refus de désignation + demandes de remplacement revues par la Fédération.
+referee-hub/sql/migration_add_assignment_responses_replacements.sql
 
 # --- payments (base payment_api, remboursements multi-provider) ---
 payments/sql/migration_add_refunds.sql

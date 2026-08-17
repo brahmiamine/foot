@@ -85,7 +85,7 @@ export async function createConvocationsAction(
   matchType: "OFFICIAL" | "FRIENDLY",
   playerIds: string[],
   matchId?: string,
-  friendlyMatchId?: number
+  friendlyMatchId?: number,
 ) {
   const user = await requireSession();
   const access = await getUserAccess();
@@ -100,7 +100,7 @@ export async function setFormationAction(
   matchType: "OFFICIAL" | "FRIENDLY",
   formation: string,
   matchId?: string,
-  friendlyMatchId?: number
+  friendlyMatchId?: number,
 ) {
   const user = await requireSession();
   const access = await getUserAccess();
@@ -113,7 +113,7 @@ export async function setLineupEntryAction(
   matchType: "OFFICIAL" | "FRIENDLY",
   playerId: string,
   role: LineupRole,
-  options: { matchId?: string; friendlyMatchId?: number; shirtNumber?: number; isCaptain?: boolean }
+  options: { matchId?: string; friendlyMatchId?: number; shirtNumber?: number; isCaptain?: boolean },
 ) {
   const user = await requireSession();
   const access = await getUserAccess();
@@ -127,6 +127,42 @@ export async function removeLineupEntryAction(id: number) {
   const access = await getUserAccess();
   requirePermission(access, "lineups.edit");
   await staffPortalService.removeLineupEntry(id, user.teamId);
+  revalidatePath("/composition");
+}
+
+export async function proposeLineupAction(
+  matchType: "OFFICIAL" | "FRIENDLY",
+  matchId?: string,
+  friendlyMatchId?: number,
+): Promise<void> {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requirePermission(access, "lineups.propose");
+  await staffPortalService.proposeLineup(user.teamId, matchType, user.id, matchId, friendlyMatchId);
+  revalidatePath("/composition");
+}
+
+export async function approveLineupAction(
+  matchType: "OFFICIAL" | "FRIENDLY",
+  matchId?: string,
+  friendlyMatchId?: number,
+): Promise<void> {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requirePermission(access, "lineups.approve");
+  await staffPortalService.approveLineup(user.teamId, matchType, user.id, matchId, friendlyMatchId);
+  revalidatePath("/composition");
+}
+
+export async function lockLineupAction(
+  matchType: "OFFICIAL" | "FRIENDLY",
+  matchId?: string,
+  friendlyMatchId?: number,
+): Promise<void> {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requirePermission(access, "lineups.approve");
+  await staffPortalService.lockLineup(user.teamId, matchType, user.id, matchId, friendlyMatchId);
   revalidatePath("/composition");
 }
 

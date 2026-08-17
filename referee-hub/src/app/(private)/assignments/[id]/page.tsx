@@ -6,7 +6,13 @@ import { formatDate, roleLabel } from "@/lib/assignmentView";
 import { getLocale, localize } from "@/lib/i18n";
 import { requireRequestSession } from "@/lib/requestSession";
 import { AssignmentService } from "@/services/AssignmentService";
+import { AssignmentWorkflowService } from "@/services/AssignmentWorkflowService";
 import { canWriteMatchReport } from "@/lib/refereeRules";
+import {
+  acceptAssignmentAction,
+  declineAssignmentAction,
+  requestReplacementAction,
+} from "../actions";
 
 export default async function AssignmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [session, locale, routeParams] = await Promise.all([requireRequestSession(), getLocale(), params]);
@@ -16,7 +22,12 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
   const service = new AssignmentService();
   const assignment = await service.getMine(session.id, assignmentId);
   if (!assignment?.match) notFound();
-  const team = await service.listMatchTeam(assignment.matchId);
+  const [team, workflow] = await Promise.all([
+    service.listMatchTeam(assignment.matchId),
+    assignment.status === "ACTIVE"
+      ? new AssignmentWorkflowService().getState(session.id, assignmentId)
+      : Promise.resolve(null),
+  ]);
   const match = assignment.match;
   const home = localize(locale, match.homeTeam?.name, match.homeTeam?.nameAr);
   const away = localize(locale, match.awayTeam?.name, match.awayTeam?.nameAr);
@@ -25,6 +36,14 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
   const league = localize(locale, season?.league?.nom ?? season?.nom, season?.league?.nom_ar);
   const matchOperationsUrl = `${(process.env.MATCH_OPERATIONS_URL || "http://localhost:3001").replace(/\/$/, "")}/${match.id}`;
 
+  const responseLabel = workflow?.response.status === "ACCEPTED"
+    ? (locale === "ar" ? "مقبول" : "Acceptée")
+    : workflow?.response.status === "DECLINED"
+      ? (locale === "ar" ? "مرفوض" : "Refusée")
+      : workflow?.acceptanceOverdue
+        ? (locale === "ar" ? "انتهت مهلة القبول" : "Délai d'acceptation dépassé")
+        : (locale === "ar" ? "في انتظار الرد" : "En attente de réponse");
+
   return (
     <>
       <Link href="/assignments" className="back-link"><FiArrowLeft />{locale === "ar" ? "العودة إلى التعيينات" : "Retour aux désignations"}</Link>
@@ -32,6 +51,7 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
         <div className="detail-status-row">
           <span className={`role-pill role-${assignment.role.toLowerCase()}`}>{roleLabel(assignment.role, locale)}</span>
           <span className={`status-dot ${assignment.status.toLowerCase()}`}>{assignment.status === "ACTIVE" ? (locale === "ar" ? "تعيين نشط" : "Désignation active") : (locale === "ar" ? "تعيين ملغى" : "Désignation révoquée")}</span>
+          {workflow && <span className="status-dot">{responseLabel}</span>}
         </div>
         <div className="detail-fixture">
           <div><TeamBadge name={home} logoUrl={match.homeTeam?.logoUrl} /><h2>{home}</h2></div>
@@ -45,6 +65,53 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
           <div><FiShield /><span>{locale === "ar" ? "الجولة" : "Journée"}</span><strong>{locale === "ar" ? match.matchday?.nameAr || (match.matchday?.number ? `الجولة ${match.matchday.number}` : "—") : match.matchday?.nameFr || (match.matchday?.number ? `Journée ${match.matchday.number}` : "—")}</strong></div>
         </div>
       </div>
+
+      {workflow && (
+        <section className="panel-card" style={{ marginBottom: "1rem" }}>
+          <div className="panel-title"><FiShield /><div><span>{locale === "ar" ? "سير التعيين" : "Workflow désignation"}</span><h2>{responseLabel}</h2></div></div>
+          {workflow.response.status === "PENDING_ACCEPTANCE" && (
+            <>
+              <p>
+                {locale === "ar" ? "آخر أجل للقبول: " : "Deadline d'acceptation : "}
+                <strong>{workflow.response.responseDeadline.toLocaleString(locale === "ar" ? "ar-TN" : "fr-FR")}</strong>
+              </p>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
+                {!workflow.acceptanceOverdue && (
+                  <form action={acceptAssignmentAction.bind(null, assignment.id)}>
+                    <button type="submit" className="primary-action">{locale === "ar" ? "قبول التعيين" : "Accepter la désignation"}</button>
+                  </form>
+                )}
+                <form action={declineAssignmentAction.bind(null, assignment.id)} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input name="reason" minLength={5} maxLength={500} required placeholder={locale === "ar" ? "سبب الرفض" : "Motif du refus"} />
+                  <button type="submit" className="secondary-action">{locale === "ar" ? "رفض" : "Refuser"}</button>
+                </form>
+              </div>
+            </>
+          )}
+
+          {workflow.response.status === "DECLINED" && workflow.response.declineReason && (
+            <p><strong>{locale === "ar" ? "سبب الرفض: " : "Motif du refus : "}</strong>{workflow.response.declineReason}</p>
+          )}
+
+          {workflow.response.status === "ACCEPTED" && !workflow.replacementRequest && (
+            <form action={requestReplacementAction.bind(null, assignment.id)} style={{ display: "grid", gap: 8, maxWidth: 620 }}>
+              <label>
+                {locale === "ar" ? "طلب تعويض" : "Demander un remplacement"}
+                <textarea name="reason" minLength={5} maxLength={500} required rows={3} placeholder={locale === "ar" ? "اشرح سبب طلب التعويض" : "Expliquez le motif de la demande"} />
+              </label>
+              <button type="submit" className="secondary-action">{locale === "ar" ? "إرسال الطلب" : "Envoyer la demande"}</button>
+            </form>
+          )}
+
+          {workflow.replacementRequest && (
+            <div className="revoked-notice">
+              {locale === "ar" ? "طلب التعويض: " : "Demande de remplacement : "}
+              <strong>{workflow.replacementRequest.status}</strong>
+              {workflow.replacementRequest.reviewNote ? ` — ${workflow.replacementRequest.reviewNote}` : ""}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="detail-columns">
         <section className="panel-card">
@@ -72,12 +139,14 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
         <section className="panel-card action-panel">
           <div className="panel-title"><FiShield /><div><span>Match Operations</span><h2>{locale === "ar" ? "ورقة المباراة" : "Feuille de match"}</h2></div></div>
           <p>{locale === "ar" ? "يتم التحقق من تعيينك مرة أخرى من طرف Match Operations قبل فتح بيانات المباراة." : "Votre affectation est de nouveau contrôlée par Match Operations avant l'ouverture des données du match."}</p>
-          {assignment.status === "ACTIVE" ? (
+          {assignment.status === "ACTIVE" && workflow?.response.status === "ACCEPTED" ? (
             <a href={matchOperationsUrl} className="primary-action">{locale === "ar" ? "فتح ورقة المباراة" : "Ouvrir la feuille de match"}<FiExternalLink /></a>
+          ) : assignment.status === "ACTIVE" ? (
+            <div className="revoked-notice">{locale === "ar" ? "يجب قبول التعيين قبل فتح ورقة المباراة." : "Vous devez accepter la désignation avant d'ouvrir la feuille de match."}</div>
           ) : (
             <div className="revoked-notice">{locale === "ar" ? "لم يعد هذا التعيين يمنح حق الدخول إلى المباراة." : "Cette désignation ne donne plus accès au match."}</div>
           )}
-          {canWriteMatchReport(assignment.role, assignment.status, match.status) && (
+          {workflow?.response.status === "ACCEPTED" && canWriteMatchReport(assignment.role, assignment.status, match.status) && (
             <Link href={`/reports/${assignment.id}`} className="secondary-action report-shortcut">
               {locale === "ar" ? "كتابة التقرير التكميلي" : "Rédiger le rapport complémentaire"}
             </Link>

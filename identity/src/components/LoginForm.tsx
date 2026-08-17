@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorKey } from "@/i18n/apiErrors";
+import MfaRequiredEnrollmentForm from "./MfaRequiredEnrollmentForm";
 
 interface TeamOption {
   id: string;
@@ -23,6 +24,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaEnrollmentToken, setMfaEnrollmentToken] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
 
   useEffect(() => {
@@ -64,6 +66,19 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         setMfaToken(payload.mfaToken);
         return;
       }
+      if (payload.mfaEnrollmentRequired) {
+        setMfaEnrollmentToken(payload.mfaToken);
+        return;
+      }
+
+      // Une grâce REQUIRED est volontairement une période de migration : la
+      // session reste valide, mais l'utilisateur est orienté vers l'enrôlement
+      // avant de poursuivre vers l'application demandée.
+      if (payload.mfaEnrollmentGrace) {
+        const target = encodeURIComponent(payload.redirect || redirectTo || "/");
+        window.location.href = `/account/mfa?redirect=${target}`;
+        return;
+      }
 
       window.location.href = payload.redirect || "/";
     } catch (err) {
@@ -96,6 +111,19 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (mfaEnrollmentToken) {
+    return (
+      <MfaRequiredEnrollmentForm
+        mfaToken={mfaEnrollmentToken}
+        redirectTo={redirectTo}
+        onBack={() => {
+          setMfaEnrollmentToken(null);
+          setError(null);
+        }}
+      />
+    );
   }
 
   if (mfaToken) {
@@ -135,57 +163,15 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         </button>
 
         <style jsx>{`
-          .sso-form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-          }
-          .sso-field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-          }
-          .sso-field label {
-            font-size: 0.8125rem;
-            color: var(--sso-muted);
-          }
-          .sso-field input {
-            background: var(--sso-bg);
-            border: 1px solid var(--sso-border);
-            border-radius: 8px;
-            padding: 10px 12px;
-            color: var(--sso-text);
-            font-size: 0.9375rem;
-          }
-          .sso-error {
-            color: var(--sso-error);
-            font-size: 0.875rem;
-            margin: 0;
-          }
-          .sso-submit {
-            background: var(--sso-accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-          .sso-submit:hover:not(:disabled) {
-            background: var(--sso-accent-hover);
-          }
-          .sso-submit:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-          }
-          .sso-switch {
-            background: none;
-            border: none;
-            color: var(--sso-muted);
-            font-size: 0.8125rem;
-            cursor: pointer;
-            text-decoration: underline;
-          }
+          .sso-form { display: flex; flex-direction: column; gap: 16px; }
+          .sso-field { display: flex; flex-direction: column; gap: 6px; }
+          .sso-field label { font-size: 0.8125rem; color: var(--sso-muted); }
+          .sso-field input { background: var(--sso-bg); border: 1px solid var(--sso-border); border-radius: 8px; padding: 10px 12px; color: var(--sso-text); font-size: 0.9375rem; }
+          .sso-error { color: var(--sso-error); font-size: 0.875rem; margin: 0; }
+          .sso-submit { background: var(--sso-accent); color: white; border: none; border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; }
+          .sso-submit:hover:not(:disabled) { background: var(--sso-accent-hover); }
+          .sso-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+          .sso-switch { background: none; border: none; color: var(--sso-muted); font-size: 0.8125rem; cursor: pointer; text-decoration: underline; }
         `}</style>
       </form>
     );
@@ -201,19 +187,10 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
       {mode === "club" && (
         <div className="sso-field">
           <label htmlFor="teamId">{t("auth.clubSelection.label")}</label>
-          <select
-            id="teamId"
-            value={selectedTeamId}
-            onChange={(event) => setSelectedTeamId(event.target.value)}
-            required
-          >
-            <option value="">
-              {loadingTeams ? t("common.loading") : t("auth.clubSelection.select")}
-            </option>
+          <select id="teamId" value={selectedTeamId} onChange={(event) => setSelectedTeamId(event.target.value)} required>
+            <option value="">{loadingTeams ? t("common.loading") : t("auth.clubSelection.select")}</option>
             {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {locale === "ar" && team.nomAr ? team.nomAr : team.nom}
-              </option>
+              <option key={team.id} value={team.id}>{locale === "ar" && team.nomAr ? team.nomAr : team.nom}</option>
             ))}
           </select>
         </div>
@@ -221,26 +198,12 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
 
       <div className="sso-field">
         <label htmlFor="email">{t("common.email")}</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          autoComplete="email"
-          required
-        />
+        <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
       </div>
 
       <div className="sso-field">
         <label htmlFor="password">{t("auth.password.label")}</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
-          required
-        />
+        <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
       </div>
 
       {error && <p className="sso-error">{error}</p>}
@@ -249,90 +212,22 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         {loading ? t("auth.login.pending") : t("auth.login.submit")}
       </button>
 
-      <Link href="/forgot-password" className="sso-switch sso-switch-link">
-        {t("auth.password.forgot")}
-      </Link>
+      <Link href="/forgot-password" className="sso-switch sso-switch-link">{t("auth.password.forgot")}</Link>
 
       <style jsx>{`
-        .sso-form {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .sso-field {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .sso-mode-selector {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 4px;
-          padding: 4px;
-          border: 1px solid var(--sso-border);
-          border-radius: 9px;
-          background: var(--sso-bg);
-        }
-        .sso-mode-selector button {
-          border: 0;
-          border-radius: 6px;
-          padding: 8px 4px;
-          background: transparent;
-          color: var(--sso-muted);
-          font-size: 0.72rem;
-          cursor: pointer;
-        }
-        .sso-mode-selector button.active {
-          background: var(--sso-card);
-          color: var(--sso-accent);
-          font-weight: 700;
-          box-shadow: 0 2px 7px rgba(0, 0, 0, 0.08);
-        }
-        .sso-field label {
-          font-size: 0.8125rem;
-          color: var(--sso-muted);
-        }
-        .sso-field input,
-        .sso-field select {
-          background: var(--sso-bg);
-          border: 1px solid var(--sso-border);
-          border-radius: 8px;
-          padding: 10px 12px;
-          color: var(--sso-text);
-          font-size: 0.9375rem;
-        }
-        .sso-error {
-          color: var(--sso-error);
-          font-size: 0.875rem;
-          margin: 0;
-        }
-        .sso-submit {
-          background: var(--sso-accent);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .sso-submit:hover:not(:disabled) {
-          background: var(--sso-accent-hover);
-        }
-        .sso-submit:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        .sso-switch-link {
-          width: fit-content;
-        }
-        .sso-switch {
-          background: none;
-          border: none;
-          color: var(--sso-muted);
-          font-size: 0.8125rem;
-          cursor: pointer;
-          text-decoration: underline;
-        }
+        .sso-form { display: flex; flex-direction: column; gap: 16px; }
+        .sso-field { display: flex; flex-direction: column; gap: 6px; }
+        .sso-mode-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border: 1px solid var(--sso-border); border-radius: 9px; background: var(--sso-bg); }
+        .sso-mode-selector button { border: 0; border-radius: 6px; padding: 8px 4px; background: transparent; color: var(--sso-muted); font-size: 0.72rem; cursor: pointer; }
+        .sso-mode-selector button.active { background: var(--sso-card); color: var(--sso-accent); font-weight: 700; box-shadow: 0 2px 7px rgba(0, 0, 0, 0.08); }
+        .sso-field label { font-size: 0.8125rem; color: var(--sso-muted); }
+        .sso-field input, .sso-field select { background: var(--sso-bg); border: 1px solid var(--sso-border); border-radius: 8px; padding: 10px 12px; color: var(--sso-text); font-size: 0.9375rem; }
+        .sso-error { color: var(--sso-error); font-size: 0.875rem; margin: 0; }
+        .sso-submit { background: var(--sso-accent); color: white; border: none; border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; }
+        .sso-submit:hover:not(:disabled) { background: var(--sso-accent-hover); }
+        .sso-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .sso-switch-link { width: fit-content; }
+        .sso-switch { background: none; border: none; color: var(--sso-muted); font-size: 0.8125rem; cursor: pointer; text-decoration: underline; }
       `}</style>
     </form>
   );

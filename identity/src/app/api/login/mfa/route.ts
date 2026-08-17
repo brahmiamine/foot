@@ -12,7 +12,7 @@ import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
-/** Même raison que /api/login : formulaire rendu uniquement par `sso`. */
+/** Same-origin second factor verification after a valid password. */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
@@ -20,36 +20,27 @@ export async function POST(request: NextRequest) {
 
   try {
     const clientIP = getClientIP(request);
-
     if (isLoginRateLimited(clientIP)) {
       logSecurityEvent({ type: "LOGIN_RATE_LIMITED", ip: clientIP });
-      return NextResponse.json(
-        { error: "RATE_LIMITED" },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "RATE_LIMITED" }, { status: 429 });
     }
 
     const body = await request.json();
     const mfaToken = typeof body.mfaToken === "string" ? body.mfaToken : "";
     const code = typeof body.code === "string" ? body.code.trim() : "";
     const redirect = sanitizeRedirect(typeof body.redirect === "string" ? body.redirect : null);
-
     if (!mfaToken || !code) {
       return NextResponse.json({ error: "MFA_CODE_REQUIRED" }, { status: 400 });
     }
 
     const userId = await verifyMfaPendingToken(mfaToken);
     if (!userId) {
-      return NextResponse.json(
-        { error: "MFA_SESSION_EXPIRED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "MFA_SESSION_EXPIRED" }, { status: 401 });
     }
 
     const dataSource = await getDataSource();
     const userRepo = dataSource.getRepository(User);
     const user = await userRepo.findOne({ where: { id: userId } });
-
     if (!user || !user.isActive || !user.mfaEnabled || !user.mfaSecret) {
       recordFailedLoginAttempt(clientIP);
       logSecurityEvent({ type: "MFA_FAILED", userId: user?.id, ip: clientIP });
@@ -57,7 +48,6 @@ export async function POST(request: NextRequest) {
     }
 
     let valid = await verifyTotpCode(user.mfaSecret, code);
-
     if (!valid) {
       const recovery = await consumeRecoveryCode(user.mfaRecoveryCodes, code);
       if (recovery.valid) {
@@ -74,7 +64,6 @@ export async function POST(request: NextRequest) {
     }
 
     clearFailedLoginAttempts(clientIP);
-
     const ssoUser: SsoUser = {
       id: user.id,
       email: user.email,
@@ -83,7 +72,9 @@ export async function POST(request: NextRequest) {
       teamId: user.teamId ?? null,
       federationId: user.federationId ?? null,
       leagueId: user.leagueId ?? null,
+      playerId: user.playerId ?? null,
       tokenVersion: user.tokenVersion,
+      mfaVerifiedAt: Date.now(),
     };
 
     const response = NextResponse.json({ success: true, redirect: redirect ?? "/" });

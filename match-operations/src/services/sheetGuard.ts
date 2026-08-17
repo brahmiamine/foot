@@ -1,16 +1,9 @@
+import { In } from "typeorm";
 import { getDataSource } from "@/lib/db";
 import { Sheet } from "@/entities/Sheet";
 import { Match } from "@/entities/Match";
+import { SheetAmendment } from "@/entities/SheetAmendment";
 
-/**
- * Une feuille CLOSED ne doit plus recevoir d'écriture live (carton/but/
- * remplacement/blessure) depuis match-operations — jusqu'ici seul
- * post-match/actions.ts vérifiait explicitement le statut avant d'écrire ;
- * les services de saisie live n'avaient aucun garde-fou (voir avancement.md).
- * Une feuille rouverte par federation-hub (voir SheetService.updateStatus,
- * appelé depuis adminMatches.reopenMatchAdmin côté federation-hub) redevient
- * IN_PROGRESS et donc de nouveau éditable via ce même garde-fou.
- */
 export class SheetClosedError extends Error {
   constructor() {
     super("Cette feuille de match est clôturée : plus aucune saisie n'est possible.");
@@ -18,16 +11,20 @@ export class SheetClosedError extends Error {
   }
 }
 
-/**
- * TASK-P0-003 (todo.md) : un match annulé (`matches.status = 'CANCELLED'`,
- * écrit par federation-hub, voir cancelMatchAdmin) ne doit plus recevoir de
- * saisie live non plus — sans lien direct avec le statut CLOSED de la
- * feuille (une feuille peut rester DRAFT/PRE_MATCH_SIGNED au moment de
- * l'annulation, si l'annulation intervient avant le coup d'envoi).
- * `matches` est une table partagée lue directement (même base, voir
- * db/OWNERSHIP.md) : aucun appel réseau vers federation-hub n'est nécessaire,
- * match-operations voit l'annulation dès qu'elle est écrite.
- */
+export class SheetSignedAmendmentRequiredError extends Error {
+  constructor() {
+    super("Cette feuille est signée : ouvrez un amendement avant toute correction.");
+    this.name = "SheetSignedAmendmentRequiredError";
+  }
+}
+
+export class SheetAmendmentApprovalRequiredError extends Error {
+  constructor() {
+    super("Cette demande d'amendement doit être approuvée par la Fédération avant correction.");
+    this.name = "SheetAmendmentApprovalRequiredError";
+  }
+}
+
 export class MatchCancelledError extends Error {
   constructor() {
     super("Ce match a été annulé : plus aucune saisie n'est possible.");
@@ -35,15 +32,38 @@ export class MatchCancelledError extends Error {
   }
 }
 
-export async function assertSheetEditable(sheetId: number): Promise<void> {
+export interface SheetEditOptions {
+  /**
+   * Les écritures live ordinaires restent interdites après signature. Seules
+   * les opérations de correction/annulation auditées peuvent utiliser un
+   * amendement autorisé (`NOT_REQUIRED` ou `APPROVED`).
+   */
+  allowSignedAmendment?: boolean;
+}
+
+export async function assertSheetEditable(sheetId: number, options: SheetEditOptions = {}): Promise<void> {
   const dataSource = await getDataSource();
   const sheet = await dataSource.getRepository(Sheet).findOne({ where: { id: sheetId } });
   if (!sheet) return;
-  if (sheet.status === "CLOSED") {
-    throw new SheetClosedError();
-  }
+
   const match = await dataSource.getRepository(Match).findOne({ where: { id: sheet.matchId } });
-  if (match?.status === "CANCELLED") {
-    throw new MatchCancelledError();
+  if (match?.status === "CANCELLED") throw new MatchCancelledError();
+
+  if (sheet.status === "POST_MATCH_SIGNED" || sheet.status === "CLOSED") {
+    if (options.allowSignedAmendment) {
+      const amendments = await dataSource.getRepository(SheetAmendment).find({
+        where: { sheetId, status: In(["AMENDMENT_REQUESTED", "AMENDED"]) },
+        order: { requestedAt: "DESC" },
+      });
+      const executable = amendments.find(
+        (amendment) => amendment.approvalStatus === "NOT_REQUIRED" || amendment.approvalStatus === "APPROVED",
+      );
+      if (executable) return;
+      if (amendments.some((amendment) => amendment.approvalStatus === "PENDING")) {
+        throw new SheetAmendmentApprovalRequiredError();
+      }
+    }
+    if (sheet.status === "CLOSED" && !options.allowSignedAmendment) throw new SheetClosedError();
+    throw new SheetSignedAmendmentRequiredError();
   }
 }

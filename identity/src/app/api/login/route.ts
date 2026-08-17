@@ -5,6 +5,7 @@ import { sanitizeRedirect } from "@/lib/redirect";
 import { getClientIP } from "@/lib/getClientIP";
 import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt } from "@/lib/loginRateLimit";
 import { isMfaEnabled } from "@/lib/mfa";
+import { getMfaRolePolicy } from "@/lib/mfaPolicy";
 import { signMfaPendingToken } from "@/lib/mfaPendingToken";
 import { logSecurityEvent } from "@/lib/securityLog";
 import { isTrustedOrigin } from "@/lib/csrf";
@@ -12,11 +13,9 @@ import { isTrustedOrigin } from "@/lib/csrf";
 export const runtime = "nodejs";
 
 /**
- * Le formulaire de login n'est rendu que par `sso` lui-même (les 5 autres
- * apps redirigent le navigateur vers la page hébergée, jamais un fetch
- * cross-origin direct) — vérifier l'origine ferme le "login CSRF" (un site
- * tiers forçant la connexion d'une victime à un compte choisi par
- * l'attaquant) sans casser aucun flux légitime.
+ * Le formulaire de login n'est rendu que par Identity lui-même. Après mot
+ * de passe valide, la policy MFA du rôle est appliquée côté serveur avant
+ * toute émission de session.
  */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -28,10 +27,7 @@ export async function POST(request: NextRequest) {
 
     if (isLoginRateLimited(clientIP)) {
       logSecurityEvent({ type: "LOGIN_RATE_LIMITED", ip: clientIP });
-      return NextResponse.json(
-        { error: "RATE_LIMITED" },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "RATE_LIMITED" }, { status: 429 });
     }
 
     const body = await request.json();
@@ -52,17 +48,38 @@ export async function POST(request: NextRequest) {
     }
 
     clearFailedLoginAttempts(clientIP);
+    const [mfaEnabled, mfaPolicy] = await Promise.all([
+      isMfaEnabled(user.id),
+      getMfaRolePolicy(user.role),
+    ]);
 
-    // Mot de passe correct, mais MFA activée sur ce compte (voir
-    // /account/mfa) : pas de session tant que le code TOTP n'est pas
-    // vérifié par /api/login/mfa. Le jeton renvoyé ici n'est jamais posé en
-    // cookie (voir src/lib/mfaPendingToken.ts).
-    if (await isMfaEnabled(user.id)) {
-      const mfaToken = await signMfaPendingToken(user.id);
+    // Une MFA déjà activée n'est jamais silencieusement contournée, même si
+    // la policy du rôle est ensuite rendue OPTIONAL/DISABLED.
+    if (mfaEnabled) {
+      const mfaToken = await signMfaPendingToken(user.id, "VERIFY");
       return NextResponse.json({ mfaRequired: true, mfaToken });
     }
 
-    const response = NextResponse.json({ success: true, redirect: redirect ?? "/" });
+    // Après la période de grâce, un rôle REQUIRED ne reçoit aucune session
+    // tant que l'enrôlement TOTP n'est pas terminé.
+    if (mfaPolicy.requirementEnforced) {
+      const mfaToken = await signMfaPendingToken(user.id, "ENROLL");
+      return NextResponse.json({
+        mfaEnrollmentRequired: true,
+        mfaToken,
+        policy: { mode: mfaPolicy.mode, gracePeriodDays: mfaPolicy.gracePeriodDays },
+      });
+    }
+
+    // Une période de grâce explicitement configurée autorise temporairement
+    // la session mais demande au frontend d'orienter l'utilisateur vers
+    // l'enrôlement avant la date de fin.
+    const response = NextResponse.json({
+      success: true,
+      redirect: redirect ?? "/",
+      mfaEnrollmentGrace: mfaPolicy.mode === "REQUIRED",
+      mfaGraceEndsAt: mfaPolicy.graceEndsAt?.toISOString() ?? null,
+    });
     await issueSession(response, user);
     return response;
   } catch (error) {

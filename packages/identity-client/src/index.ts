@@ -1,11 +1,14 @@
 import type {
   CreateIdentityAccountInput,
+  IdentityAccountInvitationResult,
   IdentityAccountProvisioningPort,
   IdentityDirectoryPort,
+  IdentityPlayerInvitationPort,
   IdentityProfilePort,
   IdentityUserProfile,
   IdentityUserRecord,
   IdentityUserSearch,
+  InvitePlayerAccountInput,
   UpdateIdentityAccountInput,
 } from '../../domain-contracts/src/identity'
 
@@ -30,7 +33,7 @@ function normalizeBaseUrl(value: string): string {
 }
 
 export class IdentityHttpClient
-  implements IdentityDirectoryPort, IdentityAccountProvisioningPort, IdentityProfilePort
+  implements IdentityDirectoryPort, IdentityAccountProvisioningPort, IdentityProfilePort, IdentityPlayerInvitationPort
 {
   private readonly baseUrl: string
   private readonly timeoutMs: number
@@ -124,6 +127,13 @@ export class IdentityHttpClient
   async deleteUser(id: string): Promise<void> {
     await this.call<unknown>(`/api/internal/users/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    })
+  }
+
+  invitePlayerAccount(input: InvitePlayerAccountInput): Promise<IdentityAccountInvitationResult> {
+    return this.call<IdentityAccountInvitationResult>('/api/internal/users/invite-player', {
+      method: 'POST',
+      body: JSON.stringify(input),
     })
   }
 }

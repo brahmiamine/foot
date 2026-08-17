@@ -21,9 +21,6 @@ export class MatchLineupService {
       : { teamId, matchType: "FRIENDLY" as const, friendlyMatchId: ref.friendlyMatchId ?? undefined };
   }
 
-  /**
-   * Composition de l'équipe du club connecté pour un match donné.
-   */
   async findByMatch(teamId: string, ref: MatchRef): Promise<MatchLineup[]> {
     const repository = await this.getRepository();
     return repository.find({
@@ -33,22 +30,15 @@ export class MatchLineupService {
     });
   }
 
-  /**
-   * Remplace intégralement la composition d'un match pour l'équipe du club
-   * connecté (supprime les entrées existantes puis recrée à partir de la
-   * liste fournie — plus simple et robuste qu'un diff incrémental).
-   * Refuse l'écriture si le match est verrouillé (terminé/annulé).
-   */
+  /** Remplace intégralement le brouillon de composition pour un match. */
   async saveLineup(teamId: string, ref: MatchRef, entries: LineupEntryInput[]): Promise<MatchLineup[]> {
     const formationService = new MatchFormationService();
     if (await formationService.isEffectivelyLocked(teamId, ref)) {
-      throw new Error("Ce match est terminé : la composition ne peut plus être modifiée");
+      throw new Error("La composition approuvée ou verrouillée ne peut plus être modifiée");
     }
 
     const repository = await this.getRepository();
     await repository.delete(this.whereForMatch(teamId, ref));
-
-    if (entries.length === 0) return [];
 
     const rows = entries.map((entry) =>
       repository.create({
@@ -63,17 +53,17 @@ export class MatchLineupService {
         posX: entry.posX ?? null,
         posY: entry.posY ?? null,
         isCaptain: entry.isCaptain ?? false,
-      })
+      }),
     );
 
-    return repository.save(rows);
+    const saved = rows.length === 0 ? [] : await repository.save(rows);
+    await formationService.markDraftAfterEdit(teamId, ref);
+    return saved;
   }
 
   /**
    * Composition des deux équipes pour un match officiel, tous clubs
-   * confondus — utilisée par le projet "match-operations" (feuille de match), pas
-   * de scoping par team_id ici puisque les deux équipes d'un même match
-   * peuvent appartenir à des clubs différents.
+   * confondus — utilisée par match-operations.
    */
   async findAllForMatch(matchId: string): Promise<MatchLineup[]> {
     const repository = await this.getRepository();

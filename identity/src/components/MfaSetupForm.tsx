@@ -7,17 +7,21 @@ import { apiErrorKey } from "@/i18n/apiErrors";
 
 type Step = "idle" | "enrolling" | "recovery-codes" | "enabled";
 
-export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boolean }) {
+export default function MfaSetupForm({
+  initialEnabled,
+  disableAllowed = true,
+}: {
+  initialEnabled: boolean;
+  disableAllowed?: boolean;
+}) {
   const { t } = useI18n();
   const [step, setStep] = useState<Step>(initialEnabled ? "enabled" : "idle");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
   const [secret, setSecret] = useState("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
   const [confirmCode, setConfirmCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
-
   const [disablePassword, setDisablePassword] = useState("");
 
   async function startEnrollment() {
@@ -64,6 +68,7 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
 
   async function handleDisable(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!disableAllowed) return;
     setError(null);
     setLoading(true);
     try {
@@ -88,41 +93,16 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
   if (step === "recovery-codes") {
     return (
       <div className="sso-form">
-        <p className="sso-success">
-          {t("auth.mfa.recovery")}
-        </p>
+        <p className="sso-success">{t("auth.mfa.recovery")}</p>
         <pre className="sso-codes">{recoveryCodes.join("\n")}</pre>
         <button type="button" className="sso-submit" onClick={() => setStep("enabled")}>
           {t("auth.mfa.savedCodes")}
         </button>
         <style jsx>{`
-          .sso-form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-          }
-          .sso-success {
-            color: var(--sso-text);
-            font-size: 0.9375rem;
-            margin: 0;
-          }
-          .sso-codes {
-            background: var(--sso-bg);
-            border: 1px solid var(--sso-border);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 0.875rem;
-            line-height: 1.6;
-          }
-          .sso-submit {
-            background: var(--sso-accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px;
-            font-weight: 600;
-            cursor: pointer;
-          }
+          .sso-form { display: flex; flex-direction: column; gap: 16px; }
+          .sso-success { color: var(--sso-text); font-size: 0.9375rem; margin: 0; }
+          .sso-codes { background: var(--sso-bg); border: 1px solid var(--sso-border); border-radius: 8px; padding: 12px; font-size: 0.875rem; line-height: 1.6; }
+          .sso-submit { background: var(--sso-accent); color: white; border: none; border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; }
         `}</style>
       </div>
     );
@@ -131,165 +111,60 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
   if (step === "enrolling") {
     return (
       <form onSubmit={handleConfirm} className="sso-form">
-        <p className="sso-muted">
-          {t("auth.mfa.scan")}
-        </p>
+        <p className="sso-muted">{t("auth.mfa.scan")}</p>
         {qrCodeDataUrl && (
           <Image src={qrCodeDataUrl} alt={t("auth.mfa.qrAlt")} width={200} height={200} unoptimized />
         )}
         <p className="sso-secret">{t("auth.mfa.manualSecret", { secret })}</p>
-
         <div className="sso-field">
           <label htmlFor="confirmCode">{t("auth.mfa.code.label")}</label>
-          <input
-            id="confirmCode"
-            type="text"
-            inputMode="numeric"
-            value={confirmCode}
-            onChange={(event) => setConfirmCode(event.target.value)}
-            required
-          />
+          <input id="confirmCode" type="text" inputMode="numeric" value={confirmCode} onChange={(event) => setConfirmCode(event.target.value)} required />
         </div>
-
         {error && <p className="sso-error">{error}</p>}
-
         <button type="submit" disabled={loading} className="sso-submit">
           {loading ? t("auth.mfa.verifying") : t("auth.mfa.confirm")}
         </button>
-        <button type="button" className="sso-switch" onClick={() => setStep("idle")}>
-          {t("common.cancel")}
-        </button>
-
+        <button type="button" className="sso-switch" onClick={() => setStep("idle")}>{t("common.cancel")}</button>
         <style jsx>{`
-          .sso-form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-          }
-          .sso-muted {
-            color: var(--sso-muted);
-            font-size: 0.875rem;
-            margin: 0;
-          }
-          .sso-secret {
-            font-family: monospace;
-            font-size: 0.8125rem;
-            color: var(--sso-muted);
-            word-break: break-all;
-          }
-          .sso-field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-          }
-          .sso-field label {
-            font-size: 0.8125rem;
-            color: var(--sso-muted);
-          }
-          .sso-field input {
-            background: var(--sso-bg);
-            border: 1px solid var(--sso-border);
-            border-radius: 8px;
-            padding: 10px 12px;
-            color: var(--sso-text);
-            font-size: 0.9375rem;
-          }
-          .sso-error {
-            color: var(--sso-error);
-            font-size: 0.875rem;
-            margin: 0;
-          }
-          .sso-submit {
-            background: var(--sso-accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-          .sso-submit:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-          }
-          .sso-switch {
-            background: none;
-            border: none;
-            color: var(--sso-muted);
-            font-size: 0.8125rem;
-            cursor: pointer;
-            text-decoration: underline;
-          }
+          .sso-form { display: flex; flex-direction: column; gap: 16px; }
+          .sso-muted { color: var(--sso-muted); font-size: 0.875rem; margin: 0; }
+          .sso-secret { font-family: monospace; font-size: 0.8125rem; color: var(--sso-muted); word-break: break-all; }
+          .sso-field { display: flex; flex-direction: column; gap: 6px; }
+          .sso-field label { font-size: 0.8125rem; color: var(--sso-muted); }
+          .sso-field input { background: var(--sso-bg); border: 1px solid var(--sso-border); border-radius: 8px; padding: 10px 12px; color: var(--sso-text); font-size: 0.9375rem; }
+          .sso-error { color: var(--sso-error); font-size: 0.875rem; margin: 0; }
+          .sso-submit { background: var(--sso-accent); color: white; border: none; border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; }
+          .sso-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+          .sso-switch { background: none; border: none; color: var(--sso-muted); font-size: 0.8125rem; cursor: pointer; text-decoration: underline; }
         `}</style>
       </form>
     );
   }
 
   if (step === "enabled") {
+    if (!disableAllowed) {
+      return <p className="sso-success">{t("auth.mfa.enabled")}</p>;
+    }
     return (
       <form onSubmit={handleDisable} className="sso-form">
         <p className="sso-success">{t("auth.mfa.enabled")}</p>
         <div className="sso-field">
           <label htmlFor="disablePassword">{t("auth.mfa.disablePassword")}</label>
-          <input
-            id="disablePassword"
-            type="password"
-            value={disablePassword}
-            onChange={(event) => setDisablePassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
+          <input id="disablePassword" type="password" value={disablePassword} onChange={(event) => setDisablePassword(event.target.value)} autoComplete="current-password" required />
         </div>
         {error && <p className="sso-error">{error}</p>}
-        <button type="submit" disabled={loading} className="sso-submit sso-submit-danger">
+        <button type="submit" disabled={loading} className="sso-submit-danger">
           {loading ? t("auth.mfa.disabling") : t("auth.mfa.disable")}
         </button>
         <style jsx>{`
-          .sso-form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-          }
-          .sso-success {
-            color: var(--sso-text);
-            font-size: 0.9375rem;
-            margin: 0;
-          }
-          .sso-field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-          }
-          .sso-field label {
-            font-size: 0.8125rem;
-            color: var(--sso-muted);
-          }
-          .sso-field input {
-            background: var(--sso-bg);
-            border: 1px solid var(--sso-border);
-            border-radius: 8px;
-            padding: 10px 12px;
-            color: var(--sso-text);
-            font-size: 0.9375rem;
-          }
-          .sso-error {
-            color: var(--sso-error);
-            font-size: 0.875rem;
-            margin: 0;
-          }
-          .sso-submit-danger {
-            background: var(--sso-error);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-          .sso-submit-danger:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-          }
+          .sso-form { display: flex; flex-direction: column; gap: 16px; }
+          .sso-success { color: var(--sso-text); font-size: 0.9375rem; margin: 0; }
+          .sso-field { display: flex; flex-direction: column; gap: 6px; }
+          .sso-field label { font-size: 0.8125rem; color: var(--sso-muted); }
+          .sso-field input { background: var(--sso-bg); border: 1px solid var(--sso-border); border-radius: 8px; padding: 10px 12px; color: var(--sso-text); font-size: 0.9375rem; }
+          .sso-error { color: var(--sso-error); font-size: 0.875rem; margin: 0; }
+          .sso-submit-danger { background: var(--sso-error); color: white; border: none; border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; }
+          .sso-submit-danger:disabled { opacity: 0.6; cursor: not-allowed; }
         `}</style>
       </form>
     );
@@ -302,29 +177,10 @@ export default function MfaSetupForm({ initialEnabled }: { initialEnabled: boole
         {loading ? t("common.loading") : t("auth.mfa.start")}
       </button>
       <style jsx>{`
-        .sso-form {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .sso-error {
-          color: var(--sso-error);
-          font-size: 0.875rem;
-          margin: 0;
-        }
-        .sso-submit {
-          background: var(--sso-accent);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .sso-submit:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
+        .sso-form { display: flex; flex-direction: column; gap: 16px; }
+        .sso-error { color: var(--sso-error); font-size: 0.875rem; margin: 0; }
+        .sso-submit { background: var(--sso-accent); color: white; border: none; border-radius: 8px; padding: 12px; font-weight: 600; cursor: pointer; }
+        .sso-submit:disabled { opacity: 0.6; cursor: not-allowed; }
       `}</style>
     </div>
   );

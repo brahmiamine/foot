@@ -5,12 +5,14 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./approval": "./src/approval.ts",
     "./club-access": "./src/club-access.ts",
     "./club-lineup": "./src/club-lineup.ts",
     "./club-player-facts": "./src/club-player-facts.ts",
     "./eligibility": "./src/eligibility.ts",
     "./events": "./src/events.ts",
     "./identity": "./src/identity.ts",
+    "./policy": "./src/policy.ts",
     "./referee-availability": "./src/referee-availability.ts",
     "./staff-eligibility": "./src/staff-eligibility.ts"
   }
