@@ -1,4 +1,4 @@
-import { BadGatewayException } from '@nestjs/common';
+import { BadGatewayException, ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { PaymentRoutingController } from './payment-routing.controller';
 import { Payment } from './entities/payment.entity';
@@ -47,6 +47,7 @@ describe('PaymentRoutingController', () => {
       paymentService as never,
       routingPolicyService as never,
       paymentRepository as unknown as Repository<Payment>,
+      { adminApplications: ['federation-hub'] },
     );
   });
 
@@ -133,7 +134,22 @@ describe('PaymentRoutingController', () => {
     expect(paymentService.initiateFlouciPayment).not.toHaveBeenCalled();
   });
 
-  it('always scopes routing policy updates to the authenticated application', async () => {
+  it('forbids a consumer from administering routing policies', async () => {
+    await expect(
+      controller.updateRoutingPolicy(
+        'ticketing',
+        {
+          enabledProviders: [PaymentProviderName.KONNECT],
+          defaultProvider: PaymentProviderName.KONNECT,
+          fallbackProvider: null,
+        },
+        { application: 'ticketing' },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(routingPolicyService.updatePolicy).not.toHaveBeenCalled();
+  });
+
+  it('allows a configured administrator to update another consumer policy and records the actor', async () => {
     const dto = {
       enabledProviders: [PaymentProviderName.KONNECT],
       defaultProvider: PaymentProviderName.KONNECT,
@@ -146,11 +162,14 @@ describe('PaymentRoutingController', () => {
       source: 'CONSUMER',
     });
 
-    await controller.updateRoutingPolicy(dto, { application: 'ticketing' });
+    await controller.updateRoutingPolicy('ticketing', dto, {
+      application: 'federation-hub',
+    });
 
     expect(routingPolicyService.updatePolicy).toHaveBeenCalledWith(
       'ticketing',
       dto,
+      'federation-hub',
     );
   });
 });
