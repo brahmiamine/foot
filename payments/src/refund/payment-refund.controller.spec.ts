@@ -85,4 +85,27 @@ describe('PaymentRefundController service ownership', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(refundService.createRefund).not.toHaveBeenCalled();
   });
+
+  it('requires a human actor when federation-hub initiates a refund', async () => {
+    const refundService = buildRefundService();
+    const paymentRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        id: '11111111-1111-4111-8111-111111111111',
+        callerApplication: 'federation-hub',
+      }),
+    };
+    const controller = new PaymentRefundController(
+      refundService as never,
+      paymentRepository as never,
+    );
+
+    await expect(
+      controller.create(
+        '11111111-1111-4111-8111-111111111111',
+        { reason: 'federation refund' },
+        { application: 'federation-hub' },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(refundService.createRefund).not.toHaveBeenCalled();
+  });
 });
