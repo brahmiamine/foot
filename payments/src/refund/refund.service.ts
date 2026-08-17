@@ -185,10 +185,7 @@ export class RefundService {
     manager: EntityManager,
     payment: Payment,
   ): Promise<number> {
-    return (
-      Number(payment.amount) -
-      (await this.computeReserved(manager, payment.id))
-    );
+    return Number(payment.amount) - (await this.computeReserved(manager, payment.id));
   }
 
   private async findByIdempotencyKey(
@@ -261,10 +258,7 @@ export class RefundService {
     idempotencyKey?: string,
     trustedInitiatorUser?: string,
   ): Promise<Refund> {
-    const existing = await this.findByIdempotencyKey(
-      paymentId,
-      idempotencyKey,
-    );
+    const existing = await this.findByIdempotencyKey(paymentId, idempotencyKey);
     if (existing) return existing;
 
     const policy = await this.getEffectiveApprovalPolicy(callerApplication);
@@ -399,8 +393,7 @@ export class RefundService {
         throw new RefundInvalidStateError('manually approve', refund.status);
       }
 
-      const makerCheckerEnabled =
-        refund.approvalMakerCheckerEnabled !== false;
+      const makerCheckerEnabled = refund.approvalMakerCheckerEnabled !== false;
       if (makerCheckerEnabled && !refund.approvalMakerPrincipal) {
         throw new ConflictException(
           'Refund maker identity is missing; approval is blocked.',
