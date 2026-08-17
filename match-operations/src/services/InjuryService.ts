@@ -15,7 +15,6 @@ interface CreateInjuryInput {
   period?: MatchPeriod | null;
   description?: string | null;
   requiresSubstitution?: boolean;
-  /** TASK-P0-025 : voir Goal.clientRequestId — un doublon renvoie l'événement déjà créé, sans erreur. */
   clientRequestId?: string | null;
 }
 
@@ -91,16 +90,13 @@ export class InjuryService {
       return await repository.save(injury);
     } catch (error) {
       if (data.clientRequestId && isDuplicateKeyError(error)) {
-        const existing = await repository.findOne({
-          where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId },
-        });
+        const existing = await repository.findOne({ where: { sheetId: data.sheetId, clientRequestId: data.clientRequestId } });
         if (existing) return existing;
       }
       throw error;
     }
   }
 
-  /** Corrige une blessure déjà saisie, avec audit avant/après (TASK-P0-009). */
   async correct(id: number, updates: CorrectInjuryInput, actor: Actor): Promise<Injury> {
     const reason = assertReason(actor.reason);
     const repository = await this.getRepository();
@@ -108,9 +104,8 @@ export class InjuryService {
     if (!injury) throw new InjuryNotFoundError();
     if (injury.cancelledAt) throw new InjuryAlreadyCancelledError();
 
-    await assertSheetEditable(injury.sheetId);
+    await assertSheetEditable(injury.sheetId, { allowSignedAmendment: true });
     const before = snapshot(injury);
-
     if (updates.playerId !== undefined) injury.playerId = updates.playerId;
     if (updates.minute !== undefined) injury.minute = updates.minute;
     if (updates.period !== undefined) injury.period = updates.period;
@@ -118,7 +113,6 @@ export class InjuryService {
     if (updates.requiresSubstitution !== undefined) injury.requiresSubstitution = updates.requiresSubstitution;
 
     const saved = await repository.save(injury);
-
     await this.correctionService.record({
       sheetId: saved.sheetId,
       matchId: saved.matchId,
@@ -131,11 +125,9 @@ export class InjuryService {
       actorUserId: actor.actorUserId,
       actorName: actor.actorName,
     });
-
     return saved;
   }
 
-  /** Annule une blessure sans la supprimer (TASK-P0-009) — voir GoalService.cancel. */
   async cancel(id: number, actor: Actor): Promise<Injury> {
     const reason = assertReason(actor.reason);
     const repository = await this.getRepository();
@@ -143,13 +135,11 @@ export class InjuryService {
     if (!injury) throw new InjuryNotFoundError();
     if (injury.cancelledAt) throw new InjuryAlreadyCancelledError();
 
-    await assertSheetEditable(injury.sheetId);
+    await assertSheetEditable(injury.sheetId, { allowSignedAmendment: true });
     const before = snapshot(injury);
-
     injury.cancelledAt = new Date();
     injury.cancelledReason = reason;
     const saved = await repository.save(injury);
-
     await this.correctionService.record({
       sheetId: saved.sheetId,
       matchId: saved.matchId,
@@ -162,11 +152,9 @@ export class InjuryService {
       actorUserId: actor.actorUserId,
       actorName: actor.actorName,
     });
-
     return saved;
   }
 
-  /** @deprecated Conservé pour compatibilité interne — préférer `cancel()`. */
   async delete(id: number): Promise<void> {
     const repository = await this.getRepository();
     await repository.delete({ id });
