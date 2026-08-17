@@ -14,6 +14,7 @@ import { MatchReopenLog } from "@/entities/MatchReopenLog";
 import { MatchStaffAssignment, MatchStaffRead, CoachQualificationRead } from "@/entities/MatchStaffAssignment";
 import { Player } from "@/entities/Player";
 import { Sheet } from "@/entities/Sheet";
+import { SheetAmendment } from "@/entities/SheetAmendment";
 import { Signature } from "@/entities/Signature";
 import { Substitution } from "@/entities/Substitution";
 import { Team } from "@/entities/Team";
@@ -31,7 +32,7 @@ export async function createTestDataSource(): Promise<DataSource> {
     entities: [
       Card, CardReason, CompetitionMatchProtocol, Federation, Goal, Injury, Match, Matchday,
       MatchEventCorrection, MatchOfficialAssignment, MatchReopenLog, MatchStaffAssignment,
-      MatchStaffRead, CoachQualificationRead, Player, Sheet, Signature, Substitution, Team,
+      MatchStaffRead, CoachQualificationRead, Player, Sheet, SheetAmendment, Signature, Substitution, Team,
       RefereeUnavailability, MatchLineup, TeamMembership, CompetitionRegistrationRead,
       EligibilityCheckWrite, MedicalEligibilityRead, PersonLicenseRead, PlayerContractRead,
       PlayerRegistrationRead, PlayerTransferRead, RegulatoryLegacyConfirmationRead,
