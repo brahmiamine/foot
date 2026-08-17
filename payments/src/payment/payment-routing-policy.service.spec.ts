@@ -74,34 +74,41 @@ describe('PaymentRoutingPolicyService', () => {
       fallbackProvider: null,
     };
 
-    await expect(service.updatePolicy('ticketing', dto)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.updatePolicy('ticketing', dto, 'federation-hub'),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.save).not.toHaveBeenCalled();
   });
 
-  it('versions successive consumer policy updates', async () => {
+  it('versions updates and records the administrator separately from the consumer', async () => {
     repository.findOne.mockResolvedValue({
       consumerApplication: 'ticketing',
       enabledProviders: [PaymentProviderName.KONNECT],
       defaultProvider: PaymentProviderName.KONNECT,
       fallbackProvider: null,
       version: 4,
-      updatedByApplication: 'ticketing',
+      updatedByApplication: 'federation-hub',
     } as PaymentRoutingPolicy);
 
-    const result = await service.updatePolicy('ticketing', {
-      enabledProviders: [PaymentProviderName.KONNECT, PaymentProviderName.PAYMEE],
-      defaultProvider: PaymentProviderName.PAYMEE,
-      fallbackProvider: PaymentProviderName.KONNECT,
-    });
+    const result = await service.updatePolicy(
+      'ticketing',
+      {
+        enabledProviders: [
+          PaymentProviderName.KONNECT,
+          PaymentProviderName.PAYMEE,
+        ],
+        defaultProvider: PaymentProviderName.PAYMEE,
+        fallbackProvider: PaymentProviderName.KONNECT,
+      },
+      'platform-governance',
+    );
 
     expect(result.version).toBe(5);
     expect(repository.save).toHaveBeenCalledWith(
       expect.objectContaining({
         consumerApplication: 'ticketing',
         version: 5,
-        updatedByApplication: 'ticketing',
+        updatedByApplication: 'platform-governance',
       }),
     );
   });
