@@ -1,11 +1,14 @@
 import type { SsoUser } from "./session";
 import { getDataSource } from "./db";
 import { MfaRolePolicy, type MfaPolicyMode } from "@/entities/MfaRolePolicy";
+import { IdentityPolicyAudit, type MfaRolePolicySnapshot } from "@/entities/IdentityPolicyAudit";
+import { requireConfigurationChangeReason } from "../../../packages/domain-contracts/src/configuration-audit";
 
 export interface EffectiveMfaRolePolicy {
   role: SsoUser["role"];
   mode: MfaPolicyMode;
   gracePeriodDays: number;
+  version: number;
   source: "DEFAULT" | "DATABASE";
   updatedAt: Date | null;
   graceEndsAt: Date | null;
@@ -31,6 +34,15 @@ function computeGraceEndsAt(policy: Pick<MfaRolePolicy, "gracePeriodDays" | "upd
   return new Date(policy.updatedAt.getTime() + policy.gracePeriodDays * 24 * 60 * 60 * 1000);
 }
 
+function snapshot(policy: Pick<MfaRolePolicy, "role" | "mode" | "gracePeriodDays" | "version">): MfaRolePolicySnapshot {
+  return {
+    role: policy.role,
+    mode: policy.mode,
+    gracePeriodDays: policy.gracePeriodDays,
+    version: policy.version,
+  };
+}
+
 export async function getMfaRolePolicy(
   role: SsoUser["role"],
   at: Date = new Date(),
@@ -42,6 +54,7 @@ export async function getMfaRolePolicy(
     return {
       role,
       ...fallback,
+      version: 0,
       source: "DEFAULT",
       updatedAt: null,
       graceEndsAt: null,
@@ -54,6 +67,7 @@ export async function getMfaRolePolicy(
     role,
     mode: stored.mode,
     gracePeriodDays: stored.gracePeriodDays,
+    version: stored.version,
     source: "DATABASE",
     updatedAt: stored.updatedAt,
     graceEndsAt,
@@ -71,18 +85,53 @@ export async function updateMfaRolePolicy(input: {
   mode: MfaPolicyMode;
   gracePeriodDays: number;
   updatedBy: string;
+  actorRole: SsoUser["role"];
+  reason: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }): Promise<EffectiveMfaRolePolicy> {
   if (!Number.isInteger(input.gracePeriodDays) || input.gracePeriodDays < 0 || input.gracePeriodDays > 90) {
     throw new Error("La période de grâce MFA doit être comprise entre 0 et 90 jours");
   }
+  const reason = requireConfigurationChangeReason(input.reason);
   const dataSource = await getDataSource();
-  const repository = dataSource.getRepository(MfaRolePolicy);
-  const current = await repository.findOne({ where: { role: input.role } });
-  const entity = current ?? repository.create({ role: input.role });
-  entity.mode = input.mode;
-  entity.gracePeriodDays = input.gracePeriodDays;
-  entity.updatedBy = input.updatedBy;
-  await repository.save(entity);
+
+  await dataSource.transaction(async (manager) => {
+    const repository = manager.getRepository(MfaRolePolicy);
+    const auditRepository = manager.getRepository(IdentityPolicyAudit);
+    const current = await repository.findOne({ where: { role: input.role } });
+
+    if (current && current.mode === input.mode && current.gracePeriodDays === input.gracePeriodDays) {
+      return;
+    }
+
+    const before = current ? snapshot(current) : null;
+    const entity = current ?? repository.create({ role: input.role, version: 1 });
+    entity.mode = input.mode;
+    entity.gracePeriodDays = input.gracePeriodDays;
+    entity.version = current ? current.version + 1 : 1;
+    entity.updatedBy = input.updatedBy;
+    const saved = await repository.save(entity);
+
+    await auditRepository.save(
+      auditRepository.create({
+        domain: "IDENTITY_SECURITY",
+        configurationKey: "MFA_ROLE_POLICY",
+        scopeType: "ROLE",
+        scopeId: input.role,
+        previousVersion: before?.version ?? null,
+        newVersion: saved.version,
+        before,
+        after: snapshot(saved),
+        actorUserId: input.updatedBy,
+        actorRole: input.actorRole,
+        reason,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      }),
+    );
+  });
+
   return getMfaRolePolicy(input.role);
 }
 
