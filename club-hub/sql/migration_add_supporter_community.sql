@@ -229,3 +229,28 @@ ON DUPLICATE KEY UPDATE
   label_fr = VALUES(label_fr), label_ar = VALUES(label_ar),
   description_fr = VALUES(description_fr), description_ar = VALUES(description_ar),
   icon = VALUES(icon), sort_order = VALUES(sort_order);
+
+-- Confidentialité : `display_name` est un pseudonyme public stable dérivé des
+-- identifiants techniques. Le nom/email SSO ne doit jamais être persisté dans
+-- les surfaces communautaires, même si un appelant applicatif se trompe.
+UPDATE cms_supporter_profiles
+SET display_name = CONCAT('Supporter ', UPPER(SUBSTRING(SHA2(CONCAT(team_id, ':', user_id), 256), 1, 6)));
+
+DROP TRIGGER IF EXISTS trg_supporter_profile_public_name_insert;
+DROP TRIGGER IF EXISTS trg_supporter_profile_public_name_update;
+
+DELIMITER //
+CREATE TRIGGER trg_supporter_profile_public_name_insert
+BEFORE INSERT ON cms_supporter_profiles
+FOR EACH ROW
+BEGIN
+  SET NEW.display_name = CONCAT('Supporter ', UPPER(SUBSTRING(SHA2(CONCAT(NEW.team_id, ':', NEW.user_id), 256), 1, 6)));
+END//
+
+CREATE TRIGGER trg_supporter_profile_public_name_update
+BEFORE UPDATE ON cms_supporter_profiles
+FOR EACH ROW
+BEGIN
+  SET NEW.display_name = CONCAT('Supporter ', UPPER(SUBSTRING(SHA2(CONCAT(NEW.team_id, ':', NEW.user_id), 256), 1, 6)));
+END//
+DELIMITER ;
