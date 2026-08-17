@@ -1,17 +1,16 @@
 import "reflect-metadata";
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
-/**
- * Restriction d'audience/quota par match+catégorie. `allowedAudience`
- * distingue vente publique / réservée aux supporters du club à domicile /
- * réservée aux supporters du club visiteur — voir README racine § « Billetterie »
- * pour pourquoi ceci ne doit PAS être vérifié via les affiliations stockées
- * d'un MEMBER (sso `member_team_affiliations`) : un supporter peut suivre
- * plusieurs clubs ou aucun, ce n'est pas un mécanisme d'autorisation fiable.
- * HOME_SUPPORTERS/AWAY_SUPPORTERS reste donc, dans cette V1, une simple
- * auto-déclaration de l'acheteur au moment de l'achat (voir
- * POST /api/tickets) — pas une vérification d'identité.
- */
+export type TicketSaleStatus =
+  | "DRAFT"
+  | "READY_FOR_REVIEW"
+  | "APPROVED"
+  | "SCHEDULED"
+  | "OPEN"
+  | "PAUSED"
+  | "CLOSED"
+  | "REJECTED";
+
 @Entity({ name: "tk_ticket_sale_rules" })
 export class TicketSaleRule {
   @PrimaryGeneratedColumn("uuid")
@@ -28,13 +27,6 @@ export class TicketSaleRule {
   })
   allowedAudience!: "PUBLIC" | "HOME_SUPPORTERS" | "AWAY_SUPPORTERS";
 
-  /**
-   * US-38 : sans effet quand `allowedAudience` vaut `PUBLIC`. DECLARATIVE
-   * (défaut, comportement historique) = auto-déclaration à l'achat, signal
-   * de modération non bloquant après coup (voir Ticket.audienceMismatch).
-   * STRICT = vérification bloquante des affiliations sso de l'acheteur
-   * avant d'autoriser l'achat (voir purchaseTickets dans lib/tickets.ts).
-   */
   @Column({
     type: "enum",
     enum: ["STRICT", "DECLARATIVE"],
@@ -52,6 +44,38 @@ export class TicketSaleRule {
   @Column({ type: "datetime", name: "ends_at", nullable: true })
   endsAt!: Date | null;
 
+  @Column({
+    type: "enum",
+    enum: ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "SCHEDULED", "OPEN", "PAUSED", "CLOSED", "REJECTED"],
+    default: "DRAFT",
+  })
+  status!: TicketSaleStatus;
+
+  /** Hash des paramètres de vente + prix réellement approuvés. */
+  @Column({ type: "char", length: 64, nullable: true, name: "approved_fingerprint" })
+  approvedFingerprint!: string | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "submitted_by" })
+  submittedBy!: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "submitted_at" })
+  submittedAt!: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "approved_by" })
+  approvedBy!: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "approved_at" })
+  approvedAt!: Date | null;
+
+  @Column({ type: "text", nullable: true, name: "rejection_reason" })
+  rejectionReason!: string | null;
+
+  @Column({ type: "int", default: 1 })
+  version!: number;
+
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
+
+  @UpdateDateColumn({ type: "datetime", name: "updated_at" })
+  updatedAt!: Date;
 }
