@@ -18,6 +18,13 @@ export class SheetSignedAmendmentRequiredError extends Error {
   }
 }
 
+export class SheetAmendmentApprovalRequiredError extends Error {
+  constructor() {
+    super("Cette demande d'amendement doit être approuvée par la Fédération avant correction.");
+    this.name = "SheetAmendmentApprovalRequiredError";
+  }
+}
+
 export class MatchCancelledError extends Error {
   constructor() {
     super("Ce match a été annulé : plus aucune saisie n'est possible.");
@@ -29,7 +36,7 @@ export interface SheetEditOptions {
   /**
    * Les écritures live ordinaires restent interdites après signature. Seules
    * les opérations de correction/annulation auditées peuvent utiliser un
-   * amendement ouvert comme autorisation temporaire.
+   * amendement autorisé (`NOT_REQUIRED` ou `APPROVED`).
    */
   allowSignedAmendment?: boolean;
 }
@@ -40,21 +47,23 @@ export async function assertSheetEditable(sheetId: number, options: SheetEditOpt
   if (!sheet) return;
 
   const match = await dataSource.getRepository(Match).findOne({ where: { id: sheet.matchId } });
-  if (match?.status === "CANCELLED") {
-    throw new MatchCancelledError();
-  }
+  if (match?.status === "CANCELLED") throw new MatchCancelledError();
 
   if (sheet.status === "POST_MATCH_SIGNED" || sheet.status === "CLOSED") {
     if (options.allowSignedAmendment) {
-      const amendment = await dataSource.getRepository(SheetAmendment).findOne({
+      const amendments = await dataSource.getRepository(SheetAmendment).find({
         where: { sheetId, status: In(["AMENDMENT_REQUESTED", "AMENDED"]) },
         order: { requestedAt: "DESC" },
       });
-      if (amendment) return;
+      const executable = amendments.find(
+        (amendment) => amendment.approvalStatus === "NOT_REQUIRED" || amendment.approvalStatus === "APPROVED",
+      );
+      if (executable) return;
+      if (amendments.some((amendment) => amendment.approvalStatus === "PENDING")) {
+        throw new SheetAmendmentApprovalRequiredError();
+      }
     }
-    if (sheet.status === "CLOSED" && !options.allowSignedAmendment) {
-      throw new SheetClosedError();
-    }
+    if (sheet.status === "CLOSED" && !options.allowSignedAmendment) throw new SheetClosedError();
     throw new SheetSignedAmendmentRequiredError();
   }
 }
