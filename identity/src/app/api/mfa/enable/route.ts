@@ -38,7 +38,6 @@ export async function POST(request: NextRequest) {
   if (!secret) {
     return NextResponse.json({ error: "MFA_ENROLLMENT_EXPIRED" }, { status: 400 });
   }
-
   if (!(await verifyTotpCode(secret, code))) {
     return NextResponse.json({ error: "MFA_CODE_INVALID" }, { status: 400 });
   }
@@ -69,6 +68,7 @@ export async function POST(request: NextRequest) {
     leagueId: user.leagueId ?? null,
     playerId: user.playerId ?? null,
     tokenVersion: user.tokenVersion,
+    mfaVerifiedAt: Date.now(),
   });
   return response;
 }
