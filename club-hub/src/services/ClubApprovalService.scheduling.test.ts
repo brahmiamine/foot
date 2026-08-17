@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DataSource } from "typeorm";
+import { SelectQueryBuilder, type DataSource } from "typeorm";
 import { createTestDataSource } from "@/test/testDataSource";
 import { ClubGovernanceSettings } from "@/entities/ClubGovernance";
 import { News } from "@/entities/News";
@@ -13,6 +13,12 @@ vi.mock("@/lib/database", () => ({
 }));
 
 beforeEach(async () => {
+  // Production uses MySQL/MariaDB, where the scheduler deliberately takes a
+  // pessimistic write lock. The integration datasource is SQLite, which does
+  // not implement SELECT ... FOR UPDATE; neutralize only that driver-specific
+  // primitive while keeping the transaction and all business assertions real.
+  vi.spyOn(SelectQueryBuilder.prototype, "setLock").mockReturnThis();
+
   dataSource = await createTestDataSource();
   await dataSource.getRepository(Team).save(
     dataSource.getRepository(Team).create({
@@ -44,6 +50,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await dataSource.destroy();
+  vi.restoreAllMocks();
 });
 
 describe("scheduled News publication", () => {
