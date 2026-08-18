@@ -104,6 +104,8 @@ export class AddFinancialLedger1787020000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('DROP TABLE IF EXISTS financial_ledger_entries');
-    await queryRunner.query('DROP TABLE IF EXISTS payment_financial_allocations');
+    await queryRunner.query(
+      'DROP TABLE IF EXISTS payment_financial_allocations',
+    );
   }
 }
