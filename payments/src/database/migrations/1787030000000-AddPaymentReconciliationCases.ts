@@ -1,9 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /** PAY-005 — durable provider/internal discrepancy queue with append-only audit. */
-export class AddPaymentReconciliationCases1787030000000
-  implements MigrationInterface
-{
+export class AddPaymentReconciliationCases1787030000000 implements MigrationInterface {
   name = 'AddPaymentReconciliationCases1787030000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
