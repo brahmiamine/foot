@@ -1,0 +1,33 @@
+export enum PaymentReconciliationCaseStatus {
+  OPEN = 'OPEN',
+  RESOLVED = 'RESOLVED',
+}
+
+export enum PaymentReconciliationDiscrepancyType {
+  STALE_PENDING = 'STALE_PENDING',
+  STATUS_MISMATCH = 'STATUS_MISMATCH',
+  PROVIDER_CHECK_FAILED = 'PROVIDER_CHECK_FAILED',
+  PROVIDER_EVIDENCE_UNAVAILABLE = 'PROVIDER_EVIDENCE_UNAVAILABLE',
+  MISSING_PROVIDER_REFERENCE = 'MISSING_PROVIDER_REFERENCE',
+}
+
+export enum PaymentReconciliationEvidenceSource {
+  LIVE_PROVIDER_API = 'LIVE_PROVIDER_API',
+  SIGNED_WEBHOOK = 'SIGNED_WEBHOOK',
+  NONE = 'NONE',
+}
+
+export enum PaymentReconciliationResolutionAction {
+  ACCEPT_INTERNAL = 'ACCEPT_INTERNAL',
+  DOCUMENT_EXCEPTION = 'DOCUMENT_EXCEPTION',
+  AUTO_MATCH = 'AUTO_MATCH',
+}
+
+export enum PaymentReconciliationEventAction {
+  OPENED = 'OPENED',
+  REOPENED = 'REOPENED',
+  CHECKED = 'CHECKED',
+  RECHECKED = 'RECHECKED',
+  RESOLVED = 'RESOLVED',
+  AUTO_RESOLVED = 'AUTO_RESOLVED',
+}
