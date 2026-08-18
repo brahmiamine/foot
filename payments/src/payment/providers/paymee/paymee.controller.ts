@@ -11,7 +11,9 @@ import {
 import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
 import { CurrentService } from '../../../auth/decorators/current-service.decorator';
 import type { AuthenticatedService } from '../../../auth/interfaces/authenticated-service.interface';
+import { PaymentRoutingPolicyService } from '../../payment-routing-policy.service';
 import { PaymentService } from '../../payment.service';
+import { PaymentProviderName } from '../../enums/payment-provider.enum';
 import { InitPaymeePaymentDto } from './dto/init-paymee-payment.dto';
 import { InitPaymeePaymentResultDto } from './dto/init-paymee-payment-result.dto';
 import { PaymeeWebhookDto } from './dto/paymee-webhook.dto';
@@ -25,7 +27,10 @@ import { PaymeeError, toHttpException } from './paymee.exceptions';
 export class PaymeeController {
   private readonly logger = new Logger(PaymeeController.name);
 
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly routingPolicyService: PaymentRoutingPolicyService,
+  ) {}
 
   /** Reserved to backend applications of the ecosystem. */
   @Post('init')
@@ -35,6 +40,11 @@ export class PaymeeController {
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymeePaymentResultDto> {
+    await this.routingPolicyService.assertProviderEnabledForInitiation(
+      service.application,
+      PaymentProviderName.PAYMEE,
+      idempotencyKey,
+    );
     try {
       return await this.paymentService.initiatePaymeePayment(
         dto,

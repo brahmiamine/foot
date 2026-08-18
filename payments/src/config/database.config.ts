@@ -1,6 +1,8 @@
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { BaselinePaymentsSchema1786841000000 } from '../database/migrations/1786841000000-BaselinePaymentsSchema';
+import { AddPaymentRoutingPolicies1786990000000 } from '../database/migrations/1786990000000-AddPaymentRoutingPolicies';
+import { AddRefundApprovalGovernance1787000000000 } from '../database/migrations/1787000000000-AddRefundApprovalGovernance';
 
 export const databaseConfig = registerAs(
   'database',
@@ -14,7 +16,11 @@ export const databaseConfig = registerAs(
     autoLoadEntities: true,
     synchronize: process.env.NODE_ENV !== 'production',
     migrationsTableName: 'payments_migrations',
-    migrations: [BaselinePaymentsSchema1786841000000],
+    migrations: [
+      BaselinePaymentsSchema1786841000000,
+      AddPaymentRoutingPolicies1786990000000,
+      AddRefundApprovalGovernance1787000000000,
+    ],
     migrationsRun: process.env.DB_RUN_MIGRATIONS === 'true',
   }),
 );

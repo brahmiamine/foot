@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Headers,
@@ -7,15 +8,16 @@ import {
   Logger,
   Post,
   Query,
-  Body,
   UseGuards,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
 import { CurrentService } from '../../../auth/decorators/current-service.decorator';
 import type { AuthenticatedService } from '../../../auth/interfaces/authenticated-service.interface';
+import { PaymentRoutingPolicyService } from '../../payment-routing-policy.service';
 import { PaymentService } from '../../payment.service';
 import { InitPaymentDto } from '../../dto/init-payment.dto';
 import { InitPaymentResultDto } from '../../dto/init-payment-result.dto';
+import { PaymentProviderName } from '../../enums/payment-provider.enum';
 import { KonnectWebhookQueryDto } from './dto/konnect-webhook-query.dto';
 import { KonnectError, toHttpException } from './konnect.exceptions';
 
@@ -27,7 +29,10 @@ import { KonnectError, toHttpException } from './konnect.exceptions';
 export class KonnectController {
   private readonly logger = new Logger(KonnectController.name);
 
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly routingPolicyService: PaymentRoutingPolicyService,
+  ) {}
 
   /** Reserved to backend applications of the ecosystem. */
   @Post('init')
@@ -37,6 +42,11 @@ export class KonnectController {
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
+    await this.routingPolicyService.assertProviderEnabledForInitiation(
+      service.application,
+      PaymentProviderName.KONNECT,
+      idempotencyKey,
+    );
     try {
       return await this.paymentService.initiateKonnectPayment(
         dto,

@@ -12,9 +12,11 @@ import {
 import { ServiceAuthGuard } from '../../../auth/guards/service-auth.guard';
 import { CurrentService } from '../../../auth/decorators/current-service.decorator';
 import type { AuthenticatedService } from '../../../auth/interfaces/authenticated-service.interface';
+import { PaymentRoutingPolicyService } from '../../payment-routing-policy.service';
 import { PaymentService } from '../../payment.service';
 import { InitPaymentDto } from '../../dto/init-payment.dto';
 import { InitPaymentResultDto } from '../../dto/init-payment-result.dto';
+import { PaymentProviderName } from '../../enums/payment-provider.enum';
 import { FlouciWebhookDto } from './dto/flouci-webhook.dto';
 import { FlouciError, toHttpException } from './flouci.exceptions';
 
@@ -26,7 +28,10 @@ import { FlouciError, toHttpException } from './flouci.exceptions';
 export class FlouciController {
   private readonly logger = new Logger(FlouciController.name);
 
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly routingPolicyService: PaymentRoutingPolicyService,
+  ) {}
 
   /** Reserved to backend applications of the ecosystem. */
   @Post('init')
@@ -36,6 +41,11 @@ export class FlouciController {
     @CurrentService() service: AuthenticatedService,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<InitPaymentResultDto> {
+    await this.routingPolicyService.assertProviderEnabledForInitiation(
+      service.application,
+      PaymentProviderName.FLOUCI,
+      idempotencyKey,
+    );
     try {
       return await this.paymentService.initiateFlouciPayment(
         dto,

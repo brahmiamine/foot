@@ -27,6 +27,8 @@
 - 2026-08-17 — CI #817 : lot Club Hub validé avec typecheck, lint, build et 191 tests verts, plus migrations/architecture/i18n et le reste de la matrice verts. Clôture de `CLUB-001` à `CLUB-004` : maker/checker, News avec `SCHEDULED` serveur et revalidation contenu/médias, Communiqués avec niveau d'approbation par catégorie, boutique club avec approbation/reapproval.
 - 2026-08-17 — CI #836 + Ownership : `MATCH-001` validé avec `CompetitionMatchProtocol` par saison, enforcement serveur des deadlines/banc/substitutions/signatures/officiels, API interne et respect de `ClubLineupReadPort` ; typecheck/lint/build/tests Match Operations, architecture et manifest verts.
 - 2026-08-17 — CI #852 + Ownership #381 : `MATCH-002` validé. Les feuilles post-match signées/clôturées exigent un amendement explicite avant correction, chaque correction reste dans le ledger append-only, les créations live/hard-delete non audités restent bloqués, et l'amendement se ferme en `RE_SIGNED` uniquement après re-signatures valides du nouveau hash.
+- 2026-08-17 — CI #895 + Ownership #424 : `MATCH-003`, `TICK-001`, `TICK-002` et `PAY-001` validés. Match Operations conserve la version de policy de correction post-signature et exige l'approbation fédérale configurée ; Ticketing applique le workflow DRAFT/REVIEW/APPROVED/SCHEDULED/OPEN avec revalidation tarifaire ; Payments applique une policy provider enabled/default/fallback par consommateur, une administration séparée et des replays idempotents sans fallback PSP ambigu.
+- 2026-08-17 — CI #930 + Ownership #459 : `PAY-002` validé. Payments résout `AUTO / SINGLE_APPROVAL / DUAL_APPROVAL` par seuil et consommateur avant tout appel PSP, conserve un snapshot de policy par remboursement, réserve le montant en `AWAITING_APPROVAL`, impose maker/checker et deux approbateurs distincts en DUAL, protège retry/confirm contre les contournements, grandfather les remboursements legacy lors de la migration et garde Ticketing/Club Hub/Marketplace compatibles via normalisation locale de l'état d'attente.
 
 ---
 
@@ -132,15 +134,15 @@
 |---|---|---|---|---|
 | MATCH-001 | P0 | DONE | `CompetitionMatchProtocol` configurable | deadlines, joueurs banc, substitutions, signatures, officiels requis |
 | MATCH-002 | P0 | DONE | Workflow d'amendement d'une feuille signée | AMENDMENT_REQUESTED→AMENDED→RE_SIGNED, jamais mutation silencieuse |
-| MATCH-003 | P0 | TODO | Policy corrections post-signature | fenêtre + approbation fédération configurable |
+| MATCH-003 | P0 | DONE | Policy corrections post-signature | fenêtre + approbation fédération configurable |
 | MATCH-004 | P1 | TODO | Policy offline PWA | durée, signature locale, idempotence, conflits de synchro |
 
 # J. Ticketing
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| TICK-001 | P0 | TODO | Workflow ouverture vente | DRAFT→REVIEW→APPROVED→SCHEDULED→OPEN/PAUSED/CLOSED |
-| TICK-002 | P0 | TODO | Approbation prix/reapproval après modification | settings club + garde serveur |
+| TICK-001 | P0 | DONE | Workflow ouverture vente | DRAFT→REVIEW→APPROVED→SCHEDULED→OPEN/PAUSED/CLOSED |
+| TICK-002 | P0 | DONE | Approbation prix/reapproval après modification | settings club + garde serveur |
 | TICK-003 | P1 | TODO | Billets invitations/gratuits | quota + approbation + traçabilité |
 | TICK-004 | P1 | TODO | Gestion des appareils scanner | device registry + révocation + key version + last sync |
 | TICK-005 | P1 | TODO | Politique d'entrée stade | ouverture/fermeture gates + validité offline manifest |
@@ -152,8 +154,8 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| PAY-001 | P0 | TODO | Payment routing policy | provider enabled/default/fallback par consommateur |
-| PAY-002 | P0 | TODO | Politique de remboursement par seuil | auto/single/dual approval selon montant |
+| PAY-001 | P0 | DONE | Payment routing policy | provider enabled/default/fallback par consommateur |
+| PAY-002 | P0 | DONE | Politique de remboursement par seuil | auto/single/dual approval selon montant |
 | PAY-003 | P0 | TODO | SLA de `MANUAL_REVIEW` | délai + reminder + escalation + dashboard |
 | PAY-004 | P1 | TODO | Ledger financier | gross/providerFee/platformFee/clubNet/sellerNet/refund/settlement |
 | PAY-005 | P1 | TODO | Réconciliation provider/interne | file d'écarts + résolution auditée |
