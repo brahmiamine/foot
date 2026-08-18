@@ -55,7 +55,7 @@ export async function updatePublicFormSettings(formData: FormData): Promise<void
     },
     {
       actorUserId: access.userId,
-      actorRole: requestHeaders.get("x-sso-role") ?? "CLUB_ADMIN",
+      actorRole: access.actorRole ?? "CLUB_ADMIN",
       reason: String(formData.get("reason") ?? ""),
       effectiveFrom: readOptionalDate(formData, "effectiveFrom"),
       effectiveUntil: readOptionalDate(formData, "effectiveUntil"),
