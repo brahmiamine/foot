@@ -27,7 +27,7 @@ describe('PaymentReconciliationService', () => {
   let service: PaymentReconciliationService;
 
   function buildPayment(overrides: Partial<Payment> = {}): Payment {
-    const payment = {
+    const payment: Payment = {
       id: 'payment-1',
       orderId: 'ORDER-1',
       userId: null,
@@ -48,7 +48,7 @@ describe('PaymentReconciliationService', () => {
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
       updatedAt: new Date(),
       ...overrides,
-    } as Payment;
+    };
     knownPayments.set(payment.id, payment);
     return payment;
   }
@@ -72,11 +72,13 @@ describe('PaymentReconciliationService', () => {
       updatedAt: new Date(),
       ...input,
     }));
-    caseSave = jest.fn(async (input: PaymentReconciliationCase) => input);
+    caseSave = jest.fn((input: PaymentReconciliationCase) =>
+      Promise.resolve(input),
+    );
     eventInsert = jest.fn().mockResolvedValue(undefined);
     transactionPaymentFindOne = jest.fn(
-      async (options: { where: { id: string } }) =>
-        knownPayments.get(options.where.id) ?? null,
+      (options: { where: { id: string } }) =>
+        Promise.resolve(knownPayments.get(options.where.id) ?? null),
     );
 
     const caseRepository = {
@@ -96,11 +98,13 @@ describe('PaymentReconciliationService', () => {
         if (entity === Payment) return transactionPaymentRepository;
         if (entity === PaymentReconciliationCase) return caseRepository;
         if (entity === PaymentReconciliationEvent) return eventRepository;
-        throw new Error('Unexpected repository requested by reconciliation test');
+        throw new Error(
+          'Unexpected repository requested by reconciliation test',
+        );
       }),
     } as unknown as EntityManager;
     transaction = jest.fn(
-      async (callback: (entityManager: EntityManager) => Promise<unknown>) =>
+      (callback: (entityManager: EntityManager) => Promise<unknown>) =>
         callback(manager),
     );
     const dataSource = {
@@ -230,11 +234,13 @@ describe('PaymentReconciliationService', () => {
     paymentService.handleKonnectWebhook
       .mockRejectedValueOnce(new Error('provider down'))
       .mockResolvedValueOnce(undefined);
-    repository.findOne.mockImplementation(async (options) => {
+    repository.findOne.mockImplementation((options) => {
       const id = options.where && 'id' in options.where ? options.where.id : '';
-      return id === succeeding.id
-        ? { ...succeeding, status: PaymentStatus.PAID }
-        : failing;
+      return Promise.resolve(
+        id === succeeding.id
+          ? { ...succeeding, status: PaymentStatus.PAID }
+          : failing,
+      );
     });
 
     const report = await service.reconcileStalePayments();
