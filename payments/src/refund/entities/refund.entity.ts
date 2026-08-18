@@ -103,6 +103,28 @@ export class Refund {
   @Column({ type: 'text', nullable: true })
   manualReviewReason: string | null;
 
+  /** PAY-003 immutable SLA schedule for each MANUAL_REVIEW cycle. */
+  @Column({ type: 'int', nullable: true })
+  manualReviewPolicyVersion?: number | null;
+
+  @Column({ type: 'datetime', precision: 6, nullable: true })
+  manualReviewStartedAt?: Date | null;
+
+  @Column({ type: 'datetime', precision: 6, nullable: true })
+  manualReviewReminderAt?: Date | null;
+
+  @Column({ type: 'datetime', precision: 6, nullable: true })
+  manualReviewReminderSentAt?: Date | null;
+
+  @Column({ type: 'datetime', precision: 6, nullable: true })
+  manualReviewDueAt?: Date | null;
+
+  @Column({ type: 'datetime', precision: 6, nullable: true })
+  manualReviewEscalateAt?: Date | null;
+
+  @Column({ type: 'datetime', precision: 6, nullable: true })
+  manualReviewEscalatedAt?: Date | null;
+
   @Column({ type: 'varchar', length: 100, nullable: true })
   resolvedByUser: string | null;
 

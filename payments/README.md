@@ -2,50 +2,104 @@
 
 ## Rôle du projet
 
-API NestJS mutualisée d'initialisation, suivi et réception de paiements Konnect, Paymee et Flouci.
+API NestJS mutualisée d'initialisation, suivi et réception de paiements Konnect, Paymee et Flouci. Le service est aussi la source de vérité des remboursements, de leur gouvernance d'approbation et de la file opérateur `MANUAL_REVIEW`.
 
 ## Fonctionnalités publiques
 
 `GET /health`; webhooks fournisseurs `GET /payments/konnect/webhook`, `POST /payments/providers/paymee/webhook` et `POST /payments/providers/flouci/webhook` (publics pour permettre les callbacks, validés selon le fournisseur).
 
-**Pages inventoriées :** Aucune page (service HTTP uniquement).
+**Pages inventoriées :** Aucune page dans `payments` (service HTTP uniquement). La console opérateur des remboursements manuels est rendue par `federation-hub` et consomme Payments côté serveur.
 
 ## Fonctionnalités administratives
 
-API sans pages. `POST` d'initialisation pour chaque fournisseur, `GET /payments/:id` et toute l'API de remboursement (`/payments/:id/refunds/*`, `/refunds/*`) sont réservés aux services appelants — une éventuelle UI opérateur (federation-hub) appelle ces routes avec sa propre clé de service.
+Les initialisations, lectures et remboursements sont réservés aux services appelants via `ServiceAuthGuard`. Les routes opérateur globales (`/refunds/*`, `/refund-policies/*`, `/refund-manual-review/*`) exigent en plus `RefundOperatorGuard` et ne sont accessibles qu'à l'application `federation-hub`.
+
+Dans Federation Hub, la console `/admin/payments/manual-review` est volontairement limitée à `PLATFORM_SUPERADMIN` / legacy `SUPERADMIN` : les remboursements Payments ne portent pas encore de `federationId`, donc les exposer aux administrateurs fédération/ligue créerait une fuite de périmètre. La clé de service Payments reste exclusivement côté serveur Federation Hub ; le navigateur ne la reçoit jamais.
 
 ## API
 
-Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Paymee, Flouci. Les chemins exacts sont résumés dans les fonctionnalités publiques/administratives ci-dessus.
+Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Paymee, Flouci ; remboursement et gouvernance opérateur. Les chemins principaux sont résumés ci-dessous.
 
-> Les routes dynamiques (`[id]`, `[matchId]`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
+> Les routes dynamiques (`:id`, `:paymentId`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
-**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les routes ci-dessus (schémas de requête/réponse, codes d'erreur). Reflète les routes non versionnées actuelles — le versioning d'URL (`/v1/*`) suggéré par le todo n'a pas été fait, changement cassant pour toutes les apps appelantes sans coordination de déploiement (voir commentaire en tête du fichier). Validé avec `npx @redocly/cli lint openapi.yaml`.
+**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les routes historiques de paiement et de remboursement (schémas de requête/réponse, codes d'erreur). Les routes internes de gouvernance ajoutées après ce contrat sont documentées dans ce README et protégées par les guards serveur ; le versioning d'URL (`/v1/*`) n'a pas été introduit car il serait cassant pour les applications appelantes sans coordination de déploiement.
 
-### Remboursements (TASK-P0-001)
+### Remboursements
 
 - `POST /payments/:paymentId/refunds` (idempotent via header `idempotency-key`) : demande un remboursement total (montant omis) ou partiel. Le montant restant remboursable est toujours recalculé côté serveur sous verrou (`SELECT ... FOR UPDATE` sur `payments`) pour rester correct sous requêtes concurrentes.
 - `GET /payments/:paymentId/refunds` / `GET /payments/:paymentId/refunds/remaining` : consultation.
 - `GET /refunds?status=MANUAL_REVIEW` (défaut) : file d'attente opérateur.
-- `GET /refunds/:id` : détail + historique de statuts (append-only).
-- `POST /refunds/:id/retry` : rejoue un remboursement automatisé `FAILED`.
-- `POST /refunds/:id/confirm` / `POST /refunds/:id/reject` : réconciliation opérateur d'un remboursement `MANUAL_REVIEW`.
+- `GET /refunds/:id` : détail + historique de statuts append-only.
+- `POST /refunds/:id/retry` : rejoue un remboursement automatisé `FAILED` quand son état d'approbation le permet.
+- `POST /refunds/:id/confirm` / `POST /refunds/:id/reject` : réconciliation opérateur d'un remboursement `MANUAL_REVIEW` avec identité humaine de confiance dans `x-operator-user-id`.
 
-**Seul Flouci expose une API de remboursement automatisée**, vérifié contre la documentation officielle des trois fournisseurs (`https://docs.konnect.network`, `https://www.paymee.tn`, `https://docs.flouci.com/api-reference/refund-payment`) : Konnect et Paymee ne documentent aucun endpoint de remboursement public — leurs remboursements passent systématiquement par `MANUAL_REVIEW`, jamais par un faux succès. Flouci ne documente par ailleurs aucun paramètre de montant partiel sur `refund_payment` (il rembourse le montant total de l'appel) : un remboursement partiel sur un paiement Flouci est donc, lui aussi, orienté vers `MANUAL_REVIEW` plutôt que d'appeler le fournisseur pour plus que ce qui a été demandé.
+**Seul Flouci expose une API de remboursement automatisée** dans les intégrations actuellement implémentées. Konnect et Paymee ne disposent pas d'endpoint automatisé utilisé par ce service ; leurs remboursements passent par `MANUAL_REVIEW`. Flouci est automatisé seulement pour le remboursement total admissible ; les remboursements partiels sont orientés vers la revue manuelle plutôt que de rembourser un montant différent de celui demandé.
+
+### Politique d'approbation des remboursements — PAY-002
+
+`GET/PUT /refund-policies/:consumerApplication` permet à l'opérateur Payments de gérer une policy par application consommatrice :
+
+- `AUTO` sous le seuil configuré ;
+- `SINGLE_APPROVAL` par défaut / dans la plage intermédiaire ;
+- `DUAL_APPROVAL` à partir du seuil élevé ;
+- maker/checker configurable et version de policy persistée.
+
+Chaque remboursement conserve un snapshot immuable du mode/version de policy utilisé. `AWAITING_APPROVAL` réserve le montant contre le paiement. En `DUAL_APPROVAL`, deux opérateurs distincts sont requis et le maker ne peut pas s'auto-approuver quand maker/checker est actif. Les chemins `retry`/`confirm` ne permettent pas de ressusciter un remboursement rejeté avant approbation.
+
+### SLA de `MANUAL_REVIEW` — PAY-003
+
+Les routes opérateur suivantes sont protégées par `ServiceAuthGuard` + `RefundOperatorGuard` :
+
+- `GET /refund-manual-review/dashboard` : file courante avec état `IN_SLA`, `DUE_SOON`, `OVERDUE`, `ESCALATED` ou `UNSCHEDULED` ;
+- `GET /refund-manual-review/policies/:consumerApplication` : policy SLA effective ;
+- `PUT /refund-manual-review/policies/:consumerApplication` : modification versionnée par opérateur identifié.
+
+Policy par défaut quand aucune configuration n'existe :
+
+- SLA : **24 h** (`1440` minutes) ;
+- reminder : **4 h avant** l'échéance (`240` minutes) ;
+- escalation : **1 h après** l'échéance (`60` minutes).
+
+Lors de chaque entrée dans `MANUAL_REVIEW`, Payments calcule et conserve un snapshot du cycle (`manualReviewStartedAt`, `manualReviewReminderAt`, `manualReviewDueAt`, `manualReviewEscalateAt`, version de policy). Modifier une policy ne déplace donc pas rétroactivement l'échéance d'un dossier déjà ouvert.
+
+`RefundManualReviewSlaWorkerService` vérifie périodiquement les dossiers. Les reminders et escalades utilisent :
+
+- verrou pessimiste sur le remboursement ;
+- marqueurs persistés `manualReviewReminderSentAt` / `manualReviewEscalatedAt` ;
+- `eventId` déterministe incluant le remboursement, le cycle et le rôle destinataire ;
+- déduplication côté Notifications ;
+- livraison aux rôles `PLATFORM_SUPERADMIN` et legacy `SUPERADMIN`.
+
+La livraison SLA est volontairement **required** : si Notifications est indisponible ou non configuré, le marqueur local n'est pas avancé et le cycle suivant réessaie. Cela évite de déclarer un reminder/escalation traité sans notification réellement acceptée.
 
 ## Authentification et autorisations
 
-`ServiceAuthGuard` contrôle initialisations et lecture avec `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`, TASK-P0-003 — voir `src/config/service-clients.config.ts`). Les webhooks ne portent pas cette clé; ils valident signature/secret ou relisent le statut fournisseur selon l'implémentation. `PAYMENT_WEBHOOK_SECRET` signe les callbacks sortants. Aucun secret ne doit aller au frontend.
+`ServiceAuthGuard` contrôle initialisations et lecture avec `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`). `RefundOperatorGuard` réduit encore les routes d'administration des remboursements à `federation-hub`. Les webhooks fournisseurs ne portent pas la clé de service ; ils valident signature/secret ou relisent le statut fournisseur selon l'implémentation. `PAYMENT_WEBHOOK_SECRET` signe les callbacks sortants. Aucun secret ne doit aller au frontend.
 
-## Données possédées
+## Données possédées et migrations
 
-Base dédiée configurée par `DB_*`, entités Payment (référence externe, fournisseur, montant/devise, état et métadonnées), Refund et RefundStatusHistory (montant, statut, motif, historique append-only des transitions).
+Base dédiée configurée par `DB_*`, avec notamment :
 
-**Migrations réellement présentes :** `sql/migration_add_refunds.sql` (tables `refunds`/`refund_status_history`, additive). Le reste du schéma (`payments`, outbox) n'a toujours pas de fichier de migration ; ne pas en déduire un schéma déployable complet à partir des seules entités TypeORM.
+- `Payment` : référence externe, fournisseur, montant/devise, état et métadonnées ;
+- `Refund` : montant, statut, snapshots d'approbation et de SLA ;
+- `RefundStatusHistory` : historique append-only des transitions ;
+- policies de routing, d'approbation remboursement et de SLA `MANUAL_REVIEW` ;
+- outbox transactionnelle des événements sortants.
+
+Le schéma autonome Payments est versionné par migrations TypeORM dans `src/database/migrations/` :
+
+- `1786841000000-BaselinePaymentsSchema.ts` ;
+- `1786990000000-AddPaymentRoutingPolicies.ts` ;
+- `1787000000000-AddRefundApprovalGovernance.ts` ;
+- `1787010000000-AddRefundManualReviewSla.ts`.
+
+`src/database/data-source.ts` et `src/config/database.config.ts` référencent la même séquence. En production, appliquer les migrations avant le rollout avec `npm run migration:run:prod` (ou `DB_RUN_MIGRATIONS=true` si ce mode de déploiement est explicitement choisi). Le fichier historique `sql/migration_add_refunds.sql` reste conservé pour l'ancien schéma partagé, mais ne remplace pas la chaîne TypeORM de la base autonome.
+
+Voir aussi `../docs/architecture/database-migrations.md`.
 
 ## Intégrations
 
-APIs Konnect/Paymee/Flouci; notifications après confirmation; dispatcher vers les URLs `WEBHOOK_URLS` (ticketing/club-hub).
+APIs Konnect/Paymee/Flouci ; Notifications pour confirmations, reminders et escalades ; dispatcher vers les URLs `WEBHOOK_URLS` des applications consommatrices ; Federation Hub pour la console financière plateforme.
 
 ## Variables d’environnement
 
@@ -59,24 +113,23 @@ Variables déclarées dans `.env.example` : `NODE_ENV`, `PORT`, `KONNECT_BASE_UR
 
 ## Démarrage
 
-Prérequis : Node.js, pnpm, et les dépendances MariaDB/Redis éventuelles configurées.
+Prérequis : Node.js, npm/pnpm selon le script utilisé et une base MySQL/MariaDB compatible configurée.
 
 ```bash
-pnpm install
-pnpm dev
-pnpm build
-pnpm start
-pnpm lint
+npm ci
+npm run build
+npm test
+npm run start:dev
 ```
 
-**Port :** 3000 par défaut dans `src/main.ts` et `.env.example`; prévoir un autre `PORT` si arbinote tourne aussi.
+**Port :** 3000 par défaut dans `src/main.ts` et `.env.example`; prévoir un autre `PORT` si un autre service utilise déjà ce port.
 
-Le script racine `../start.sh` ne lance que `sso`, `arbinote`, `match-operations`, `federation-hub` et `club-hub`, avec MariaDB partagée. Les autres projets se lancent séparément. `payments` et `notifications` possèdent leur base; `marketplace` vise également une base dédiée, tandis que les applications Next métier partagent encore `foot` (seller-portal inclus).
+Le script racine `../start.sh` ne lance qu'un sous-ensemble des applications du monorepo ; `payments` et `notifications` disposent de leur propre base et se lancent séparément selon l'environnement.
 
 ## Tests
 
-`pnpm test`, `pnpm test:e2e`, `pnpm test:cov`. Les scripts `lint` des API NestJS utilisent `--fix` et peuvent donc modifier les fichiers.
+`npm test`, `npm run test:e2e`, `npm run test:cov`. Le job CI Payments exécute lint, build et tests. Les scripts `lint` locaux utilisent `--fix` ; la CI appelle ESLint sans `--fix` afin de détecter les écarts de formatage sans modifier le checkout.
 
 ## Limites connues
 
-Le service n'est pas un ledger comptable (pas d'écritures brut/frais/commission — voir TASK-P1-007 du backlog). Le remboursement automatisé n'existe que pour Flouci et seulement en totalité (voir "Remboursements" ci-dessus) ; Konnect, Paymee et tout remboursement partiel Flouci passent par une file opérateur `MANUAL_REVIEW`, sans SLA ni alerte automatique en cas de file qui grossit (pas de tableau de bord ni d'astreinte — TASK-P2-002 du backlog). La fiabilité des redirections dépend des URLs fournisseur; les consommateurs doivent réconcilier par ID/webhook. Le schéma `payments`/outbox n'a pas de fichier de migration (voir "Données possédées").
+Le service n'est pas encore un ledger comptable détaillé : `gross/providerFee/platformFee/clubNet/sellerNet/refund/settlement` reste suivi par `PAY-004`. La réconciliation financière provider/interne avec file d'écarts et résolution auditée reste `PAY-005`. Le SLA de revue manuelle est maintenant présent, mais il reste spécifique au domaine Payments ; sa généralisation en moteur transversal commun aux workflows est suivie séparément par `GOV-008`.
