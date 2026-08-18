@@ -1,6 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { BaselineNotificationsSchema1786841100000 } from '../database/migrations/1786841100000-BaselineNotificationsSchema';
+import { AddNotificationsGovernance1787017200000 } from '../database/migrations/1787017200000-AddNotificationsGovernance';
 
 export const databaseConfig = registerAs(
   'database',
@@ -14,7 +15,10 @@ export const databaseConfig = registerAs(
     autoLoadEntities: true,
     synchronize: process.env.NODE_ENV !== 'production',
     migrationsTableName: 'notifications_migrations',
-    migrations: [BaselineNotificationsSchema1786841100000],
+    migrations: [
+      BaselineNotificationsSchema1786841100000,
+      AddNotificationsGovernance1787017200000,
+    ],
     migrationsRun: process.env.DB_RUN_MIGRATIONS === 'true',
   }),
 );

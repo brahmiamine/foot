@@ -1,4 +1,5 @@
 import { NotificationChannelType } from '../common/enums/channel.enum';
+import { DigestMode } from '../common/enums/digest-mode.enum';
 import { NotificationLocale } from '../common/enums/locale.enum';
 import { PreferencesService } from './preferences.service';
 
@@ -10,11 +11,19 @@ describe('PreferencesService', () => {
     enabled: boolean;
   }>;
   let localeRows: Array<{ userId: string; locale: NotificationLocale }>;
+  let scheduleRows: Array<{
+    userId: string;
+    timezone: string;
+    quietHoursStart: string | null;
+    quietHoursEnd: string | null;
+    digestMode: DigestMode;
+  }>;
   let service: PreferencesService;
 
   beforeEach(() => {
     preferenceRows = [];
     localeRows = [];
+    scheduleRows = [];
 
     const preferenceRepository = {
       find: jest.fn(
@@ -76,9 +85,26 @@ describe('PreferencesService', () => {
       }),
     };
 
+    const scheduleRepository = {
+      findOne: jest.fn((options: { where: { userId: string } }) =>
+        Promise.resolve(
+          scheduleRows.find((row) => row.userId === options.where.userId) ??
+            null,
+        ),
+      ),
+      save: jest.fn((row: (typeof scheduleRows)[number]) => {
+        scheduleRows = scheduleRows.filter(
+          (candidate) => candidate.userId !== row.userId,
+        );
+        scheduleRows.push(row);
+        return Promise.resolve(row);
+      }),
+    };
+
     service = new PreferencesService(
       preferenceRepository as never,
       localeRepository as never,
+      scheduleRepository as never,
     );
   });
 
@@ -143,5 +169,30 @@ describe('PreferencesService', () => {
     await service.setLocale('user-1', NotificationLocale.EN);
 
     expect(await service.getLocale('user-1')).toBe(NotificationLocale.EN);
+  });
+
+  it('defaults to no quiet hours and an IMMEDIATE digest when no schedule is stored', async () => {
+    expect(await service.getSchedule('user-1')).toEqual({
+      timezone: 'Africa/Tunis',
+      quietHoursStart: null,
+      quietHoursEnd: null,
+      digestMode: DigestMode.IMMEDIATE,
+    });
+  });
+
+  it('persists and returns a stored schedule override', async () => {
+    await service.setSchedule('user-1', {
+      timezone: 'Europe/Paris',
+      quietHoursStart: '22:00',
+      quietHoursEnd: '07:00',
+      digestMode: DigestMode.DAILY,
+    });
+
+    expect(await service.getSchedule('user-1')).toEqual({
+      timezone: 'Europe/Paris',
+      quietHoursStart: '22:00',
+      quietHoursEnd: '07:00',
+      digestMode: DigestMode.DAILY,
+    });
   });
 });

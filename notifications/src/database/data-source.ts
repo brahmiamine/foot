@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { BaselineNotificationsSchema1786841100000 } from './migrations/1786841100000-BaselineNotificationsSchema';
+import { AddNotificationsGovernance1787017200000 } from './migrations/1787017200000-AddNotificationsGovernance';
 
 export const notificationsDataSource = new DataSource({
   type: 'mysql',
@@ -11,7 +12,10 @@ export const notificationsDataSource = new DataSource({
   database: process.env.DB_DATABASE,
   synchronize: false,
   migrationsTableName: 'notifications_migrations',
-  migrations: [BaselineNotificationsSchema1786841100000],
+  migrations: [
+    BaselineNotificationsSchema1786841100000,
+    AddNotificationsGovernance1787017200000,
+  ],
 });
 
 export default notificationsDataSource;

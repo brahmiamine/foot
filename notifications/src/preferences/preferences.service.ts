@@ -7,8 +7,11 @@ import {
   NotificationLocale,
 } from '../common/enums/locale.enum';
 import { NotificationPreference } from './entities/notification-preference.entity';
+import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { UserLocale } from './entities/user-locale.entity';
 import { PreferenceEntryDto } from './dto/upsert-preference.dto';
+import { SetScheduleDto } from './dto/set-schedule.dto';
+import { DEFAULT_SCHEDULE, UserNotificationSchedule } from './quiet-hours.util';
 
 /** Canaux activés par défaut tant que l'utilisateur n'a rien configuré. */
 const DEFAULT_ENABLED: Record<NotificationChannelType, boolean> = {
@@ -25,7 +28,35 @@ export class PreferencesService {
     private readonly repository: Repository<NotificationPreference>,
     @InjectRepository(UserLocale)
     private readonly localeRepository: Repository<UserLocale>,
+    @InjectRepository(NotificationSchedule)
+    private readonly scheduleRepository: Repository<NotificationSchedule>,
   ) {}
+
+  /** NOTIF-002/NOTIF-003 : heures calmes, timezone et mode de digest de l'utilisateur. */
+  async getSchedule(userId: string): Promise<UserNotificationSchedule> {
+    const row = await this.scheduleRepository.findOne({ where: { userId } });
+    if (!row) return DEFAULT_SCHEDULE;
+    return {
+      timezone: row.timezone,
+      quietHoursStart: row.quietHoursStart,
+      quietHoursEnd: row.quietHoursEnd,
+      digestMode: row.digestMode,
+    };
+  }
+
+  async setSchedule(
+    userId: string,
+    dto: SetScheduleDto,
+  ): Promise<UserNotificationSchedule> {
+    await this.scheduleRepository.save({
+      userId,
+      timezone: dto.timezone,
+      quietHoursStart: dto.quietHoursStart ?? null,
+      quietHoursEnd: dto.quietHoursEnd ?? null,
+      digestMode: dto.digestMode,
+    });
+    return this.getSchedule(userId);
+  }
 
   async getLocale(userId: string): Promise<NotificationLocale> {
     const row = await this.localeRepository.findOne({ where: { userId } });

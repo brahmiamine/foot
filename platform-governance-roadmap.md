@@ -29,6 +29,7 @@
 - 2026-08-17 — CI #852 + Ownership #381 : `MATCH-002` validé. Les feuilles post-match signées/clôturées exigent un amendement explicite avant correction, chaque correction reste dans le ledger append-only, les créations live/hard-delete non audités restent bloqués, et l'amendement se ferme en `RE_SIGNED` uniquement après re-signatures valides du nouveau hash.
 - 2026-08-17 — CI #895 + Ownership #424 : `MATCH-003`, `TICK-001`, `TICK-002` et `PAY-001` validés. Match Operations conserve la version de policy de correction post-signature et exige l'approbation fédérale configurée ; Ticketing applique le workflow DRAFT/REVIEW/APPROVED/SCHEDULED/OPEN avec revalidation tarifaire ; Payments applique une policy provider enabled/default/fallback par consommateur, une administration séparée et des replays idempotents sans fallback PSP ambigu.
 - 2026-08-17 — CI #930 + Ownership #459 : `PAY-002` validé. Payments résout `AUTO / SINGLE_APPROVAL / DUAL_APPROVAL` par seuil et consommateur avant tout appel PSP, conserve un snapshot de policy par remboursement, réserve le montant en `AWAITING_APPROVAL`, impose maker/checker et deux approbateurs distincts en DUAL, protège retry/confirm contre les contournements, grandfather les remboursements legacy lors de la migration et garde Ticketing/Club Hub/Marketplace compatibles via normalisation locale de l'état d'attente.
+- 2026-08-18 — build (`nest build`) + suite `jest` (99 tests) vertes : lot `NOTIF-001` à `NOTIF-005` validé. `NotificationPolicy` (PLATFORM/CLUB, résolution par `resolvePolicy`) fixe mandatory/default/disabled par canal et catégorie et surclasse `PreferencesService` sans jamais abaisser les types historiquement mandatory ; heures calmes/timezone par utilisateur différent l'envoi jusqu'à leur fin sauf priorité `URGENT` (bypass total) ; digests `HOURLY`/`DAILY` agrègent via une revendication atomique (`UPDATE ... WHERE flushed=false`) garantissant l'idempotence même si le cron se chevauche ; l'escalade des notifications `HIGH`/`URGENT` non lues insère d'abord la trace unique par `notificationId` avant d'envoyer au destinataire de secours (explicite ou résolu par rôle), avec la même garantie d'idempotence ; les templates suivent désormais `DRAFT→SUBMITTED→APPROVED→ACTIVE→ARCHIVED` avec maker/checker sur l'approbation, une seule version `ACTIVE` par (type, canal, langue) et un audit GOV-005 complet (`notification_policy_audit`, avant/après/acteur/motif/IP/UA) partagé par NOTIF-001 et NOTIF-005. `packages/domain-contracts` (GOV-001/GOV-005) n'a pas pu être importé tel quel : c'est un paquet ESM pur, et `notifications` est un service NestJS CommonJS exécuté sans bundler (`node dist/main.js`) — un `tsc "nodenext"` compile ce fichier externe en ESM d'après son propre `package.json`, ce que `require()` ne peut pas charger en production. Les fonctions pures nécessaires (`resolvePolicy`, `requireConfigurationChangeReason`) ont donc été recopiées à l'identique dans `notifications/src/common/domain-contracts/`, avec un commentaire explicite pour qu'un futur lot ne réintroduise pas l'import relatif cassé.
 
 ---
 
@@ -164,11 +165,11 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| NOTIF-001 | P1 | TODO | NotificationPolicy organisationnelle | canal mandatory/default/disabled par type/catégorie |
-| NOTIF-002 | P1 | TODO | Quiet hours et timezone | urgences bypass, autres différées |
-| NOTIF-003 | P1 | TODO | Digests IMMEDIATE/HOURLY/DAILY | agrégation idempotente |
-| NOTIF-004 | P1 | TODO | Escalade des notifications critiques non lues | délai + destinataire de secours |
-| NOTIF-005 | P1 | TODO | Workflow/versionnement templates | DRAFT→SUBMITTED→APPROVED→ACTIVE→ARCHIVED |
+| NOTIF-001 | P1 | DONE | NotificationPolicy organisationnelle | canal mandatory/default/disabled par type/catégorie |
+| NOTIF-002 | P1 | DONE | Quiet hours et timezone | urgences bypass, autres différées |
+| NOTIF-003 | P1 | DONE | Digests IMMEDIATE/HOURLY/DAILY | agrégation idempotente |
+| NOTIF-004 | P1 | DONE | Escalade des notifications critiques non lues | délai + destinataire de secours |
+| NOTIF-005 | P1 | DONE | Workflow/versionnement templates | DRAFT→SUBMITTED→APPROVED→ACTIVE→ARCHIVED |
 
 # M. Club OB / espace membre public
 

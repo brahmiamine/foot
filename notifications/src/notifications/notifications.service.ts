@@ -1,14 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
-import { isMandatoryNotificationType } from '../common/constants/mandatory-types';
 import { PaginatedResult, PaginationDto } from '../common/dto/pagination.dto';
 import { NotificationChannelType } from '../common/enums/channel.enum';
 import { NotificationPriority } from '../common/enums/priority.enum';
 import { DeliveriesService } from '../deliveries/deliveries.service';
+import { DigestService } from '../digest/digest.service';
 import { IdempotencyService } from '../events/idempotency.service';
 import { CreateInternalNotificationDto } from '../internal/dto/create-internal-notification.dto';
+import { DigestMode } from '../common/enums/digest-mode.enum';
 import { PreferencesService } from '../preferences/preferences.service';
+import {
+  computeQuietHoursDelayMs,
+  type UserNotificationSchedule,
+} from '../preferences/quiet-hours.util';
+import { PolicyService } from '../policy/policy.service';
 import { QueueDispatchProducer } from '../queue/dispatch.producer';
 import { Notification } from './entities/notification.entity';
 import { RecipientResolverService } from './recipient-resolver.service';
@@ -46,6 +52,8 @@ export class NotificationsService {
     private readonly idempotency: IdempotencyService,
     private readonly recipientResolver: RecipientResolverService,
     private readonly dispatchProducer: QueueDispatchProducer,
+    private readonly policy: PolicyService,
+    private readonly digest: DigestService,
   ) {}
 
   async dispatchEvent(
@@ -134,19 +142,41 @@ export class NotificationsService {
       : this.repository;
 
     const category = dto.category ?? dto.type;
-    const mandatory = isMandatoryNotificationType(dto.type);
     const externalEmail = dto.email?.trim().toLowerCase() ?? null;
     const candidateChannels = externalEmail
       ? [NotificationChannelType.EMAIL]
       : (dto.channels ?? DEFAULT_CANDIDATE_CHANNELS);
-    const channels =
-      externalEmail || mandatory
-        ? candidateChannels
-        : await this.preferences.resolveEnabledChannels(
-            userId,
-            category,
-            candidateChannels,
-          );
+    const priority = dto.priority ?? NotificationPriority.NORMAL;
+    const isUrgent = priority === NotificationPriority.URGENT;
+
+    // NOTIF-001 : un destinataire externe (email brut, sans compte) n'a ni
+    // préférences ni horaire — il reçoit toujours ses canaux candidats.
+    let channels: NotificationChannelType[];
+    let mandatoryChannels: NotificationChannelType[] = [];
+    let schedule: UserNotificationSchedule | null = null;
+    if (externalEmail) {
+      channels = candidateChannels;
+    } else {
+      const selection = await this.policy.resolveChannelSelection(
+        teamId,
+        dto.type,
+        category,
+        candidateChannels,
+      );
+      mandatoryChannels = selection.mandatory;
+      const preferenceEnabled = await this.preferences.resolveEnabledChannels(
+        userId,
+        category,
+        selection.eligibleForPreference,
+      );
+      const enabledSet = new Set([
+        ...selection.mandatory,
+        ...preferenceEnabled,
+      ]);
+      channels = candidateChannels.filter((channel) => enabledSet.has(channel));
+      schedule = await this.preferences.getSchedule(userId);
+    }
+    const mandatory = mandatoryChannels.length > 0;
     const notificationData = externalEmail
       ? {
           ...(dto.data ?? {}),
@@ -161,7 +191,7 @@ export class NotificationsService {
       application,
       type: dto.type,
       category,
-      priority: dto.priority ?? NotificationPriority.NORMAL,
+      priority,
       title: dto.title,
       body: dto.body,
       data: notificationData,
@@ -174,9 +204,14 @@ export class NotificationsService {
     });
     const saved = await notificationRepo.save(notification);
 
-    const delayMs = saved.scheduledAt
-      ? Math.max(0, saved.scheduledAt.getTime() - Date.now())
-      : 0;
+    // NOTIF-002 : les notifications URGENT contournent les heures calmes ;
+    // les autres sont différées jusqu'à leur fin (voir computeQuietHoursDelayMs).
+    const baseAt = saved.scheduledAt ?? new Date();
+    let sendDelayMs = Math.max(0, baseAt.getTime() - Date.now());
+    if (!isUrgent && schedule) {
+      const plannedSendAt = new Date(Date.now() + sendDelayMs);
+      sendDelayMs += computeQuietHoursDelayMs(schedule, plannedSendAt);
+    }
 
     const toEnqueue: EnqueueTask[] = [];
     for (const channel of channels) {
@@ -190,11 +225,31 @@ export class NotificationsService {
         await this.deliveries.markDelivered(delivery.id, manager);
         continue;
       }
+
+      // NOTIF-003 : un canal MANDATORY ou une notification URGENT reste
+      // toujours immédiat — seul le flux "préférence" peut être digéré.
+      const isMandatoryChannel = mandatoryChannels.includes(channel);
+      const digestMode =
+        schedule && !isMandatoryChannel && !isUrgent
+          ? schedule.digestMode
+          : DigestMode.IMMEDIATE;
+      if (digestMode !== DigestMode.IMMEDIATE) {
+        await this.digest.enqueue(
+          userId,
+          channel,
+          digestMode,
+          saved.id,
+          delivery.id,
+          manager,
+        );
+        continue;
+      }
+
       toEnqueue.push({
         channel,
         notificationId: saved.id,
         deliveryId: delivery.id,
-        delayMs,
+        delayMs: sendDelayMs,
       });
     }
 
