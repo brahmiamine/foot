@@ -47,7 +47,7 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly repository: Repository<OutboxEvent>,
     private readonly webhookDispatch: WebhookDispatchService,
     private readonly notificationClient: NotificationClientService,
-    private readonly financialLedgerService?: FinancialLedgerService,
+    private readonly financialLedgerService: FinancialLedgerService,
   ) {}
 
   onModuleInit(): void {
@@ -96,13 +96,13 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
       switch (event.eventType) {
         case 'PAYMENT_PAID': {
           const payload = event.payload as unknown as PaymentPaidEvent;
-          await this.financialLedgerService?.postPaymentPaid(payload);
+          await this.financialLedgerService.postPaymentPaid(payload);
           await this.deliverPaymentPaid(payload);
           break;
         }
         case REFUND_SUCCEEDED_EVENT_TYPE: {
           const payload = event.payload as unknown as RefundEvent;
-          await this.financialLedgerService?.postRefundSucceeded(payload);
+          await this.financialLedgerService.postRefundSucceeded(payload);
           await this.deliverRefundEvent(payload, 'REFUND_SUCCEEDED');
           break;
         }
