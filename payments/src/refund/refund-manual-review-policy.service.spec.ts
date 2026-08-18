@@ -14,7 +14,10 @@ describe('RefundManualReviewPolicyService', () => {
         return Promise.resolve(value);
       }),
     } as unknown as Repository<RefundManualReviewPolicy>;
-    return { service: new RefundManualReviewPolicyService(repository), repository };
+    return {
+      service: new RefundManualReviewPolicyService(repository),
+      repository,
+    };
   }
 
   it('uses a fail-safe default SLA when no consumer policy exists', async () => {

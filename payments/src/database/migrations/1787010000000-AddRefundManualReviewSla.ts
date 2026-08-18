@@ -1,9 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /** PAY-003 — SLA snapshots, reminders and escalations for manual refunds. */
-export class AddRefundManualReviewSla1787010000000
-  implements MigrationInterface
-{
+export class AddRefundManualReviewSla1787010000000 implements MigrationInterface {
   name = 'AddRefundManualReviewSla1787010000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -76,9 +74,15 @@ export class AddRefundManualReviewSla1787010000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('DROP INDEX idx_refunds_manual_review_escalation ON refunds');
-    await queryRunner.query('DROP INDEX idx_refunds_manual_review_reminder ON refunds');
-    await queryRunner.query('DROP INDEX idx_refunds_manual_review_due ON refunds');
+    await queryRunner.query(
+      'DROP INDEX idx_refunds_manual_review_escalation ON refunds',
+    );
+    await queryRunner.query(
+      'DROP INDEX idx_refunds_manual_review_reminder ON refunds',
+    );
+    await queryRunner.query(
+      'DROP INDEX idx_refunds_manual_review_due ON refunds',
+    );
     await queryRunner.query(`
       ALTER TABLE refunds
         DROP COLUMN manualReviewEscalatedAt,
@@ -89,6 +93,8 @@ export class AddRefundManualReviewSla1787010000000
         DROP COLUMN manualReviewStartedAt,
         DROP COLUMN manualReviewPolicyVersion
     `);
-    await queryRunner.query('DROP TABLE IF EXISTS refund_manual_review_policies');
+    await queryRunner.query(
+      'DROP TABLE IF EXISTS refund_manual_review_policies',
+    );
   }
 }

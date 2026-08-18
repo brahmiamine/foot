@@ -19,11 +19,7 @@ import { RefundStatus } from './enums/refund-status.enum';
 import { RefundManualReviewPolicyService } from './refund-manual-review-policy.service';
 
 export type ManualReviewSlaState =
-  | 'IN_SLA'
-  | 'DUE_SOON'
-  | 'OVERDUE'
-  | 'ESCALATED'
-  | 'UNSCHEDULED';
+  'IN_SLA' | 'DUE_SOON' | 'OVERDUE' | 'ESCALATED' | 'UNSCHEDULED';
 
 export interface ManualReviewDashboardItem {
   refundId: string;
@@ -112,7 +108,9 @@ export class RefundManualReviewSlaService {
     return initialized;
   }
 
-  async processDueAlerts(now = new Date()): Promise<ManualReviewAlertRunResult> {
+  async processDueAlerts(
+    now = new Date(),
+  ): Promise<ManualReviewAlertRunResult> {
     await this.initializeSchedules();
     const candidates = await this.refundRepository.find({
       where: [
@@ -162,13 +160,17 @@ export class RefundManualReviewSlaService {
     const payments = paymentIds.length
       ? await this.paymentRepository.find({ where: { id: In(paymentIds) } })
       : [];
-    const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
+    const paymentById = new Map(
+      payments.map((payment) => [payment.id, payment]),
+    );
 
     const items = refunds.map((refund): ManualReviewDashboardItem => {
       const payment = paymentById.get(refund.paymentId);
       const state = this.resolveState(refund, now);
       const minutesToDue = refund.manualReviewDueAt
-        ? Math.ceil((refund.manualReviewDueAt.getTime() - now.getTime()) / 60_000)
+        ? Math.ceil(
+            (refund.manualReviewDueAt.getTime() - now.getTime()) / 60_000,
+          )
         : null;
       return {
         refundId: refund.id,
@@ -201,7 +203,9 @@ export class RefundManualReviewSlaService {
         dueSoon: items.filter((item) => item.state === 'DUE_SOON').length,
         overdue: items.filter((item) => item.state === 'OVERDUE').length,
         escalated: items.filter((item) => item.state === 'ESCALATED').length,
-        unscheduled: items.filter((item) => item.state === 'UNSCHEDULED').length,
+        unscheduled: items.filter(
+          (item) => item.state === 'UNSCHEDULED',
+        ).length,
       },
       items,
     };
@@ -281,13 +285,15 @@ export class RefundManualReviewSlaService {
     manager: EntityManager,
     refund: Refund,
   ): Promise<boolean> {
-    const transition = await manager.getRepository(RefundStatusHistory).findOne({
-      where: {
-        refundId: refund.id,
-        toStatus: RefundStatus.MANUAL_REVIEW,
-      },
-      order: { createdAt: 'DESC' },
-    });
+    const transition = await manager
+      .getRepository(RefundStatusHistory)
+      .findOne({
+        where: {
+          refundId: refund.id,
+          toStatus: RefundStatus.MANUAL_REVIEW,
+        },
+        order: { createdAt: 'DESC' },
+      });
     const startedAt =
       transition?.createdAt ??
       refund.manualReviewStartedAt ??
