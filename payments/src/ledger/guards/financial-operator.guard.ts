@@ -15,10 +15,7 @@ export class FinancialOperatorGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const service = (request as Request & { service?: AuthenticatedService })
       .service;
-    if (
-      !service ||
-      !FINANCIAL_OPERATOR_APPLICATIONS.has(service.application)
-    ) {
+    if (!service || !FINANCIAL_OPERATOR_APPLICATIONS.has(service.application)) {
       throw new ForbiddenException('Financial operator access required');
     }
     return true;
