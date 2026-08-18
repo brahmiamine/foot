@@ -1,15 +1,19 @@
 import { Repository } from 'typeorm';
-import { OutboxWorkerService } from './outbox-worker.service';
-import { OutboxEvent, OutboxEventStatus } from './entities/outbox-event.entity';
-import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
+import { FinancialLedgerService } from '../ledger/financial-ledger.service';
 import { NotificationClientService } from '../notifications/notification-client.service';
 import type { PaymentPaidEvent } from '../payment/payment.service';
+import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
+import { OutboxEvent, OutboxEventStatus } from './entities/outbox-event.entity';
+import { OutboxWorkerService } from './outbox-worker.service';
 
 describe('OutboxWorkerService', () => {
   let repository: jest.Mocked<Pick<Repository<OutboxEvent>, 'find' | 'update'>>;
   let webhookDispatch: jest.Mocked<Pick<WebhookDispatchService, 'dispatch'>>;
   let notificationClient: jest.Mocked<
     Pick<NotificationClientService, 'notify'>
+  >;
+  let financialLedger: jest.Mocked<
+    Pick<FinancialLedgerService, 'postPaymentPaid' | 'postRefundSucceeded'>
   >;
   let service: OutboxWorkerService;
 
@@ -46,20 +50,28 @@ describe('OutboxWorkerService', () => {
     };
     webhookDispatch = { dispatch: jest.fn().mockResolvedValue(undefined) };
     notificationClient = { notify: jest.fn().mockResolvedValue(undefined) };
+    financialLedger = {
+      postPaymentPaid: jest.fn().mockResolvedValue(undefined),
+      postRefundSucceeded: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new OutboxWorkerService(
       repository as unknown as Repository<OutboxEvent>,
       webhookDispatch as unknown as WebhookDispatchService,
       notificationClient as unknown as NotificationClientService,
+      financialLedger as unknown as FinancialLedgerService,
     );
   });
 
-  it('marks a successfully delivered event PROCESSED, calling both notification and webhook', async () => {
+  it('projects the ledger before marking a successfully delivered PAYMENT_PAID event processed', async () => {
     const event = buildEvent();
     repository.find.mockResolvedValue([event]);
 
     await service.processDueEvents();
 
+    expect(financialLedger.postPaymentPaid).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentId: 'payment-1' }),
+    );
     expect(notificationClient.notify).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'user-1', type: 'PAYMENT_SUCCEEDED' }),
     );
@@ -67,11 +79,35 @@ describe('OutboxWorkerService', () => {
       'ticketing',
       expect.objectContaining({ paymentId: 'payment-1', status: 'PAID' }),
     );
+    expect(
+      financialLedger.postPaymentPaid.mock.invocationCallOrder[0],
+    ).toBeLessThan(webhookDispatch.dispatch.mock.invocationCallOrder[0]);
     expect(repository.update).toHaveBeenCalledWith(
       'event-1',
       expect.objectContaining({
         status: OutboxEventStatus.PROCESSED,
         lastError: null,
+      }),
+    );
+  });
+
+  it('keeps PAYMENT_PAID retryable when ledger projection fails and does not deliver externally', async () => {
+    const event = buildEvent();
+    repository.find.mockResolvedValue([event]);
+    financialLedger.postPaymentPaid.mockRejectedValue(
+      new Error('ledger unavailable'),
+    );
+
+    await service.processDueEvents();
+
+    expect(notificationClient.notify).not.toHaveBeenCalled();
+    expect(webhookDispatch.dispatch).not.toHaveBeenCalled();
+    expect(repository.update).toHaveBeenCalledWith(
+      'event-1',
+      expect.objectContaining({
+        attempts: 1,
+        status: OutboxEventStatus.PENDING,
+        lastError: 'ledger unavailable',
       }),
     );
   });
@@ -87,6 +123,7 @@ describe('OutboxWorkerService', () => {
 
     await service.processDueEvents();
 
+    expect(financialLedger.postPaymentPaid).toHaveBeenCalled();
     expect(notificationClient.notify).not.toHaveBeenCalled();
     expect(webhookDispatch.dispatch).toHaveBeenCalled();
   });
@@ -98,6 +135,7 @@ describe('OutboxWorkerService', () => {
 
     await service.processDueEvents();
 
+    expect(financialLedger.postPaymentPaid).toHaveBeenCalled();
     expect(repository.update).toHaveBeenCalledWith(
       'event-1',
       expect.objectContaining({
@@ -134,6 +172,8 @@ describe('OutboxWorkerService', () => {
 
     await service.processDueEvents();
 
+    expect(financialLedger.postPaymentPaid).not.toHaveBeenCalled();
+    expect(financialLedger.postRefundSucceeded).not.toHaveBeenCalled();
     expect(webhookDispatch.dispatch).not.toHaveBeenCalled();
     expect(notificationClient.notify).not.toHaveBeenCalled();
     expect(repository.update).toHaveBeenCalledWith(

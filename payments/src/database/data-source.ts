@@ -4,6 +4,7 @@ import { BaselinePaymentsSchema1786841000000 } from './migrations/1786841000000-
 import { AddPaymentRoutingPolicies1786990000000 } from './migrations/1786990000000-AddPaymentRoutingPolicies';
 import { AddRefundApprovalGovernance1787000000000 } from './migrations/1787000000000-AddRefundApprovalGovernance';
 import { AddRefundManualReviewSla1787010000000 } from './migrations/1787010000000-AddRefundManualReviewSla';
+import { AddFinancialLedger1787020000000 } from './migrations/1787020000000-AddFinancialLedger';
 
 export const paymentsDataSource = new DataSource({
   type: 'mysql',
@@ -19,6 +20,7 @@ export const paymentsDataSource = new DataSource({
     AddPaymentRoutingPolicies1786990000000,
     AddRefundApprovalGovernance1787000000000,
     AddRefundManualReviewSla1787010000000,
+    AddFinancialLedger1787020000000,
   ],
 });
 

@@ -4,6 +4,7 @@ import { BaselinePaymentsSchema1786841000000 } from '../database/migrations/1786
 import { AddPaymentRoutingPolicies1786990000000 } from '../database/migrations/1786990000000-AddPaymentRoutingPolicies';
 import { AddRefundApprovalGovernance1787000000000 } from '../database/migrations/1787000000000-AddRefundApprovalGovernance';
 import { AddRefundManualReviewSla1787010000000 } from '../database/migrations/1787010000000-AddRefundManualReviewSla';
+import { AddFinancialLedger1787020000000 } from '../database/migrations/1787020000000-AddFinancialLedger';
 
 export const databaseConfig = registerAs(
   'database',
@@ -22,6 +23,7 @@ export const databaseConfig = registerAs(
       AddPaymentRoutingPolicies1786990000000,
       AddRefundApprovalGovernance1787000000000,
       AddRefundManualReviewSla1787010000000,
+      AddFinancialLedger1787020000000,
     ],
     migrationsRun: process.env.DB_RUN_MIGRATIONS === 'true',
   }),

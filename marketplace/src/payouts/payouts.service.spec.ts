@@ -1,9 +1,10 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { PayoutsService } from './payouts.service';
+import { PaymentApiClientService } from '../checkout/payments-client.service';
+import { SellerOrder } from '../seller-orders/entities/seller-order.entity';
 import { Payout } from './entities/payout.entity';
 import { PayoutStatus } from './enums/payout-status.enum';
-import { SellerOrder } from '../seller-orders/entities/seller-order.entity';
+import { PayoutsService } from './payouts.service';
 
 function buildQueryBuilder(rawResult: Record<string, unknown>) {
   const qb = {
@@ -24,6 +25,7 @@ describe('PayoutsService', () => {
     createQueryBuilder: jest.Mock;
   };
   let sellerOrderRepository: { createQueryBuilder: jest.Mock };
+  let paymentApiClient: { recordSettlement: jest.Mock };
   let service: PayoutsService;
 
   function buildPayout(overrides: Partial<Payout> = {}): Payout {
@@ -53,9 +55,13 @@ describe('PayoutsService', () => {
     sellerOrderRepository = {
       createQueryBuilder: jest.fn(),
     };
+    paymentApiClient = {
+      recordSettlement: jest.fn().mockResolvedValue(undefined),
+    };
     service = new PayoutsService(
       repository as unknown as Repository<Payout>,
       sellerOrderRepository as unknown as Repository<SellerOrder>,
+      paymentApiClient as unknown as PaymentApiClientService,
     );
   });
 
@@ -172,16 +178,39 @@ describe('PayoutsService', () => {
       );
     });
 
-    it('PROCESSING -> PAID sets paidAt and clears lastError', async () => {
+    it('PROCESSING -> PAID records the settlement before saving PAID', async () => {
       repository.findOne.mockResolvedValue(
         buildPayout({ status: PayoutStatus.PROCESSING, lastError: 'timeout' }),
       );
 
       const result = await service.markPaid('payout-1');
 
+      expect(paymentApiClient.recordSettlement).toHaveBeenCalledWith(
+        expect.objectContaining({
+          settlementId: 'payout-1',
+          amount: 100,
+          beneficiaryType: 'SELLER',
+          beneficiaryId: 'seller-1',
+          reference: 'PO-ABCDEF12',
+        }),
+      );
       expect(result.status).toBe(PayoutStatus.PAID);
       expect(result.paidAt).toBeInstanceOf(Date);
       expect(result.lastError).toBeNull();
+    });
+
+    it('keeps PROCESSING when the settlement ledger call fails', async () => {
+      const payout = buildPayout({ status: PayoutStatus.PROCESSING });
+      repository.findOne.mockResolvedValue(payout);
+      paymentApiClient.recordSettlement.mockRejectedValue(
+        new Error('payments unavailable'),
+      );
+
+      await expect(service.markPaid('payout-1')).rejects.toThrow(
+        'payments unavailable',
+      );
+      expect(payout.status).toBe(PayoutStatus.PROCESSING);
+      expect(repository.save).not.toHaveBeenCalled();
     });
 
     it('PROCESSING -> FAILED records the reason (audit)', async () => {

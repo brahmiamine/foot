@@ -2,7 +2,7 @@
 
 ## Rôle du projet
 
-API NestJS mutualisée d'initialisation, suivi et réception de paiements Konnect, Paymee et Flouci. Le service est aussi la source de vérité des remboursements, de leur gouvernance d'approbation et de la file opérateur `MANUAL_REVIEW`.
+API NestJS mutualisée d'initialisation, suivi et réception de paiements Konnect, Paymee et Flouci. Le service est aussi la source de vérité des remboursements, de leur gouvernance d'approbation, de la file opérateur `MANUAL_REVIEW` et du ledger financier append-only de la plateforme.
 
 ## Fonctionnalités publiques
 
@@ -14,15 +14,17 @@ API NestJS mutualisée d'initialisation, suivi et réception de paiements Konnec
 
 Les initialisations, lectures et remboursements sont réservés aux services appelants via `ServiceAuthGuard`. Les routes opérateur globales (`/refunds/*`, `/refund-policies/*`, `/refund-manual-review/*`) exigent en plus `RefundOperatorGuard` et ne sont accessibles qu'à l'application `federation-hub`.
 
+Les lectures globales du ledger (`GET /financial-ledger`, `GET /financial-ledger/summary`) exigent `ServiceAuthGuard` + `FinancialOperatorGuard` et sont réservées à `federation-hub`. Les écritures de settlement sont séparées et réservées à `marketplace` via `SettlementWriterGuard`. Une application consommatrice peut enregistrer/lire l'allocation d'un paiement uniquement si ce paiement lui appartient (`callerApplication`).
+
 Dans Federation Hub, la console `/admin/payments/manual-review` est volontairement limitée à `PLATFORM_SUPERADMIN` / legacy `SUPERADMIN` : les remboursements Payments ne portent pas encore de `federationId`, donc les exposer aux administrateurs fédération/ligue créerait une fuite de périmètre. La clé de service Payments reste exclusivement côté serveur Federation Hub ; le navigateur ne la reçoit jamais.
 
 ## API
 
-Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Paymee, Flouci ; remboursement et gouvernance opérateur. Les chemins principaux sont résumés ci-dessous.
+Contrôleurs: health; `GET /payments/:id`; initialisation et webhook Konnect, Paymee, Flouci ; remboursement, gouvernance opérateur et ledger financier. Les chemins principaux sont résumés ci-dessous.
 
 > Les routes dynamiques (`:id`, `:paymentId`, etc.) attendent l'identifiant correspondant. Cet inventaire décrit le code présent, pas un contrat d'API versionné.
 
-**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les routes historiques de paiement et de remboursement (schémas de requête/réponse, codes d'erreur). Les routes internes de gouvernance ajoutées après ce contrat sont documentées dans ce README et protégées par les guards serveur ; le versioning d'URL (`/v1/*`) n'a pas été introduit car il serait cassant pour les applications appelantes sans coordination de déploiement.
+**Contrat OpenAPI 3.0** (TASK-P0-019) : `openapi.yaml` décrit les routes historiques de paiement et de remboursement (schémas de requête/réponse, codes d'erreur). Les routes internes de gouvernance/ledger ajoutées après ce contrat sont documentées dans ce README et protégées par les guards serveur ; le versioning d'URL (`/v1/*`) n'a pas été introduit car il serait cassant pour les applications appelantes sans coordination de déploiement.
 
 ### Remboursements
 
@@ -72,9 +74,37 @@ Lors de chaque entrée dans `MANUAL_REVIEW`, Payments calcule et conserve un sna
 
 La livraison SLA est volontairement **required** : si Notifications est indisponible ou non configuré, le marqueur local n'est pas avancé et le cycle suivant réessaie. Cela évite de déclarer un reminder/escalation traité sans notification réellement acceptée.
 
+### Ledger financier append-only — PAY-004
+
+Payments possède désormais deux structures distinctes :
+
+- `payment_financial_allocations` : snapshot immuable de la répartition métier d'un paiement (`PLATFORM_FEE`, `CLUB_NET`, `SELLER_NET`) avant/au moment de sa confirmation ;
+- `financial_ledger_entries` : écritures append-only pour `GROSS`, `PROVIDER_FEE`, `PLATFORM_FEE`, `CLUB_NET`, `SELLER_NET`, `REFUND`, `SETTLEMENT`.
+
+Routes principales :
+
+- `POST /financial-ledger/payments/:paymentId/allocations` : enregistre la première allocation d'un paiement appartenant à l'application appelante ; un replay identique est idempotent, une allocation différente est refusée ;
+- `GET /financial-ledger/payments/:paymentId` : écritures + résumé du paiement pour son application propriétaire ;
+- `POST /financial-ledger/settlements` : settlement idempotent réservé à Marketplace ;
+- `GET /financial-ledger` / `GET /financial-ledger/summary` : lecture opérateur globale réservée à Federation Hub.
+
+Invariants :
+
+- toutes les valeurs sont contrôlées au millime (`0,001 TND`) ; la somme des allocations doit être exactement égale au gross du paiement ;
+- un `entryKey` SHA-256 déterministe rend les replays exactement-once au niveau du ledger ;
+- aucune écriture ledger n'est mise à jour ou supprimée par le runtime métier ; les événements ultérieurs ajoutent de nouvelles lignes ;
+- `PROVIDER_FEE` n'est écrit que lorsque le PSP a réellement fourni `providerFee` à Payments ; aucune estimation n'est inventée ;
+- `PAYMENT_PAID` et `REFUND_SUCCEEDED` sont projetés dans le ledger **avant** notification/webhook externe via l'outbox durable ; un échec ledger garde l'événement retentable ;
+- le cas de course « callback PSP avant enregistrement de l'allocation Marketplace » est accepté : une première allocation peut être enregistrée sur un paiement `PENDING` ou déjà `PAID`; si le paiement est déjà `PAID`, les lignes d'allocation sont projetées immédiatement avec les mêmes clés idempotentes que l'outbox ;
+- un `SETTLEMENT` rejoué avec le même identifiant et les mêmes données retourne l'écriture existante ; des données financières différentes sur le même identifiant sont refusées.
+
+Marketplace fournit actuellement les allocations métier réellement connues : `SELLER_NET` reprend `SellerOrder.netAmount` et `CLUB_NET` est le résiduel exact `subtotal - netAmount`. Le type `PLATFORM_FEE` est supporté par Payments, mais aucun flux actuel ne produit encore de frais plateforme distincts. Ce ledger est un journal append-only par composante financière ; ce n'est pas un grand livre comptable en partie double débit/crédit.
+
+Le backfill PAY-004 ne reconstruit que les faits prouvables depuis la base autonome Payments : gross des paiements `PAID`, frais PSP connus et remboursements `SUCCEEDED`. Les anciennes allocations club/vendeur et anciens settlements Marketplace ne sont pas inventés rétroactivement et commencent à être tracés à partir du déploiement PAY-004.
+
 ## Authentification et autorisations
 
-`ServiceAuthGuard` contrôle initialisations et lecture avec `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`). `RefundOperatorGuard` réduit encore les routes d'administration des remboursements à `federation-hub`. Les webhooks fournisseurs ne portent pas la clé de service ; ils valident signature/secret ou relisent le statut fournisseur selon l'implémentation. `PAYMENT_WEBHOOK_SECRET` signe les callbacks sortants. Aucun secret ne doit aller au frontend.
+`ServiceAuthGuard` contrôle initialisations et lecture avec `SERVICE_API_KEYS` (rotation sans interruption via `SERVICE_API_KEYS_PREVIOUS`/`SERVICE_API_KEYS_PREVIOUS_EXPIRES_AT`). `RefundOperatorGuard` réduit encore les routes d'administration des remboursements à `federation-hub`. `FinancialOperatorGuard` réserve les lectures financières globales à `federation-hub` et `SettlementWriterGuard` réserve les settlements à `marketplace`. Les webhooks fournisseurs ne portent pas la clé de service ; ils valident signature/secret ou relisent le statut fournisseur selon l'implémentation. `PAYMENT_WEBHOOK_SECRET` signe les callbacks sortants. Aucun secret ne doit aller au frontend.
 
 ## Données possédées et migrations
 
@@ -83,6 +113,8 @@ Base dédiée configurée par `DB_*`, avec notamment :
 - `Payment` : référence externe, fournisseur, montant/devise, état et métadonnées ;
 - `Refund` : montant, statut, snapshots d'approbation et de SLA ;
 - `RefundStatusHistory` : historique append-only des transitions ;
+- `PaymentFinancialAllocation` : allocation métier immuable d'un paiement ;
+- `FinancialLedgerEntry` : écritures financières append-only et idempotentes ;
 - policies de routing, d'approbation remboursement et de SLA `MANUAL_REVIEW` ;
 - outbox transactionnelle des événements sortants.
 
@@ -91,7 +123,8 @@ Le schéma autonome Payments est versionné par migrations TypeORM dans `src/dat
 - `1786841000000-BaselinePaymentsSchema.ts` ;
 - `1786990000000-AddPaymentRoutingPolicies.ts` ;
 - `1787000000000-AddRefundApprovalGovernance.ts` ;
-- `1787010000000-AddRefundManualReviewSla.ts`.
+- `1787010000000-AddRefundManualReviewSla.ts` ;
+- `1787020000000-AddFinancialLedger.ts`.
 
 `src/database/data-source.ts` et `src/config/database.config.ts` référencent la même séquence. En production, appliquer les migrations avant le rollout avec `npm run migration:run:prod` (ou `DB_RUN_MIGRATIONS=true` si ce mode de déploiement est explicitement choisi). Le fichier historique `sql/migration_add_refunds.sql` reste conservé pour l'ancien schéma partagé, mais ne remplace pas la chaîne TypeORM de la base autonome.
 
@@ -99,7 +132,7 @@ Voir aussi `../docs/architecture/database-migrations.md`.
 
 ## Intégrations
 
-APIs Konnect/Paymee/Flouci ; Notifications pour confirmations, reminders et escalades ; dispatcher vers les URLs `WEBHOOK_URLS` des applications consommatrices ; Federation Hub pour la console financière plateforme.
+APIs Konnect/Paymee/Flouci ; Notifications pour confirmations, reminders et escalades ; dispatcher vers les URLs `WEBHOOK_URLS` des applications consommatrices ; Federation Hub pour la console financière plateforme et les lectures ledger opérateur ; Marketplace pour allocations club/vendeur et settlements des payouts.
 
 ## Variables d’environnement
 
@@ -130,6 +163,8 @@ Le script racine `../start.sh` ne lance qu'un sous-ensemble des applications du 
 
 `npm test`, `npm run test:e2e`, `npm run test:cov`. Le job CI Payments exécute lint, build et tests. Les scripts `lint` locaux utilisent `--fix` ; la CI appelle ESLint sans `--fix` afin de détecter les écarts de formatage sans modifier le checkout.
 
+Les tests PAY-004 couvrent notamment conservation exacte du gross, projection `GROSS/PROVIDER_FEE/CLUB_NET/SELLER_NET`, course callback PSP/allocation, replay settlement idempotent, rejet des données divergentes et blocage de la livraison outbox si la projection ledger échoue.
+
 ## Limites connues
 
-Le service n'est pas encore un ledger comptable détaillé : `gross/providerFee/platformFee/clubNet/sellerNet/refund/settlement` reste suivi par `PAY-004`. La réconciliation financière provider/interne avec file d'écarts et résolution auditée reste `PAY-005`. Le SLA de revue manuelle est maintenant présent, mais il reste spécifique au domaine Payments ; sa généralisation en moteur transversal commun aux workflows est suivie séparément par `GOV-008`.
+Le ledger PAY-004 est un journal append-only par composante financière, pas un grand livre général en partie double. `PLATFORM_FEE` est modélisé mais aucun flux productif actuel ne le renseigne. Les allocations/settlements Marketplace antérieurs au déploiement PAY-004 ne sont pas reconstruits sans preuve source. La réconciliation financière provider/interne avec file d'écarts et résolution auditée reste `PAY-005`. Le SLA de revue manuelle reste spécifique au domaine Payments ; sa généralisation en moteur transversal commun aux workflows est suivie séparément par `GOV-008`.
