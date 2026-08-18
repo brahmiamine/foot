@@ -320,7 +320,7 @@ export class PaymentReconciliationService
             evidenceSource: PaymentReconciliationEvidenceSource.NONE,
             providerStatus: this.safeProviderStatus(payment.lastProviderStatus),
             mappedProviderStatus: null,
-            detail: `Provider ${payment.provider} has no reconciliation adapter.`,
+            detail: `Provider ${String(payment.provider)} has no reconciliation adapter.`,
           },
           actor,
           eventAction,
@@ -447,7 +447,9 @@ export class PaymentReconciliationService
         lock: { mode: 'pessimistic_write' },
       });
       const now = new Date();
-      const providerStatus = this.safeProviderStatus(discrepancy.providerStatus);
+      const providerStatus = this.safeProviderStatus(
+        discrepancy.providerStatus,
+      );
       const fingerprint = this.fingerprint(
         discrepancy.type,
         discrepancy.evidenceSource,
@@ -512,7 +514,8 @@ export class PaymentReconciliationService
         }
 
         reconciliationCase.provider = currentPayment.provider;
-        reconciliationCase.consumerApplication = currentPayment.callerApplication;
+        reconciliationCase.consumerApplication =
+          currentPayment.callerApplication;
         reconciliationCase.discrepancyType = discrepancy.type;
         reconciliationCase.evidenceSource = discrepancy.evidenceSource;
         reconciliationCase.internalStatus = currentPayment.status;
