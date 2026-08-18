@@ -3,6 +3,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
+import { MarketOrder } from '../orders/entities/market-order.entity';
+import { SellerOrder } from '../seller-orders/entities/seller-order.entity';
+import { Seller } from '../sellers/entities/seller.entity';
 
 /**
  * TASK-P0-004 (todo.md). Client HTTP serveur-à-serveur vers payments
@@ -18,6 +23,17 @@ const PROVIDER_INIT_PATHS: Record<string, string> = {
   paymee: '/payments/providers/paymee/init',
 };
 
+interface FinancialAllocationEntry {
+  component: 'CLUB_NET' | 'SELLER_NET';
+  amount: number;
+  beneficiaryId: string;
+  reference: string;
+}
+
+interface FinancialAllocation {
+  entries: FinancialAllocationEntry[];
+}
+
 export interface InitPaymentInput {
   orderId: string;
   amount: number;
@@ -32,6 +48,15 @@ export interface InitPaymentInput {
 export interface InitPaymentResult {
   paymentId: string;
   payUrl: string;
+}
+
+export interface RecordSettlementInput {
+  settlementId: string;
+  amount: number;
+  beneficiaryType: 'SELLER' | 'CLUB' | 'PLATFORM';
+  beneficiaryId?: string;
+  reference?: string;
+  occurredAt?: string;
 }
 
 export type PaymentApiStatus =
@@ -65,6 +90,15 @@ export function normalizeRefundStatus(
 export class PaymentApiClientService {
   private readonly logger = new Logger(PaymentApiClientService.name);
 
+  constructor(
+    @InjectRepository(MarketOrder)
+    private readonly orderRepository: Repository<MarketOrder>,
+    @InjectRepository(SellerOrder)
+    private readonly sellerOrderRepository: Repository<SellerOrder>,
+    @InjectRepository(Seller)
+    private readonly sellerRepository: Repository<Seller>,
+  ) {}
+
   private getConfig(): { baseUrl: string; apiKey: string } {
     const baseUrl = process.env.PAYMENT_API_URL;
     const apiKey = process.env.PAYMENT_API_KEY;
@@ -73,7 +107,7 @@ export class PaymentApiClientService {
         'PAYMENT_API_URL et PAYMENT_API_KEY doivent être configurés pour accepter des paiements réels.',
       );
     }
-    return { baseUrl, apiKey };
+    return { baseUrl: baseUrl.replace(/\/$/, ''), apiKey };
   }
 
   getProvider(): string {
@@ -90,6 +124,10 @@ export class PaymentApiClientService {
       );
     }
 
+    const allocation = await this.buildFinancialAllocation(
+      input.orderId,
+      input.amount,
+    );
     const body =
       provider === 'paymee'
         ? {
@@ -141,6 +179,7 @@ export class PaymentApiClientService {
       );
     }
 
+    await this.registerFinancialAllocation(data.paymentId, allocation);
     return { paymentId: data.paymentId, payUrl: data.payUrl };
   }
 
@@ -229,6 +268,140 @@ export class PaymentApiClientService {
       refund?: { status?: string };
     };
     return normalizeRefundStatus(data.refund?.status) ?? 'UNKNOWN';
+  }
+
+  async recordSettlement(input: RecordSettlementInput): Promise<void> {
+    const { baseUrl, apiKey } = this.getConfig();
+    const response = await fetch(`${baseUrl}/financial-ledger/settlements`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        settlementId: input.settlementId,
+        amount: input.amount,
+        currency: 'TND',
+        beneficiaryType: input.beneficiaryType,
+        beneficiaryId: input.beneficiaryId,
+        reference: input.reference,
+        occurredAt: input.occurredAt,
+      }),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      this.logger.error(
+        `payments settlement recording failed (${response.status}): ${text}`,
+      );
+      throw new ServiceUnavailableException(
+        "Échec de l'enregistrement comptable du reversement.",
+      );
+    }
+  }
+
+  private async registerFinancialAllocation(
+    paymentId: string,
+    allocation: FinancialAllocation,
+  ): Promise<void> {
+    const { baseUrl, apiKey } = this.getConfig();
+    const response = await fetch(
+      `${baseUrl}/financial-ledger/payments/${paymentId}/allocations`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify(allocation),
+      },
+    );
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      this.logger.error(
+        `payments financial allocation failed (${response.status}): ${text}`,
+      );
+      throw new ServiceUnavailableException(
+        "Échec de l'enregistrement de l'allocation financière.",
+      );
+    }
+  }
+
+  private async buildFinancialAllocation(
+    orderNumber: string,
+    grossAmount: number,
+  ): Promise<FinancialAllocation> {
+    const order = await this.orderRepository.findOne({
+      where: { orderNumber },
+    });
+    if (!order) {
+      throw new ServiceUnavailableException(
+        `Commande marketplace ${orderNumber} introuvable pour le ledger.`,
+      );
+    }
+    const sellerOrders = await this.sellerOrderRepository.find({
+      where: { orderId: order.id },
+      order: { id: 'ASC' },
+    });
+    if (sellerOrders.length === 0) {
+      throw new ServiceUnavailableException(
+        `Aucune sous-commande vendeur pour ${orderNumber}.`,
+      );
+    }
+    const sellerIds = [...new Set(sellerOrders.map((item) => item.sellerId))];
+    const sellers = await this.sellerRepository.find({
+      where: { id: In(sellerIds) },
+    });
+    const sellerById = new Map(sellers.map((seller) => [seller.id, seller]));
+    const entries: FinancialAllocationEntry[] = [];
+
+    for (const sellerOrder of sellerOrders) {
+      const seller = sellerById.get(sellerOrder.sellerId);
+      if (!seller) {
+        throw new ServiceUnavailableException(
+          `Vendeur ${sellerOrder.sellerId} introuvable pour le ledger.`,
+        );
+      }
+      const subtotalMinor = this.toMinor(Number(sellerOrder.subtotal));
+      const sellerNetMinor = this.toMinor(Number(sellerOrder.netAmount));
+      const clubNetMinor = subtotalMinor - sellerNetMinor;
+      if (sellerNetMinor > 0) {
+        entries.push({
+          component: 'SELLER_NET',
+          amount: sellerNetMinor / 1000,
+          beneficiaryId: sellerOrder.sellerId,
+          reference: `${sellerOrder.id}:seller-net`,
+        });
+      }
+      if (clubNetMinor > 0) {
+        entries.push({
+          component: 'CLUB_NET',
+          amount: clubNetMinor / 1000,
+          beneficiaryId: seller.clubId,
+          reference: `${sellerOrder.id}:club-net`,
+        });
+      }
+    }
+
+    const allocatedMinor = entries.reduce(
+      (total, entry) => total + this.toMinor(entry.amount),
+      0,
+    );
+    const grossMinor = this.toMinor(grossAmount);
+    if (allocatedMinor !== grossMinor) {
+      throw new ServiceUnavailableException(
+        `Allocation marketplace incohérente pour ${orderNumber}: ${allocatedMinor} != ${grossMinor} millimes.`,
+      );
+    }
+    return { entries };
+  }
+
+  private toMinor(amount: number): number {
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new ServiceUnavailableException(
+        'Montant financier marketplace invalide.',
+      );
+    }
+    return Math.round(amount * 1000);
   }
 }
 
