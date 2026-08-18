@@ -5,6 +5,8 @@ export interface MfaRolePolicySnapshot {
   mode: string;
   gracePeriodDays: number;
   version: number;
+  effectiveFrom: string | null;
+  effectiveUntil: string | null;
 }
 
 @Entity("identity_policy_audit")
