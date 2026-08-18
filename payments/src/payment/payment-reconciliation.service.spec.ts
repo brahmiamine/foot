@@ -76,9 +76,8 @@ describe('PaymentReconciliationService', () => {
       Promise.resolve(input),
     );
     eventInsert = jest.fn().mockResolvedValue(undefined);
-    transactionPaymentFindOne = jest.fn(
-      (options: { where: { id: string } }) =>
-        Promise.resolve(knownPayments.get(options.where.id) ?? null),
+    transactionPaymentFindOne = jest.fn((options: { where: { id: string } }) =>
+      Promise.resolve(knownPayments.get(options.where.id) ?? null),
     );
 
     const caseRepository = {
