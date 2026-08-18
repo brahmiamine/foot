@@ -3,6 +3,7 @@ import type { SsoUser } from './ssoSession'
 import {
   assertFederalOperationScope,
   buildFederalOperationScopeFilter,
+  FederalOperationInputError,
   type FederalOperationAuditContext,
   type FederalOperationSource,
   loadScopedRow,
@@ -20,15 +21,17 @@ import {
   computeSolidarityContribution,
   FederalOperationWorkflowError,
 } from './federalOperationsRules'
+import { assertOperationDelegated, assertSubmissionSatisfiesSignature } from './regulatoryPolicyCenter'
 
 const INSURANCE_COVERAGES = ['CLUB', 'PLAYERS', 'STAFF', 'MATCHDAY', 'OTHER'] as const
 const PERSON_TYPES = ['PLAYER', 'STAFF', 'REFEREE', 'OTHER'] as const
 const INSURANCE_STATUSES = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'ACTIVE', 'REJECTED', 'EXPIRED', 'SUSPENDED'] as const
 const GRANT_STATUSES = ['DRAFT', 'OPEN', 'CLOSED', 'ARCHIVED'] as const
 const GRANT_APPLICATION_STATUSES = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'PARTIALLY_APPROVED', 'REJECTED', 'PAID', 'CLOSED'] as const
-const DOCUMENT_DOMAINS = ['CLUB_LICENSE', 'COMPETITION_ENTRY', 'FINANCIAL_COMPLIANCE', 'INSURANCE', 'GRANT', 'COACH_LICENSE', 'STADIUM', 'GOVERNANCE', 'OTHER'] as const
+const DOCUMENT_DOMAINS = ['CLUB_LICENSE', 'COMPETITION_ENTRY', 'FINANCIAL_COMPLIANCE', 'INSURANCE', 'GRANT', 'COACH_LICENSE', 'STADIUM', 'GOVERNANCE', 'CONTRACT', 'MEDICAL', 'OTHER'] as const
 const DOCUMENT_APPLIES_TO = ['CLUB', 'PERSON', 'BOTH'] as const
 const DOCUMENT_REVIEW_STATUSES = ['UNDER_REVIEW', 'VALID', 'REJECTED', 'EXPIRED'] as const
+const DOCUMENT_VERIFICATION_METHODS = ['NONE', 'MANUAL_REVIEW', 'FEDERATION_SIGNATURE', 'THIRD_PARTY'] as const
 const TRAINING_EVENTS = ['FIRST_PRO_CONTRACT', 'DOMESTIC_TRANSFER', 'OTHER'] as const
 
 const INSURANCE_TRANSITIONS: Record<string, readonly string[]> = {
@@ -155,6 +158,7 @@ export async function transitionInsurancePolicy(
   const row = await loadScopedRow<ScopedRow>(source, session, table, id)
   const to = requireEnum(targetStatus, INSURANCE_STATUSES, 'Statut assurance')
   if (!INSURANCE_TRANSITIONS[row.status]?.includes(to)) throw new FederalOperationWorkflowError(`Transition assurance interdite : ${row.status} -> ${to}`)
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, 'insurance.review')
   await source.transaction(async manager => {
     await manager.query(
       `UPDATE ${table}
@@ -198,6 +202,7 @@ export async function transitionFederationGrant(source: DataSource, session: Sso
   const row = await loadScopedRow<ScopedRow>(source, session, 'federation_grants', id)
   const to = requireEnum(targetStatus, GRANT_STATUSES, 'Statut subvention')
   if (!GRANT_TRANSITIONS[row.status]?.includes(to)) throw new FederalOperationWorkflowError(`Transition subvention interdite : ${row.status} -> ${to}`)
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, 'grant.manage')
   await source.transaction(async manager => {
     await manager.query(`UPDATE federation_grants SET status = ? WHERE id = ?`, [to, id])
     await recordFederalOperationAudit(manager, audit, 'GRANT', id, 'STATUS_CHANGED', { status: row.status }, { status: to })
@@ -322,6 +327,7 @@ export async function createBroadcastingDistribution(source: DataSource, session
 export async function approveBroadcastingDistribution(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, id: string) {
   const row = await loadScopedRow<ScopedRow & { gross_amount: number | string }>(source, session, 'broadcasting_revenue_distributions', id)
   if (row.status !== 'CALCULATED') throw new FederalOperationWorkflowError('La distribution doit être calculée avant approbation')
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, 'broadcasting.manage')
   const allocations = await source.query(`SELECT total_amount FROM broadcasting_revenue_allocations WHERE distribution_id = ?`, [id]) as Array<{ total_amount: number | string }>
   assertAllocationDoesNotExceed(Number(row.gross_amount), allocations.map(item => Number(item.total_amount)), 'Répartition des droits média')
   await source.transaction(async manager => {
@@ -368,6 +374,7 @@ export async function createTrainingCompensationCase(source: DataSource, session
 export async function decideTrainingCompensationCase(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, id: string, rationale?: string | null) {
   const row = await loadScopedRow<ScopedRow & { base_amount: number | string }>(source, session, 'training_compensation_cases', id)
   if (row.status !== 'CALCULATED' && row.status !== 'UNDER_REVIEW') throw new FederalOperationWorkflowError('Le dossier doit être calculé ou en instruction')
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, 'training_compensation.decide')
   const beneficiaries = await source.query(`SELECT amount FROM training_compensation_beneficiaries WHERE case_id = ?`, [id]) as Array<{ amount: number | string }>
   assertAllocationDoesNotExceed(Number(row.base_amount), beneficiaries.map(item => Number(item.amount)), 'Indemnité de formation')
   await source.transaction(async manager => {
@@ -415,6 +422,7 @@ export async function createSolidarityContribution(source: DataSource, session: 
 export async function decideSolidarityContribution(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, id: string) {
   const row = await loadScopedRow<ScopedRow & { contribution_amount: number | string }>(source, session, 'solidarity_contributions', id)
   if (row.status !== 'CALCULATED' && row.status !== 'UNDER_REVIEW') throw new FederalOperationWorkflowError('La contribution doit être calculée ou en instruction')
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, 'solidarity.decide')
   const allocations = await source.query(`SELECT amount FROM solidarity_allocations WHERE contribution_id = ?`, [id]) as Array<{ amount: number | string }>
   assertAllocationMatchesTotal(Number(row.contribution_amount), allocations.map(item => Number(item.amount)), 'Mécanisme de solidarité')
   await source.transaction(async manager => {
@@ -432,16 +440,18 @@ export async function createDocumentRequirement(source: DataSource, session: Sso
   const id = newFederalOperationId()
   const domain = requireEnum(input.domain, DOCUMENT_DOMAINS, 'Domaine documentaire')
   const code = requireString(input.code, 'Code', 80).toUpperCase()
+  const signatureRequired = input.signatureRequired === true || input.signatureRequired === 'true'
+  const verificationMethod = requireEnum(input.verificationMethod ?? 'MANUAL_REVIEW', DOCUMENT_VERIFICATION_METHODS, 'Méthode de vérification')
   await source.transaction(async manager => {
     await manager.query(
       `INSERT INTO regulatory_document_requirements
-        (id, federation_id, league_id, season_id, domain, code, name, mandatory, valid_days, applies_to, instructions, active, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-      [id, federationId, leagueId, optionalString(input.seasonId), domain, code, requireString(input.name, 'Nom'), input.mandatory === false ? 0 : 1, input.validDays == null ? null : Number(input.validDays), requireEnum(input.appliesTo ?? 'CLUB', DOCUMENT_APPLIES_TO, 'Cible documentaire'), optionalString(input.instructions, 10000), audit.userId],
+        (id, federation_id, league_id, season_id, domain, code, name, mandatory, valid_days, applies_to, instructions, signature_required, verification_method, active, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+      [id, federationId, leagueId, optionalString(input.seasonId), domain, code, requireString(input.name, 'Nom'), input.mandatory === false ? 0 : 1, input.validDays == null ? null : Number(input.validDays), requireEnum(input.appliesTo ?? 'CLUB', DOCUMENT_APPLIES_TO, 'Cible documentaire'), optionalString(input.instructions, 10000), signatureRequired ? 1 : 0, verificationMethod, audit.userId],
     )
-    await recordFederalOperationAudit(manager, audit, 'DOCUMENT_REQUIREMENT', id, 'CREATED', null, { domain, code })
+    await recordFederalOperationAudit(manager, audit, 'DOCUMENT_REQUIREMENT', id, 'CREATED', null, { domain, code, signatureRequired, verificationMethod })
   })
-  return { id, domain, code, active: true }
+  return { id, domain, code, signatureRequired, verificationMethod, active: true }
 }
 
 export async function submitRegulatoryDocument(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, requirementId: string, input: Record<string, unknown>) {
@@ -459,6 +469,9 @@ export async function submitRegulatoryDocument(source: DataSource, session: SsoU
     expiresAt = new Date(issuedAt.getTime() + Number(requirement.valid_days) * 86_400_000)
   }
   const id = newFederalOperationId()
+  const signedAt = input.signedAt ? new Date(String(input.signedAt)) : null
+  if (input.signedAt && Number.isNaN(signedAt?.getTime())) throw new FederalOperationInputError('Date de signature invalide')
+  const signedBy = signedAt ? optionalString(input.signedBy, 191) ?? audit.userId : null
   await source.transaction(async manager => {
     await manager.query(
       `UPDATE regulatory_document_submissions SET status = 'SUPERSEDED'
@@ -467,13 +480,13 @@ export async function submitRegulatoryDocument(source: DataSource, session: SsoU
     )
     await manager.query(
       `INSERT INTO regulatory_document_submissions
-        (id, requirement_id, club_id, person_type, person_id, related_entity_type, related_entity_id, version, file_url, checksum, issued_at, expires_at, submitted_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, requirementId, optionalString(input.clubId), optionalString(input.personType, 50), optionalString(input.personId), relatedEntityType, relatedEntityId, version, requireString(input.fileUrl, 'Document', 5000), optionalString(input.checksum, 128), issuedAt, expiresAt, audit.userId],
+        (id, requirement_id, club_id, person_type, person_id, related_entity_type, related_entity_id, version, file_url, checksum, issued_at, expires_at, signed_at, signed_by, submitted_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, requirementId, optionalString(input.clubId), optionalString(input.personType, 50), optionalString(input.personId), relatedEntityType, relatedEntityId, version, requireString(input.fileUrl, 'Document', 5000), optionalString(input.checksum, 128), issuedAt, expiresAt, signedAt, signedBy, audit.userId],
     )
-    await recordFederalOperationAudit(manager, audit, 'DOCUMENT_SUBMISSION', id, 'SUBMITTED', null, { requirementId, relatedEntityType, relatedEntityId, version, expiresAt })
+    await recordFederalOperationAudit(manager, audit, 'DOCUMENT_SUBMISSION', id, 'SUBMITTED', null, { requirementId, relatedEntityType, relatedEntityId, version, expiresAt, signedAt })
   })
-  return { id, requirementId, version, status: 'SUBMITTED', expiresAt }
+  return { id, requirementId, version, status: 'SUBMITTED', expiresAt, signedAt }
 }
 
 async function loadDocumentSubmission(source: FederalOperationSource, session: SsoUser, id: string) {
@@ -482,7 +495,7 @@ async function loadDocumentSubmission(source: FederalOperationSource, session: S
        FROM regulatory_document_submissions s JOIN regulatory_document_requirements r ON r.id = s.requirement_id
       WHERE s.id = ? LIMIT 1`,
     [id],
-  ) as Array<{ id: string; status: string; federation_id: string; league_id: string | null }>
+  ) as Array<{ id: string; status: string; federation_id: string; league_id: string | null; requirement_id: string; signed_at: Date | string | null }>
   const row = rows[0]
   if (!row) throw new Error('Document réglementaire introuvable')
   assertFederalOperationScope(session, row.federation_id, row.league_id)
@@ -492,7 +505,15 @@ async function loadDocumentSubmission(source: FederalOperationSource, session: S
 export async function reviewRegulatoryDocument(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, id: string, statusValue: unknown, comment?: string | null) {
   const row = await loadDocumentSubmission(source, session, id)
   if (row.status === 'SUPERSEDED') throw new FederalOperationWorkflowError('Une version remplacée ne peut pas être revue')
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, 'document_compliance.review')
   const status = requireEnum(statusValue, DOCUMENT_REVIEW_STATUSES, 'Statut document')
+  if (status === 'VALID') {
+    const requirementRows = await source.query(
+      `SELECT signature_required FROM regulatory_document_requirements WHERE id = ?`,
+      [row.requirement_id],
+    ) as Array<{ signature_required: number | boolean }>
+    assertSubmissionSatisfiesSignature(Boolean(requirementRows[0]?.signature_required), row.signed_at)
+  }
   await source.transaction(async manager => {
     await manager.query(
       `UPDATE regulatory_document_submissions SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, review_comment = ? WHERE id = ?`,

@@ -148,6 +148,9 @@ federation-hub/mysql/migration_add_appeals.sql
 federation-hub/mysql/migration_add_federal_operations_v3.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
 federation-hub/mysql/migration_add_official_referee_assessments.sql
+# FED-001..004 (platform-governance-roadmap.md, section N) : Regulatory Policy
+# Center hiérarchique + templates documentaires contrat/médical + signature.
+federation-hub/mysql/migration_add_regulatory_policy_center.sql
 federation-hub/migrations/add_is_active_to_federations.sql
 federation-hub/migrations/add_is_active_to_leagues.sql
 federation-hub/migrations/add_unique_vote_per_match_device.sql

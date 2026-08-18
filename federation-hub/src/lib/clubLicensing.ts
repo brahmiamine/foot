@@ -15,6 +15,9 @@ import {
   ClubLicenseRequirement,
 } from './entities'
 import { notify } from './notificationClient'
+import { FederalOperationAuthorizationError } from './federalOperationsCommon'
+import { FederalOperationWorkflowError } from './federalOperationsRules'
+import { assertCommissionDecisionRequired, assertOperationDelegated } from './regulatoryPolicyCenter'
 
 export interface ClubLicenseAuditContext {
   userId: string
@@ -177,6 +180,18 @@ export async function transitionClubLicense(
         where: { applicationId },
       })
       assertRequirementsAllowApproval(requirements)
+      try {
+        await assertOperationDelegated(manager, session, application.federationId, application.leagueId, 'club_license.approve')
+      } catch (error) {
+        if (error instanceof FederalOperationAuthorizationError) throw new ClubLicenseAuthorizationError()
+        throw error
+      }
+      try {
+        await assertCommissionDecisionRequired(manager, application.federationId, application.leagueId, 'commissionRequiredForClubLicensing', 'CLUB_LICENSE', application.id, 'Décision de licence club')
+      } catch (error) {
+        if (error instanceof FederalOperationWorkflowError) throw new ClubLicenseWorkflowError(error.message)
+        throw error
+      }
     }
 
     const previous = application.status

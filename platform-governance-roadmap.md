@@ -29,6 +29,7 @@
 - 2026-08-17 — CI #852 + Ownership #381 : `MATCH-002` validé. Les feuilles post-match signées/clôturées exigent un amendement explicite avant correction, chaque correction reste dans le ledger append-only, les créations live/hard-delete non audités restent bloqués, et l'amendement se ferme en `RE_SIGNED` uniquement après re-signatures valides du nouveau hash.
 - 2026-08-17 — CI #895 + Ownership #424 : `MATCH-003`, `TICK-001`, `TICK-002` et `PAY-001` validés. Match Operations conserve la version de policy de correction post-signature et exige l'approbation fédérale configurée ; Ticketing applique le workflow DRAFT/REVIEW/APPROVED/SCHEDULED/OPEN avec revalidation tarifaire ; Payments applique une policy provider enabled/default/fallback par consommateur, une administration séparée et des replays idempotents sans fallback PSP ambigu.
 - 2026-08-17 — CI #930 + Ownership #459 : `PAY-002` validé. Payments résout `AUTO / SINGLE_APPROVAL / DUAL_APPROVAL` par seuil et consommateur avant tout appel PSP, conserve un snapshot de policy par remboursement, réserve le montant en `AWAITING_APPROVAL`, impose maker/checker et deux approbateurs distincts en DUAL, protège retry/confirm contre les contournements, grandfather les remboursements legacy lors de la migration et garde Ticketing/Club Hub/Marketplace compatibles via normalisation locale de l'état d'attente.
+- 2026-08-18 — typecheck (`tsc --noEmit`), `vitest run` (56 fichiers / 292 tests), `eslint` (0 erreur), `test:i18n` (parité FR/AR), `db/validate-manifest.sh` et `scripts/validate-architecture-boundaries.mjs` verts sur `federation-hub` : `FED-001` à `FED-005` validés. Regulatory Policy Center (`federal_regulatory_policies`, résolution hiérarchique PLATFORM→FEDERATION→LEAGUE→SEASON via `@foot/domain-contracts/policy`, provenance de chaque valeur, écran `/admin/regulatory-policy-center`) ; templates documentaires étendus `CONTRACT`/`MEDICAL` avec `signature_required`/`verification_method` configurables et capture de signature sur les soumissions ; délégation fédération→ligue par opération (`delegatedOperations`, garde serveur `assertOperationDelegated` sur assurance/subventions/droits média/formation/solidarité/conformité documentaire/licence club/discipline/appel) ; décision de commission signée et conforme au quorum désormais réellement obligatoire (quand la policy l'active) avant toute décision disciplinaire, sur appel ou de licence club — comportement historique préservé par défaut (aucune policy = aucune commission exigée).
 
 ---
 
@@ -183,11 +184,11 @@
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| FED-001 | P0 | TODO | Regulatory Policy Center | écran central des exigences par scope/saison/compétition |
-| FED-002 | P0 | TODO | Templates réglementaires par compétition | contrat/médical/licence/coach/assurance/stade/finance configurables |
-| FED-003 | P0 | TODO | Exigences documentaires configurables | mandatory/validity/signature/verification |
-| FED-004 | P0 | TODO | Délégation Fédération → Ligue par opération | compétence explicite et garde serveur |
-| FED-005 | P0 | TODO | Commission/quorum réellement branché discipline/appels/licensing | décision impossible sans quorum/policy quand activé |
+| FED-001 | P0 | DONE | Regulatory Policy Center | écran central des exigences par scope/saison/compétition |
+| FED-002 | P0 | DONE | Templates réglementaires par compétition | contrat/médical/licence/coach/assurance/stade/finance configurables |
+| FED-003 | P0 | DONE | Exigences documentaires configurables | mandatory/validity/signature/verification |
+| FED-004 | P0 | DONE | Délégation Fédération → Ligue par opération | compétence explicite et garde serveur |
+| FED-005 | P0 | DONE | Commission/quorum réellement branché discipline/appels/licensing | décision impossible sans quorum/policy quand activé |
 | FED-006 | P1 | TODO | Assurances club/personnes — UI et guards réels | workflow + expirations + exigences compétition |
 | FED-007 | P1 | TODO | Subventions — workflow complet | programme→candidature→review→paiement→justificatifs |
 | FED-008 | P1 | TODO | Droits TV — règles calculables/versionnées | calcul→approval→club review→paid/disputed |

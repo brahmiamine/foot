@@ -28,6 +28,8 @@ const navItems = [
   { label: 'Transferts', href: '/admin/player-transfers', icon: 'bx bx-transfer' },
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
+  { label: 'Opérations fédérales', href: '/admin/federal-operations', icon: 'bx bx-landmark' },
+  { label: 'Politiques réglementaires', href: '/admin/regulatory-policy-center', icon: 'bx bx-cog' },
 ]
 
 const arbitrationNavItems = [

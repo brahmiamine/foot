@@ -27,6 +27,7 @@ export const REGULATORY_PERMISSIONS = [
   "solidarity.view", "solidarity.manage", "solidarity.decide",
   "document_compliance.view", "document_compliance.review",
   "national_team.view", "national_team.manage",
+  "regulatory_policy.view", "regulatory_policy.manage",
 ] as const;
 export type RegulatoryPermission = (typeof REGULATORY_PERMISSIONS)[number];
 
@@ -131,5 +132,6 @@ export function resolveRegulatoryPermission(pathname: string, method: string): R
   }
   if (has("/federal-operations/documents")) return write ? "document_compliance.review" : "document_compliance.view";
   if (has("/federal-operations/national-teams")) return write ? "national_team.manage" : "national_team.view";
+  if (has("/regulatory-policy-center")) return write ? "regulatory_policy.manage" : "regulatory_policy.view";
   return null;
 }
