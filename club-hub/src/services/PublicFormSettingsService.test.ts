@@ -92,7 +92,7 @@ describe("PublicFormSettingsService", () => {
       "team-1",
       "SPONSOR",
       { isOpen: true, opensAt: new Date("2026-06-01T00:00:00Z"), closesAt: new Date("2026-07-01T00:00:00Z") },
-      mutationContext(),
+      { ...mutationContext(), effectiveFrom: new Date("2026-01-01T00:00:00Z") },
     );
 
     await expect(
