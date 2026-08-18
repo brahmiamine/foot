@@ -84,10 +84,16 @@ describe("PublicFormSettingsService", () => {
     await expect(service.assertOpen("team-2", "CONTACT")).resolves.toBeUndefined();
   });
 
-  it("keeps a version history instead of overwriting in place", async () => {
+  it("keeps immutable version snapshots instead of overwriting in place", async () => {
     const service = new PublicFormSettingsService();
-    await service.update("team-1", "CONTACT", { isOpen: true }, "admin-1");
+    const first = await service.update("team-1", "CONTACT", { isOpen: true }, "admin-1");
     const second = await service.update("team-1", "CONTACT", { isOpen: false }, "admin-1");
+
     expect(second.version).toBe(2);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.version)).toEqual([1, 2]);
+    expect(first.id).not.toBe(second.id);
+    expect(rows[0].isOpen).toBe(true);
+    expect(rows[1].isOpen).toBe(false);
   });
 });
