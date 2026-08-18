@@ -35,10 +35,10 @@ export class PaymentReconciliationEvent {
   note: string | null;
 
   @Column({ type: 'json', nullable: true })
-  beforeState: Record<string, unknown> | null;
+  beforeState: object | null;
 
   @Column({ type: 'json', nullable: true })
-  afterState: Record<string, unknown> | null;
+  afterState: object | null;
 
   @CreateDateColumn()
   createdAt: Date;
