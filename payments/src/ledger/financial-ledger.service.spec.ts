@@ -79,6 +79,23 @@ describe('FinancialLedgerService', () => {
     };
   }
 
+  const allocationDto = {
+    entries: [
+      {
+        component: PaymentAllocationComponent.SELLER_NET,
+        amount: 90,
+        beneficiaryId: 'seller-1',
+        reference: 'so-1:seller-net',
+      },
+      {
+        component: PaymentAllocationComponent.CLUB_NET,
+        amount: 10,
+        beneficiaryId: 'club-1',
+        reference: 'so-1:club-net',
+      },
+    ],
+  };
+
   it('persists an exact immutable club/seller split before payment confirmation', async () => {
     const { service, allocationRepo, paymentRepo } = createHarness();
     paymentRepo.findOne.mockResolvedValue(payment);
@@ -86,22 +103,7 @@ describe('FinancialLedgerService', () => {
 
     const result = await service.registerPaymentAllocation(
       payment.id,
-      {
-        entries: [
-          {
-            component: PaymentAllocationComponent.SELLER_NET,
-            amount: 90,
-            beneficiaryId: 'seller-1',
-            reference: 'so-1:seller-net',
-          },
-          {
-            component: PaymentAllocationComponent.CLUB_NET,
-            amount: 10,
-            beneficiaryId: 'club-1',
-            reference: 'so-1:club-net',
-          },
-        ],
-      },
+      allocationDto,
       'marketplace',
     );
 
@@ -120,6 +122,34 @@ describe('FinancialLedgerService', () => {
         }),
       ]),
     );
+  });
+
+  it('projects a first allocation immediately when provider confirmation wins the race', async () => {
+    const { service, ledgerRepo, allocationRepo, paymentRepo } =
+      createHarness();
+    paymentRepo.findOne.mockResolvedValue({
+      ...payment,
+      status: PaymentStatus.PAID,
+      paidAt: new Date('2026-08-18T01:00:00Z'),
+    });
+    allocationRepo.find.mockResolvedValue([]);
+    ledgerRepo.findOne.mockResolvedValue(null);
+
+    await service.registerPaymentAllocation(
+      payment.id,
+      allocationDto,
+      'marketplace',
+    );
+
+    expect(ledgerRepo.save).toHaveBeenCalledTimes(2);
+    expect(
+      ledgerRepo.save.mock.calls.map(
+        ([entry]) => (entry as FinancialLedgerEntry).component,
+      ),
+    ).toEqual([
+      FinancialLedgerComponent.SELLER_NET,
+      FinancialLedgerComponent.CLUB_NET,
+    ]);
   });
 
   it('rejects an allocation that does not conserve the payment gross', async () => {
@@ -233,5 +263,21 @@ describe('FinancialLedgerService', () => {
         'marketplace',
       ),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rejects a blank settlement id even when the service is called directly', async () => {
+    const { service } = createHarness();
+
+    await expect(
+      service.recordSettlement(
+        {
+          settlementId: '   ',
+          amount: 50,
+          beneficiaryType: FinancialBeneficiaryType.SELLER,
+          beneficiaryId: 'seller-1',
+        },
+        'marketplace',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
