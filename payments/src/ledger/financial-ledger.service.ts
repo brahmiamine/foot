@@ -182,7 +182,8 @@ export class FinancialLedgerService {
       for (const allocation of allocations) {
         await this.insertIdempotent(manager, {
           entryKey: this.key('PAYMENT_ALLOCATION', allocation.id),
-          component: allocation.component as unknown as FinancialLedgerComponent,
+          component:
+            allocation.component as unknown as FinancialLedgerComponent,
           paymentId: payment.id,
           refundId: null,
           sourceApplication: allocation.sourceApplication,
@@ -226,7 +227,9 @@ export class FinancialLedgerService {
         paymentId: payment.id,
         refundId: refund.id,
         sourceApplication:
-          payment.callerApplication ?? refund.initiatedByApplication ?? 'legacy',
+          payment.callerApplication ??
+          refund.initiatedByApplication ??
+          'legacy',
         sourceEventId: refund.id,
         beneficiaryType: payment.userId
           ? FinancialBeneficiaryType.CUSTOMER
@@ -436,7 +439,8 @@ export class FinancialLedgerService {
     let allocatedMinor = 0;
     const normalized = entries.map((line) => {
       const reference = line.reference.trim();
-      if (!reference) throw new BadRequestException('Allocation reference is required.');
+      if (!reference)
+        throw new BadRequestException('Allocation reference is required.');
       const duplicateKey = `${line.component}:${reference}`;
       if (seen.has(duplicateKey)) {
         throw new BadRequestException(
@@ -567,7 +571,9 @@ export class FinancialLedgerService {
     input: LedgerEntryInput,
   ): Promise<FinancialLedgerEntry> {
     const repo = manager.getRepository(FinancialLedgerEntry);
-    const existing = await repo.findOne({ where: { entryKey: input.entryKey } });
+    const existing = await repo.findOne({
+      where: { entryKey: input.entryKey },
+    });
     if (existing) return existing;
     try {
       return await repo.save(repo.create(input));
@@ -576,7 +582,9 @@ export class FinancialLedgerService {
         error instanceof QueryFailedError &&
         (error as unknown as { code?: string }).code === 'ER_DUP_ENTRY'
       ) {
-        const raced = await repo.findOne({ where: { entryKey: input.entryKey } });
+        const raced = await repo.findOne({
+          where: { entryKey: input.entryKey },
+        });
         if (raced) return raced;
       }
       throw error;
