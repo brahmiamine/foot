@@ -18,10 +18,11 @@ import {
   assertAllocationDoesNotExceed,
   assertAllocationMatchesTotal,
   assertDateRange,
+  computeAggregateCaseStatus,
   computeSolidarityContribution,
   FederalOperationWorkflowError,
 } from './federalOperationsRules'
-import { assertOperationDelegated, assertSubmissionSatisfiesSignature } from './regulatoryPolicyCenter'
+import { assertOperationDelegated, assertSubmissionSatisfiesSignature, type DelegatableOperation } from './regulatoryPolicyCenter'
 
 const INSURANCE_COVERAGES = ['CLUB', 'PLAYERS', 'STAFF', 'MATCHDAY', 'OTHER'] as const
 const PERSON_TYPES = ['PLAYER', 'STAFF', 'REFEREE', 'OTHER'] as const
@@ -338,6 +339,53 @@ export async function approveBroadcastingDistribution(source: DataSource, sessio
   return { id, status: 'APPROVED' }
 }
 
+const BROADCASTING_ALLOCATION_STATUSES = ['CALCULATED', 'APPROVED', 'PAID', 'DISPUTED'] as const
+/** FED-008 : le club (relayé par la fédération) peut contester une répartition approuvée ; seule la fédération lève la contestation et enregistre le paiement. */
+const BROADCASTING_ALLOCATION_TRANSITIONS: Record<string, readonly string[]> = {
+  CALCULATED: ['APPROVED'],
+  APPROVED: ['PAID', 'DISPUTED'],
+  DISPUTED: ['APPROVED'],
+  PAID: [],
+}
+
+/** FED-008 : clôture le cycle "calcul → approbation → revue club → paid/disputed" resté ouvert (aucune écriture n'atteignait jusqu'ici PAID/DISPUTED). */
+export async function transitionBroadcastingAllocation(
+  source: DataSource,
+  session: SsoUser,
+  audit: FederalOperationAuditContext,
+  allocationId: string,
+  targetStatus: unknown,
+  input: { reason?: string | null; paymentReference?: string | null } = {},
+) {
+  const rows = await source.query(
+    `SELECT a.*, d.federation_id, d.league_id
+       FROM broadcasting_revenue_allocations a
+       JOIN broadcasting_revenue_distributions d ON d.id = a.distribution_id
+      WHERE a.id = ? LIMIT 1`,
+    [allocationId],
+  ) as Array<{ id: string; distribution_id: string; status: string; federation_id: string; league_id: string | null }>
+  const row = rows[0]
+  if (!row) throw new FederalOperationInputError('Répartition introuvable')
+  assertFederalOperationScope(session, row.federation_id, row.league_id)
+  const to = requireEnum(targetStatus, BROADCASTING_ALLOCATION_STATUSES, 'Statut de répartition')
+  if (!BROADCASTING_ALLOCATION_TRANSITIONS[row.status]?.includes(to)) throw new FederalOperationWorkflowError(`Transition de répartition interdite : ${row.status} -> ${to}`)
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, 'broadcasting.manage')
+  if (to === 'DISPUTED' && !optionalString(input.reason, 2000)) throw new FederalOperationWorkflowError('Un motif de contestation est obligatoire')
+  const paymentReference = to === 'PAID' ? optionalString(input.paymentReference, 191) : null
+  await source.transaction(async manager => {
+    await manager.query(
+      `UPDATE broadcasting_revenue_allocations
+          SET status = ?,
+              payment_reference = CASE WHEN ? = 'PAID' THEN ? ELSE payment_reference END,
+              paid_at = CASE WHEN ? = 'PAID' THEN CURRENT_TIMESTAMP ELSE paid_at END
+        WHERE id = ?`,
+      [to, to, paymentReference, to, allocationId],
+    )
+    await recordFederalOperationAudit(manager, audit, 'BROADCASTING_ALLOCATION', allocationId, 'STATUS_CHANGED', { status: row.status }, { status: to, paymentReference }, input.reason)
+  })
+  return { id: allocationId, status: to }
+}
+
 export async function createTrainingCompensationCase(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, input: Record<string, unknown>) {
   const federationId = requireString(input.federationId, 'Fédération')
   const leagueId = optionalString(input.leagueId)
@@ -433,6 +481,87 @@ export async function decideSolidarityContribution(source: DataSource, session: 
   return { id, status: 'DECIDED' }
 }
 
+const BENEFICIARY_STATUSES = ['PROPOSED', 'APPROVED', 'PAID', 'DISPUTED'] as const
+const BENEFICIARY_TRANSITIONS: Record<string, readonly string[]> = {
+  PROPOSED: [],
+  APPROVED: ['PAID', 'DISPUTED'],
+  DISPUTED: ['APPROVED'],
+  PAID: [],
+}
+
+interface BeneficiarySettlementTables {
+  beneficiaryTable: string
+  caseTable: string
+  caseIdColumn: string
+  caseDomain: string
+  beneficiaryDomain: string
+  delegatedOperation: DelegatableOperation
+}
+
+/**
+ * FED-009 : ferme la partie du cycle (calcul → décision → paiement/contestation)
+ * qui restait ouverte pour les indemnités de formation et la solidarité — les
+ * statuts PAID/DISPUTED existaient déjà en base mais rien ne les atteignait.
+ * Partagé entre training_compensation_beneficiaries et solidarity_allocations
+ * qui ont un schéma identique (case_id/contribution_id, club_id, status).
+ */
+async function settleBeneficiary(
+  tables: BeneficiarySettlementTables,
+  source: DataSource,
+  session: SsoUser,
+  audit: FederalOperationAuditContext,
+  beneficiaryId: string,
+  targetStatus: unknown,
+  input: { reason?: string | null; paymentReference?: string | null } = {},
+) {
+  const rows = await source.query(
+    `SELECT b.*, c.federation_id, c.league_id
+       FROM ${tables.beneficiaryTable} b
+       JOIN ${tables.caseTable} c ON c.id = b.${tables.caseIdColumn}
+      WHERE b.id = ? LIMIT 1`,
+    [beneficiaryId],
+  ) as Array<{ id: string; status: string; federation_id: string; league_id: string | null; [key: string]: unknown }>
+  const row = rows[0]
+  if (!row) throw new FederalOperationInputError('Bénéficiaire introuvable')
+  assertFederalOperationScope(session, row.federation_id, row.league_id)
+  const to = requireEnum(targetStatus, BENEFICIARY_STATUSES, 'Statut bénéficiaire')
+  if (!BENEFICIARY_TRANSITIONS[row.status]?.includes(to)) throw new FederalOperationWorkflowError(`Transition bénéficiaire interdite : ${row.status} -> ${to}`)
+  await assertOperationDelegated(source, session, row.federation_id, row.league_id, tables.delegatedOperation)
+  if (to === 'DISPUTED' && !optionalString(input.reason, 2000)) throw new FederalOperationWorkflowError('Un motif de contestation est obligatoire')
+  const paymentReference = to === 'PAID' ? optionalString(input.paymentReference, 191) : null
+  const caseId = String(row[tables.caseIdColumn])
+  await source.transaction(async manager => {
+    await manager.query(
+      `UPDATE ${tables.beneficiaryTable}
+          SET status = ?, payment_reference = CASE WHEN ? = 'PAID' THEN ? ELSE payment_reference END
+        WHERE id = ?`,
+      [to, to, paymentReference, beneficiaryId],
+    )
+    const siblings = await manager.query(`SELECT status FROM ${tables.beneficiaryTable} WHERE ${tables.caseIdColumn} = ?`, [caseId]) as Array<{ status: string }>
+    const aggregate = computeAggregateCaseStatus(siblings.map(item => item.status))
+    await manager.query(`UPDATE ${tables.caseTable} SET status = ? WHERE id = ? AND status NOT IN ('CLOSED')`, [aggregate, caseId])
+    await recordFederalOperationAudit(manager, audit, tables.beneficiaryDomain, beneficiaryId, 'STATUS_CHANGED', { status: row.status }, { status: to, paymentReference }, input.reason)
+    if (aggregate !== 'DECIDED') {
+      await recordFederalOperationAudit(manager, audit, tables.caseDomain, caseId, 'AGGREGATE_STATUS_CHANGED', null, { status: aggregate })
+    }
+  })
+  return { id: beneficiaryId, caseId, status: to }
+}
+
+export async function settleTrainingCompensationBeneficiary(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, beneficiaryId: string, targetStatus: unknown, input?: { reason?: string | null; paymentReference?: string | null }) {
+  return settleBeneficiary(
+    { beneficiaryTable: 'training_compensation_beneficiaries', caseTable: 'training_compensation_cases', caseIdColumn: 'case_id', caseDomain: 'TRAINING_COMPENSATION', beneficiaryDomain: 'TRAINING_COMPENSATION_BENEFICIARY', delegatedOperation: 'training_compensation.decide' },
+    source, session, audit, beneficiaryId, targetStatus, input,
+  )
+}
+
+export async function settleSolidarityAllocation(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, allocationId: string, targetStatus: unknown, input?: { reason?: string | null; paymentReference?: string | null }) {
+  return settleBeneficiary(
+    { beneficiaryTable: 'solidarity_allocations', caseTable: 'solidarity_contributions', caseIdColumn: 'contribution_id', caseDomain: 'SOLIDARITY', beneficiaryDomain: 'SOLIDARITY_ALLOCATION', delegatedOperation: 'solidarity.decide' },
+    source, session, audit, allocationId, targetStatus, input,
+  )
+}
+
 export async function createDocumentRequirement(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, input: Record<string, unknown>) {
   const federationId = requireString(input.federationId, 'Fédération')
   const leagueId = optionalString(input.leagueId)
@@ -500,6 +629,34 @@ async function loadDocumentSubmission(source: FederalOperationSource, session: S
   if (!row) throw new Error('Document réglementaire introuvable')
   assertFederalOperationScope(session, row.federation_id, row.league_id)
   return row
+}
+
+/** FED-007 : les demandes de subvention exigent une soumission VALID pour chaque exigence documentaire obligatoire du domaine GRANT couvrant leur périmètre (fédération/ligue/saison), avant toute approbation. */
+export async function assertGrantJustificatifsSatisfied(
+  source: FederalOperationSource,
+  federationId: string,
+  leagueId: string | null,
+  seasonId: string | null,
+  applicationId: string,
+): Promise<void> {
+  const requirements = await source.query(
+    `SELECT id, name FROM regulatory_document_requirements
+      WHERE federation_id = ? AND domain = 'GRANT' AND mandatory = 1 AND active = 1
+        AND (league_id IS NULL OR league_id = ?)
+        AND (season_id IS NULL OR season_id = ?)`,
+    [federationId, leagueId, seasonId],
+  ) as Array<{ id: string; name: string }>
+  if (!requirements.length) return
+  const missing: string[] = []
+  for (const requirement of requirements) {
+    const rows = await source.query(
+      `SELECT 1 FROM regulatory_document_submissions
+        WHERE requirement_id = ? AND related_entity_type = 'GRANT_APPLICATION' AND related_entity_id = ? AND status = 'VALID' LIMIT 1`,
+      [requirement.id, applicationId],
+    ) as unknown[]
+    if (!rows.length) missing.push(requirement.name)
+  }
+  if (missing.length) throw new FederalOperationWorkflowError(`Justificatifs manquants ou non validés : ${missing.join(', ')}`)
 }
 
 export async function reviewRegulatoryDocument(source: DataSource, session: SsoUser, audit: FederalOperationAuditContext, id: string, statusValue: unknown, comment?: string | null) {

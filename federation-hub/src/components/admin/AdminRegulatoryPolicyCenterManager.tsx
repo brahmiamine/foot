@@ -30,6 +30,9 @@ type ResolveResponse = {
   documentRequirements: Array<Record<string, unknown>>
 }
 type PolicyRecordRow = { id: string; scopeType: string; scopeId: string | null; version: number; reason: string; createdBy: string; createdAt: string; values: Partial<ResolvedValues> }
+type SlaPolicyRow = { domain: string; warnAfterHours: number; overdueAfterHours: number; isDefault: boolean }
+type SlaQueueItem = { domain: string; entityId: string; label: string; hoursPending: number; state: 'DUE_SOON' | 'OVERDUE' }
+type SlaResponse = { policies: SlaPolicyRow[]; overdueQueue: SlaQueueItem[] }
 
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url, { cache: 'no-store' })
@@ -56,6 +59,7 @@ export default function AdminRegulatoryPolicyCenterManager() {
   const [seasonId, setSeasonId] = useState('')
   const [resolved, setResolved] = useState<ResolveResponse | null>(null)
   const [records, setRecords] = useState<PolicyRecordRow[]>([])
+  const [sla, setSla] = useState<SlaResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [mutating, setMutating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,22 +68,25 @@ export default function AdminRegulatoryPolicyCenterManager() {
   const documentRequirements = useMemo(() => resolved?.documentRequirements ?? [], [resolved])
 
   const load = useCallback(async () => {
-    if (!federationId.trim()) { setResolved(null); setRecords([]); return }
+    if (!federationId.trim()) { setResolved(null); setRecords([]); setSla(null); return }
     setLoading(true)
     setError(null)
     try {
       const query = new URLSearchParams({ federationId: federationId.trim() })
       if (leagueId.trim()) query.set('leagueId', leagueId.trim())
       if (seasonId.trim()) query.set('seasonId', seasonId.trim())
-      const [resolvedBody, recordsBody] = await Promise.all([
+      const [resolvedBody, recordsBody, slaBody] = await Promise.all([
         getJson<ResolveResponse>(`/api/admin/regulatory-policy-center?${query.toString()}`),
         getJson<PolicyRecordRow[]>(`/api/admin/regulatory-policy-center/records?federationId=${encodeURIComponent(federationId.trim())}${leagueId.trim() ? `&leagueId=${encodeURIComponent(leagueId.trim())}` : ''}`),
+        getJson<SlaResponse>(`/api/admin/regulatory-sla?federationId=${encodeURIComponent(federationId.trim())}`),
       ])
       setResolved(resolvedBody)
       setRecords(recordsBody)
+      setSla(slaBody)
     } catch (caught) {
       setResolved(null)
       setRecords([])
+      setSla(null)
       setError(caught instanceof Error ? caught.message : 'Chargement impossible')
     } finally {
       setLoading(false)
@@ -119,6 +126,21 @@ export default function AdminRegulatoryPolicyCenterManager() {
       await load()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Enregistrement impossible')
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  const updateSlaPolicy = async (domain: string, warnAfterHours: number, overdueAfterHours: number) => {
+    setMutating(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await postJson('/api/admin/regulatory-sla', { federationId: federationId.trim(), domain, warnAfterHours, overdueAfterHours })
+      setNotice('Seuils SLA mis à jour.')
+      await load()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Mise à jour impossible')
     } finally {
       setMutating(false)
     }
@@ -227,6 +249,35 @@ export default function AdminRegulatoryPolicyCenterManager() {
         </section>
       ) : null}
 
+      {sla ? (
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-1 text-lg font-semibold">FED-010 · SLA réglementaires</h2>
+          <p className="mb-4 text-sm text-slate-500">Délais d&apos;alerte/de dépassement par domaine (défaut appliqué tant qu&apos;aucun seuil explicite n&apos;est enregistré) et file d&apos;attente en retard calculée à la volée.</p>
+          <div className="overflow-x-auto">
+            <table className="mb-6 w-full text-left text-sm">
+              <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="px-3 py-2">Domaine</th><th className="px-3 py-2">Alerte (h)</th><th className="px-3 py-2">Dépassement (h)</th><th className="px-3 py-2">Source</th></tr></thead>
+              <tbody>
+                {sla.policies.map((policy) => (
+                  <SlaPolicyRowEditor key={policy.domain} policy={policy} disabled={mutating} onSave={updateSlaPolicy} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">File en retard ({sla.overdueQueue.length})</h3>
+          {sla.overdueQueue.length === 0 ? <p className="text-sm text-slate-500">Aucun dossier en alerte ou en retard.</p> : (
+            <div className="space-y-2">
+              {sla.overdueQueue.map((item) => (
+                <div key={`${item.domain}:${item.entityId}`} className={`rounded-lg p-3 text-sm ${item.state === 'OVERDUE' ? 'bg-red-50' : 'bg-amber-50'}`}>
+                  <span className="font-medium">{item.domain}</span>
+                  <span className="ml-2">{item.label}</span>
+                  <span className="ml-2 text-slate-500">{Math.round(item.hoursPending)}h d&apos;attente · {item.state}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
       {records.length > 0 ? (
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-lg font-semibold">Historique des versions</h2>
@@ -241,6 +292,22 @@ export default function AdminRegulatoryPolicyCenterManager() {
         </section>
       ) : null}
     </div>
+  )
+}
+
+function SlaPolicyRowEditor({ policy, disabled, onSave }: { policy: SlaPolicyRow; disabled: boolean; onSave: (domain: string, warnAfterHours: number, overdueAfterHours: number) => Promise<void> }) {
+  const [warnAfterHours, setWarnAfterHours] = useState(String(policy.warnAfterHours))
+  const [overdueAfterHours, setOverdueAfterHours] = useState(String(policy.overdueAfterHours))
+  return (
+    <tr className="border-b last:border-0">
+      <td className="px-3 py-2 font-mono text-xs">{policy.domain}</td>
+      <td className="px-3 py-2"><input value={warnAfterHours} onChange={(event) => setWarnAfterHours(event.target.value)} className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1" /></td>
+      <td className="px-3 py-2"><input value={overdueAfterHours} onChange={(event) => setOverdueAfterHours(event.target.value)} className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1" /></td>
+      <td className="px-3 py-2 text-slate-500">
+        {policy.isDefault ? 'Défaut' : 'Configuré'}
+        <button type="button" disabled={disabled} onClick={() => void onSave(policy.domain, Number(warnAfterHours), Number(overdueAfterHours))} className="ml-2 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium disabled:opacity-50">Enregistrer</button>
+      </td>
+    </tr>
   )
 }
 

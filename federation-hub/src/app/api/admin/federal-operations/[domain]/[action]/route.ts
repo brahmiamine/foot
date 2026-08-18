@@ -4,9 +4,9 @@ import { getDataSource } from '@/lib/db'
 import { addFederalCommissionMember, createFederalCommissionDecision, createFederalCommissionSession, markFederalCommissionDecisionNotified, recordFederalCommissionAttendance, signFederalCommissionDecision, transitionFederalCommissionSession } from '@/lib/federalCommissions'
 import { assertClubInFederalScope, FederalOperationAuthorizationError, FederalOperationInputError, loadScopedRow } from '@/lib/federalOperationsCommon'
 import { FederalOperationWorkflowError } from '@/lib/federalOperationsRules'
-import { approveBroadcastingDistribution, createGrantApplication, decideSolidarityContribution, decideTrainingCompensationCase, reviewRegulatoryDocument, submitRegulatoryDocument, transitionFederationGrant, transitionInsurancePolicy } from '@/lib/federalPrograms'
+import { approveBroadcastingDistribution, createGrantApplication, decideSolidarityContribution, decideTrainingCompensationCase, reviewRegulatoryDocument, settleSolidarityAllocation, settleTrainingCompensationBeneficiary, submitRegulatoryDocument, transitionBroadcastingAllocation, transitionFederationGrant, transitionInsurancePolicy } from '@/lib/federalPrograms'
 import { recordGrantPaymentSafely, transitionGrantApplicationSafely } from '@/lib/federalGrantIntegrity'
-import { assertSafeRegulatoryDocumentUrl } from '@/lib/federalProgramViews'
+import { assertSafeRegulatoryDocumentUrl, listBroadcastingAllocations, listSolidarityAllocations, listTrainingCompensationBeneficiaries } from '@/lib/federalProgramViews'
 import { finalizeFederalSeasonOperations } from '@/lib/federalSeasonOperations'
 import { createNationalTeamCallup, createNationalTeamEvent, listNationalTeamCallups, listNationalTeamEvents, transitionNationalTeamCallup, transitionNationalTeamEvent } from '@/lib/nationalTeams'
 import { assertRegulatoryPermission, RegulatoryPermissionError, type RegulatoryPermission } from '@/lib/regulatoryPermissions'
@@ -23,8 +23,8 @@ function permissionFor(domain: string, action: string): RegulatoryPermission | n
   if (domain === 'insurance') return 'insurance.review'
   if (domain === 'grants') return ['application-transition', 'payment'].includes(action) ? 'grant.review' : 'grant.manage'
   if (domain === 'broadcasting') return 'broadcasting.manage'
-  if (domain === 'training-compensation') return action === 'decision' ? 'training_compensation.decide' : 'training_compensation.manage'
-  if (domain === 'solidarity') return action === 'decision' ? 'solidarity.decide' : 'solidarity.manage'
+  if (domain === 'training-compensation') return ['decision', 'settle-beneficiary'].includes(action) ? 'training_compensation.decide' : 'training_compensation.manage'
+  if (domain === 'solidarity') return ['decision', 'settle-beneficiary'].includes(action) ? 'solidarity.decide' : 'solidarity.manage'
   if (domain === 'documents') return 'document_compliance.review'
   if (domain === 'national-teams') return 'national_team.manage'
   if (domain === 'season-cycle') return 'season_cycle.manage'
@@ -45,11 +45,32 @@ export async function GET(request: NextRequest, { params }: Context) {
   const { domain, action } = await params
   try {
     const dataSource = await getDataSource()
-    if (domain !== 'national-teams' || !['events', 'callups'].includes(action)) return NextResponse.json({ error: 'Action inconnue' }, { status: 404 })
-    await assertRegulatoryPermission(dataSource, session, 'national_team.view')
-    const teamId = new URL(request.url).searchParams.get('nationalTeamId')
-    if (!teamId) return NextResponse.json({ error: 'nationalTeamId requis' }, { status: 400 })
-    return NextResponse.json(action === 'events' ? await listNationalTeamEvents(dataSource, session, teamId) : await listNationalTeamCallups(dataSource, session, teamId))
+    const searchParams = new URL(request.url).searchParams
+    if (domain === 'national-teams' && ['events', 'callups'].includes(action)) {
+      await assertRegulatoryPermission(dataSource, session, 'national_team.view')
+      const teamId = searchParams.get('nationalTeamId')
+      if (!teamId) return NextResponse.json({ error: 'nationalTeamId requis' }, { status: 400 })
+      return NextResponse.json(action === 'events' ? await listNationalTeamEvents(dataSource, session, teamId) : await listNationalTeamCallups(dataSource, session, teamId))
+    }
+    if (domain === 'broadcasting' && action === 'allocations') {
+      await assertRegulatoryPermission(dataSource, session, 'broadcasting.view')
+      const distributionId = searchParams.get('distributionId')
+      if (!distributionId) return NextResponse.json({ error: 'distributionId requis' }, { status: 400 })
+      return NextResponse.json(await listBroadcastingAllocations(dataSource, session, distributionId))
+    }
+    if (domain === 'training-compensation' && action === 'beneficiaries') {
+      await assertRegulatoryPermission(dataSource, session, 'training_compensation.view')
+      const caseId = searchParams.get('caseId')
+      if (!caseId) return NextResponse.json({ error: 'caseId requis' }, { status: 400 })
+      return NextResponse.json(await listTrainingCompensationBeneficiaries(dataSource, session, caseId))
+    }
+    if (domain === 'solidarity' && action === 'beneficiaries') {
+      await assertRegulatoryPermission(dataSource, session, 'solidarity.view')
+      const contributionId = searchParams.get('contributionId')
+      if (!contributionId) return NextResponse.json({ error: 'contributionId requis' }, { status: 400 })
+      return NextResponse.json(await listSolidarityAllocations(dataSource, session, contributionId))
+    }
+    return NextResponse.json({ error: 'Action inconnue' }, { status: 404 })
   } catch (error) {
     return handleError(error)
   }
@@ -95,8 +116,11 @@ export async function POST(request: NextRequest, { params }: Context) {
     }
 
     if (domain === 'broadcasting' && action === 'approve') return NextResponse.json(await approveBroadcastingDistribution(dataSource, session, audit, String(body.id ?? '')))
+    if (domain === 'broadcasting' && action === 'settle-allocation') return NextResponse.json(await transitionBroadcastingAllocation(dataSource, session, audit, String(body.id ?? ''), body.targetStatus, { reason: typeof body.reason === 'string' ? body.reason : null, paymentReference: typeof body.paymentReference === 'string' ? body.paymentReference : null }))
     if (domain === 'training-compensation' && action === 'decision') return NextResponse.json(await decideTrainingCompensationCase(dataSource, session, audit, String(body.id ?? ''), typeof body.rationale === 'string' ? body.rationale : null))
+    if (domain === 'training-compensation' && action === 'settle-beneficiary') return NextResponse.json(await settleTrainingCompensationBeneficiary(dataSource, session, audit, String(body.id ?? ''), body.targetStatus, { reason: typeof body.reason === 'string' ? body.reason : null, paymentReference: typeof body.paymentReference === 'string' ? body.paymentReference : null }))
     if (domain === 'solidarity' && action === 'decision') return NextResponse.json(await decideSolidarityContribution(dataSource, session, audit, String(body.id ?? '')))
+    if (domain === 'solidarity' && action === 'settle-beneficiary') return NextResponse.json(await settleSolidarityAllocation(dataSource, session, audit, String(body.id ?? ''), body.targetStatus, { reason: typeof body.reason === 'string' ? body.reason : null, paymentReference: typeof body.paymentReference === 'string' ? body.paymentReference : null }))
 
     if (domain === 'documents') {
       if (action === 'submit') return NextResponse.json(await submitRegulatoryDocument(dataSource, session, audit, String(body.requirementId ?? ''), { ...body, fileUrl: assertSafeRegulatoryDocumentUrl(body.fileUrl) }), { status: 201 })

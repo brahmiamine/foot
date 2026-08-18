@@ -40,6 +40,9 @@ export class Saison {
   @Column({ type: 'boolean', name: 'requires_financial_compliance', default: false })
   requiresFinancialCompliance!: boolean
 
+  @Column({ type: 'boolean', name: 'requires_insurance', default: false })
+  requiresInsurance!: boolean
+
   @Column({ type: 'boolean', name: 'requires_medical_clearance', default: false })
   requiresMedicalClearance!: boolean
 

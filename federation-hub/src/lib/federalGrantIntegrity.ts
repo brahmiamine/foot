@@ -11,6 +11,7 @@ import {
   requireEnum,
 } from './federalOperationsCommon'
 import { FederalOperationWorkflowError } from './federalOperationsRules'
+import { assertGrantJustificatifsSatisfied } from './federalPrograms'
 import { assertOperationDelegated } from './regulatoryPolicyCenter'
 
 const APPLICATION_STATUSES = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'PARTIALLY_APPROVED', 'REJECTED', 'PAID', 'CLOSED'] as const
@@ -36,6 +37,7 @@ type GrantApplicationRow = {
   approved_amount: number | string | null
   federation_id: string
   league_id: string | null
+  season_id: string | null
   total_budget: number | string
   currency: string
 }
@@ -43,7 +45,7 @@ type GrantApplicationRow = {
 async function loadLockedApplication(manager: EntityManager, session: SsoUser, id: string): Promise<GrantApplicationRow> {
   const rows = await manager.query(
     `SELECT a.id, a.grant_id, a.club_id, a.status, a.requested_amount, a.approved_amount,
-            g.federation_id, g.league_id, g.total_budget, g.currency
+            g.federation_id, g.league_id, g.season_id, g.total_budget, g.currency
        FROM grant_applications a
        JOIN federation_grants g ON g.id = a.grant_id
       WHERE a.id = ?
@@ -80,6 +82,7 @@ export async function transitionGrantApplicationSafely(
 
     let approved = row.approved_amount == null ? null : Number(row.approved_amount)
     if (to === 'APPROVED' || to === 'PARTIALLY_APPROVED') {
+      await assertGrantJustificatifsSatisfied(manager, row.federation_id, row.league_id, row.season_id, id)
       approved = requireAmount(approvedAmount, 'Montant approuvé')
       if (approved > Number(row.requested_amount) + 0.001) {
         throw new FederalOperationWorkflowError('Le montant approuvé ne peut pas dépasser le montant demandé')

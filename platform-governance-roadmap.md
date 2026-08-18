@@ -31,6 +31,7 @@
 - 2026-08-17 — CI #930 + Ownership #459 : `PAY-002` validé. Payments résout `AUTO / SINGLE_APPROVAL / DUAL_APPROVAL` par seuil et consommateur avant tout appel PSP, conserve un snapshot de policy par remboursement, réserve le montant en `AWAITING_APPROVAL`, impose maker/checker et deux approbateurs distincts en DUAL, protège retry/confirm contre les contournements, grandfather les remboursements legacy lors de la migration et garde Ticketing/Club Hub/Marketplace compatibles via normalisation locale de l'état d'attente.
 - 2026-08-18 — CI #939 + Ownership #468 : `PAY-003` validé. Payments applique un SLA `MANUAL_REVIEW` versionné par consommateur avec snapshot par cycle, reminder et escalation idempotents sous verrou, retry si Notifications n'accepte pas l'alerte, dashboard opérateur plateforme et édition de policy via Federation Hub ; migration TypeORM et runner de migrations autonome alignés, lint/build/tests Payments et Federation Hub ainsi que la matrice CI globale sont verts.
 - 2026-08-18 — typecheck (`tsc --noEmit`), `vitest run` (56 fichiers / 292 tests), `eslint` (0 erreur), `test:i18n` (parité FR/AR), `db/validate-manifest.sh` et `scripts/validate-architecture-boundaries.mjs` verts sur `federation-hub` : `FED-001` à `FED-005` validés. Regulatory Policy Center (`federal_regulatory_policies`, résolution hiérarchique PLATFORM→FEDERATION→LEAGUE→SEASON via `@foot/domain-contracts/policy`, provenance de chaque valeur, écran `/admin/regulatory-policy-center`) ; templates documentaires étendus `CONTRACT`/`MEDICAL` avec `signature_required`/`verification_method` configurables et capture de signature sur les soumissions ; délégation fédération→ligue par opération (`delegatedOperations`, garde serveur `assertOperationDelegated` sur assurance/subventions/droits média/formation/solidarité/conformité documentaire/licence club/discipline/appel) ; décision de commission signée et conforme au quorum désormais réellement obligatoire (quand la policy l'active) avant toute décision disciplinaire, sur appel ou de licence club — comportement historique préservé par défaut (aucune policy = aucune commission exigée).
+- 2026-08-18 — typecheck, `vitest run` (59 fichiers / 317 tests), `eslint` (0 erreur), `test:i18n`, `db/validate-manifest.sh` et `scripts/validate-architecture-boundaries.mjs` verts sur `federation-hub` : `FED-006` à `FED-011` validés. Assurances : `saisons.requires_insurance` bloque l'approbation d'engagement sans police active non expirée, et les polices ACTIVE/SUSPENDED expirées s'affichent EXPIRED sans tâche planifiée. Subventions : approbation bloquée tant que les exigences documentaires obligatoires du domaine GRANT n'ont pas de soumission `VALID` liée (`GRANT_APPLICATION`). Droits média : les allocations peuvent désormais atteindre `PAID`/`DISPUTED` (c'était le seul statut jamais écrit) avec motif de contestation obligatoire. Formation/solidarité : bénéficiaires/allocations réglables en `PAID`/`DISPUTED`, le dossier parent agrège leur statut (`computeAggregateCaseStatus`) sans jamais repasser à `PAID` tant qu'un seul reste en litige. SLA réglementaires : seuils alerte/dépassement par domaine (`regulatory_sla_policies`, défauts préservant le comportement historique tant que rien n'est configuré) et file overdue calculée à la volée sur 7 domaines. Permissions : mode global `LEGACY/WARN/ENFORCE` (`regulatory_permission_mode_settings`) — WARN évalue comme ENFORCE mais n'empêche rien, journalise seulement (`regulatory_permission_warnings`), pour mesurer l'impact avant bascule réelle.
 
 ---
 
@@ -190,12 +191,12 @@
 | FED-003 | P0 | DONE | Exigences documentaires configurables | mandatory/validity/signature/verification |
 | FED-004 | P0 | DONE | Délégation Fédération → Ligue par opération | compétence explicite et garde serveur |
 | FED-005 | P0 | DONE | Commission/quorum réellement branché discipline/appels/licensing | décision impossible sans quorum/policy quand activé |
-| FED-006 | P1 | TODO | Assurances club/personnes — UI et guards réels | workflow + expirations + exigences compétition |
-| FED-007 | P1 | TODO | Subventions — workflow complet | programme→candidature→review→paiement→justificatifs |
-| FED-008 | P1 | TODO | Droits TV — règles calculables/versionnées | calcul→approval→club review→paid/disputed |
-| FED-009 | P1 | TODO | Indemnités de formation/solidarité | calcul explicable + bénéficiaires + contestation + paiement |
-| FED-010 | P1 | TODO | SLA réglementaires | paramètres par domaine + files overdue |
-| FED-011 | P1 | TODO | Mode migration permissions `LEGACY/WARN/ENFORCE` | passage contrôlé vers whitelist complète |
+| FED-006 | P1 | DONE | Assurances club/personnes — UI et guards réels | workflow + expirations + exigences compétition |
+| FED-007 | P1 | DONE | Subventions — workflow complet | programme→candidature→review→paiement→justificatifs |
+| FED-008 | P1 | DONE | Droits TV — règles calculables/versionnées | calcul→approval→club review→paid/disputed |
+| FED-009 | P1 | DONE | Indemnités de formation/solidarité | calcul explicable + bénéficiaires + contestation + paiement |
+| FED-010 | P1 | DONE | SLA réglementaires | paramètres par domaine + files overdue |
+| FED-011 | P1 | DONE | Mode migration permissions `LEGACY/WARN/ENFORCE` | passage contrôlé vers whitelist complète |
 
 # O. Infrastructure / exploitation
 

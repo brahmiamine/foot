@@ -151,6 +151,12 @@ federation-hub/mysql/migration_add_official_referee_assessments.sql
 # FED-001..004 (platform-governance-roadmap.md, section N) : Regulatory Policy
 # Center hiérarchique + templates documentaires contrat/médical + signature.
 federation-hub/mysql/migration_add_regulatory_policy_center.sql
+# FED-006..011 (platform-governance-roadmap.md, section N) : exigence
+# d'assurance compétition, SLA réglementaires et mode de migration des
+# permissions LEGACY/WARN/ENFORCE.
+federation-hub/mysql/migration_add_competition_insurance_requirement.sql
+federation-hub/mysql/migration_add_regulatory_sla_policies.sql
+federation-hub/mysql/migration_add_regulatory_permission_mode.sql
 federation-hub/migrations/add_is_active_to_federations.sql
 federation-hub/migrations/add_is_active_to_leagues.sql
 federation-hub/migrations/add_unique_vote_per_match_device.sql
