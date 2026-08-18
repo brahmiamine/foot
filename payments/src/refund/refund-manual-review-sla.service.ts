@@ -203,7 +203,8 @@ export class RefundManualReviewSlaService {
         dueSoon: items.filter((item) => item.state === 'DUE_SOON').length,
         overdue: items.filter((item) => item.state === 'OVERDUE').length,
         escalated: items.filter((item) => item.state === 'ESCALATED').length,
-        unscheduled: items.filter((item) => item.state === 'UNSCHEDULED').length,
+        unscheduled: items.filter((item) => item.state === 'UNSCHEDULED')
+          .length,
       },
       items,
     };
