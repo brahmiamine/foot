@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { DataSource, EntityManager } from "typeorm";
 import type { SsoUser } from "./ssoSession";
 
@@ -27,6 +28,8 @@ export const REGULATORY_PERMISSIONS = [
   "solidarity.view", "solidarity.manage", "solidarity.decide",
   "document_compliance.view", "document_compliance.review",
   "national_team.view", "national_team.manage",
+  "regulatory_policy.view", "regulatory_policy.manage",
+  "regulatory_sla.view", "regulatory_sla.manage",
 ] as const;
 export type RegulatoryPermission = (typeof REGULATORY_PERMISSIONS)[number];
 
@@ -40,15 +43,70 @@ export class RegulatoryPermissionError extends Error {
   }
 }
 
-export async function hasRegulatoryPermission(source: Source, session: SsoUser, permission: RegulatoryPermission): Promise<boolean> {
-  if (isPlatform(session)) return true;
-  const rows = await source.query("SELECT permission FROM regulatory_user_permissions WHERE user_id = ?", [session.id]) as Array<{ permission: string }>;
-  if (rows.length === 0) return true;
-  return rows.some(row => row.permission === permission);
+/**
+ * FED-011 : mode de migration vers une whitelist réglementaire complète.
+ *   - LEGACY (défaut) : comportement historique — un compte sans ligne
+ *     configurée garde tous ses droits, un compte avec des lignes passe en
+ *     liste blanche stricte.
+ *   - WARN : évalue comme si ENFORCE était déjà actif (aucune ligne = refus)
+ *     mais n'empêche jamais l'action — seul un signal `shouldWarn` remonte,
+ *     à charge de l'appelant de le journaliser, pour mesurer l'impact avant
+ *     de basculer réellement en ENFORCE.
+ *   - ENFORCE : la whitelist stricte s'applique à tous les comptes, y
+ *     compris ceux sans aucune ligne.
+ */
+export const REGULATORY_PERMISSION_MODES = ["LEGACY", "WARN", "ENFORCE"] as const;
+export type RegulatoryPermissionMode = (typeof REGULATORY_PERMISSION_MODES)[number];
+
+export function evaluateRegulatoryPermission(mode: RegulatoryPermissionMode, hasAnyRows: boolean, matches: boolean): { allowed: boolean; shouldWarn: boolean } {
+  if (mode === "LEGACY") return { allowed: !hasAnyRows || matches, shouldWarn: false };
+  const strictlyAllowed = hasAnyRows && matches;
+  if (mode === "ENFORCE") return { allowed: strictlyAllowed, shouldWarn: false };
+  return { allowed: true, shouldWarn: !strictlyAllowed };
 }
 
-export async function assertRegulatoryPermission(source: Source, session: SsoUser, permission: RegulatoryPermission): Promise<void> {
-  if (!await hasRegulatoryPermission(source, session, permission)) throw new RegulatoryPermissionError(permission);
+export async function getRegulatoryPermissionMode(source: Source): Promise<RegulatoryPermissionMode> {
+  const rows = await source.query("SELECT mode FROM regulatory_permission_mode_settings WHERE id = 'GLOBAL' LIMIT 1") as Array<{ mode: RegulatoryPermissionMode }>;
+  return rows[0]?.mode ?? "LEGACY";
+}
+
+export async function setRegulatoryPermissionMode(source: DataSource, actor: SsoUser, mode: unknown): Promise<RegulatoryPermissionMode> {
+  if (!isPlatform(actor)) throw new RegulatoryPermissionError("season_cycle.manage");
+  if (typeof mode !== "string" || !(REGULATORY_PERMISSION_MODES as readonly string[]).includes(mode)) throw new Error("Mode de permission réglementaire invalide");
+  await source.query(
+    "INSERT INTO regulatory_permission_mode_settings (id, mode, updated_by) VALUES ('GLOBAL', ?, ?) ON DUPLICATE KEY UPDATE mode = VALUES(mode), updated_by = VALUES(updated_by)",
+    [mode, actor.id],
+  );
+  return mode as RegulatoryPermissionMode;
+}
+
+async function recordRegulatoryPermissionWarning(source: Source, userId: string, permission: RegulatoryPermission, pathname?: string | null): Promise<void> {
+  await source.query(
+    "INSERT INTO regulatory_permission_warnings (id, user_id, permission, pathname) VALUES (?, ?, ?, ?)",
+    [randomUUID(), userId, permission, pathname ?? null],
+  );
+}
+
+export async function hasRegulatoryPermission(source: Source, session: SsoUser, permission: RegulatoryPermission, pathname?: string | null): Promise<boolean> {
+  if (isPlatform(session)) return true;
+  const mode = await getRegulatoryPermissionMode(source);
+  const rows = await source.query("SELECT permission FROM regulatory_user_permissions WHERE user_id = ?", [session.id]) as Array<{ permission: string }>;
+  const { allowed, shouldWarn } = evaluateRegulatoryPermission(mode, rows.length > 0, rows.some(row => row.permission === permission));
+  if (shouldWarn) await recordRegulatoryPermissionWarning(source, session.id, permission, pathname);
+  return allowed;
+}
+
+export async function assertRegulatoryPermission(source: Source, session: SsoUser, permission: RegulatoryPermission, pathname?: string | null): Promise<void> {
+  if (!await hasRegulatoryPermission(source, session, permission, pathname)) throw new RegulatoryPermissionError(permission);
+}
+
+/** FED-011 : dernières décisions qui auraient été refusées en ENFORCE, journalisées sans blocage tant que le mode reste WARN — sert à mesurer l'impact avant bascule. */
+export async function listRegulatoryPermissionWarnings(source: Source, limit = 200): Promise<Array<{ id: string; userId: string; permission: string; pathname: string | null; occurredAt: Date | string }>> {
+  const rows = await source.query(
+    "SELECT id, user_id, permission, pathname, occurred_at FROM regulatory_permission_warnings ORDER BY occurred_at DESC LIMIT ?",
+    [limit],
+  ) as Array<{ id: string; user_id: string; permission: string; pathname: string | null; occurred_at: Date | string }>;
+  return rows.map(row => ({ id: row.id, userId: row.user_id, permission: row.permission, pathname: row.pathname, occurredAt: row.occurred_at }));
 }
 
 export async function listRegulatoryPermissions(source: Source, userId: string): Promise<string[]> {
@@ -123,13 +181,15 @@ export function resolveRegulatoryPermission(pathname: string, method: string): R
   if (has("/federal-operations/broadcasting")) return write ? "broadcasting.manage" : "broadcasting.view";
   if (has("/federal-operations/training-compensation")) {
     if (!write) return "training_compensation.view";
-    return ["decision", "decide"].includes(action) ? "training_compensation.decide" : "training_compensation.manage";
+    return ["decision", "decide", "settle-beneficiary"].includes(action) ? "training_compensation.decide" : "training_compensation.manage";
   }
   if (has("/federal-operations/solidarity")) {
     if (!write) return "solidarity.view";
-    return ["decision", "decide"].includes(action) ? "solidarity.decide" : "solidarity.manage";
+    return ["decision", "decide", "settle-beneficiary"].includes(action) ? "solidarity.decide" : "solidarity.manage";
   }
   if (has("/federal-operations/documents")) return write ? "document_compliance.review" : "document_compliance.view";
   if (has("/federal-operations/national-teams")) return write ? "national_team.manage" : "national_team.view";
+  if (has("/regulatory-policy-center")) return write ? "regulatory_policy.manage" : "regulatory_policy.view";
+  if (has("/regulatory-sla")) return write ? "regulatory_sla.manage" : "regulatory_sla.view";
   return null;
 }

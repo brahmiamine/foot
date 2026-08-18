@@ -42,5 +42,27 @@ export async function createTestDataSource(): Promise<DataSource> {
     )
   `)
 
+  // FED-011 : même logique que regulatory_user_permissions ci-dessus — table
+  // gérée par migration SQL (pas d'entité TypeORM), reproduite ici pour que
+  // getAdminSession -> hasRegulatoryPermission exerce le même contrôle qu'en
+  // MariaDB (mode LEGACY/WARN/ENFORCE + journal des refus en mode WARN).
+  await dataSource.query(`
+    CREATE TABLE IF NOT EXISTS regulatory_permission_mode_settings (
+      id VARCHAR(20) PRIMARY KEY,
+      mode VARCHAR(20) NOT NULL DEFAULT 'LEGACY',
+      updated_by VARCHAR(191),
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+  await dataSource.query(`
+    CREATE TABLE IF NOT EXISTS regulatory_permission_warnings (
+      id VARCHAR(36) PRIMARY KEY,
+      user_id VARCHAR(191) NOT NULL,
+      permission VARCHAR(191) NOT NULL,
+      pathname VARCHAR(500),
+      occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
   return dataSource
 }

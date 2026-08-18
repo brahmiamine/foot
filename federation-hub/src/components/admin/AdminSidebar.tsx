@@ -29,6 +29,8 @@ const navItems = [
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },
   { label: 'Finance · remboursements', href: '/admin/payments/manual-review', icon: 'bx bx-credit-card', platformOnly: true },
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
+  { label: 'Opérations fédérales', href: '/admin/federal-operations', icon: 'bx bx-landmark' },
+  { label: 'Politiques réglementaires', href: '/admin/regulatory-policy-center', icon: 'bx bx-cog' },
 ]
 
 const arbitrationNavItems = [

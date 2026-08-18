@@ -85,6 +85,33 @@ export function assertDateRange(startsAt: Date | string, endsAt: Date | string, 
   }
 }
 
+/**
+ * FED-009 : statut agrégé d'un dossier d'indemnité de formation ou d'une
+ * contribution de solidarité après changement du statut d'un bénéficiaire.
+ * Une seule contestation suffit à rouvrir le dossier ; il ne repasse à PAID
+ * que lorsque tous les bénéficiaires sont réellement payés.
+ */
+export function computeAggregateCaseStatus(beneficiaryStatuses: readonly string[]): 'DECIDED' | 'PAID' | 'DISPUTED' {
+  if (beneficiaryStatuses.some((status) => status === 'DISPUTED')) return 'DISPUTED'
+  if (beneficiaryStatuses.length > 0 && beneficiaryStatuses.every((status) => status === 'PAID')) return 'PAID'
+  return 'DECIDED'
+}
+
+export type RegulatorySlaState = 'IN_SLA' | 'DUE_SOON' | 'OVERDUE'
+
+/** FED-010 : état SLA d'un dossier en attente, calculé à la volée (pas de tâche planifiée). */
+export function computeRegulatorySlaState(hoursPending: number, warnAfterHours: number, overdueAfterHours: number): RegulatorySlaState {
+  if (hoursPending >= overdueAfterHours) return 'OVERDUE'
+  if (hoursPending >= warnAfterHours) return 'DUE_SOON'
+  return 'IN_SLA'
+}
+
+export function assertValidSlaThresholds(warnAfterHours: number, overdueAfterHours: number): void {
+  if (!Number.isInteger(warnAfterHours) || warnAfterHours < 1) throw new FederalOperationWorkflowError("Le délai d'alerte SLA doit être un entier positif")
+  if (!Number.isInteger(overdueAfterHours) || overdueAfterHours < 1) throw new FederalOperationWorkflowError('Le délai de dépassement SLA doit être un entier positif')
+  if (overdueAfterHours <= warnAfterHours) throw new FederalOperationWorkflowError("Le délai de dépassement SLA doit être supérieur au délai d'alerte")
+}
+
 export function computeSolidarityContribution(transferAmount: number, contributionRate: number): number {
   assertPositiveAmount(transferAmount, 'montant du transfert')
   if (!Number.isFinite(contributionRate) || contributionRate <= 0 || contributionRate > 1) {

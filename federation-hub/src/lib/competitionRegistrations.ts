@@ -39,6 +39,15 @@ export async function assertRealApprovalPrerequisites(manager:EntityManager,item
     const compliance=await manager.getRepository(FinancialCompliance).findOne({where:{id:item.financialComplianceId,clubId:item.clubId,seasonId:item.seasonId,status:"COMPLIANT"}});
     if(!compliance) throw new CompetitionRegistrationWorkflowError("Le dossier de conformité financière référencé n'est pas COMPLIANT pour ce club et cette saison");
   }
+  if(season.requiresInsurance){
+    const activePolicies=await manager.query(
+      `SELECT 1 FROM club_insurance_policies
+        WHERE club_id = ? AND season_id = ? AND status = 'ACTIVE' AND starts_at <= ? AND expires_at > ?
+        LIMIT 1`,
+      [item.clubId,item.seasonId,now,now],
+    ) as unknown[];
+    if(!activePolicies.length) throw new CompetitionRegistrationWorkflowError("Une assurance club active et non expirée pour cette saison est obligatoire");
+  }
   if(requiredFee>0){
     if(!item.feesPaymentId) throw new CompetitionRegistrationWorkflowError("Les droits d'engagement ne sont pas réglés");
     const payment=await getRegulatoryPayment(item.feesPaymentId);

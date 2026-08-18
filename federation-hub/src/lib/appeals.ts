@@ -4,6 +4,9 @@ import { canAccessFederation, canAccessLeague, canAccessPlatform } from './admin
 import type { SsoUser } from './ssoSession'
 import { Appeal, AppealDocument, AppealEvent, DisciplinaryCase, LegalCase, Team } from './entities'
 import { notify } from './notificationClient'
+import { FederalOperationAuthorizationError } from './federalOperationsCommon'
+import { FederalOperationWorkflowError } from './federalOperationsRules'
+import { assertCommissionDecisionRequired, assertOperationDelegated } from './regulatoryPolicyCenter'
 
 export interface AppealAuditContext { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null }
 export interface AppealFilters { federationId?: string; leagueId?: string; status?: AppealStatus; sourceType?: AppealSourceType; applicantType?: AppealApplicantType; applicantId?: string }
@@ -101,6 +104,20 @@ export async function transitionAppeal(dataSource: DataSource, session: SsoUser,
     if (!item) throw new AppealWorkflowError('Appel introuvable')
     assertAccess(session, item)
     assertAppealTransition(item.status, targetStatus)
+    if (targetStatus === 'DECIDED') {
+      try {
+        await assertOperationDelegated(manager, session, item.federationId, item.leagueId, 'appeal.decide')
+      } catch (error) {
+        if (error instanceof FederalOperationAuthorizationError) throw new AppealAuthorizationError()
+        throw error
+      }
+      try {
+        await assertCommissionDecisionRequired(manager, item.federationId, item.leagueId, 'commissionRequiredForAppeals', 'APPEAL', item.id, 'Décision sur appel')
+      } catch (error) {
+        if (error instanceof FederalOperationWorkflowError) throw new AppealWorkflowError(error.message)
+        throw error
+      }
+    }
     const previous = item.status
     item.status = targetStatus
     if (targetStatus === 'DECIDED') { item.decisionAt = new Date(); item.decisionSummary = input.decisionSummary!.trim() }
