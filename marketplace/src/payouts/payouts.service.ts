@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Payout } from './entities/payout.entity';
-import { PayoutStatus } from './enums/payout-status.enum';
+import { PaymentApiClientService } from '../checkout/payments-client.service';
 import { SellerOrder } from '../seller-orders/entities/seller-order.entity';
 import { SellerOrderStatus } from '../seller-orders/enums/seller-order-status.enum';
+import { Payout } from './entities/payout.entity';
+import { PayoutStatus } from './enums/payout-status.enum';
 
 /** Payouts qui ont déjà "réservé" une part du solde livré (US-47). */
 const CLAIMED_PAYOUT_STATUSES = [
@@ -25,6 +26,7 @@ export class PayoutsService {
     private readonly repository: Repository<Payout>,
     @InjectRepository(SellerOrder)
     private readonly sellerOrderRepository: Repository<SellerOrder>,
+    private readonly paymentApiClient?: PaymentApiClientService,
   ) {}
 
   async findAllForSeller(sellerId: string): Promise<Payout[]> {
@@ -124,7 +126,12 @@ export class PayoutsService {
     return this.repository.save(payout);
   }
 
-  /** US-48 — PROCESSING -> PAID */
+  /**
+   * US-48 + PAY-004 — PROCESSING -> PAID. Le settlement est enregistré
+   * d'abord dans Payments avec payout.id comme clé idempotente. Si Payments
+   * est indisponible, le payout reste PROCESSING et peut être rejoué sans
+   * créer une seconde écriture financière.
+   */
   async markPaid(id: string): Promise<Payout> {
     const payout = await this.findOne(id);
     if (payout.status !== PayoutStatus.PROCESSING) {
@@ -132,8 +139,17 @@ export class PayoutsService {
         `Transition ${payout.status} → PAID non autorisée`,
       );
     }
+    const paidAt = new Date();
+    await this.paymentApiClient?.recordSettlement({
+      settlementId: payout.id,
+      amount: Number(payout.amount),
+      beneficiaryType: 'SELLER',
+      beneficiaryId: payout.sellerId,
+      reference: payout.reference,
+      occurredAt: paidAt.toISOString(),
+    });
     payout.status = PayoutStatus.PAID;
-    payout.paidAt = new Date();
+    payout.paidAt = paidAt;
     payout.lastError = null;
     return this.repository.save(payout);
   }
