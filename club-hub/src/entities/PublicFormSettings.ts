@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -21,13 +22,13 @@ export const PUBLIC_FORM_DOMAINS: PublicFormDomain[] = [
 ];
 
 /**
- * Ouverture/fermeture et rate limit par (club, domaine de formulaire).
- * Consommée uniquement côté serveur (club-hub et, via l'API interne, les
- * autres apps qui hébergent un de ces formulaires) — jamais de décision
- * d'autorisation dans le frontend public (OB-001).
+ * Ouverture/fermeture et rate limit par club/domaine. Chaque modification
+ * crée une version immuable ; `effectiveFrom`/`effectiveUntil` déterminent
+ * la version applicable à une date donnée (GOV-004).
  */
 @Entity("cms_public_form_settings")
-@Unique(["teamId", "domain"])
+@Unique("uq_public_form_settings_version", ["teamId", "domain", "version"])
+@Index("idx_public_form_settings_resolution", ["teamId", "domain", "effectiveFrom", "effectiveUntil", "version"])
 export class PublicFormSettings {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -60,6 +61,12 @@ export class PublicFormSettings {
 
   @Column({ type: "int", default: 1 })
   version!: number;
+
+  @Column({ type: "datetime", nullable: true, name: "effective_from" })
+  effectiveFrom!: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "effective_until" })
+  effectiveUntil!: Date | null;
 
   @Column({ type: "varchar", length: 191, nullable: true, name: "updated_by" })
   updatedBy!: string | null;
