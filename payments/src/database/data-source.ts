@@ -1,6 +1,9 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { BaselinePaymentsSchema1786841000000 } from './migrations/1786841000000-BaselinePaymentsSchema';
+import { AddPaymentRoutingPolicies1786990000000 } from './migrations/1786990000000-AddPaymentRoutingPolicies';
+import { AddRefundApprovalGovernance1787000000000 } from './migrations/1787000000000-AddRefundApprovalGovernance';
+import { AddRefundManualReviewSla1787010000000 } from './migrations/1787010000000-AddRefundManualReviewSla';
 
 export const paymentsDataSource = new DataSource({
   type: 'mysql',
@@ -11,7 +14,12 @@ export const paymentsDataSource = new DataSource({
   database: process.env.DB_DATABASE,
   synchronize: false,
   migrationsTableName: 'payments_migrations',
-  migrations: [BaselinePaymentsSchema1786841000000],
+  migrations: [
+    BaselinePaymentsSchema1786841000000,
+    AddPaymentRoutingPolicies1786990000000,
+    AddRefundApprovalGovernance1787000000000,
+    AddRefundManualReviewSla1787010000000,
+  ],
 });
 
 export default paymentsDataSource;
