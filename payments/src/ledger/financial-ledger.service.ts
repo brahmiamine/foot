@@ -103,9 +103,12 @@ export class FinancialLedgerService {
         );
       }
 
-      if (payment.status !== PaymentStatus.PENDING) {
+      if (
+        payment.status !== PaymentStatus.PENDING &&
+        payment.status !== PaymentStatus.PAID
+      ) {
         throw new ConflictException(
-          'Financial allocation must be registered before payment confirmation.',
+          'Financial allocation can only be registered for a pending or paid payment.',
         );
       }
 
@@ -120,7 +123,25 @@ export class FinancialLedgerService {
           sourceApplication,
         }),
       );
-      return allocationRepo.save(entities);
+      const saved = await allocationRepo.save(entities);
+
+      // A provider callback can race between provider init and Marketplace's
+      // allocation POST. If the payment is already PAID, project the split
+      // immediately. The normal PAYMENT_PAID outbox projection uses the same
+      // deterministic keys, so either ordering remains exactly-once.
+      if (payment.status === PaymentStatus.PAID) {
+        const occurredAt = payment.paidAt ?? payment.updatedAt ?? new Date();
+        for (const allocation of saved) {
+          await this.postAllocationEntry(
+            manager,
+            payment,
+            allocation,
+            occurredAt,
+          );
+        }
+      }
+
+      return saved;
     });
   }
 
@@ -180,25 +201,12 @@ export class FinancialLedgerService {
         .getRepository(PaymentFinancialAllocation)
         .find({ where: { paymentId: payment.id }, order: { id: 'ASC' } });
       for (const allocation of allocations) {
-        await this.insertIdempotent(manager, {
-          entryKey: this.key('PAYMENT_ALLOCATION', allocation.id),
-          component:
-            allocation.component as unknown as FinancialLedgerComponent,
-          paymentId: payment.id,
-          refundId: null,
-          sourceApplication: allocation.sourceApplication,
-          sourceEventId: allocation.reference,
-          beneficiaryType: allocation.beneficiaryType,
-          beneficiaryId: allocation.beneficiaryId,
-          amount: this.normalizeStoredAmount(allocation.amount),
-          currency: payment.currency,
+        await this.postAllocationEntry(
+          manager,
+          payment,
+          allocation,
           occurredAt,
-          metadata: {
-            allocationId: allocation.id,
-            orderId: payment.orderId,
-            reference: allocation.reference,
-          },
-        });
+        );
       }
     });
   }
@@ -251,20 +259,20 @@ export class FinancialLedgerService {
     dto: RecordFinancialSettlementDto,
     sourceApplication: string,
   ): Promise<FinancialLedgerEntry> {
+    const settlementId = dto.settlementId.trim();
+    if (!settlementId) {
+      throw new BadRequestException('Settlement id is required.');
+    }
     const beneficiaryId = dto.beneficiaryId?.trim() || null;
     this.assertSettlementBeneficiary(dto.beneficiaryType, beneficiaryId);
-    const entryKey = this.key(
-      'SETTLEMENT',
-      sourceApplication,
-      dto.settlementId.trim(),
-    );
+    const entryKey = this.key('SETTLEMENT', sourceApplication, settlementId);
     const expected: LedgerEntryInput = {
       entryKey,
       component: FinancialLedgerComponent.SETTLEMENT,
       paymentId: null,
       refundId: null,
       sourceApplication,
-      sourceEventId: dto.settlementId.trim(),
+      sourceEventId: settlementId,
       beneficiaryType: dto.beneficiaryType,
       beneficiaryId,
       amount: this.amountFromNumber(dto.amount),
@@ -439,8 +447,9 @@ export class FinancialLedgerService {
     let allocatedMinor = 0;
     const normalized = entries.map((line) => {
       const reference = line.reference.trim();
-      if (!reference)
+      if (!reference) {
         throw new BadRequestException('Allocation reference is required.');
+      }
       const duplicateKey = `${line.component}:${reference}`;
       if (seen.has(duplicateKey)) {
         throw new BadRequestException(
@@ -516,6 +525,45 @@ export class FinancialLedgerService {
       case PaymentAllocationComponent.SELLER_NET:
         return FinancialBeneficiaryType.SELLER;
     }
+  }
+
+  private allocationLedgerComponent(
+    component: PaymentAllocationComponent,
+  ): FinancialLedgerComponent {
+    switch (component) {
+      case PaymentAllocationComponent.PLATFORM_FEE:
+        return FinancialLedgerComponent.PLATFORM_FEE;
+      case PaymentAllocationComponent.CLUB_NET:
+        return FinancialLedgerComponent.CLUB_NET;
+      case PaymentAllocationComponent.SELLER_NET:
+        return FinancialLedgerComponent.SELLER_NET;
+    }
+  }
+
+  private async postAllocationEntry(
+    manager: EntityManager,
+    payment: Payment,
+    allocation: PaymentFinancialAllocation,
+    occurredAt: Date,
+  ): Promise<void> {
+    await this.insertIdempotent(manager, {
+      entryKey: this.key('PAYMENT_ALLOCATION', allocation.id),
+      component: this.allocationLedgerComponent(allocation.component),
+      paymentId: payment.id,
+      refundId: null,
+      sourceApplication: allocation.sourceApplication,
+      sourceEventId: allocation.reference,
+      beneficiaryType: allocation.beneficiaryType,
+      beneficiaryId: allocation.beneficiaryId,
+      amount: this.normalizeStoredAmount(allocation.amount),
+      currency: payment.currency,
+      occurredAt,
+      metadata: {
+        allocationId: allocation.id,
+        orderId: payment.orderId,
+        reference: allocation.reference,
+      },
+    });
   }
 
   private assertSettlementBeneficiary(
@@ -619,7 +667,11 @@ export class FinancialLedgerService {
   }
 
   private normalizeStoredAmount(value: string): string {
-    return (Number(value) || 0).toFixed(3);
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      throw new BadRequestException('Stored financial amount is invalid.');
+    }
+    return parsed.toFixed(3);
   }
 
   private emptySummary(currency: string): FinancialLedgerSummary {
