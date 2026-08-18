@@ -2,6 +2,7 @@ import {
   IsDateString,
   IsEnum,
   IsIn,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -13,6 +14,7 @@ import { FinancialBeneficiaryType } from '../financial-ledger.enums';
 
 export class RecordFinancialSettlementDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(191)
   settlementId: string;
 
