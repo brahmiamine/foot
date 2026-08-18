@@ -92,11 +92,11 @@ export class PaymentApiClientService {
 
   constructor(
     @InjectRepository(MarketOrder)
-    private readonly orderRepository?: Repository<MarketOrder>,
+    private readonly orderRepository: Repository<MarketOrder>,
     @InjectRepository(SellerOrder)
-    private readonly sellerOrderRepository?: Repository<SellerOrder>,
+    private readonly sellerOrderRepository: Repository<SellerOrder>,
     @InjectRepository(Seller)
-    private readonly sellerRepository?: Repository<Seller>,
+    private readonly sellerRepository: Repository<Seller>,
   ) {}
 
   private getConfig(): { baseUrl: string; apiKey: string } {
@@ -179,9 +179,7 @@ export class PaymentApiClientService {
       );
     }
 
-    if (allocation) {
-      await this.registerFinancialAllocation(data.paymentId, allocation);
-    }
+    await this.registerFinancialAllocation(data.paymentId, allocation);
     return { paymentId: data.paymentId, payUrl: data.payUrl };
   }
 
@@ -331,14 +329,7 @@ export class PaymentApiClientService {
   private async buildFinancialAllocation(
     orderNumber: string,
     grossAmount: number,
-  ): Promise<FinancialAllocation | null> {
-    if (
-      !this.orderRepository ||
-      !this.sellerOrderRepository ||
-      !this.sellerRepository
-    ) {
-      return null;
-    }
+  ): Promise<FinancialAllocation> {
     const order = await this.orderRepository.findOne({
       where: { orderNumber },
     });
@@ -406,7 +397,9 @@ export class PaymentApiClientService {
 
   private toMinor(amount: number): number {
     if (!Number.isFinite(amount) || amount < 0) {
-      throw new ServiceUnavailableException('Montant financier marketplace invalide.');
+      throw new ServiceUnavailableException(
+        'Montant financier marketplace invalide.',
+      );
     }
     return Math.round(amount * 1000);
   }
