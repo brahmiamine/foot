@@ -4,6 +4,7 @@ import shared from "./shared.module.css";
 import styles from "./Nav.module.css";
 import { getTranslator } from "@/i18n/server";
 import type { TranslationKey } from "@/i18n/dictionaries";
+import { communityT } from "@/i18n/community";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 
 const LINKS: { href: string; key: TranslationKey }[] = [
@@ -15,7 +16,7 @@ const LINKS: { href: string; key: TranslationKey }[] = [
 ];
 
 export async function Nav({ teamName }: { teamName: string }) {
-  const { t } = await getTranslator();
+  const { locale, t } = await getTranslator();
   return (
     <div className={styles.nav}>
       <div className={styles.inner}>
@@ -29,6 +30,7 @@ export async function Nav({ teamName }: { teamName: string }) {
               {t(link.key)}
             </Link>
           ))}
+          <Link href="/communaute">{communityT(locale, "nav.community")}</Link>
         </div>
         <Link href="/espace-membre" className={styles.member}>
           {t("nav.member")}

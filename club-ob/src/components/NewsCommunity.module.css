@@ -1,0 +1,137 @@
+.wrap {
+  margin-top: 48px;
+  padding-top: 28px;
+  border-top: 1px solid var(--ob-card-border);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--ob-font-display);
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  text-transform: uppercase;
+}
+
+.notice {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ob-card-border);
+  background: var(--ob-card-bg);
+}
+
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.reaction {
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid var(--ob-card-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ob-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.active {
+  border-color: var(--ob-red);
+  background: color-mix(in srgb, var(--ob-red) 12%, transparent);
+}
+
+.comments {
+  margin-top: 28px;
+}
+
+.commentsTitle {
+  margin: 0 0 14px;
+  font-family: var(--ob-font-display);
+  font-size: 1.12rem;
+  text-transform: uppercase;
+}
+
+.comment {
+  padding: 12px 0;
+  border-top: 1px solid var(--ob-card-border);
+}
+
+.commentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ob-text-faint);
+  font-size: .8rem;
+}
+
+.commentBody {
+  margin: 5px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.form {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--ob-text-faint);
+}
+
+.input {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 1px solid var(--ob-card-border);
+  border-radius: 8px;
+  background: var(--ob-bg);
+  color: var(--ob-text);
+  font: inherit;
+}
+
+.action {
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ob-red);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.input:focus-visible,
+.action:focus-visible,
+.reaction:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ob-red) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.hint,
+.empty {
+  color: var(--ob-text-faint);
+  font-size: .88rem;
+}
+
+@media (max-width: 640px) {
+  .form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -6,13 +6,20 @@ import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { PublicNewsService } from "@/services/PublicNewsService";
 import { PageChrome } from "@/components/PageChrome";
 import { PlaceholderImage } from "@/components/PlaceholderImage";
+import { NewsCommunity } from "@/components/NewsCommunity";
 import { resolveAssetUrl } from "@/lib/assets";
 import { formatShortDate } from "@/lib/format";
 import styles from "./article.module.css";
 
 export const dynamic = "force-dynamic";
 
-export default async function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ArticlePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ community?: string }>;
+}) {
   const { locale, t } = await getTranslator();
   const { id } = await params;
   const numericId = Number(id);
@@ -32,6 +39,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
 
   const date = article.publishedAt ?? article.createdAt;
   const safeContentHtml = sanitizeRichTextHtml(article.contentHtml);
+  const { community } = await searchParams;
 
   return (
     <PageChrome>
@@ -48,6 +56,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
           className={styles.cover}
         />
         <div className={styles.prose} dangerouslySetInnerHTML={{ __html: safeContentHtml }} />
+        <NewsCommunity teamId={team.id} newsId={numericId} locale={locale} state={community} />
       </div>
     </PageChrome>
   );
