@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/session";
-import { listMfaRolePolicies, updateMfaRolePolicy } from "@/lib/mfaPolicy";
+import { getMfaRolePolicy, listMfaRolePolicies, updateMfaRolePolicy } from "@/lib/mfaPolicy";
 import { hasRecentMfa, getStepUpMaxAgeSeconds } from "@/lib/stepUp";
 import { getClientIP } from "@/lib/getClientIP";
 import type { MfaPolicyMode } from "@/entities/MfaRolePolicy";
@@ -26,12 +26,25 @@ function canManage(role: User["role"]): boolean {
   return role === "SUPERADMIN" || role === "PLATFORM_SUPERADMIN";
 }
 
-export async function GET() {
+function readOptionalDate(value: unknown): Date | null {
+  if (value == null || value === "") return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) throw new Error("INVALID_POLICY_DATE");
+  return parsed;
+}
+
+export async function GET(request: NextRequest) {
   const session = await getCurrentSession();
   if (!session || !canManage(session.role)) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
-  return NextResponse.json({ policies: await listMfaRolePolicies() });
+
+  const role = request.nextUrl.searchParams.get("role");
+  const at = readOptionalDate(request.nextUrl.searchParams.get("at")) ?? new Date();
+  if (role && ROLES.includes(role as User["role"])) {
+    return NextResponse.json({ policy: await getMfaRolePolicy(role as User["role"], at) });
+  }
+  return NextResponse.json({ policies: await listMfaRolePolicies(at) });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -64,6 +77,8 @@ export async function PATCH(request: NextRequest) {
       role,
       mode,
       gracePeriodDays,
+      effectiveFrom: readOptionalDate(body?.effectiveFrom),
+      effectiveUntil: readOptionalDate(body?.effectiveUntil),
       updatedBy: session.id,
       actorRole: session.role,
       reason,
