@@ -1,8 +1,14 @@
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PaymentReconciliationService } from './payment-reconciliation.service';
+import { PaymentReconciliationCase } from './entities/payment-reconciliation-case.entity';
+import { PaymentReconciliationEvent } from './entities/payment-reconciliation-event.entity';
 import { Payment } from './entities/payment.entity';
-import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentProviderName } from './enums/payment-provider.enum';
+import { PaymentStatus } from './enums/payment-status.enum';
+import {
+  PaymentReconciliationDiscrepancyType,
+  PaymentReconciliationEvidenceSource,
+} from './payment-reconciliation.enums';
 import { PaymentService } from './payment.service';
 
 describe('PaymentReconciliationService', () => {
@@ -10,10 +16,18 @@ describe('PaymentReconciliationService', () => {
   let paymentService: jest.Mocked<
     Pick<PaymentService, 'handleKonnectWebhook' | 'handleFlouciWebhook'>
   >;
+  let caseCount: jest.Mock;
+  let caseFindOne: jest.Mock;
+  let caseCreate: jest.Mock;
+  let caseSave: jest.Mock;
+  let eventInsert: jest.Mock;
+  let transactionPaymentFindOne: jest.Mock;
+  let transaction: jest.Mock;
+  let knownPayments: Map<string, Payment>;
   let service: PaymentReconciliationService;
 
   function buildPayment(overrides: Partial<Payment> = {}): Payment {
-    return {
+    const payment: Payment = {
       id: 'payment-1',
       orderId: 'ORDER-1',
       userId: null,
@@ -31,13 +45,16 @@ describe('PaymentReconciliationService', () => {
       providerFee: null,
       lastWebhookAt: null,
       webhookReceivedCount: 0,
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago, stale
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
       updatedAt: new Date(),
       ...overrides,
     };
+    knownPayments.set(payment.id, payment);
+    return payment;
   }
 
   beforeEach(() => {
+    knownPayments = new Map<string, Payment>();
     repository = {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
@@ -46,8 +63,58 @@ describe('PaymentReconciliationService', () => {
       handleKonnectWebhook: jest.fn().mockResolvedValue(undefined),
       handleFlouciWebhook: jest.fn().mockResolvedValue(undefined),
     };
+
+    caseCount = jest.fn().mockResolvedValue(0);
+    caseFindOne = jest.fn().mockResolvedValue(null);
+    caseCreate = jest.fn((input: Partial<PaymentReconciliationCase>) => ({
+      id: 'case-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...input,
+    }));
+    caseSave = jest.fn((input: PaymentReconciliationCase) =>
+      Promise.resolve(input),
+    );
+    eventInsert = jest.fn().mockResolvedValue(undefined);
+    transactionPaymentFindOne = jest.fn((options: { where: { id: string } }) =>
+      Promise.resolve(knownPayments.get(options.where.id) ?? null),
+    );
+
+    const caseRepository = {
+      count: caseCount,
+      findOne: caseFindOne,
+      create: caseCreate,
+      save: caseSave,
+    } as unknown as Repository<PaymentReconciliationCase>;
+    const eventRepository = {
+      insert: eventInsert,
+    } as unknown as Repository<PaymentReconciliationEvent>;
+    const transactionPaymentRepository = {
+      findOne: transactionPaymentFindOne,
+    } as unknown as Repository<Payment>;
+    const manager = {
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === Payment) return transactionPaymentRepository;
+        if (entity === PaymentReconciliationCase) return caseRepository;
+        if (entity === PaymentReconciliationEvent) return eventRepository;
+        throw new Error(
+          'Unexpected repository requested by reconciliation test',
+        );
+      }),
+    } as unknown as EntityManager;
+    transaction = jest.fn(
+      (callback: (entityManager: EntityManager) => Promise<unknown>) =>
+        callback(manager),
+    );
+    const dataSource = {
+      transaction,
+    } as unknown as DataSource;
+
     service = new PaymentReconciliationService(
       repository as unknown as Repository<Payment>,
+      caseRepository,
+      eventRepository,
+      dataSource,
       paymentService as unknown as PaymentService,
     );
   });
@@ -107,9 +174,14 @@ describe('PaymentReconciliationService', () => {
 
     expect(report.resolvedCount).toBe(0);
     expect(report.stillPendingCount).toBe(1);
+    expect(caseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discrepancyType: PaymentReconciliationDiscrepancyType.STALE_PENDING,
+      }),
+    );
   });
 
-  it('skips a payment without providerRef (never actually reached the provider)', async () => {
+  it('opens a reconciliation case for a payment without providerRef', async () => {
     const payment = buildPayment({ providerRef: null });
     repository.find.mockResolvedValue([payment]);
 
@@ -117,21 +189,35 @@ describe('PaymentReconciliationService', () => {
 
     expect(paymentService.handleKonnectWebhook).not.toHaveBeenCalled();
     expect(report.stillPendingCount).toBe(1);
+    expect(caseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discrepancyType:
+          PaymentReconciliationDiscrepancyType.MISSING_PROVIDER_REFERENCE,
+      }),
+    );
   });
 
-  it('never queries Paymee payments (no server-to-server status check available)', async () => {
-    await service.reconcileStalePayments();
+  it('uses signed Paymee webhook evidence without a provider API call', async () => {
+    const payment = buildPayment({
+      provider: PaymentProviderName.PAYMEE,
+      providerRef: 'paymee-token',
+      lastProviderStatus: 'true',
+    });
+    repository.find.mockResolvedValue([payment]);
+    repository.findOne.mockResolvedValue(payment);
 
-    const [[query]] = repository.find.mock.calls;
-    const providerFilter = (
-      query as unknown as {
-        where: { provider: { value: PaymentProviderName[] } };
-      }
-    ).where.provider;
-    expect(providerFilter.value).toEqual([
-      PaymentProviderName.KONNECT,
-      PaymentProviderName.FLOUCI,
-    ]);
+    const report = await service.reconcileStalePayments();
+
+    expect(paymentService.handleKonnectWebhook).not.toHaveBeenCalled();
+    expect(paymentService.handleFlouciWebhook).not.toHaveBeenCalled();
+    expect(caseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discrepancyType: PaymentReconciliationDiscrepancyType.STATUS_MISMATCH,
+        evidenceSource: PaymentReconciliationEvidenceSource.SIGNED_WEBHOOK,
+        mappedProviderStatus: PaymentStatus.PAID,
+      }),
+    );
+    expect(report.stillPendingCount).toBe(1);
   });
 
   it('continues with the next payment when one verification throws', async () => {
@@ -147,9 +233,13 @@ describe('PaymentReconciliationService', () => {
     paymentService.handleKonnectWebhook
       .mockRejectedValueOnce(new Error('provider down'))
       .mockResolvedValueOnce(undefined);
-    repository.findOne.mockResolvedValue({
-      ...succeeding,
-      status: PaymentStatus.PAID,
+    repository.findOne.mockImplementation((options) => {
+      const id = options.where && 'id' in options.where ? options.where.id : '';
+      return Promise.resolve(
+        id === succeeding.id
+          ? { ...succeeding, status: PaymentStatus.PAID }
+          : failing,
+      );
     });
 
     const report = await service.reconcileStalePayments();

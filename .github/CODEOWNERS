@@ -1,0 +1,31 @@
+# Repository-wide fallback owner.
+* @brahmiamine
+
+# Platform governance, CI and repository controls.
+/.github/ @brahmiamine
+/scripts/ @brahmiamine
+/db/ @brahmiamine
+/packages/domain-contracts/ @brahmiamine
+
+# Identity, security-sensitive and financial domains.
+/identity/ @brahmiamine
+/payments/ @brahmiamine
+/medical-hub/ @brahmiamine
+/notifications/ @brahmiamine
+
+# Federation and match operations.
+/federation-hub/ @brahmiamine
+/match-operations/ @brahmiamine
+/referee-hub/ @brahmiamine
+/arbinote/ @brahmiamine
+
+# Club-facing applications.
+/club-hub/ @brahmiamine
+/club-ob/ @brahmiamine
+/player-hub/ @brahmiamine
+/staff-hub/ @brahmiamine
+
+# Commerce applications.
+/ticketing/ @brahmiamine
+/marketplace/ @brahmiamine
+/seller-portal/ @brahmiamine
