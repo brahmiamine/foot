@@ -28,6 +28,9 @@ export interface SaleConfigurationInput {
   maxTicketsPerUser?: number;
   startsAt?: Date | null;
   endsAt?: Date | null;
+  presaleRequiresMembership?: boolean;
+  presaleMembershipCodes?: string[] | null;
+  presaleEndsAt?: Date | null;
 }
 
 const PROTECTED_STATUSES: TicketSaleStatus[] = ["APPROVED", "SCHEDULED", "OPEN", "PAUSED"];
@@ -47,6 +50,12 @@ function validateConfig(input: SaleConfigurationInput): void {
   }
   if (input.startsAt && input.endsAt && input.startsAt.getTime() >= input.endsAt.getTime()) {
     throw new Error("La date de fin doit être postérieure à la date de début");
+  }
+  if (input.presaleMembershipCodes) {
+    const valid = ["FAN", "SOCIO", "VIP", "SUPPORTER", "PARTNER"];
+    for (const code of input.presaleMembershipCodes) {
+      if (!valid.includes(code)) throw new Error(`Code de membership invalide : ${code}`);
+    }
   }
 }
 
@@ -124,6 +133,9 @@ export class TicketSaleGovernanceService {
       maxTicketsPerUser: rule.maxTicketsPerUser,
       startsAt: rule.startsAt?.toISOString() ?? null,
       endsAt: rule.endsAt?.toISOString() ?? null,
+      presaleRequiresMembership: rule.presaleRequiresMembership,
+      presaleMembershipCodes: rule.presaleMembershipCodes ?? null,
+      presaleEndsAt: rule.presaleEndsAt?.toISOString() ?? null,
     });
   }
 
@@ -147,6 +159,9 @@ export class TicketSaleGovernanceService {
         maxTicketsPerUser: 4,
         startsAt: null,
         endsAt: null,
+        presaleRequiresMembership: false,
+        presaleMembershipCodes: null,
+        presaleEndsAt: null,
         status: "DRAFT",
         approvedFingerprint: null,
         submittedBy: null,
@@ -176,6 +191,9 @@ export class TicketSaleGovernanceService {
     if (input.maxTicketsPerUser !== undefined) rule.maxTicketsPerUser = input.maxTicketsPerUser;
     if (input.startsAt !== undefined) rule.startsAt = input.startsAt;
     if (input.endsAt !== undefined) rule.endsAt = input.endsAt;
+    if (input.presaleRequiresMembership !== undefined) rule.presaleRequiresMembership = input.presaleRequiresMembership;
+    if (input.presaleMembershipCodes !== undefined) rule.presaleMembershipCodes = input.presaleMembershipCodes;
+    if (input.presaleEndsAt !== undefined) rule.presaleEndsAt = input.presaleEndsAt;
     rule.version += 1;
     await repo.save(rule);
 

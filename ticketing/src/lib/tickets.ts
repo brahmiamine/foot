@@ -10,6 +10,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { generateTicketReference } from "@/lib/reference";
 import { getPaymentProvider, getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
 import { fetchMemberAffiliatedTeamIds, fetchMemberProfile } from "@/lib/ssoProfileClient";
+import { fetchActiveMembership } from "@/lib/clubHubMembershipClient";
 import { verifyTicketToken } from "@/lib/ticketQr";
 import { openStockUnavailableRefundCase } from "@/lib/stockUnavailableRefunds";
 
@@ -68,6 +69,9 @@ export interface CategoryOffer {
   saleOpen: boolean;
   startsAt: Date | null;
   endsAt: Date | null;
+  /** OB-003 : true tant que la fenêtre de prévente réservée aux membres est active. */
+  presaleActive: boolean;
+  presaleEndsAt: Date | null;
 }
 
 export interface MatchDetail {
@@ -121,6 +125,10 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail | nul
           saleOpen,
           startsAt: rule?.startsAt ?? null,
           endsAt: rule?.endsAt ?? null,
+          presaleActive: Boolean(
+            rule?.presaleRequiresMembership && (!rule.presaleEndsAt || rule.presaleEndsAt > now),
+          ),
+          presaleEndsAt: rule?.presaleEndsAt ?? null,
         };
       });
   }
@@ -333,6 +341,22 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
           allowedAudience === "HOME_SUPPORTERS"
             ? "Cette catégorie est réservée aux supporters du club recevant : merci de confirmer votre statut avant l'achat."
             : "Cette catégorie est réservée aux supporters du club visiteur : merci de confirmer votre statut avant l'achat.",
+        );
+      }
+    }
+
+    // OB-003 : prévente réservée aux membres — règle serveur fail-closed,
+    // même schéma que la vérification STRICT ci-dessus. `presaleEndsAt`
+    // dépassé lève la restriction (redevient ouvert à tous) ; tant que la
+    // fenêtre est active, un appel club-hub en échec bloque l'achat plutôt
+    // que de l'autoriser silencieusement.
+    if (rule?.presaleRequiresMembership && (!rule.presaleEndsAt || rule.presaleEndsAt > now)) {
+      const membership = await fetchActiveMembership(match.equipeHome, input.purchaserId);
+      const allowedCodes = rule.presaleMembershipCodes;
+      const qualifies = membership && (!allowedCodes || allowedCodes.includes(membership.code));
+      if (!qualifies) {
+        throw new ForbiddenError(
+          "Cette catégorie est réservée en prévente aux membres du club : votre profil ne l'indique pas.",
         );
       }
     }
