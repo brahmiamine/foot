@@ -35,6 +35,7 @@
 - 2026-08-18 — typecheck (`tsc --noEmit`), `vitest run` (56 fichiers / 292 tests), `eslint` (0 erreur), `test:i18n` (parité FR/AR), `db/validate-manifest.sh` et `scripts/validate-architecture-boundaries.mjs` verts sur `federation-hub` : `FED-001` à `FED-005` validés. Regulatory Policy Center (`federal_regulatory_policies`, résolution hiérarchique PLATFORM→FEDERATION→LEAGUE→SEASON via `@foot/domain-contracts/policy`, provenance de chaque valeur, écran `/admin/regulatory-policy-center`) ; templates documentaires étendus `CONTRACT`/`MEDICAL` avec `signature_required`/`verification_method` configurables et capture de signature sur les soumissions ; délégation fédération→ligue par opération (`delegatedOperations`, garde serveur `assertOperationDelegated` sur assurance/subventions/droits média/formation/solidarité/conformité documentaire/licence club/discipline/appel) ; décision de commission signée et conforme au quorum désormais réellement obligatoire (quand la policy l'active) avant toute décision disciplinaire, sur appel ou de licence club — comportement historique préservé par défaut (aucune policy = aucune commission exigée).
 - 2026-08-18 — typecheck, `vitest run` (59 fichiers / 317 tests), `eslint` (0 erreur), `test:i18n`, `db/validate-manifest.sh` et `scripts/validate-architecture-boundaries.mjs` verts sur `federation-hub` : `FED-006` à `FED-011` validés. Assurances : `saisons.requires_insurance` bloque l'approbation d'engagement sans police active non expirée, et les polices ACTIVE/SUSPENDED expirées s'affichent EXPIRED sans tâche planifiée. Subventions : approbation bloquée tant que les exigences documentaires obligatoires du domaine GRANT n'ont pas de soumission `VALID` liée (`GRANT_APPLICATION`). Droits média : les allocations peuvent désormais atteindre `PAID`/`DISPUTED` (c'était le seul statut jamais écrit) avec motif de contestation obligatoire. Formation/solidarité : bénéficiaires/allocations réglables en `PAID`/`DISPUTED`, le dossier parent agrège leur statut (`computeAggregateCaseStatus`) sans jamais repasser à `PAID` tant qu'un seul reste en litige. SLA réglementaires : seuils alerte/dépassement par domaine (`regulatory_sla_policies`, défauts préservant le comportement historique tant que rien n'est configuré) et file overdue calculée à la volée sur 7 domaines. Permissions : mode global `LEGACY/WARN/ENFORCE` (`regulatory_permission_mode_settings`) — WARN évalue comme ENFORCE mais n'empêche rien, journalise seulement (`regulatory_permission_warnings`), pour mesurer l'impact avant bascule réelle.
 - 2026-08-18 — CI #955 + Ownership #484 : `PAY-004` validé. Payments possède un ledger financier append-only idempotent couvrant `GROSS / PROVIDER_FEE / PLATFORM_FEE / CLUB_NET / SELLER_NET / REFUND / SETTLEMENT`, projette paiements/remboursements depuis l'outbox avant livraison externe, accepte de façon race-safe l'allocation Marketplace au millime et protège les lectures/settlements par application ; Marketplace enregistre `SELLER_NET/CLUB_NET` avant exposition du payUrl et le `SETTLEMENT` avant passage d'un payout à `PAID`. Lint/build/tests Payments, Marketplace et matrice CI globale sont verts.
+- 2026-08-18 — Ownership boundaries #506 vert après un cycle RED→GREEN dédié : `OPS-003` est clôturé avec `.github/CODEOWNERS` couvrant explicitement GitHub/CI, DB, contrats de domaine et applications sensibles, plus `scripts/validate-codeowners.mjs` qui empêche la dérive. Réconciliation documentaire : `CLUB-005` est déjà fourni par `PublicFormSettings`/OB-001 avec enforcement serveur, et `PAY-005` par la file de réconciliation provider/interne fusionnée en PR #103 ; les deux statuts sont donc réalignés sur le code de `main`.
 
 ---
 
@@ -72,7 +73,7 @@
 | CLUB-002 | P0 | DONE | Workflow éditorial News | DRAFT→SUBMITTED→REVIEW→APPROVED/SCHEDULED/PUBLISHED + reapproval |
 | CLUB-003 | P0 | DONE | Workflow Communiqués officiels avec niveau d'approbation par catégorie | SANCTION/DECISION peuvent exiger dual approval |
 | CLUB-004 | P0 | DONE | Workflow d'approbation produits de la boutique club | DRAFT/SUBMITTED/APPROVED/PUBLISHED/REJECTED + price reapproval |
-| CLUB-005 | P1 | TODO | Paramètres publics centralisés pour formulaires | académie/recrutement/sponsor/seller/contact + ouverture/fermeture/rate limit |
+| CLUB-005 | P1 | DONE | Paramètres publics centralisés pour formulaires | académie/recrutement/sponsor/seller/contact + ouverture/fermeture/rate limit |
 | CLUB-006 | P1 | TODO | Candidatures académie enrichies | pre-screening, trial, technical/admin approval, création Player contrôlée |
 | CLUB-007 | P1 | TODO | Recrutement enrichi | scout/coach/trial/directeur sportif/negotiation workflow |
 | CLUB-008 | P1 | TODO | Sponsoring : revue, négociation, contrat, activation, expiration | workflow + double validation selon montant |
@@ -164,7 +165,7 @@
 | PAY-002 | P0 | DONE | Politique de remboursement par seuil | auto/single/dual approval selon montant |
 | PAY-003 | P0 | DONE | SLA de `MANUAL_REVIEW` | délai + reminder + escalation + dashboard |
 | PAY-004 | P1 | DONE | Ledger financier | gross/providerFee/platformFee/clubNet/sellerNet/refund/settlement |
-| PAY-005 | P1 | TODO | Réconciliation provider/interne | file d'écarts + résolution auditée |
+| PAY-005 | P1 | DONE | Réconciliation provider/interne | file d'écarts + résolution auditée |
 
 # L. Notifications
 
@@ -207,7 +208,7 @@
 |---|---|---|---|---|
 | OPS-001 | P0 | TODO | Protection branche `main` | PR obligatoire + checks CI/ownership + no direct push si supporté par GitHub |
 | OPS-002 | P0 | DONE | Documentation canonique des capacités | `docs/platform-capabilities.md` + correction docs obsolètes |
-| OPS-003 | P1 | TODO | CODEOWNERS par domaine | ownership explicite identity/payments/medical/db/github |
+| OPS-003 | P1 | DONE | CODEOWNERS par domaine | ownership explicite identity/payments/medical/db/github |
 | OPS-004 | P1 | TODO | Stockage objet + antivirus pour uploads non médicaux | S3/MinIO/R2 compatible + validation MIME/size + signed URL |
 | OPS-005 | P1 | TODO | Operations Center outbox/webhooks/sagas | pending/failure/retry/resolve audité |
 | OPS-006 | P1 | TODO | Health dashboard plateforme | santé des apps/services + dépendances critiques |
