@@ -26,7 +26,7 @@ export class PayoutsService {
     private readonly repository: Repository<Payout>,
     @InjectRepository(SellerOrder)
     private readonly sellerOrderRepository: Repository<SellerOrder>,
-    private readonly paymentApiClient?: PaymentApiClientService,
+    private readonly paymentApiClient: PaymentApiClientService,
   ) {}
 
   async findAllForSeller(sellerId: string): Promise<Payout[]> {
@@ -140,7 +140,7 @@ export class PayoutsService {
       );
     }
     const paidAt = new Date();
-    await this.paymentApiClient?.recordSettlement({
+    await this.paymentApiClient.recordSettlement({
       settlementId: payout.id,
       amount: Number(payout.amount),
       beneficiaryType: 'SELLER',
