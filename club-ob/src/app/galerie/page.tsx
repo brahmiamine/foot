@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { PublicGalleryService } from "@/services/PublicGalleryService";
 import { resolveAssetUrl } from "@/lib/assets";
 import { PageChrome } from "@/components/PageChrome";
@@ -15,6 +16,7 @@ export const generateMetadata = () => getLocalizedMetadata("metadata.gallery");
 export default async function GaleriePage() {
   const { locale, t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "GALLERY");
   const galleries = team ? await new PublicGalleryService().getAllGalleries(team.id) : [];
 
   return (

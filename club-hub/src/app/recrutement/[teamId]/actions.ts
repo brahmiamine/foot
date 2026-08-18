@@ -1,7 +1,11 @@
 "use server";
 
+import { getDataSource } from "@/lib/database";
+import { MoreThanOrEqual } from "typeorm";
 import { TeamService } from "@/services/TeamService";
 import { RecruitmentService } from "@/services/RecruitmentService";
+import { RecruitmentApplication } from "@/entities/RecruitmentApplication";
+import { PublicFormSettingsService } from "@/services/PublicFormSettingsService";
 import { createRecruitmentApplicationSchema } from "@/types/recruitment";
 
 /**
@@ -17,6 +21,15 @@ export async function submitRecruitmentApplication(teamId: string, formData: For
     if (!team) {
       return { success: false, messageKey: "common.errors.clubNotFound" as const };
     }
+
+    // OB-001 : garde serveur unique (ouverture/fenêtre/rate limit), la page
+    // publique n'a elle-même aucune logique d'autorisation.
+    await new PublicFormSettingsService().assertOpen(teamId, "RECRUITMENT", async (windowStart) => {
+      const ds = await getDataSource();
+      return ds
+        .getRepository(RecruitmentApplication)
+        .count({ where: { teamId, createdAt: MoreThanOrEqual(windowStart) } });
+    });
 
     const data = createRecruitmentApplicationSchema.parse({
       name: formData.get("name") as string,

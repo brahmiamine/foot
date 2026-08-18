@@ -1,7 +1,11 @@
 "use server";
 
+import { getDataSource } from "@/lib/database";
+import { MoreThanOrEqual } from "typeorm";
 import { TeamService } from "@/services/TeamService";
 import { SponsorService } from "@/services/SponsorService";
+import { SponsorRequest } from "@/entities/SponsorRequest";
+import { PublicFormSettingsService } from "@/services/PublicFormSettingsService";
 import { createSponsorRequestSchema } from "@/types/sponsors";
 
 /**
@@ -17,6 +21,15 @@ export async function submitSponsorRequest(teamId: string, formData: FormData) {
     if (!team) {
       return { success: false, messageKey: "common.errors.clubNotFound" as const };
     }
+
+    // OB-001 : garde serveur unique (ouverture/fenêtre/rate limit), la page
+    // publique n'a elle-même aucune logique d'autorisation.
+    await new PublicFormSettingsService().assertOpen(teamId, "SPONSOR", async (windowStart) => {
+      const ds = await getDataSource();
+      return ds
+        .getRepository(SponsorRequest)
+        .count({ where: { teamId, createdAt: MoreThanOrEqual(windowStart) } });
+    });
 
     const data = createSponsorRequestSchema.parse({
       companyName: formData.get("companyName") as string,

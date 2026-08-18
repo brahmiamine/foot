@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { PublicAcademyService } from "@/services/PublicAcademyService";
 import { getInscriptionUrl } from "@/lib/publicForms";
 import { PageChrome } from "@/components/PageChrome";
@@ -14,6 +15,7 @@ export const generateMetadata = () => getLocalizedMetadata("metadata.academy");
 export default async function FormationPage() {
   const { locale, t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "FORMATION");
   const service = new PublicAcademyService();
   const [categories, info] = team
     ? await Promise.all([service.getCategories(team.id), service.getInfo(team.id)])

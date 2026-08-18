@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { PublicNewsService } from "@/services/PublicNewsService";
 import { PageChrome } from "@/components/PageChrome";
 import { NewsCard } from "@/components/NewsCard";
@@ -13,6 +14,7 @@ export const generateMetadata = () => getLocalizedMetadata("metadata.news");
 export default async function ActualitesPage() {
   const { t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "NEWS");
   const news = team ? await new PublicNewsService().getAll(team.id) : [];
 
   return (

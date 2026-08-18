@@ -200,6 +200,8 @@ club-hub/sql/migration_extend_player_transfers_agents.sql
 club-hub/sql/migration_add_convocation_cancellation.sql
 # Communauté supporter OB : interactions MEMBER, fidélité, modération et groupes.
 club-hub/sql/migration_add_supporter_community.sql
+# OB-001/OB-002/OB-004 : membership club, paramètres formulaires publics et policy de contenu public.
+club-hub/sql/migration_add_public_governance.sql
 
 # --- match-operations (feuille de match électronique, dépend de Player/Card/Match) ---
 match-operations/sql/migration_match-operations_init.sql
