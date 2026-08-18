@@ -30,6 +30,7 @@
 - 2026-08-17 — CI #895 + Ownership #424 : `MATCH-003`, `TICK-001`, `TICK-002` et `PAY-001` validés. Match Operations conserve la version de policy de correction post-signature et exige l'approbation fédérale configurée ; Ticketing applique le workflow DRAFT/REVIEW/APPROVED/SCHEDULED/OPEN avec revalidation tarifaire ; Payments applique une policy provider enabled/default/fallback par consommateur, une administration séparée et des replays idempotents sans fallback PSP ambigu.
 - 2026-08-17 — CI #930 + Ownership #459 : `PAY-002` validé. Payments résout `AUTO / SINGLE_APPROVAL / DUAL_APPROVAL` par seuil et consommateur avant tout appel PSP, conserve un snapshot de policy par remboursement, réserve le montant en `AWAITING_APPROVAL`, impose maker/checker et deux approbateurs distincts en DUAL, protège retry/confirm contre les contournements, grandfather les remboursements legacy lors de la migration et garde Ticketing/Club Hub/Marketplace compatibles via normalisation locale de l'état d'attente.
 - 2026-08-18 — CI #939 + Ownership #468 : `PAY-003` validé. Payments applique un SLA `MANUAL_REVIEW` versionné par consommateur avec snapshot par cycle, reminder et escalation idempotents sous verrou, retry si Notifications n'accepte pas l'alerte, dashboard opérateur plateforme et édition de policy via Federation Hub ; migration TypeORM et runner de migrations autonome alignés, lint/build/tests Payments et Federation Hub ainsi que la matrice CI globale sont verts.
+- 2026-08-18 — CI #955 + Ownership #484 : `PAY-004` validé. Payments possède un ledger financier append-only idempotent couvrant `GROSS / PROVIDER_FEE / PLATFORM_FEE / CLUB_NET / SELLER_NET / REFUND / SETTLEMENT`, projette paiements/remboursements depuis l'outbox avant livraison externe, accepte de façon race-safe l'allocation Marketplace au millime et protège les lectures/settlements par application ; Marketplace enregistre `SELLER_NET/CLUB_NET` avant exposition du payUrl et le `SETTLEMENT` avant passage d'un payout à `PAID`. Lint/build/tests Payments, Marketplace et matrice CI globale sont verts.
 
 ---
 
@@ -158,7 +159,7 @@
 | PAY-001 | P0 | DONE | Payment routing policy | provider enabled/default/fallback par consommateur |
 | PAY-002 | P0 | DONE | Politique de remboursement par seuil | auto/single/dual approval selon montant |
 | PAY-003 | P0 | DONE | SLA de `MANUAL_REVIEW` | délai + reminder + escalation + dashboard |
-| PAY-004 | P1 | TODO | Ledger financier | gross/providerFee/platformFee/clubNet/sellerNet/refund/settlement |
+| PAY-004 | P1 | DONE | Ledger financier | gross/providerFee/platformFee/clubNet/sellerNet/refund/settlement |
 | PAY-005 | P1 | TODO | Réconciliation provider/interne | file d'écarts + résolution auditée |
 
 # L. Notifications
