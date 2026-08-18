@@ -6,6 +6,8 @@ import type { ClientAccess } from "./access-client";
 export interface UserAccess {
   userId: string;
   teamId: string;
+  /** Rôle issu de la session signée, utilisable comme identité d'audit. */
+  actorRole?: string;
   isClubAdmin: boolean;
   permissions: "ALL" | Set<string>;
   categories: "ALL" | AgeCategory[];
@@ -26,9 +28,17 @@ export async function getUserAccess(): Promise<UserAccess> {
 
   const userId = session.user.id;
   const teamId = session.user.teamId;
+  const actorRole = session.user.role;
 
   if (session.user.role === "ADMIN" || session.user.role === "CLUB_ADMIN") {
-    return { userId, teamId, isClubAdmin: true, permissions: "ALL", categories: "ALL" };
+    return {
+      userId,
+      teamId,
+      actorRole,
+      isClubAdmin: true,
+      permissions: "ALL",
+      categories: "ALL",
+    };
   }
 
   const roleService = new RoleService();
@@ -37,6 +47,7 @@ export async function getUserAccess(): Promise<UserAccess> {
   return {
     userId,
     teamId,
+    actorRole,
     isClubAdmin: false,
     permissions: new Set(permissions),
     categories,
