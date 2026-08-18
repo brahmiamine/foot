@@ -61,7 +61,7 @@ export async function getAdminSession(request: NextRequest): Promise<SsoUser | n
   if (!allowedRoles.includes(session.role)) return null;
 
   const requiredPermission = resolveRegulatoryPermission(request.nextUrl.pathname, request.method);
-  if (requiredPermission && !await hasRegulatoryPermission(await getDataSource(), session, requiredPermission)) return null;
+  if (requiredPermission && !await hasRegulatoryPermission(await getDataSource(), session, requiredPermission, request.nextUrl.pathname)) return null;
   return session;
 }
 

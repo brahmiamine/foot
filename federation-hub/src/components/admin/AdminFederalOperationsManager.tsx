@@ -81,6 +81,12 @@ async function postJson(url: string, body: JsonBody) {
   return payload
 }
 
+const CHILDREN_DOMAINS = {
+  broadcasting: { action: 'allocations', idParam: 'distributionId', settleAction: 'settle-allocation', label: 'Allocations club' },
+  'training-compensation': { action: 'beneficiaries', idParam: 'caseId', settleAction: 'settle-beneficiary', label: 'Bénéficiaires' },
+  solidarity: { action: 'beneficiaries', idParam: 'contributionId', settleAction: 'settle-beneficiary', label: 'Bénéficiaires' },
+} as const satisfies Partial<Record<Domain, { action: string; idParam: string; settleAction: string; label: string }>>
+
 export default function AdminFederalOperationsManager() {
   const [domain, setDomain] = useState<Domain>('commissions')
   const [payload, setPayload] = useState<unknown>(null)
@@ -88,6 +94,9 @@ export default function AdminFederalOperationsManager() {
   const [mutating, setMutating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [detailsFor, setDetailsFor] = useState<string | null>(null)
+  const [children, setChildren] = useState<Row[]>([])
+  const [childrenLoading, setChildrenLoading] = useState(false)
   const active = useMemo(() => MODULES.find((module) => module.key === domain) ?? MODULES[0], [domain])
   const rows = useMemo(() => extractRows(payload), [payload])
   const sessions = useMemo(() => extractNamedRows(payload, 'sessions'), [payload])
@@ -110,6 +119,42 @@ export default function AdminFederalOperationsManager() {
   }, [domain])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => { setDetailsFor(null); setChildren([]) }, [domain])
+
+  const childrenConfig = domain in CHILDREN_DOMAINS ? CHILDREN_DOMAINS[domain as keyof typeof CHILDREN_DOMAINS] : null
+
+  const loadChildren = useCallback(async (parentId: string) => {
+    if (!childrenConfig) return
+    setChildrenLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/admin/federal-operations/${domain}/${childrenConfig.action}?${childrenConfig.idParam}=${encodeURIComponent(parentId)}`, { cache: 'no-store' })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Chargement impossible')
+      setChildren(extractRows(body))
+      setDetailsFor(parentId)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Chargement impossible')
+    } finally {
+      setChildrenLoading(false)
+    }
+  }, [domain, childrenConfig])
+
+  const settleChild = async (childId: string, targetStatus: string, extra: JsonBody = {}) => {
+    if (!childrenConfig || !detailsFor) return
+    setMutating(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await postJson(`/api/admin/federal-operations/${domain}/${childrenConfig.settleAction}`, { id: childId, targetStatus, ...extra })
+      setNotice('Transition enregistrée.')
+      await Promise.all([load(), loadChildren(detailsFor)])
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Transition impossible')
+    } finally {
+      setMutating(false)
+    }
+  }
 
   const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -171,7 +216,7 @@ export default function AdminFederalOperationsManager() {
         {notice ? <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p> : null}
         {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
         {!loading && !error && rows.length === 0 ? <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">Aucun dossier pour ce périmètre.</p> : null}
-        {rows.length > 0 ? <OperationsTable domain={domain} rows={rows} disabled={mutating} onAction={act} /> : null}
+        {rows.length > 0 ? <OperationsTable domain={domain} rows={rows} disabled={mutating} onAction={act} showDetails={Boolean(childrenConfig)} onShowDetails={(id) => void loadChildren(id)} /> : null}
       </section>
 
       {domain === 'commissions' && (sessions.length > 0 || decisions.length > 0) ? (
@@ -179,6 +224,18 @@ export default function AdminFederalOperationsManager() {
           <CompactTable title="Séances" rows={sessions} />
           <CompactTable title="Décisions" rows={decisions} />
         </div>
+      ) : null}
+
+      {childrenConfig && detailsFor ? (
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">{childrenConfig.label}</h2>
+            <button type="button" onClick={() => { setDetailsFor(null); setChildren([]) }} className="text-sm text-slate-500 underline">Fermer</button>
+          </div>
+          {childrenLoading ? <p className="text-sm text-slate-500">Chargement…</p> : null}
+          {!childrenLoading && children.length === 0 ? <p className="text-sm text-slate-500">Aucune ligne.</p> : null}
+          {children.length > 0 ? <ChildrenTable rows={children} disabled={mutating} onSettle={settleChild} /> : null}
+        </section>
       ) : null}
 
       <a href="/admin/season-cycles" className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Ouvrir le cycle réglementaire annuel</a>
@@ -195,7 +252,7 @@ function CreatePanel({ domain, rows, disabled, onSubmit, onAction }: { domain: D
       <p className="mb-4 text-sm text-slate-500">Les identifiants de périmètre sont revalidés côté serveur avant toute écriture.</p>
       {domain === 'commissions' ? <CommissionForms rows={rows} disabled={disabled} onSubmit={onSubmit} onAction={onAction} /> : null}
       {domain === 'grants' ? <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Input name="federationId" label="Fédération ID" required/><Input name="leagueId" label="Ligue ID"/><Input name="seasonId" label="Saison ID"/><Input name="code" label="Code" required/><Input name="name" label="Programme" required/><Input name="totalBudget" label="Budget total" type="number" required/><Input name="currency" label="Devise" placeholder="TND"/><Input name="opensAt" label="Ouverture" type="datetime-local" required/><Input name="closesAt" label="Clôture" type="datetime-local" required/><Submit disabled={disabled}/></form> : null}
-      {domain === 'documents' ? <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Input name="federationId" label="Fédération ID" required/><Input name="leagueId" label="Ligue ID"/><Input name="seasonId" label="Saison ID"/><Select name="domain" label="Domaine" values={['CLUB_LICENSE','COMPETITION_ENTRY','FINANCIAL_COMPLIANCE','INSURANCE','GRANT','COACH_LICENSE','STADIUM','GOVERNANCE','OTHER']}/><Input name="code" label="Code" required/><Input name="name" label="Exigence" required/><Select name="appliesTo" label="Cible" values={['CLUB','PERSON','BOTH']}/><Input name="validDays" label="Validité (jours)" type="number"/><Submit disabled={disabled}/></form> : null}
+      {domain === 'documents' ? <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Input name="federationId" label="Fédération ID" required/><Input name="leagueId" label="Ligue ID"/><Input name="seasonId" label="Saison ID"/><Select name="domain" label="Domaine / template" values={['CLUB_LICENSE','COMPETITION_ENTRY','FINANCIAL_COMPLIANCE','INSURANCE','GRANT','COACH_LICENSE','STADIUM','GOVERNANCE','CONTRACT','MEDICAL','OTHER']}/><Input name="code" label="Code" required/><Input name="name" label="Exigence" required/><Select name="appliesTo" label="Cible" values={['CLUB','PERSON','BOTH']}/><Input name="validDays" label="Validité (jours)" type="number"/><Select name="verificationMethod" label="Vérification" values={['MANUAL_REVIEW','FEDERATION_SIGNATURE','THIRD_PARTY','NONE']}/><Select name="signatureRequired" label="Signature requise" values={['false','true']}/><Submit disabled={disabled}/></form> : null}
       {domain === 'national-teams' ? <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Input name="federationId" label="Fédération ID" required/><Input name="code" label="Code" required/><Input name="name" label="Nom" required/><Input name="ageCategory" label="Catégorie" required/><Select name="gender" label="Genre" values={['MALE','FEMALE','MIXED']}/><Select name="discipline" label="Discipline" values={['FOOTBALL','FUTSAL','BEACH_SOCCER']}/><Submit disabled={disabled}/></form> : null}
       {domain === 'broadcasting' ? <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3 md:grid-cols-2"><Input name="federationId" label="Fédération ID" required/><Input name="leagueId" label="Ligue ID"/><Input name="seasonId" label="Saison ID" required/><Input name="competitionId" label="Compétition ID"/><Input name="name" label="Distribution" required/><Input name="grossAmount" label="Montant brut" type="number" required/><Input name="currency" label="Devise" placeholder="TND"/><JsonArea name="allocations" label="Allocations JSON" placeholder='[{"clubId":"…","fixedAmount":1000,"performanceAmount":0,"broadcastAmount":0,"bonusAmount":0,"deductions":0}]'/><Submit disabled={disabled}/></form> : null}
       {domain === 'training-compensation' ? <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3 md:grid-cols-2"><Input name="federationId" label="Fédération ID" required/><Input name="leagueId" label="Ligue ID"/><Input name="seasonId" label="Saison ID"/><Input name="playerId" label="Joueur ID" required/><Input name="liableClubId" label="Club redevable ID" required/><Select name="triggeringEvent" label="Événement" values={['FIRST_PRO_CONTRACT','DOMESTIC_TRANSFER','OTHER']}/><Input name="baseAmount" label="Montant de référence" type="number" required/><Input name="currency" label="Devise" placeholder="TND"/><JsonArea name="beneficiaries" label="Clubs formateurs JSON" placeholder='[{"clubId":"…","trainingStart":"2020-01-01","trainingEnd":"2022-01-01","seasonsCount":2,"allocationRate":0.5,"amount":1000}]'/><Submit disabled={disabled}/></form> : null}
@@ -211,15 +268,15 @@ function CommissionForms({ rows, disabled, onSubmit, onAction }: { rows: Row[]; 
   </div>
 }
 
-function OperationsTable({ domain, rows, disabled, onAction }: { domain: Domain; rows: Row[]; disabled: boolean; onAction: (action: string, body: JsonBody) => Promise<void> }) {
-  return <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="px-3 py-2">Référence</th><th className="px-3 py-2">Libellé</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2">Périmètre</th><th className="px-3 py-2 text-right">Actions</th></tr></thead><tbody>{rows.map((row, index) => <tr key={text(row, ['id']) + index} className="border-b last:border-0"><td className="px-3 py-3 font-medium">{text(row, ['decision_number', 'reference_number', 'policy_number', 'code', 'id'])}</td><td className="px-3 py-3">{text(row, ['name', 'title', 'summary', 'provider', 'purpose'])}</td><td className="px-3 py-3">{text(row, ['status'])}</td><td className="px-3 py-3 text-slate-500">{text(row, ['league_id', 'federation_id', 'season_id'])}</td><td className="px-3 py-3"><RowActions domain={domain} row={row} disabled={disabled} onAction={onAction}/></td></tr>)}</tbody></table></div>
+function OperationsTable({ domain, rows, disabled, onAction, showDetails, onShowDetails }: { domain: Domain; rows: Row[]; disabled: boolean; onAction: (action: string, body: JsonBody) => Promise<void>; showDetails?: boolean; onShowDetails?: (id: string) => void }) {
+  return <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="px-3 py-2">Référence</th><th className="px-3 py-2">Libellé</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2">Périmètre</th><th className="px-3 py-2 text-right">Actions</th></tr></thead><tbody>{rows.map((row, index) => <tr key={text(row, ['id']) + index} className="border-b last:border-0"><td className="px-3 py-3 font-medium">{text(row, ['decision_number', 'reference_number', 'policy_number', 'code', 'id'])}</td><td className="px-3 py-3">{text(row, ['name', 'title', 'summary', 'provider', 'purpose'])}</td><td className="px-3 py-3">{text(row, ['status'])}</td><td className="px-3 py-3 text-slate-500">{text(row, ['league_id', 'federation_id', 'season_id'])}</td><td className="px-3 py-3"><RowActions domain={domain} row={row} disabled={disabled} onAction={onAction}/>{showDetails ? <button type="button" disabled={disabled} onClick={() => onShowDetails?.(String(row.id ?? ''))} className="ml-2 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium disabled:opacity-50">Détails</button> : null}</td></tr>)}</tbody></table></div>
 }
 
 function RowActions({ domain, row, disabled, onAction }: { domain: Domain; row: Row; disabled: boolean; onAction: (action: string, body: JsonBody) => Promise<void> }) {
   const id = String(row.id ?? '')
   const status = String(row.status ?? '')
   const button = (label: string, action: string, body: JsonBody) => <button type="button" disabled={disabled} onClick={() => void onAction(action, body)} className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium disabled:opacity-50">{label}</button>
-  return <div className="flex justify-end gap-2">
+  return <div className="inline-flex justify-end gap-2">
     {domain === 'insurance' && status === 'SUBMITTED' ? button('Instruire', 'transition', { id, policyScope: row.policy_scope === 'PERSON' ? 'PERSON' : 'CLUB', targetStatus: 'UNDER_REVIEW' }) : null}
     {domain === 'insurance' && status === 'UNDER_REVIEW' ? <>{button('Approuver', 'transition', { id, policyScope: row.policy_scope === 'PERSON' ? 'PERSON' : 'CLUB', targetStatus: 'ACTIVE' })}{button('Rejeter', 'transition', { id, policyScope: row.policy_scope === 'PERSON' ? 'PERSON' : 'CLUB', targetStatus: 'REJECTED' })}</> : null}
     {domain === 'grants' && status === 'DRAFT' ? button('Ouvrir', 'campaign-transition', { id, targetStatus: 'OPEN' }) : null}
@@ -229,6 +286,28 @@ function RowActions({ domain, row, disabled, onAction }: { domain: Domain; row: 
     {domain === 'training-compensation' && ['CALCULATED', 'UNDER_REVIEW'].includes(status) ? button('Décider', 'decision', { id }) : null}
     {domain === 'solidarity' && ['CALCULATED', 'UNDER_REVIEW'].includes(status) ? button('Décider', 'decision', { id }) : null}
   </div>
+}
+
+function ChildrenTable({ rows, disabled, onSettle }: { rows: Row[]; disabled: boolean; onSettle: (id: string, targetStatus: string, extra?: JsonBody) => Promise<void> }) {
+  const button = (label: string, onClick: () => void) => <button type="button" disabled={disabled} onClick={onClick} className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium disabled:opacity-50">{label}</button>
+  return <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="px-3 py-2">Club</th><th className="px-3 py-2">Montant</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2 text-right">Actions</th></tr></thead><tbody>
+    {rows.map((row, index) => {
+      const id = String(row.id ?? '')
+      const status = String(row.status ?? '')
+      return <tr key={id + index} className="border-b last:border-0">
+        <td className="px-3 py-3 font-medium">{text(row, ['club_id'])}</td>
+        <td className="px-3 py-3">{text(row, ['total_amount', 'amount'])}</td>
+        <td className="px-3 py-3">{status}</td>
+        <td className="px-3 py-3 text-right">
+          {status === 'APPROVED' ? <div className="inline-flex gap-2">
+            {button('Payer', () => { const paymentReference = window.prompt('Référence de paiement (optionnelle)') ?? undefined; void onSettle(id, 'PAID', { paymentReference }) })}
+            {button('Contester', () => { const reason = window.prompt('Motif de contestation'); if (reason?.trim()) void onSettle(id, 'DISPUTED', { reason }) })}
+          </div> : null}
+          {status === 'DISPUTED' ? button('Réapprouver', () => onSettle(id, 'APPROVED')) : null}
+        </td>
+      </tr>
+    })}
+  </tbody></table></div>
 }
 
 function CompactTable({ title, rows }: { title: string; rows: Row[] }) {

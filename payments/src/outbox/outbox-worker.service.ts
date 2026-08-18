@@ -6,10 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, Repository } from 'typeorm';
-import { OutboxEvent, OutboxEventStatus } from './entities/outbox-event.entity';
-import { computeNextRetryAt } from './retry-schedule';
+import { FinancialLedgerService } from '../ledger/financial-ledger.service';
 import { NotificationClientService } from '../notifications/notification-client.service';
-import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
 import type { PaymentPaidEvent } from '../payment/payment.service';
 import {
   REFUND_FAILED_EVENT_TYPE,
@@ -17,6 +15,9 @@ import {
   REFUND_SUCCEEDED_EVENT_TYPE,
   type RefundEvent,
 } from '../refund/refund.service';
+import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
+import { OutboxEvent, OutboxEventStatus } from './entities/outbox-event.entity';
+import { computeNextRetryAt } from './retry-schedule';
 
 const POLL_INTERVAL_MS = 5000;
 const BATCH_SIZE = 20;
@@ -28,6 +29,12 @@ const BATCH_SIZE = 20;
  * listeners EventEmitter2 (transitoires, perdus au moindre crash). Poll
  * simple par intervalle plutôt qu'une dépendance à @nestjs/schedule —
  * cohérent avec le reste du monorepo, qui n'a pas cette dépendance.
+ *
+ * PAY-004 projette aussi les faits financiers PAYMENT_PAID et
+ * REFUND_SUCCEEDED dans le ledger append-only AVANT la livraison externe.
+ * Si la projection échoue, l'événement outbox reste retentable. Si la
+ * livraison externe échoue après projection, les clés ledger déterministes
+ * rendent le replay sans double écriture.
  */
 @Injectable()
 export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -40,6 +47,7 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly repository: Repository<OutboxEvent>,
     private readonly webhookDispatch: WebhookDispatchService,
     private readonly notificationClient: NotificationClientService,
+    private readonly financialLedgerService: FinancialLedgerService,
   ) {}
 
   onModuleInit(): void {
@@ -86,17 +94,18 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
   private async processOne(event: OutboxEvent): Promise<void> {
     try {
       switch (event.eventType) {
-        case 'PAYMENT_PAID':
-          await this.deliverPaymentPaid(
-            event.payload as unknown as PaymentPaidEvent,
-          );
+        case 'PAYMENT_PAID': {
+          const payload = event.payload as unknown as PaymentPaidEvent;
+          await this.financialLedgerService.postPaymentPaid(payload);
+          await this.deliverPaymentPaid(payload);
           break;
-        case REFUND_SUCCEEDED_EVENT_TYPE:
-          await this.deliverRefundEvent(
-            event.payload as unknown as RefundEvent,
-            'REFUND_SUCCEEDED',
-          );
+        }
+        case REFUND_SUCCEEDED_EVENT_TYPE: {
+          const payload = event.payload as unknown as RefundEvent;
+          await this.financialLedgerService.postRefundSucceeded(payload);
+          await this.deliverRefundEvent(payload, 'REFUND_SUCCEEDED');
           break;
+        }
         case REFUND_FAILED_EVENT_TYPE:
           await this.deliverRefundEvent(
             event.payload as unknown as RefundEvent,

@@ -27,7 +27,10 @@ const navItems = [
   { label: 'Officiels de match', href: '/admin/officiels-matchs', icon: 'bx bx-badge-check' },
   { label: 'Transferts', href: '/admin/player-transfers', icon: 'bx bx-transfer' },
   { label: 'Motifs de carton', href: '/admin/card-reasons', icon: 'bx bx-note' },
+  { label: 'Finance · remboursements', href: '/admin/payments/manual-review', icon: 'bx bx-credit-card', platformOnly: true },
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
+  { label: 'Opérations fédérales', href: '/admin/federal-operations', icon: 'bx bx-landmark' },
+  { label: 'Politiques réglementaires', href: '/admin/regulatory-policy-center', icon: 'bx bx-cog' },
 ]
 
 const arbitrationNavItems = [
@@ -46,6 +49,7 @@ const arbitrationNavItems = [
 export default function AdminSidebar({ role }: { role?: string }) {
   const pathname = usePathname()
   const { isOpen, isCollapsed, toggleCollapse, closeSidebar } = useAdminSidebar()
+  const platformRole = role === 'SUPERADMIN' || role === 'PLATFORM_SUPERADMIN'
 
   return (
     <>
@@ -70,27 +74,29 @@ export default function AdminSidebar({ role }: { role?: string }) {
           <div id="sidebar-menu">
             <ul className="metismenu list-unstyled" id="side-menu">
               <li className="menu-title">Navigation</li>
-              {(role === 'REFEREE_OBSERVER' ? [] : navItems).map((item) => {
-                const linkPath = item.href.split('#')[0]
-                const isActive = pathname === linkPath
-                return (
-                  <li key={item.href} className={isActive ? 'mm-active' : undefined}>
-                    <Link
-                      href={item.href}
-                      className={isActive ? 'active' : undefined}
-                      onClick={closeSidebar}
-                    >
-                      <i className={item.icon} />
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                )
-              })}
+              {(role === 'REFEREE_OBSERVER' ? [] : navItems)
+                .filter((item) => !item.platformOnly || platformRole)
+                .map((item) => {
+                  const linkPath = item.href.split('#')[0]
+                  const isActive = pathname === linkPath
+                  return (
+                    <li key={item.href} className={isActive ? 'mm-active' : undefined}>
+                      <Link
+                        href={item.href}
+                        className={isActive ? 'active' : undefined}
+                        onClick={closeSidebar}
+                      >
+                        <i className={item.icon} />
+                        <span>{item.label}</span>
+                      </Link>
+                    </li>
+                  )
+                })}
               <li className="menu-title">Arbitrage</li>
               {arbitrationNavItems
                 .filter((item) => {
                   if (role === 'REFEREE_OBSERVER') return item.href === '/admin/arbitrage/evaluations'
-                  if (item.platformOnly) return role === 'SUPERADMIN' || role === 'PLATFORM_SUPERADMIN'
+                  if (item.platformOnly) return platformRole
                   return true
                 })
                 .map((item) => {

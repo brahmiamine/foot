@@ -6,7 +6,10 @@ import {
   assertCommissionSessionTransition,
   assertDateRange,
   assertDecisionMutable,
+  assertValidSlaThresholds,
   calculateRequiredQuorum,
+  computeAggregateCaseStatus,
+  computeRegulatorySlaState,
   computeSolidarityContribution,
 } from './federalOperationsRules'
 
@@ -48,5 +51,29 @@ describe('federal operations rules', () => {
   it('valide strictement les périodes réglementaires', () => {
     expect(() => assertDateRange('2027-01-01', '2027-02-01')).not.toThrow()
     expect(() => assertDateRange('2027-02-01', '2027-01-01')).toThrow()
+  })
+
+  it('agrège le statut du dossier depuis les bénéficiaires (FED-009)', () => {
+    expect(computeAggregateCaseStatus(['APPROVED', 'APPROVED'])).toBe('DECIDED')
+    expect(computeAggregateCaseStatus(['PAID', 'PAID'])).toBe('PAID')
+    expect(computeAggregateCaseStatus(['PAID', 'APPROVED'])).toBe('DECIDED')
+    expect(computeAggregateCaseStatus(['PAID', 'DISPUTED'])).toBe('DISPUTED')
+    expect(computeAggregateCaseStatus([])).toBe('DECIDED')
+  })
+
+  it('calcule l\'état SLA depuis les seuils configurés (FED-010)', () => {
+    expect(computeRegulatorySlaState(10, 48, 168)).toBe('IN_SLA')
+    expect(computeRegulatorySlaState(48, 48, 168)).toBe('DUE_SOON')
+    expect(computeRegulatorySlaState(100, 48, 168)).toBe('DUE_SOON')
+    expect(computeRegulatorySlaState(168, 48, 168)).toBe('OVERDUE')
+    expect(computeRegulatorySlaState(500, 48, 168)).toBe('OVERDUE')
+  })
+
+  it('valide les seuils SLA (positifs, dépassement strictement après alerte)', () => {
+    expect(() => assertValidSlaThresholds(48, 168)).not.toThrow()
+    expect(() => assertValidSlaThresholds(0, 168)).toThrow()
+    expect(() => assertValidSlaThresholds(48, 48)).toThrow()
+    expect(() => assertValidSlaThresholds(168, 48)).toThrow()
+    expect(() => assertValidSlaThresholds(1.5, 168)).toThrow()
   })
 })

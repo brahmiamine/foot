@@ -6,6 +6,9 @@ import { canAccessFederation, canAccessLeague, canAccessPlatform } from './admin
 import type { SsoUser } from './ssoSession'
 import { ClubSanction, DisciplinaryCase, DisciplinaryCaseDecision, DisciplinaryCaseEvent, DisciplinaryCaseEvidence, DisciplinaryCaseHearing, Player, Team, TeamAffiliation } from './entities'
 import { notify } from './notificationClient'
+import { FederalOperationAuthorizationError } from './federalOperationsCommon'
+import { FederalOperationWorkflowError } from './federalOperationsRules'
+import { assertCommissionDecisionRequired, assertOperationDelegated } from './regulatoryPolicyCenter'
 
 export interface DisciplinaryCaseAuditContext { userId: string; role: string; ipAddress?: string | null; userAgent?: string | null }
 export interface DisciplinaryCaseFilters { federationId?: string; leagueId?: string; status?: DisciplinaryCaseStatus; clubId?: string }
@@ -136,6 +139,18 @@ export async function recordDisciplinaryDecision(dataSource: DataSource, session
     if (!item) throw new DisciplinaryCaseWorkflowError('Dossier disciplinaire introuvable')
     assertAccess(session, item)
     assertDisciplinaryCaseTransition(item.status, 'DECIDED')
+    try {
+      await assertOperationDelegated(manager, session, item.federationId, item.leagueId, 'discipline.decide')
+    } catch (error) {
+      if (error instanceof FederalOperationAuthorizationError) throw new DisciplinaryCaseAuthorizationError()
+      throw error
+    }
+    try {
+      await assertCommissionDecisionRequired(manager, item.federationId, item.leagueId, 'commissionRequiredForDiscipline', 'DISCIPLINARY_CASE', item.id, 'Décision disciplinaire')
+    } catch (error) {
+      if (error instanceof FederalOperationWorkflowError) throw new DisciplinaryCaseWorkflowError(error.message)
+      throw error
+    }
     let clubSanctionId: string | null = null
     if (input.clubSanction) {
       if (!item.clubId) throw new DisciplinaryCaseWorkflowError('Une sanction club ne peut être créée que pour un dossier lié à un club')

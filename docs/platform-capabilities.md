@@ -14,26 +14,27 @@
 ## Snapshot
 
 - Référence de départ de la roadmap gouvernance : `main` après merge de PR #93 (`7e3dd3194dbbd52f15f5ab84d81b692a979b7de5`).
-- Backlog des améliorations de gouvernance : [`../platform-governance-roadmap.md`](../platform-governance-roadmap.md).
+- Backlog et preuves de validation des améliorations de gouvernance : [`../platform-governance-roadmap.md`](../platform-governance-roadmap.md).
+- Ce document est ré-aligné à chaque lot clôturé ; une capacité n'est qualifiée `IMPLEMENTED` qu'avec code serveur réel et gates de validation correspondants.
 
 ## Applications et services
 
 | Domaine | Statut | Capacités actuelles | Limites / prochain axe |
 |---|---|---|---|
-| `identity` | IMPLEMENTED | SSO RS256/JWKS, MFA, reset password, affiliations, rôles/scopes, révocation globale | provisionnement PLAYER depuis UI et MFA policy par rôle sont PLANNED |
-| `federation-hub` | IMPLEMENTED | référentiels, arbitrage privé, licensing, registrations, contrats, transferts, sanctions, litiges, appels, cycles saisonniers, finance, gouvernance, stades, qualifications, médical fédéral, agents | Policy Center, commissions réellement obligatoires selon policy et délégation fine sont PLANNED |
-| `club-hub` | IMPLEMENTED | administration club, effectif, staff, sport, contenu, academy, recrutement, sponsors, ticketing admin, marketplace admin, dossier fédéral | maker/checker et workflows éditoriaux configurables sont PLANNED |
-| `player-hub` | PARTIAL | portail PLAYER, calendrier, réponses, statistiques, discipline, déplacements, disponibilité, notifications | compte PLAYER encore provisionné hors UI ; portefeuille documentaire/consentements PLANNED |
-| `staff-hub` | IMPLEMENTED | portail staff opérationnel sur les données/RBAC Club Hub | proposition/approbation formelle des lineups et délégation HEAD_COACH PLANNED |
-| `medical-hub` | PARTIAL | blessures, indisponibilités, documents, historique, permissions médicales strictes | suivi quotidien encore stocké dans notes ; Return-to-Play structuré PLANNED |
-| `referee-hub` | IMPLEMENTED | désignations, historique, indisponibilités, rapports privés, accès feuille | acceptation/refus et demande de remplacement formalisées PLANNED |
-| `arbinote` | IMPLEMENTED | perception publique des arbitres, votes protégés, statistiques, modération séparée | voting policies/versionnement critères PLANNED |
-| `match-operations` | IMPLEMENTED | feuille électronique, contrôles, live, signatures, éligibilité serveur, staff officiel | protocole match configurable et amendment post-signature PLANNED ; offline complet PARTIAL |
-| `ticketing` | IMPLEMENTED | vente, paiement, QR, scan online/offline, révocation, remboursements/reconciliation, audience STRICT/DECLARATIVE | workflow d'ouverture de vente et gestion appareils scanner PLANNED |
-| `marketplace` | IMPLEMENTED | catalogue multi-vendeur, modération, stock, checkout, commandes, retours, payouts, seller applications/settings | ledger payout/settlement avancé PARTIAL |
+| `identity` | IMPLEMENTED | SSO RS256/JWKS, reset password, affiliations, rôles/scopes, révocation globale, provisionnement PLAYER par invitation, policy MFA par rôle et step-up MFA pour actions sensibles | modes d'inscription MEMBER, gestion fine appareils/sessions et accès temporaires PLANNED |
+| `federation-hub` | IMPLEMENTED | référentiels, arbitrage privé, licensing, registrations, contrats, transferts, sanctions, litiges, appels, cycles saisonniers, finance, gouvernance, stades, qualifications, médical fédéral, agents, console plateforme des remboursements manuels Payments et accès opérateur au ledger Payments, Regulatory Policy Center (résolution hiérarchique PLATFORM→FEDERATION→LEAGUE→SEASON, délégation fédération→ligue par opération, commission réellement obligatoire selon policy sur discipline/appels/licences club), assurances avec expiration effective et exigence par compétition, subventions avec justificatifs documentaires obligatoires, droits média et indemnités formation/solidarité réglables paid/disputed, SLA réglementaires par domaine avec file overdue, mode de migration permissions LEGACY/WARN/ENFORCE | moteur de rappels/escalade SLA planifié (BullMQ) reste `GOV-008` ; revue club en libre-service des droits média contestés PLANNED |
+| `club-hub` | IMPLEMENTED | administration club, effectif, staff, sport, contenu, academy, recrutement, sponsors, ticketing admin, marketplace admin, dossier fédéral, maker/checker, workflows News/Communiqués et approbation produits | public forms settings, candidatures/recrutement enrichis, sponsoring/déplacements et autres policies P1 PLANNED |
+| `player-hub` | PARTIAL | portail PLAYER, calendrier, réponses, statistiques, discipline, déplacements, disponibilité, notifications, compte PLAYER provisionnable par invitation depuis Club Hub | disponibilité structurée enrichie, portefeuille documentaire, consentements et demandes administratives PLANNED |
+| `staff-hub` | IMPLEMENTED | portail staff opérationnel sur les données/RBAC Club Hub, composition DRAFT→PROPOSED→APPROVED→LOCKED avec proposition adjoint et approbation coach | verrouillage configurable avant coup d'envoi, validation entraînement, stats post-match et délégation HEAD_COACH PLANNED |
+| `medical-hub` | IMPLEMENTED | blessures, indisponibilités, documents, permissions médicales strictes, journal append-only, Return-to-Play structuré, clearance configurable et tests de non-divulgation | stockage objet/chiffrement/antivirus et politique de rétention PLANNED |
+| `referee-hub` | IMPLEMENTED | désignations, historique, indisponibilités, rapports privés, accès feuille, acceptation/refus de désignation et demandes de remplacement revues par la Fédération | policies d'indisponibilité/rapports, conflits d'intérêts, désignation auto/suggested et grilles versionnées PLANNED |
+| `arbinote` | IMPLEMENTED | perception publique des arbitres, votes protégés, statistiques, modération séparée | voting policies, seuil de visibilité et versionnement critères PLANNED |
+| `match-operations` | IMPLEMENTED | feuille électronique, contrôles, live, signatures, éligibilité serveur, staff officiel, protocole match configurable, amendement explicite post-signature et policy de correction versionnée | offline PWA complet reste PARTIAL/PLANNED |
+| `ticketing` | IMPLEMENTED | vente, paiement, QR, scan online/offline, révocation, remboursements/reconciliation, audience STRICT/DECLARATIVE, workflow DRAFT→REVIEW→APPROVED→SCHEDULED→OPEN et revalidation tarifaire | invitations/gratuits, gestion appareils scanner, policy d'entrée, transfert billets et offres avancées PLANNED |
+| `marketplace` | IMPLEMENTED | catalogue multi-vendeur, modération, stock, checkout, commandes, retours, payouts, seller applications/settings, allocation `SELLER_NET/CLUB_NET` avant exposition du payUrl et settlement Payments avant passage payout à PAID | allocations/settlements historiques pré-PAY-004 non reconstruits ; moteur frais livraison/taxes PLANNED |
 | `seller-portal` | IMPLEMENTED | portail privé vendeur, activation par invitation, produits, stock, commandes, retours, payouts | accès DB local historique encore en transition vers Marketplace comme source unique |
-| `payments` | IMPLEMENTED | Konnect/Paymee/Flouci, idempotence, refunds, MANUAL_REVIEW, reconciliation | ledger comptable et SLA opérateur PLANNED |
-| `notifications` | IMPLEMENTED | in-app/email/push, préférences, templates, BullMQ, idempotence | policies organisationnelles/digest/quiet hours PLANNED ; SMS non implémenté |
+| `payments` | IMPLEMENTED | Konnect/Paymee/Flouci, idempotence, routing policy par consommateur, refunds, seuils AUTO/SINGLE/DUAL avec maker/checker, `MANUAL_REVIEW`, reconciliation opérateur, SLA/reminders/escalations idempotents, dashboard plateforme et ledger append-only `GROSS/PROVIDER_FEE/PLATFORM_FEE/CLUB_NET/SELLER_NET/REFUND/SETTLEMENT` | `PLATFORM_FEE` modélisé sans producteur courant ; historique métier non reconstructible non inventé ; réconciliation provider/interne avec file d'écarts (`PAY-005`) PLANNED ; moteur SLA transversal commun suivi par `GOV-008` |
+| `notifications` | IMPLEMENTED | in-app/email/push, préférences, templates, BullMQ, idempotence, cible ROLE utilisée par les escalades Payments | policies organisationnelles/digest/quiet hours PLANNED ; SMS non implémenté |
 | `club-ob` | IMPLEMENTED | site public OB, espace membre, contenus, boutique, seller application public entry point | Public Forms policy centralisée et membership tiers PLANNED |
 
 ## Seller onboarding canonique
@@ -70,8 +71,8 @@ Règles actuelles :
 `migration-v2.md` reste la spécification et l'historique de migration, mais ses bilans intermédiaires ne doivent pas être utilisés seuls pour conclure qu'une capacité est absente. Toujours vérifier :
 
 1. le code de `main` ;
-2. le README actuel de `federation-hub`, `club-hub` ou `match-operations` ;
-3. les migrations enregistrées dans `db/migrations.manifest` ;
+2. le README actuel de `federation-hub`, `club-hub`, `match-operations`, `payments` ou du domaine concerné ;
+3. les migrations versionnées du propriétaire de données et, pour le schéma partagé, celles enregistrées dans `db/migrations.manifest` ;
 4. ce document de statut.
 
 La migration Federal Operations V3 prépare notamment commissions, assurances, subventions, droits TV, indemnités de formation, solidarité et contrôle documentaire. Une table/migration seule ne suffit pas à qualifier une capacité de `IMPLEMENTED` : il faut aussi workflow serveur, autorisation, UI/intégration si le domaine l'exige, et tests.
