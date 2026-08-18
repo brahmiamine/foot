@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getObTeam } from '@/lib/ob-team';
 import { submitSellerApplication } from '@/lib/marketplaceApi';
+import { fetchPublicFormSettings } from '@/lib/clubHubApi';
 
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_MAX = 5;
+// Repli utilisé uniquement si le rate limit n'est pas configuré côté
+// club-hub (settings absentes) — l'ouverture/fermeture, elle, reste
+// fail-closed (voir POST ci-dessous) : club-hub reste la seule source de
+// vérité pour OB-001, ce repli ne couvre que le volume par défaut.
+const FALLBACK_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const FALLBACK_RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_MAX_KEYS = 10_000;
 const requestBuckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -37,7 +42,11 @@ function clientKey(req: NextRequest): string {
   return forwarded || req.headers.get('x-real-ip') || 'unknown';
 }
 
-function consumeRateLimit(key: string): { allowed: boolean; retryAfter: number } {
+function consumeRateLimit(
+  key: string,
+  windowMs: number,
+  max: number,
+): { allowed: boolean; retryAfter: number } {
   const now = Date.now();
   if (requestBuckets.size >= RATE_LIMIT_MAX_KEYS) {
     for (const [bucketKey, bucket] of requestBuckets) {
@@ -47,11 +56,11 @@ function consumeRateLimit(key: string): { allowed: boolean; retryAfter: number }
 
   const bucket = requestBuckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
-    requestBuckets.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    requestBuckets.set(key, { count: 1, resetAt: now + windowMs });
     return { allowed: true, retryAfter: 0 };
   }
 
-  if (bucket.count >= RATE_LIMIT_MAX) {
+  if (bucket.count >= max) {
     return {
       allowed: false,
       retryAfter: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
@@ -63,7 +72,35 @@ function consumeRateLimit(key: string): { allowed: boolean; retryAfter: number }
 }
 
 export async function POST(req: NextRequest) {
-  const limit = consumeRateLimit(clientKey(req));
+  // OB-001 : club-hub reste la seule source de vérité pour
+  // l'ouverture/fermeture de ce formulaire — un appel en échec est traité
+  // fail-closed (503), jamais comme "ouvert par défaut".
+  let settings;
+  try {
+    const team = await getObTeam();
+    if (!team) {
+      return NextResponse.json({ error: 'Club indisponible' }, { status: 503 });
+    }
+    settings = await fetchPublicFormSettings(team.id, 'SELLER');
+  } catch {
+    return NextResponse.json(
+      { error: 'Formulaire momentanément indisponible, merci de réessayer.' },
+      { status: 503 },
+    );
+  }
+
+  const now = new Date();
+  const isWithinWindow =
+    (!settings.opensAt || now >= new Date(settings.opensAt)) &&
+    (!settings.closesAt || now < new Date(settings.closesAt));
+  if (!settings.isOpen || !isWithinWindow) {
+    return NextResponse.json({ error: 'Ce formulaire est actuellement fermé.' }, { status: 403 });
+  }
+
+  const rateLimitMax = settings.rateLimitMax ?? FALLBACK_RATE_LIMIT_MAX;
+  const rateLimitWindowMs =
+    (settings.rateLimitWindowMinutes ?? FALLBACK_RATE_LIMIT_WINDOW_MS / 60_000) * 60_000;
+  const limit = consumeRateLimit(clientKey(req), rateLimitWindowMs, rateLimitMax);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: 'Trop de demandes. Réessayez plus tard.' },

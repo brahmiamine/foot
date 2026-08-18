@@ -84,6 +84,22 @@ export async function PUT(
               typeof body.endsAt === "string" ? new Date(body.endsAt) : null,
           }
         : {}),
+      ...(typeof body.presaleRequiresMembership === "boolean"
+        ? { presaleRequiresMembership: body.presaleRequiresMembership }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(body, "presaleMembershipCodes")
+        ? {
+            presaleMembershipCodes: Array.isArray(body.presaleMembershipCodes)
+              ? body.presaleMembershipCodes.filter((c): c is string => typeof c === "string")
+              : null,
+          }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(body, "presaleEndsAt")
+        ? {
+            presaleEndsAt:
+              typeof body.presaleEndsAt === "string" ? new Date(body.presaleEndsAt) : null,
+          }
+        : {}),
     };
     const rule = await service.updateConfiguration(
       matchTicketCategoryId,

@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { PublicAnnouncementService } from "@/services/PublicAnnouncementService";
 import { formatShortDate } from "@/lib/format";
@@ -16,6 +17,7 @@ const CATEGORY_LABELS = { DECISION: "release.decision", PROGRAMME: "release.sche
 export default async function CommuniquesPage() {
   const { locale, t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "ANNOUNCEMENTS");
   const announcements = team ? await new PublicAnnouncementService().getPublished(team.id) : [];
 
   return (

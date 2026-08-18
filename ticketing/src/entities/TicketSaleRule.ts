@@ -38,6 +38,18 @@ export class TicketSaleRule {
   @Column({ type: "int", name: "max_tickets_per_user", default: 4 })
   maxTicketsPerUser!: number;
 
+  /** OB-003 : prévente réservée aux membres, règle serveur (jamais un claim client). */
+  @Column({ type: "boolean", default: false, name: "presale_requires_membership" })
+  presaleRequiresMembership!: boolean;
+
+  /** NULL = tout membership actif qualifie ; sinon liste de codes (FAN/SOCIO/VIP/SUPPORTER/PARTNER). */
+  @Column({ type: "json", nullable: true, name: "presale_membership_codes" })
+  presaleMembershipCodes!: string[] | null;
+
+  /** NULL = la restriction ne se lève jamais automatiquement. */
+  @Column({ type: "datetime", nullable: true, name: "presale_ends_at" })
+  presaleEndsAt!: Date | null;
+
   @Column({ type: "datetime", name: "starts_at", nullable: true })
   startsAt!: Date | null;
 

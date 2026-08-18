@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { PublicSponsorService } from "@/services/PublicSponsorService";
 import { resolveAssetUrl } from "@/lib/assets";
 import { getSponsorRequestUrl } from "@/lib/sponsor";
@@ -19,6 +20,7 @@ const LEVEL_GROUPS: Array<{ level: "OR" | "ARGENT"; key: "partners.main" | "part
 export default async function PartenairesPage() {
   const { t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "PARTNERS");
   const sponsors = team ? await new PublicSponsorService().getActive(team.id) : [];
   const sponsorUrl = team ? getSponsorRequestUrl(team.id) : null;
 

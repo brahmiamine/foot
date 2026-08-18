@@ -1,6 +1,7 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import type { Match } from "@/entities/Match";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { PublicMatchService } from "@/services/PublicMatchService";
 import { matchOutcomeForTeam } from "@/lib/match";
 import { formatFullDateTime, formatShortDate } from "@/lib/format";
@@ -28,6 +29,7 @@ function opponentLine(match: Match, obTeamId: string, locale: "fr" | "ar"): stri
 export default async function CalendrierPage() {
   const { locale, t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "CALENDAR");
   const matches = team ? await new PublicMatchService().getAllPublic(team.id) : [];
 
   const upcoming = matches.filter((m) => m.status === "UPCOMING" || m.status === "IN_PROGRESS");

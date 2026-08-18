@@ -2,6 +2,7 @@ import { getTranslator } from "@/i18n/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { sanitizeRichTextHtml } from "@/lib/richTextSecurity";
 import { PublicNewsService } from "@/services/PublicNewsService";
 import { PageChrome } from "@/components/PageChrome";
@@ -31,6 +32,7 @@ export default async function ArticlePage({
   if (!team) {
     notFound();
   }
+  await assertSectionEnabled(team.id, "NEWS");
 
   const article = await new PublicNewsService().getById(numericId, team.id);
   if (!article) {

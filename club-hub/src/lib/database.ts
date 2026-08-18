@@ -93,6 +93,9 @@ import { FootballAgent, RepresentationAgreement } from "@/entities/Agent";
 import { Appeal, AppealDocument, AppealEvent } from "@/entities/Appeal";
 import { CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow, TransferWindowHistory } from "@/entities/Regulatory";
 import { ClubApprovalDecision, ClubApprovalRequest, ClubGovernanceSettings } from "@/entities/ClubGovernance";
+import { Membership, MembershipType } from "@/entities/Membership";
+import { PublicFormSettings } from "@/entities/PublicFormSettings";
+import { PublicContentPolicy } from "@/entities/PublicContentPolicy";
 
 /**
  * Database connection configuration
@@ -141,7 +144,8 @@ export async function getDataSource(): Promise<DataSource> {
         FootballAgent, RepresentationAgreement, Appeal, AppealDocument, AppealEvent,
         CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow,
         TransferWindowHistory, ClubGovernanceSettings, ClubApprovalRequest,
-        ClubApprovalDecision,
+        ClubApprovalDecision, Membership, MembershipType, PublicFormSettings,
+        PublicContentPolicy,
       ],
       migrations: [],
       charset: "utf8mb4",

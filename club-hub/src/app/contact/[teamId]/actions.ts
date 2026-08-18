@@ -1,7 +1,11 @@
 "use server";
 
+import { getDataSource } from "@/lib/database";
+import { MoreThanOrEqual } from "typeorm";
 import { TeamService } from "@/services/TeamService";
 import { ContactService } from "@/services/ContactService";
+import { ContactMessage } from "@/entities/ContactMessage";
+import { PublicFormSettingsService } from "@/services/PublicFormSettingsService";
 import { createContactMessageSchema } from "@/types/contact";
 
 /**
@@ -16,6 +20,15 @@ export async function submitContactMessage(teamId: string, formData: FormData) {
     if (!team) {
       return { success: false, messageKey: "common.errors.clubNotFound" as const };
     }
+
+    // OB-001 : garde serveur unique (ouverture/fenêtre/rate limit), la page
+    // publique n'a elle-même aucune logique d'autorisation.
+    await new PublicFormSettingsService().assertOpen(teamId, "CONTACT", async (windowStart) => {
+      const ds = await getDataSource();
+      return ds
+        .getRepository(ContactMessage)
+        .count({ where: { teamId, createdAt: MoreThanOrEqual(windowStart) } });
+    });
 
     const data = createContactMessageSchema.parse({
       name: formData.get("name") as string,

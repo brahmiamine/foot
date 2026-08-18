@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { PublicShopService } from "@/services/PublicShopService";
 import { resolveAssetUrl } from "@/lib/assets";
 import { formatPriceTnd } from "@/lib/format";
@@ -16,6 +17,7 @@ export const generateMetadata = () => getLocalizedMetadata("metadata.shop");
 export default async function BoutiquePage() {
   const { locale, t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "SHOP");
   const products = team ? await new PublicShopService().getAllActive(team.id) : [];
 
   return (

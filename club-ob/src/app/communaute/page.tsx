@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageChrome } from "@/components/PageChrome";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { buildMemberLoginUrlForPath, getSsoSession } from "@/lib/ssoSession";
 import { getLocale } from "@/i18n/server";
 import { communityT } from "@/i18n/community";
@@ -109,6 +110,7 @@ export default async function CommunityPage({
   const locale = await getLocale();
   const team = await getObTeam();
   if (!team) return null;
+  await assertSectionEnabled(team.id, "COMMUNITY");
 
   const session = await getSsoSession();
   const member = session?.role === "MEMBER" ? { id: session.id, name: session.name } : null;

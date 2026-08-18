@@ -1,5 +1,6 @@
 import { getLocalizedMetadata, getTranslator } from "@/i18n/server";
 import { getObTeam } from "@/lib/ob-team";
+import { assertSectionEnabled } from "@/lib/publicContentPolicy";
 import { PublicAcademyService } from "@/services/PublicAcademyService";
 import { getRecruitmentUrl } from "@/lib/publicForms";
 import { PageChrome } from "@/components/PageChrome";
@@ -14,6 +15,7 @@ export const generateMetadata = () => getLocalizedMetadata("metadata.recruitment
 export default async function RecrutementPage() {
   const { locale, t } = await getTranslator();
   const team = await getObTeam();
+  await assertSectionEnabled(team?.id, "RECRUITMENT");
   const needs = team ? await new PublicAcademyService().getActiveRecruitmentNeeds(team.id) : [];
   const recruitmentUrl = team ? getRecruitmentUrl(team.id) : null;
 
