@@ -133,6 +133,26 @@ export async function getPaymentStatus(paymentId: string): Promise<PaymentApiSta
 
 export type RefundStatus = "REQUESTED" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "MANUAL_REVIEW";
 
+/**
+ * PAY-002 : `AWAITING_APPROVAL` reste la vérité détaillée dans Payments.
+ * Ticketing n'a besoin que d'un état local "non terminal" pour sa file de
+ * réconciliation ; on le normalise donc en REQUESTED afin de conserver le
+ * schéma historique sans élargir ses ENUM de cache opérationnel.
+ */
+export function normalizeRefundStatus(status: string | undefined): RefundStatus | null {
+  if (status === "AWAITING_APPROVAL") return "REQUESTED";
+  if (
+    status === "REQUESTED" ||
+    status === "PROCESSING" ||
+    status === "SUCCEEDED" ||
+    status === "FAILED" ||
+    status === "MANUAL_REVIEW"
+  ) {
+    return status;
+  }
+  return null;
+}
+
 export interface RequestRefundInput {
   paymentId: string;
   reason: string;
@@ -149,9 +169,8 @@ export interface RefundResult {
  * TASK-P0-002 (todo.md) : demande un remboursement auprès de payments
  * (TASK-P0-001) pour un paiement confirmé après libération de la capacité —
  * voir src/lib/stockUnavailableRefunds.ts, seul appelant. `status` reflète
- * toujours l'issue réelle : SUCCEEDED/FAILED (Flouci automatisé) ou
- * MANUAL_REVIEW (Konnect/Paymee, ou remboursement partiel Flouci) — jamais
- * un succès simulé.
+ * l'état opérationnel local ; un `AWAITING_APPROVAL` central est conservé
+ * comme état non terminal REQUESTED jusqu'à la prochaine réconciliation.
  */
 export async function requestRefund(input: RequestRefundInput): Promise<RefundResult> {
   const { baseUrl, apiKey } = getConfig();
@@ -168,11 +187,12 @@ export async function requestRefund(input: RequestRefundInput): Promise<RefundRe
   }
 
   const data = (await response.json()) as { id?: string; status?: string };
-  if (!data.id || !data.status) {
+  const status = normalizeRefundStatus(data.status);
+  if (!data.id || !status) {
     throw new Error("Réponse inattendue de payments : id ou status de remboursement manquant.");
   }
 
-  return { id: data.id, status: data.status as RefundStatus };
+  return { id: data.id, status };
 }
 
 /** Relit le statut courant d'un remboursement déjà demandé (voir requestRefund). */
@@ -190,15 +210,5 @@ export async function getRefundStatus(refundId: string): Promise<RefundStatus | 
   }
 
   const data = (await response.json()) as { refund?: { status?: string } };
-  const status = data.refund?.status;
-  if (
-    status === "REQUESTED" ||
-    status === "PROCESSING" ||
-    status === "SUCCEEDED" ||
-    status === "FAILED" ||
-    status === "MANUAL_REVIEW"
-  ) {
-    return status;
-  }
-  return "UNKNOWN";
+  return normalizeRefundStatus(data.refund?.status) ?? "UNKNOWN";
 }

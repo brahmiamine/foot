@@ -37,6 +37,30 @@ export interface InitPaymentResult {
 export type PaymentApiStatus =
   'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'UNKNOWN';
 
+export type RefundStatus =
+  'REQUESTED' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'MANUAL_REVIEW';
+
+/**
+ * PAY-002 keeps AWAITING_APPROVAL detailed in Payments. Marketplace only
+ * needs a durable non-terminal reconciliation state, so it is normalized to
+ * REQUESTED locally and continues to be polled until Payments resolves it.
+ */
+export function normalizeRefundStatus(
+  status: string | undefined,
+): RefundStatus | null {
+  if (status === 'AWAITING_APPROVAL') return 'REQUESTED';
+  if (
+    status === 'REQUESTED' ||
+    status === 'PROCESSING' ||
+    status === 'SUCCEEDED' ||
+    status === 'FAILED' ||
+    status === 'MANUAL_REVIEW'
+  ) {
+    return status;
+  }
+  return null;
+}
+
 @Injectable()
 export class PaymentApiClientService {
   private readonly logger = new Logger(PaymentApiClientService.name);
@@ -176,12 +200,13 @@ export class PaymentApiClientService {
     }
 
     const data = (await response.json()) as { id?: string; status?: string };
-    if (!data.id || !data.status) {
+    const status = normalizeRefundStatus(data.status);
+    if (!data.id || !status) {
       throw new ServiceUnavailableException(
         'Réponse inattendue de payments : id ou status de remboursement manquant.',
       );
     }
-    return { id: data.id, status: data.status as RefundStatus };
+    return { id: data.id, status };
   }
 
   /** Relit le statut courant d'un remboursement déjà demandé (voir requestRefund). */
@@ -203,22 +228,9 @@ export class PaymentApiClientService {
     const data = (await response.json()) as {
       refund?: { status?: string };
     };
-    const status = data.refund?.status;
-    if (
-      status === 'REQUESTED' ||
-      status === 'PROCESSING' ||
-      status === 'SUCCEEDED' ||
-      status === 'FAILED' ||
-      status === 'MANUAL_REVIEW'
-    ) {
-      return status;
-    }
-    return 'UNKNOWN';
+    return normalizeRefundStatus(data.refund?.status) ?? 'UNKNOWN';
   }
 }
-
-export type RefundStatus =
-  'REQUESTED' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'MANUAL_REVIEW';
 
 export interface RequestRefundInput {
   paymentId: string;

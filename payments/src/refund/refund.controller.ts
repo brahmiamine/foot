@@ -11,13 +11,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
-import { RefundService } from './refund.service';
+import { OperatorRefundDecisionDto } from './dto/operator-refund-decision.dto';
 import { Refund } from './entities/refund.entity';
 import { RefundStatusHistory } from './entities/refund-status-history.entity';
-import { ResolveRefundDto } from './dto/resolve-refund.dto';
-import { ListRefundsQueryDto } from './dto/list-refunds-query.dto';
 import { RefundStatus } from './enums/refund-status.enum';
 import { RefundOperatorGuard } from './guards/refund-operator.guard';
+import { RefundService } from './refund.service';
+import { ListRefundsQueryDto } from './dto/list-refunds-query.dto';
 
 function requireOperatorUserId(value: string | undefined): string {
   const operatorUserId = value?.trim();
@@ -29,12 +29,6 @@ function requireOperatorUserId(value: string | undefined): string {
   return operatorUserId;
 }
 
-/**
- * File de réconciliation opérateur. Contrairement aux routes
- * /payments/:paymentId/refunds, elle donne une vision globale et peut
- * confirmer/rejeter des mouvements financiers : elle est donc réservée à
- * federation-hub après authentification service-à-service.
- */
 @Controller('refunds')
 @UseGuards(ServiceAuthGuard, RefundOperatorGuard)
 export class RefundController {
@@ -56,6 +50,29 @@ export class RefundController {
     return { refund, history };
   }
 
+  @Post(':id/approve')
+  async approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-operator-user-id') operatorUserHeader?: string,
+  ): Promise<Refund> {
+    return this.refundService.approveRefund(
+      id,
+      requireOperatorUserId(operatorUserHeader),
+    );
+  }
+
+  @Post(':id/reject-approval')
+  async rejectApproval(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: OperatorRefundDecisionDto,
+    @Headers('x-operator-user-id') operatorUserHeader?: string,
+  ): Promise<Refund> {
+    return this.refundService.rejectApproval(id, {
+      note: dto.note,
+      resolvedByUser: requireOperatorUserId(operatorUserHeader),
+    });
+  }
+
   @Post(':id/retry')
   async retry(
     @Param('id', ParseUUIDPipe) id: string,
@@ -68,26 +85,24 @@ export class RefundController {
   @Post(':id/confirm')
   async confirm(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ResolveRefundDto,
+    @Body() dto: OperatorRefundDecisionDto,
     @Headers('x-operator-user-id') operatorUserHeader?: string,
   ): Promise<Refund> {
-    const operatorUserId = requireOperatorUserId(operatorUserHeader);
     return this.refundService.confirmManualRefund(id, {
-      ...dto,
-      resolvedByUser: operatorUserId,
+      note: dto.note,
+      resolvedByUser: requireOperatorUserId(operatorUserHeader),
     });
   }
 
   @Post(':id/reject')
   async reject(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ResolveRefundDto,
+    @Body() dto: OperatorRefundDecisionDto,
     @Headers('x-operator-user-id') operatorUserHeader?: string,
   ): Promise<Refund> {
-    const operatorUserId = requireOperatorUserId(operatorUserHeader);
     return this.refundService.rejectManualRefund(id, {
-      ...dto,
-      resolvedByUser: operatorUserId,
+      note: dto.note,
+      resolvedByUser: requireOperatorUserId(operatorUserHeader),
     });
   }
 }

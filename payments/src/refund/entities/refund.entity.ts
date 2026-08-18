@@ -7,20 +7,16 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { RefundStatus } from '../enums/refund-status.enum';
 import { PaymentProviderName } from '../../payment/enums/payment-provider.enum';
+import { RefundApprovalMode } from '../enums/refund-approval-mode.enum';
+import { RefundStatus } from '../enums/refund-status.enum';
 
 /**
- * TASK-P0-001 (todo.md): a single refund operation against a Payment.
- * Several Refund rows may exist for the same paymentId (partial refunds);
- * RefundService computes the remaining refundable amount server-side from
- * this table, never trusting a client-supplied "already refunded" figure.
+ * A single refund operation against a Payment. Several Refund rows may exist
+ * for the same paymentId (partial refunds); RefundService computes the
+ * remaining refundable amount server-side from this table.
  */
 @Entity('refunds')
-// Guards a caller retrying POST /payments/:id/refunds (network timeout,
-// double click) from creating a second refund attempt for the same logical
-// operation — same pattern as Payment.(callerApplication, idempotencyKey).
-// NULLs don't collide (MySQL treats each NULL as distinct in a unique index).
 @Unique(['paymentId', 'idempotencyKey'])
 export class Refund {
   @PrimaryGeneratedColumn('uuid')
@@ -30,9 +26,6 @@ export class Refund {
   @Column({ type: 'varchar', length: 36 })
   paymentId: string;
 
-  // Denormalized from Payment at creation time so provider dispatch never
-  // needs a second lookup, and so the record stays meaningful even if the
-  // payment's own provider field were ever to change.
   @Column({ type: 'enum', enum: PaymentProviderName })
   provider: PaymentProviderName;
 
@@ -55,17 +48,49 @@ export class Refund {
   @Column({ type: 'text' })
   reason: string;
 
-  // Identity of the caller who requested the refund — the application
-  // backend (via ServiceAuthGuard) plus, when known, the operator/user
-  // acting through it. Never trusted for authorization, only for audit.
   @Column({ type: 'varchar', length: 100 })
   initiatedByApplication: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   initiatedByUser: string | null;
 
-  // Refund identifier returned by the provider (e.g. Flouci's refund_id).
-  // Never populated for providers without an automated refund API.
+  /**
+   * PAY-002 immutable approval-policy snapshot. These fields are optional at
+   * the TypeScript boundary so legacy pre-migration fixtures/records remain
+   * representable during rolling upgrades; the migration backfills existing
+   * rows and the database columns/defaults govern every persisted new row.
+   */
+  @Column({
+    type: 'enum',
+    enum: RefundApprovalMode,
+    default: RefundApprovalMode.SINGLE_APPROVAL,
+  })
+  approvalMode?: RefundApprovalMode;
+
+  @Column({ type: 'int', default: 0 })
+  approvalPolicyVersion?: number;
+
+  @Column({ type: 'tinyint', default: 1 })
+  approvalMakerCheckerEnabled?: boolean;
+
+  @Column({ type: 'varchar', length: 191, nullable: true })
+  approvalMakerPrincipal?: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  approval1ByUser?: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  approval1At?: Date | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  approval2ByUser?: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  approval2At?: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  approvedAt?: Date | null;
+
   @Column({ type: 'varchar', length: 191, nullable: true })
   providerRefundRef: string | null;
 
@@ -75,14 +100,9 @@ export class Refund {
   @Column({ type: 'text', nullable: true })
   failureReason: string | null;
 
-  // Set when status = MANUAL_REVIEW: why this couldn't be automated
-  // (provider has no refund API) so an operator knows what to do without
-  // guessing from the code.
   @Column({ type: 'text', nullable: true })
   manualReviewReason: string | null;
 
-  // Populated once an operator resolves a MANUAL_REVIEW or retries a FAILED
-  // refund via the reconciliation endpoints — see RefundController.
   @Column({ type: 'varchar', length: 100, nullable: true })
   resolvedByUser: string | null;
 
