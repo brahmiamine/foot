@@ -11,6 +11,7 @@ import { MfaRolePolicy } from "@/entities/MfaRolePolicy";
 import { IdentityPolicyAudit } from "@/entities/IdentityPolicyAudit";
 import { MemberRegistrationPolicy } from "@/entities/MemberRegistrationPolicy";
 import { MemberRegistrationRequest } from "@/entities/MemberRegistrationRequest";
+import { UserSession } from "@/entities/UserSession";
 
 /** DataSource SQLite en mémoire avec les vraies entités Identity. */
 export async function createTestDataSource(): Promise<DataSource> {
@@ -31,6 +32,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       IdentityPolicyAudit,
       MemberRegistrationPolicy,
       MemberRegistrationRequest,
+      UserSession,
     ],
   });
 
