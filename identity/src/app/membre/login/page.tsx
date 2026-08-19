@@ -6,10 +6,11 @@ import MemberLoginForm from "@/components/MemberLoginForm";
 export default async function MemberLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirect?: string; error?: string }>;
+  searchParams: Promise<{ redirect?: string; error?: string; teamId?: string }>;
 }) {
-  const { redirect: redirectParam, error } = await searchParams;
+  const { redirect: redirectParam, error, teamId: teamIdParam } = await searchParams;
   const target = sanitizeRedirect(redirectParam) ?? "/";
+  const teamId = typeof teamIdParam === "string" && teamIdParam.trim() ? teamIdParam.trim() : null;
 
   const session = await getCurrentSession();
   if (session) {
@@ -21,7 +22,7 @@ export default async function MemberLoginPage({
       <div className="sso-card">
         <h1>Espace membre</h1>
         <p className="sso-muted">Connectez-vous pour accéder à votre espace membre.</p>
-        <MemberLoginForm redirectTo={target} initialError={error ?? null} />
+        <MemberLoginForm redirectTo={target} initialError={error ?? null} teamId={teamId} />
       </div>
       <style>{`
         .sso-page {
