@@ -4,7 +4,7 @@ import { FederalOperationWorkflowError } from './federalOperationsRules'
 import { assertGrantJustificatifsWithExceptionsSatisfied } from './governanceExceptions'
 
 function sourceWithException(exceptionRows: unknown[]) {
-  const query = vi.fn(async (sql: string) => {
+  const query = vi.fn(async (sql: string, _params?: unknown[]) => {
     if (sql.includes('FROM regulatory_document_requirements')) {
       return [{ id: 'requirement-1', name: 'Attestation fiscale' }]
     }
@@ -48,7 +48,7 @@ describe('governance exception enforcement (GOV-007)', () => {
       ),
     ).resolves.toBeUndefined()
 
-    const exceptionCall = query.mock.calls.find(([sql]) => String(sql).includes('FROM governance_exceptions'))
+    const exceptionCall = query.mock.calls.find(([sql]) => sql.includes('FROM governance_exceptions'))
     expect(exceptionCall?.[1]).toEqual(expect.arrayContaining([
       'fed-1',
       'REGULATORY_DOCUMENT_REQUIRED',
