@@ -19,6 +19,7 @@ import {
   type FederalOperationAuditContext,
   type FederalOperationSource,
 } from './federalOperationsCommon'
+import { FederalOperationWorkflowError } from './federalOperationsRules'
 
 export const GOVERNANCE_EXCEPTION_RULES = [
   'REGULATORY_DOCUMENT_REQUIRED',
@@ -249,4 +250,51 @@ export async function findActiveGovernanceException(
     ],
   ) as Array<Record<string, unknown>>
   return rows[0] ? mapRow(rows[0]) : null
+}
+
+/**
+ * GOV-007 — premier consommateur réel du centre de dérogations.
+ * Une exigence documentaire GRANT ne peut être contournée que par une
+ * exception active visant exactement la demande et l'identifiant de
+ * l'exigence documentaire manquante. Une exception sur une autre demande,
+ * une autre exigence, expirée ou révoquée n'a aucun effet.
+ */
+export async function assertGrantJustificatifsWithExceptionsSatisfied(
+  source: FederalOperationSource,
+  federationId: string,
+  leagueId: string | null,
+  seasonId: string | null,
+  applicationId: string,
+  at: Date = new Date(),
+): Promise<void> {
+  const requirements = await source.query(
+    `SELECT id, name FROM regulatory_document_requirements
+      WHERE federation_id = ? AND domain = 'GRANT' AND mandatory = 1 AND active = 1
+        AND (league_id IS NULL OR league_id = ?)
+        AND (season_id IS NULL OR season_id = ?)`,
+    [federationId, leagueId, seasonId],
+  ) as Array<{ id: string; name: string }>
+  const missing: string[] = []
+  for (const requirement of requirements) {
+    const submissions = await source.query(
+      `SELECT 1 FROM regulatory_document_submissions
+        WHERE requirement_id = ? AND related_entity_type = 'GRANT_APPLICATION'
+          AND related_entity_id = ? AND status = 'VALID' LIMIT 1`,
+      [requirement.id, applicationId],
+    ) as unknown[]
+    if (submissions.length) continue
+    const exception = await findActiveGovernanceException(source, {
+      federationId,
+      leagueId,
+      ruleKey: 'REGULATORY_DOCUMENT_REQUIRED',
+      targetType: 'GRANT_APPLICATION',
+      targetId: applicationId,
+      reference: requirement.id,
+      at,
+    })
+    if (!exception) missing.push(requirement.name)
+  }
+  if (missing.length) {
+    throw new FederalOperationWorkflowError(`Justificatifs manquants ou non validés : ${missing.join(', ')}`)
+  }
 }
