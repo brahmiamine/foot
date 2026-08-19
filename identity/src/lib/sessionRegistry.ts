@@ -41,16 +41,30 @@ export async function createOrRefreshSession(input: {
   const expiresAt = new Date(now.getTime() + input.ttlSeconds * 1000);
 
   if (input.sessionId) {
-    const existing = await repo.findOne({ where: { id: input.sessionId, userId: input.userId } });
-    if (existing && !existing.revokedAt && existing.expiresAt.getTime() > now.getTime()) {
-      existing.tokenVersion = input.tokenVersion;
-      existing.lastSeenAt = now;
-      existing.expiresAt = expiresAt;
-      if (input.context?.ipAddress !== undefined) existing.ipAddress = input.context.ipAddress;
-      if (input.context?.userAgent !== undefined) existing.userAgent = input.context.userAgent;
-      await repo.save(existing);
-      return existing.id;
-    }
+    const updates = {
+      tokenVersion: input.tokenVersion,
+      lastSeenAt: now,
+      expiresAt,
+      ...(input.context?.ipAddress !== undefined ? { ipAddress: input.context.ipAddress } : {}),
+      ...(input.context?.userAgent !== undefined ? { userAgent: input.context.userAgent } : {}),
+    };
+    const refreshed = await dataSource
+      .createQueryBuilder()
+      .update(UserSession)
+      .set(updates)
+      .where("id = :sessionId", { sessionId: input.sessionId })
+      .andWhere("user_id = :userId", { userId: input.userId })
+      .andWhere("token_version = :tokenVersion", { tokenVersion: input.tokenVersion })
+      .andWhere("revoked_at IS NULL")
+      .andWhere("expires_at > :now", { now })
+      .execute();
+
+    if ((refreshed.affected ?? 0) === 1) return input.sessionId;
+
+    // Un sid fourni provient d'une session déjà authentifiée. S'il n'est
+    // plus actif, créer silencieusement un nouveau sid contournerait une
+    // révocation distante concurrente ; la réémission doit donc échouer.
+    throw new Error("SESSION_NOT_ACTIVE");
   }
 
   const session = repo.create({
@@ -82,8 +96,17 @@ export async function validateRegisteredSession(input: {
   if (session.expiresAt.getTime() <= now) return false;
 
   if (now - session.lastSeenAt.getTime() >= 5 * 60 * 1000) {
-    session.lastSeenAt = new Date(now);
-    await repo.save(session);
+    const touched = await dataSource
+      .createQueryBuilder()
+      .update(UserSession)
+      .set({ lastSeenAt: new Date(now) })
+      .where("id = :sessionId", { sessionId: input.sessionId })
+      .andWhere("user_id = :userId", { userId: input.userId })
+      .andWhere("token_version = :tokenVersion", { tokenVersion: input.tokenVersion })
+      .andWhere("revoked_at IS NULL")
+      .andWhere("expires_at > :now", { now: new Date(now) })
+      .execute();
+    if ((touched.affected ?? 0) !== 1) return false;
   }
   return true;
 }
@@ -120,13 +143,15 @@ export async function revokeUserSession(
   reason = "USER_REVOKED",
 ): Promise<boolean> {
   const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(UserSession);
-  const session = await repo.findOne({ where: { id: sessionId, userId } });
-  if (!session || session.revokedAt) return false;
-  session.revokedAt = new Date();
-  session.revokedReason = reason;
-  await repo.save(session);
-  return true;
+  const result = await dataSource
+    .createQueryBuilder()
+    .update(UserSession)
+    .set({ revokedAt: new Date(), revokedReason: reason })
+    .where("id = :sessionId", { sessionId })
+    .andWhere("user_id = :userId", { userId })
+    .andWhere("revoked_at IS NULL")
+    .execute();
+  return (result.affected ?? 0) === 1;
 }
 
 export async function revokeAllUserSessions(
