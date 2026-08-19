@@ -11,6 +11,7 @@ import {
 import { getMfaRolePolicy } from "@/lib/mfaPolicy";
 import { verifyMfaPendingClaims } from "@/lib/mfaPendingToken";
 import { issueSession, type SsoUser } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 import { sanitizeRedirect } from "@/lib/redirect";
 import { isTrustedOrigin } from "@/lib/csrf";
 
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       recoveryCodes,
       redirect: redirect ?? "/",
     });
-    await issueSession(response, ssoUser);
+    await issueSession(response, ssoUser, sessionContextFromRequest(request));
     return response;
   } catch (error) {
     console.error("MFA pre-auth enrollment enable error:", error);
