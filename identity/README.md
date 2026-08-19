@@ -13,21 +13,26 @@ Les sessions utilisent le cookie `foot_sso_session` et sont signées **RS256 uni
 - `kid` obligatoire ;
 - clés publiques exposées par `GET /api/.well-known/jwks.json` ;
 - rotation par paire courante/précédente ;
-- révocation via `tokenVersion` et `/api/session/introspect`.
+- révocation globale via `tokenVersion` et `/api/session/introspect` ;
+- révocation individuelle via le claim `sid` et le registre `identity_user_sessions`.
 
-Les tokens HS256 et les tokens de session sans audience ne sont plus acceptés. Les applications consommatrices n'ont pas besoin d'une clé de signature ; elles configurent `SSO_URL` et vérifient le JWKS.
+Les tokens HS256 et les tokens de session sans audience ne sont plus acceptés. Les applications consommatrices n'ont pas besoin d'une clé de signature ; elles configurent `SSO_URL`, vérifient le JWKS puis utilisent l'introspection de révocation. Le cache d'introspection partagé borne la propagation d'une révocation à 30 secondes côté applications clientes.
+
+Les JWT émis avant le déploiement d'ID-005 ne contiennent pas de `sid`. Ils restent contrôlés par `tokenVersion` et expirent naturellement au maximum 12 heures après leur émission ; toutes les nouvelles connexions créent une session enregistrée.
 
 ## Fonctionnalités
 
-Connexion staff/membre, inscription membre, Google OAuth, mot de passe oublié/réinitialisé, MFA, profil membre, affiliations équipe, événements de sécurité, logout global et endpoints internes d'annuaire/provisionnement.
+Connexion staff/membre, inscription membre, Google OAuth, mot de passe oublié/réinitialisé, MFA, profil membre, affiliations équipe, événements de sécurité, gestion des appareils/sessions, révocation d'une session, logout global et endpoints internes d'annuaire/provisionnement.
 
 ## API principales
 
-`/api/login`, `/api/login/mfa`, `/api/logout`, `/api/logout-everywhere`, `/api/register`, `/api/forgot-password`, `/api/reset-password`, `/api/account/password`, `/api/mfa/*`, `/api/security-events`, `/api/session/introspect`, `/api/.well-known/jwks.json`, `/api/health` et les routes internes Identity.
+`/api/login`, `/api/login/mfa`, `/api/logout`, `/api/logout-everywhere`, `/api/account/sessions`, `/api/account/sessions/[id]`, `/api/register`, `/api/forgot-password`, `/api/reset-password`, `/api/account/password`, `/api/mfa/*`, `/api/security-events`, `/api/session/introspect`, `/api/.well-known/jwks.json`, `/api/health` et les routes internes Identity.
+
+L'écran `/account/sessions` affiche les sessions actives du compte courant avec appareil/navigateur, IP, dernière activité et expiration. Une révocation ciblée est toujours scopée au `userId` authentifié ; révoquer la session courante efface également le cookie local.
 
 ## Données possédées
 
-Identity possède le cycle de vie `User`, l'unicité email, le hash de mot de passe, l'activation, les rôles/scopes de compte, profils, affiliations membre, challenges MFA, tokens de reset, `tokenVersion` et événements de sécurité. Les autres domaines utilisent les ports/clients Identity ou leurs adapters shared-DB de transition.
+Identity possède le cycle de vie `User`, l'unicité email, le hash de mot de passe, l'activation, les rôles/scopes de compte, profils, affiliations membre, challenges MFA, tokens de reset, `tokenVersion`, le registre `identity_user_sessions` et les événements de sécurité. Les autres domaines utilisent les ports/clients Identity ou leurs adapters shared-DB de transition.
 
 ## Variables d'environnement
 
