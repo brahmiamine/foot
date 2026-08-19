@@ -1,6 +1,7 @@
 import { getDataSource } from "@/lib/database";
 import { AcademyCategory } from "@/entities/AcademyCategory";
 import { AcademyInfo } from "@/entities/AcademyInfo";
+import { ClubFeatureSettingsService } from "./ClubFeatureSettingsService";
 
 interface AcademyCategoryData {
   code: string;
@@ -28,18 +29,25 @@ interface AcademyInfoData {
 
 /** Service pour la page /formation : catégories U6 -> Seniors + contenu éditorial (singleton). */
 export class AcademyService {
+  private async assertEnabled(teamId: string): Promise<void> {
+    await new ClubFeatureSettingsService().assertEnabled(teamId, "ACADEMY");
+  }
+
   async findAllCategories(teamId: string): Promise<AcademyCategory[]> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(AcademyCategory).find({ where: { teamId }, order: { displayOrder: "ASC" } });
   }
 
   async createCategory(teamId: string, data: AcademyCategoryData): Promise<AcademyCategory> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(AcademyCategory);
     return repository.save(repository.create({ ...data, teamId }));
   }
 
   async updateCategory(id: number, teamId: string, data: Partial<AcademyCategoryData>): Promise<AcademyCategory> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(AcademyCategory);
     const category = await repository.findOne({ where: { id, teamId } });
@@ -49,6 +57,7 @@ export class AcademyService {
   }
 
   async deleteCategory(id: number, teamId: string): Promise<boolean> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(AcademyCategory);
     const category = await repository.findOne({ where: { id, teamId } });
@@ -58,11 +67,13 @@ export class AcademyService {
   }
 
   async getInfo(teamId: string): Promise<AcademyInfo | null> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(AcademyInfo).findOne({ where: { teamId } });
   }
 
   async saveInfo(teamId: string, data: AcademyInfoData): Promise<AcademyInfo> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(AcademyInfo);
     const existing = await repository.findOne({ where: { teamId } });
