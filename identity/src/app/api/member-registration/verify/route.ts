@@ -4,6 +4,7 @@ import {
   verifyMemberRegistration,
 } from "@/lib/memberRegistration";
 import { issueSession } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await verifyMemberRegistration(token);
     const response = NextResponse.redirect(new URL("/", request.nextUrl.origin));
-    await issueSession(response, user);
+    await issueSession(response, user, sessionContextFromRequest(request));
     return response;
   } catch (error) {
     if (error instanceof MemberRegistrationError) {
