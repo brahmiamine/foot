@@ -4,7 +4,7 @@ import { getDataSource } from '@/lib/db'
 import { assertFederalOperationScope, FederalOperationAuthorizationError } from '@/lib/federalOperationsCommon'
 import { assertRegulatoryPermission, RegulatoryPermissionError } from '@/lib/regulatoryPermissions'
 import { resolveRegulatoryPolicyInternal } from '@/lib/regulatoryPolicyCenter'
-import { toEffectiveConfigurationSection } from '../../../../../packages/domain-contracts/src/effective-configuration'
+import { toEffectiveConfigurationSection } from '../../../../../../packages/domain-contracts/src/effective-configuration'
 
 export const runtime = 'nodejs'
 
