@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getDataSource } from "./db";
 import { User } from "@/entities/User";
+import { isAccountAccessAllowed } from "./accountAccess";
 import { findVerificationKey, getSigningKey } from "./jwtKeys";
 import {
   createOrRefreshSession,
@@ -90,7 +91,7 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
     const tokenVersion = typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0;
     const dataSource = await getDataSource();
     const user = await dataSource.getRepository(User).findOne({ where: { id: payload.sub } });
-    if (!user || !user.isActive || user.tokenVersion !== tokenVersion) return null;
+    if (!user || !isAccountAccessAllowed(user) || user.tokenVersion !== tokenVersion) return null;
 
     const sessionId = typeof payload.sid === "string" && payload.sid ? payload.sid : null;
     if (sessionId) {
@@ -102,9 +103,8 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
       if (!active) return null;
     }
     // Compatibilité de déploiement : les JWT émis avant ID-005 n'ont pas de
-    // `sid`. Ils restent soumis à tokenVersion et expirent naturellement au
-    // plus tard 12 h après le déploiement ; aucune nouvelle session legacy
-    // n'est émise une fois ce code actif.
+    // `sid`. Ils restent soumis à tokenVersion, à la fenêtre d'accès compte et
+    // expirent naturellement au plus tard 12 h après le déploiement.
 
     return {
       id: payload.sub,
