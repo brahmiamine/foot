@@ -14,13 +14,15 @@ function getRequestOrigin(request: NextRequest): string {
 
 export async function GET(request: NextRequest) {
   const redirect = sanitizeRedirect(request.nextUrl.searchParams.get("redirect")) ?? "/";
+  const teamId = request.nextUrl.searchParams.get("teamId")?.trim() || null;
+  const invitationToken = request.nextUrl.searchParams.get("invite")?.trim() || null;
   const state = randomBytes(16).toString("hex");
   const redirectUri = `${getRequestOrigin(request)}/api/auth/google/callback`;
 
   const response = NextResponse.redirect(buildGoogleAuthorizeUrl(redirectUri, state));
   response.cookies.set({
     name: OAUTH_STATE_COOKIE,
-    value: encodeURIComponent(JSON.stringify({ state, redirect })),
+    value: encodeURIComponent(JSON.stringify({ state, redirect, teamId, invitationToken })),
     httpOnly: true,
     sameSite: "lax",
     path: "/api/auth/google",
