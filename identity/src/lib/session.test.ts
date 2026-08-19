@@ -127,6 +127,46 @@ describe("verifySessionToken", () => {
     expect(await verifySessionToken(token)).toBeNull();
   });
 
+  it("rejects a token before temporary account access starts", async () => {
+    const { verifySessionToken } = await import("./session");
+    const { updateUser } = await import("./identityService");
+    const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 0 });
+    const update = await updateUser(
+      user.id,
+      { accessValidFrom: new Date(Date.now() + 60_000) } as Parameters<typeof updateUser>[1] & {
+        accessValidFrom: Date;
+      },
+    );
+    expect(update.ok).toBe(true);
+
+    const token = await signCurrent("user-1", {
+      email: user.email,
+      role: user.role,
+      tokenVersion: 0,
+    });
+    expect(await verifySessionToken(token)).toBeNull();
+  });
+
+  it("rejects a token after temporary account access expires", async () => {
+    const { verifySessionToken } = await import("./session");
+    const { updateUser } = await import("./identityService");
+    const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 0 });
+    const update = await updateUser(
+      user.id,
+      { accessValidUntil: new Date(Date.now() - 60_000) } as Parameters<typeof updateUser>[1] & {
+        accessValidUntil: Date;
+      },
+    );
+    expect(update.ok).toBe(true);
+
+    const token = await signCurrent("user-1", {
+      email: user.email,
+      role: user.role,
+      tokenVersion: 0,
+    });
+    expect(await verifySessionToken(token)).toBeNull();
+  });
+
   it("rejects a token for a deleted account", async () => {
     const { verifySessionToken } = await import("./session");
     const token = await signCurrent("no-such-user", {
