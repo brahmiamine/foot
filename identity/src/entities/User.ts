@@ -77,6 +77,14 @@ export class User {
   @Column({ type: "tinyint" })
   isActive!: boolean;
 
+  /** Début inclusif de l'accès temporaire. `null` signifie aucune borne de début. */
+  @Column({ type: "datetime", nullable: true, name: "access_valid_from" })
+  accessValidFrom?: Date | null;
+
+  /** Fin exclusive de l'accès temporaire. `null` signifie aucune borne de fin. */
+  @Column({ type: "datetime", nullable: true, name: "access_valid_until" })
+  accessValidUntil?: Date | null;
+
   @Column({ type: "varchar", length: 191, nullable: true })
   teamId?: string | null;
 
@@ -116,12 +124,10 @@ export class User {
 
   /**
    * Révocation de session — voir src/lib/session.ts. Incrémenté à chaque
-   * changement de mot de passe, activation/désactivation MFA, ou
-   * déconnexion explicite "partout" ; embarqué dans le JWT à l'émission et
-   * comparé à cette valeur en base à chaque vérification de session côté
-   * `sso`. Les apps clientes (arbinote/match-operations/federation-hub/club-hub/
-   * ob/ticketing) ne font PAS encore cette vérification — voir
-   * avancement.md rang 8 pour la limite assumée.
+   * changement de mot de passe, activation/désactivation MFA, modification
+   * de la fenêtre d'accès temporaire, ou déconnexion explicite "partout" ;
+   * embarqué dans le JWT à l'émission et comparé à cette valeur en base à
+   * chaque vérification de session côté Identity.
    */
   @Column({ type: "int", default: 0, name: "token_version" })
   tokenVersion!: number;
