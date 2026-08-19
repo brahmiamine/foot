@@ -1,4 +1,5 @@
 import type { DataSource } from 'typeorm'
+import { canAccessPlatform } from '../../../packages/auth-shared/src/roles'
 import {
   sortActionItems,
   type ActionItem,
@@ -82,11 +83,31 @@ function toActionItem(item: RegulatorySlaQueueItem): ActionItem {
   }
 }
 
+async function pendingForActor(
+  source: DataSource,
+  session: SsoUser,
+): Promise<RegulatorySlaQueueItem[]> {
+  if (session.federationId) {
+    return getRegulatoryPendingQueue(source, session)
+  }
+  if (!canAccessPlatform(session)) return []
+
+  const federations = await source.query(
+    'SELECT id FROM federations WHERE is_active = 1 ORDER BY name ASC',
+  ) as Array<{ id: string }>
+  const queues = await Promise.all(
+    federations.map((federation) =>
+      getRegulatoryPendingQueue(source, session, federation.id),
+    ),
+  )
+  return queues.flat()
+}
+
 export async function getFederationActionDashboard(
   source: DataSource,
   session: SsoUser,
 ): Promise<ActionItem[]> {
-  const pending = await getRegulatoryPendingQueue(source, session)
+  const pending = await pendingForActor(source, session)
   const permissionCache = new Map<RegulatoryPermission, boolean>()
   const canReview = async (permission: RegulatoryPermission): Promise<boolean> => {
     if (!permissionCache.has(permission)) {
