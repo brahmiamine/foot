@@ -252,6 +252,18 @@ async function buildQueue(
   return items
 }
 
+/** GOV-009 : tous les dossiers pending du scope de l'acteur, y compris ceux encore IN_SLA. */
+export async function getRegulatoryPendingQueue(
+  source: FederalOperationSource,
+  session: SsoUser,
+  federationId: string | null = session.federationId ?? null,
+  at: Date = new Date(),
+): Promise<RegulatorySlaQueueItem[]> {
+  if (!federationId) return []
+  assertFederalOperationScope(session, federationId)
+  return buildQueue(source, federationId, buildFederalOperationScopeFilter(session), at)
+}
+
 /** FED-010/GOV-008 : file avec états communs IN_SLA/DUE_SOON/OVERDUE/ESCALATION_DUE. */
 export async function getRegulatorySlaOverdueQueue(source: FederalOperationSource, session: SsoUser, federationId: string): Promise<RegulatorySlaQueueItem[]> {
   assertFederalOperationScope(session, federationId)
