@@ -16,6 +16,13 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
+function formatSourceDate(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("fr-FR");
+}
+
 function sourceLabel(source: {
   kind: "DEFAULT" | "POLICY";
   scopeType?: string;
@@ -27,8 +34,12 @@ function sourceLabel(source: {
   if (source.kind === "DEFAULT") return "Valeur par défaut";
   const scope = `${source.scopeType ?? "POLICY"}${source.scopeId ? ` · ${source.scopeId}` : ""}`;
   const version = source.version ? ` · v${source.version}` : "";
-  const period = [source.effectiveFrom ? `depuis ${new Date(source.effectiveFrom).toLocaleString("fr-FR")}` : null,
-    source.effectiveUntil ? `jusqu'au ${new Date(source.effectiveUntil).toLocaleString("fr-FR")}` : null]
+  const effectiveFrom = formatSourceDate(source.effectiveFrom);
+  const effectiveUntil = formatSourceDate(source.effectiveUntil);
+  const period = [
+    effectiveFrom ? `depuis ${effectiveFrom}` : null,
+    effectiveUntil ? `jusqu'au ${effectiveUntil}` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   return `${scope}${version}${period ? ` · ${period}` : ""}`;
