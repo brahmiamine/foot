@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { generateKeyPairSync } from "crypto";
-import { importPKCS8, SignJWT } from "jose";
+import { decodeJwt, importPKCS8, SignJWT } from "jose";
 import { createTestDataSource } from "@/test/testDataSource";
 import { seedUser } from "@/test/fixtures";
 import { resetJwtKeyCache } from "@/lib/jwtKeys";
@@ -63,6 +63,7 @@ describe("verifySessionToken", () => {
       tokenVersion: 2,
     });
     const token = response.cookies.get("foot_sso_session")?.value;
+    expect(typeof decodeJwt(token!).sid).toBe("string");
     expect((await verifySessionToken(token!))?.id).toBe("user-1");
   });
 
