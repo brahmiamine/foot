@@ -76,8 +76,18 @@ describe("EffectiveConfigurationService (GOV-006)", () => {
                 },
               },
               appliedRecords: [
-                { id: "platform-marketing-1", scopeType: "PLATFORM", scopeId: null, version: 1 },
-                { id: "club-marketing-1", scopeType: "CLUB", scopeId: "team-1", version: 2 },
+                {
+                  id: "platform-marketing-1",
+                  scopeType: "PLATFORM",
+                  scopeId: null,
+                  version: 1,
+                },
+                {
+                  id: "club-marketing-1",
+                  scopeType: "CLUB",
+                  scopeId: "team-1",
+                  version: 2,
+                },
               ],
             }
           : defaults({ EMAIL: "DEFAULT", SMS: "DEFAULT" }),
@@ -111,13 +121,17 @@ describe("EffectiveConfigurationService (GOV-006)", () => {
     const marketing = sections.find(
       (section) => section.domain === "NOTIFICATION_POLICY_MARKETING",
     );
-    expect(marketing?.entries.find((entry) => entry.key === "EMAIL")?.source).toMatchObject({
+    expect(
+      marketing?.entries.find((entry) => entry.key === "EMAIL")?.source,
+    ).toMatchObject({
       kind: "POLICY",
       scopeType: "CLUB",
       scopeId: "team-1",
       version: 2,
     });
-    expect(marketing?.entries.find((entry) => entry.key === "SMS")?.source).toMatchObject({
+    expect(
+      marketing?.entries.find((entry) => entry.key === "SMS")?.source,
+    ).toMatchObject({
       kind: "POLICY",
       scopeType: "PLATFORM",
       version: 1,
