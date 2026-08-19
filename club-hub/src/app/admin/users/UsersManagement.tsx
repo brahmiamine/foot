@@ -44,7 +44,7 @@ function describeAccess(user: ClubUserData): string {
   if (user.accessValidUntil && now >= new Date(user.accessValidUntil).getTime()) {
     return `Expiré le ${formatInstant(user.accessValidUntil)}`;
   }
-  if (user.accessValidUntil) return `Jusqu'au ${formatInstant(user.accessValidUntil)}`;
+  if (user.accessValidUntil) return `Jusqu’au ${formatInstant(user.accessValidUntil)}`;
   if (user.accessValidFrom) return `Depuis le ${formatInstant(user.accessValidFrom)}`;
   return "Permanent";
 }
@@ -201,7 +201,7 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
                     <div className="fw-semibold">Accès temporaire</div>
                     <div className="text-muted small">Optionnel. Toute modification déconnecte les sessions existantes.</div>
                   </div>
-                  {!canLimitAccess && <span className="badge bg-secondary-subtle text-secondary">Non applicable à l'administrateur</span>}
+                  {!canLimitAccess && <span className="badge bg-secondary-subtle text-secondary">Non applicable à l’administrateur</span>}
                 </div>
               </div>
               <div className="col-md-6">
@@ -216,7 +216,7 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
                 />
               </div>
               <div className="col-md-6">
-                <label htmlFor="accessValidUntil" className="form-label">Valide jusqu'au</label>
+                <label htmlFor="accessValidUntil" className="form-label">Valide jusqu’au</label>
                 <input
                   type="datetime-local"
                   id="accessValidUntil"
