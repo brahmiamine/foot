@@ -54,7 +54,6 @@ export async function createOrRefreshSession(input: {
       .set(updates)
       .where("id = :sessionId", { sessionId: input.sessionId })
       .andWhere("user_id = :userId", { userId: input.userId })
-      .andWhere("token_version = :tokenVersion", { tokenVersion: input.tokenVersion })
       .andWhere("revoked_at IS NULL")
       .andWhere("expires_at > :now", { now })
       .execute();
@@ -113,6 +112,7 @@ export async function validateRegisteredSession(input: {
 
 export async function listUserSessions(
   userId: string,
+  tokenVersion: number,
   currentSessionId?: string | null,
 ): Promise<SessionSummary[]> {
   const dataSource = await getDataSource();
@@ -121,6 +121,7 @@ export async function listUserSessions(
   const sessions = await repo
     .createQueryBuilder("session")
     .where("session.user_id = :userId", { userId })
+    .andWhere("session.token_version = :tokenVersion", { tokenVersion })
     .andWhere("session.revoked_at IS NULL")
     .andWhere("session.expires_at > :now", { now })
     .orderBy("session.last_seen_at", "DESC")
