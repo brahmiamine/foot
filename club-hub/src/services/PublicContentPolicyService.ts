@@ -4,6 +4,7 @@ import { ClubConfigurationAudit, type ClubConfigurationSnapshot } from "@/entiti
 import {
   resolvePolicy,
   type PolicyRecord,
+  type ResolvedPolicy,
 } from "../../../packages/domain-contracts/src/policy";
 import {
   requireConfigurationChangeReason,
@@ -75,10 +76,18 @@ function snapshot(row: PublicContentPolicy): ClubConfigurationSnapshot {
  * changement de configuration est audité dans la même transaction.
  */
 export class PublicContentPolicyService {
-  async resolve(teamId: string | null, at: Date = new Date()): Promise<PublicContentPolicyValues> {
+  /** GOV-006 : expose aussi la provenance exacte de chaque valeur héritée. */
+  async resolveExplained(
+    teamId: string | null,
+    at: Date = new Date(),
+  ): Promise<ResolvedPolicy<PublicContentPolicyValues>> {
     const ds = await getDataSource();
     const records = await ds.getRepository(PublicContentPolicy).find();
-    const resolved = resolvePolicy(DEFAULT_VALUES, records.map(toPolicyRecord), { clubId: teamId }, at);
+    return resolvePolicy(DEFAULT_VALUES, records.map(toPolicyRecord), { clubId: teamId }, at);
+  }
+
+  async resolve(teamId: string | null, at: Date = new Date()): Promise<PublicContentPolicyValues> {
+    const resolved = await this.resolveExplained(teamId, at);
     return resolved.values;
   }
 

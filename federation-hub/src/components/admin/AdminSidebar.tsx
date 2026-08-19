@@ -31,6 +31,7 @@ const navItems = [
   { label: "Journal d'audit", href: '/admin/audit', icon: 'bx bx-notepad' },
   { label: 'Opérations fédérales', href: '/admin/federal-operations', icon: 'bx bx-landmark' },
   { label: 'Politiques réglementaires', href: '/admin/regulatory-policy-center', icon: 'bx bx-cog' },
+  { label: 'Configuration effective', href: '/admin/effective-configuration', icon: 'bx bx-slider-alt' },
 ]
 
 const arbitrationNavItems = [

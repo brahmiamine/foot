@@ -79,6 +79,22 @@ describe("PublicFormSettingsService", () => {
     await expect(service.assertOpen("team-1", "CONTACT")).resolves.toBeUndefined();
   });
 
+  it("explains whether the effective form setting comes from defaults or a club policy", async () => {
+    const service = new PublicFormSettingsService();
+    const defaults = await service.getExplained("team-1", "CONTACT");
+    expect(defaults.sources.isOpen).toEqual({ kind: "DEFAULT" });
+
+    await service.update("team-1", "CONTACT", { isOpen: false }, mutationContext());
+    const configured = await service.getExplained("team-1", "CONTACT");
+    expect(configured.values.isOpen).toBe(false);
+    expect(configured.sources.isOpen).toMatchObject({
+      kind: "POLICY",
+      scopeType: "CLUB",
+      scopeId: "team-1",
+      version: 1,
+    });
+  });
+
   it("blocks submissions once a form is closed", async () => {
     const service = new PublicFormSettingsService();
     await service.update("team-1", "CONTACT", { isOpen: false }, mutationContext());

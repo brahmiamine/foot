@@ -4,6 +4,7 @@ import { DataSource, IsNull, Repository } from 'typeorm';
 import {
   resolvePolicy,
   type PolicyRecord,
+  type ResolvedPolicy,
 } from '../common/domain-contracts/policy';
 import { requireConfigurationChangeReason } from '../common/domain-contracts/configuration-audit';
 import { NotificationChannelType } from '../common/enums/channel.enum';
@@ -85,23 +86,31 @@ export class PolicyService {
     private readonly auditRepository: Repository<NotificationPolicyAudit>,
   ) {}
 
-  async resolve(
+  /** GOV-006 : même résolution NOTIF-001, en conservant la provenance de chaque canal. */
+  async resolveExplained(
     teamId: string | null,
     category: string,
     at: Date = new Date(),
-  ): Promise<PolicyValues> {
+  ): Promise<ResolvedPolicy<PolicyValues>> {
     const all = await this.repository.find();
     const exact = all.filter((row) => row.category === category);
     const applicable =
       exact.length > 0 ? exact : all.filter((row) => row.category === null);
 
-    const resolved = resolvePolicy(
+    return resolvePolicy(
       DEFAULT_POLICY_VALUES,
       applicable.map(toPolicyRecord),
       { clubId: teamId },
       at,
     );
-    return resolved.values;
+  }
+
+  async resolve(
+    teamId: string | null,
+    category: string,
+    at: Date = new Date(),
+  ): Promise<PolicyValues> {
+    return (await this.resolveExplained(teamId, category, at)).values;
   }
 
   /**
