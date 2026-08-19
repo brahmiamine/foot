@@ -106,6 +106,37 @@ describe("PublicContentPolicyService", () => {
     expect(resolved.NEWS).toBe(true);
   });
 
+  it("explains the exact source of each inherited effective value", async () => {
+    const service = new PublicContentPolicyService();
+    await service.upsert({
+      scopeType: "PLATFORM",
+      scopeId: null,
+      sections: { GALLERY: false },
+      ...auditContext("superadmin-1"),
+    });
+    await service.upsert({
+      scopeType: "CLUB",
+      scopeId: "team-1",
+      sections: { SHOP: false },
+      ...auditContext("club-admin-1"),
+    });
+
+    const explained = await service.resolveExplained("team-1");
+    expect(explained.sources.GALLERY).toMatchObject({
+      kind: "POLICY",
+      scopeType: "PLATFORM",
+      scopeId: null,
+      version: 1,
+    });
+    expect(explained.sources.SHOP).toMatchObject({
+      kind: "POLICY",
+      scopeType: "CLUB",
+      scopeId: "team-1",
+      version: 1,
+    });
+    expect(explained.sources.NEWS).toEqual({ kind: "DEFAULT" });
+  });
+
   it("does not leak a CLUB override to another club", async () => {
     const service = new PublicContentPolicyService();
     await service.upsert({
