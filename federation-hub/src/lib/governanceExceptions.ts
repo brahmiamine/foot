@@ -59,6 +59,17 @@ function parseDate(value: unknown, label: string, fallback?: Date): Date {
   return date
 }
 
+function requireExceptionReason(value: unknown, label: string): string {
+  const raw = requireString(value, label, 1000)
+  try {
+    return requireConfigurationChangeReason(raw)
+  } catch (error) {
+    throw new FederalOperationInputError(
+      error instanceof Error ? error.message : `${label} invalide`,
+    )
+  }
+}
+
 function mapRow(row: Record<string, unknown>): GovernanceExceptionRow {
   return {
     id: String(row.id),
@@ -93,7 +104,7 @@ export async function createGovernanceException(
   const targetType = requireString(input.targetType, 'Type de cible', 100).toUpperCase()
   const targetId = requireString(input.targetId, 'Cible')
   const reference = requireString(input.reference, 'Référence')
-  const reason = requireConfigurationChangeReason(requireString(input.reason, 'Motif', 2000))
+  const reason = requireExceptionReason(input.reason, 'Motif')
   const validFrom = parseDate(input.validFrom, 'Début de validité', new Date())
   const validUntil = parseDate(input.validUntil, 'Fin de validité')
   try {
@@ -193,7 +204,7 @@ export async function revokeGovernanceException(
   const row = mapRow(current)
   assertFederalOperationScope(session, row.federationId, row.leagueId)
   if (row.revokedAt) throw new FederalOperationInputError('Dérogation déjà révoquée')
-  const reason = requireConfigurationChangeReason(requireString(reasonValue, 'Motif de révocation', 2000))
+  const reason = requireExceptionReason(reasonValue, 'Motif de révocation')
   const revokedAt = new Date()
   await source.transaction(async manager => {
     await manager.query(
