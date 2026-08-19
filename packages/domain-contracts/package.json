@@ -9,11 +9,15 @@
     "./club-access": "./src/club-access.ts",
     "./club-lineup": "./src/club-lineup.ts",
     "./club-player-facts": "./src/club-player-facts.ts",
+    "./configuration-audit": "./src/configuration-audit.ts",
+    "./effective-configuration": "./src/effective-configuration.ts",
     "./eligibility": "./src/eligibility.ts",
     "./events": "./src/events.ts",
+    "./governance-exception": "./src/governance-exception.ts",
     "./identity": "./src/identity.ts",
     "./policy": "./src/policy.ts",
     "./referee-availability": "./src/referee-availability.ts",
-    "./staff-eligibility": "./src/staff-eligibility.ts"
+    "./staff-eligibility": "./src/staff-eligibility.ts",
+    "./workflow-sla": "./src/workflow-sla.ts"
   }
 }

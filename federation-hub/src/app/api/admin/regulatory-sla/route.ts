@@ -21,7 +21,7 @@ function handleError(error: unknown) {
   return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
 }
 
-/** FED-010 : paramètres SLA par domaine + file d'attente en retard pour une fédération. */
+/** FED-010/GOV-008 : paramètres SLA + états de file avec échéance et escalade. */
 export async function GET(request: NextRequest) {
   const session = await getAdminSession(request)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -49,7 +49,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as Record<string, unknown>
     const federationId = typeof body.federationId === 'string' ? body.federationId : ''
     if (!federationId) return NextResponse.json({ error: 'federationId requis' }, { status: 400 })
-    const updated = await upsertRegulatorySlaPolicy(dataSource, session, auditContext(request, session), federationId, body.domain, body.warnAfterHours, body.overdueAfterHours)
+    const updated = await upsertRegulatorySlaPolicy(
+      dataSource,
+      session,
+      auditContext(request, session),
+      federationId,
+      body.domain,
+      body.warnAfterHours,
+      body.overdueAfterHours,
+      body.escalationAfterHours,
+    )
     return NextResponse.json(updated)
   } catch (error) {
     return handleError(error)
