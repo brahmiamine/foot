@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { getDataSource } from "./db";
 import { User } from "@/entities/User";
+import { isAccountAccessAllowed } from "./accountAccess";
 import type { SsoUser } from "./session";
 
 export interface Credentials {
@@ -16,14 +17,16 @@ export interface Credentials {
  * - un compte ADMIN/OBSERVATEUR/PLAYER n'est valide que pour SON club (teamId
  *   doit correspondre au club sélectionné à l'écran de connexion) ;
  * - SUPERADMIN n'a pas de club (teamId doit être absent) ;
- * - MEMBER (espace membre public de `ob`) n'est pas scopé par club non plus.
+ * - MEMBER (espace membre public de `ob`) n'est pas scopé par club non plus ;
+ * - la fenêtre d'accès temporaire [validFrom, validUntil) est vérifiée côté
+ *   serveur avant toute émission de session.
  */
 export async function authenticate(credentials: Credentials): Promise<SsoUser | null> {
   const dataSource = await getDataSource();
   const repository = dataSource.getRepository(User);
 
   const user = await repository.findOne({ where: { email: credentials.email } });
-  if (!user || !user.isActive) return null;
+  if (!user || !isAccountAccessAllowed(user)) return null;
 
   const valid = await bcrypt.compare(credentials.password, user.password);
   if (!valid) return null;
