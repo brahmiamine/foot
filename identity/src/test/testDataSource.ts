@@ -9,6 +9,8 @@ import { MfaEnrollmentChallenge } from "@/entities/MfaEnrollmentChallenge";
 import { AccountInvitation } from "@/entities/AccountInvitation";
 import { MfaRolePolicy } from "@/entities/MfaRolePolicy";
 import { IdentityPolicyAudit } from "@/entities/IdentityPolicyAudit";
+import { MemberRegistrationPolicy } from "@/entities/MemberRegistrationPolicy";
+import { MemberRegistrationRequest } from "@/entities/MemberRegistrationRequest";
 
 /** DataSource SQLite en mémoire avec les vraies entités Identity. */
 export async function createTestDataSource(): Promise<DataSource> {
@@ -27,6 +29,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       AccountInvitation,
       MfaRolePolicy,
       IdentityPolicyAudit,
+      MemberRegistrationPolicy,
+      MemberRegistrationRequest,
     ],
   });
 
