@@ -63,6 +63,11 @@ function toPolicyRecord(row: PublicFormSettings): PolicyRecord<PublicFormSetting
   };
 }
 
+function sourceDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
+
 function snapshot(row: PublicFormSettings): ClubConfigurationSnapshot {
   return {
     id: row.id,
@@ -109,8 +114,8 @@ export class PublicFormSettingsService {
     return {
       ...resolved.values,
       version: source.kind === "POLICY" ? source.version ?? 0 : 0,
-      effectiveFrom: source.kind === "POLICY" && source.effectiveFrom ? new Date(source.effectiveFrom) : null,
-      effectiveUntil: source.kind === "POLICY" && source.effectiveUntil ? new Date(source.effectiveUntil) : null,
+      effectiveFrom: source.kind === "POLICY" ? sourceDate(source.effectiveFrom) : null,
+      effectiveUntil: source.kind === "POLICY" ? sourceDate(source.effectiveUntil) : null,
     };
   }
 
