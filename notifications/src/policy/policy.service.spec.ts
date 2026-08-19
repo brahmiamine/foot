@@ -177,6 +177,59 @@ describe('PolicyService (NOTIF-001)', () => {
     expect(selection.disabled).toEqual([NotificationChannelType.SMS]);
   });
 
+  it('explains DEFAULT, PLATFORM and CLUB provenance for the effective category policy', async () => {
+    const service = buildService([], []);
+    await service.upsert({
+      scopeType: 'PLATFORM',
+      scopeId: null,
+      category: 'MARKETING',
+      channels: { [NotificationChannelType.SMS]: ChannelPolicyMode.DISABLED },
+      effectiveFrom: new Date('2026-08-01T00:00:00Z'),
+      actorUserId: 'platform-admin',
+      actorRole: 'SUPERADMIN',
+      reason: 'Disable marketing SMS platform-wide',
+    });
+    await service.upsert({
+      scopeType: 'CLUB',
+      scopeId: 'team-1',
+      category: 'MARKETING',
+      channels: {
+        [NotificationChannelType.EMAIL]: ChannelPolicyMode.MANDATORY,
+      },
+      effectiveFrom: new Date('2026-08-10T00:00:00Z'),
+      actorUserId: 'club-admin',
+      actorRole: 'ADMIN',
+      reason: 'Force email for club marketing',
+    });
+
+    const explained = await service.resolveExplained(
+      'team-1',
+      'MARKETING',
+      new Date('2026-08-19T00:00:00Z'),
+    );
+
+    expect(explained.values[NotificationChannelType.EMAIL]).toBe(
+      ChannelPolicyMode.MANDATORY,
+    );
+    expect(explained.sources[NotificationChannelType.EMAIL]).toMatchObject({
+      kind: 'POLICY',
+      scopeType: 'CLUB',
+      scopeId: 'team-1',
+      version: 1,
+      effectiveFrom: new Date('2026-08-10T00:00:00Z'),
+    });
+    expect(explained.sources[NotificationChannelType.SMS]).toMatchObject({
+      kind: 'POLICY',
+      scopeType: 'PLATFORM',
+      scopeId: null,
+      version: 1,
+      effectiveFrom: new Date('2026-08-01T00:00:00Z'),
+    });
+    expect(explained.sources[NotificationChannelType.PUSH]).toEqual({
+      kind: 'DEFAULT',
+    });
+  });
+
   it('increments the version and keeps history on repeated upserts of the same scope/category', async () => {
     const rows: NotificationPolicy[] = [];
     const service = buildService(rows, []);
