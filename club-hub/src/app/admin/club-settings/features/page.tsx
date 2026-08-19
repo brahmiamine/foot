@@ -85,7 +85,7 @@ export default async function ClubFeatureSettingsPage() {
               rows={3}
               placeholder="Ex. suspension temporaire du module pendant une maintenance"
             />
-            <div className="form-text">Le motif est conservé dans l'audit de configuration.</div>
+            <div className="form-text">Le motif est conservé dans l&apos;audit de configuration.</div>
           </div>
         </div>
         <div className="card-footer bg-transparent text-end">
