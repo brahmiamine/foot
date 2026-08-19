@@ -1,15 +1,21 @@
 import type {
   CreateIdentityAccountInput,
+  EffectiveMemberRegistrationPolicy,
   IdentityAccountInvitationResult,
   IdentityAccountProvisioningPort,
   IdentityDirectoryPort,
+  IdentityMemberRegistrationAdminPort,
   IdentityPlayerInvitationPort,
   IdentityProfilePort,
   IdentityUserProfile,
   IdentityUserRecord,
   IdentityUserSearch,
+  InviteMemberInput,
+  InviteMemberResult,
   InvitePlayerAccountInput,
+  MemberRegistrationQueueItem,
   UpdateIdentityAccountInput,
+  UpdateMemberRegistrationPolicyInput,
 } from '../../domain-contracts/src/identity'
 
 export interface IdentityClientOptions {
@@ -33,7 +39,12 @@ function normalizeBaseUrl(value: string): string {
 }
 
 export class IdentityHttpClient
-  implements IdentityDirectoryPort, IdentityAccountProvisioningPort, IdentityProfilePort, IdentityPlayerInvitationPort
+  implements
+    IdentityDirectoryPort,
+    IdentityAccountProvisioningPort,
+    IdentityProfilePort,
+    IdentityPlayerInvitationPort,
+    IdentityMemberRegistrationAdminPort
 {
   private readonly baseUrl: string
   private readonly timeoutMs: number
@@ -132,6 +143,53 @@ export class IdentityHttpClient
 
   invitePlayerAccount(input: InvitePlayerAccountInput): Promise<IdentityAccountInvitationResult> {
     return this.call<IdentityAccountInvitationResult>('/api/internal/users/invite-player', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  }
+
+  getMemberRegistrationPolicy(teamId: string): Promise<EffectiveMemberRegistrationPolicy> {
+    return this.call<EffectiveMemberRegistrationPolicy>(
+      `/api/internal/member-registration/policy?teamId=${encodeURIComponent(teamId)}`,
+    )
+  }
+
+  updateMemberRegistrationPolicy(
+    input: UpdateMemberRegistrationPolicyInput,
+  ): Promise<EffectiveMemberRegistrationPolicy> {
+    return this.call<EffectiveMemberRegistrationPolicy>('/api/internal/member-registration/policy', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+  }
+
+  listPendingMemberRegistrations(teamId: string): Promise<MemberRegistrationQueueItem[]> {
+    return this.call<MemberRegistrationQueueItem[]>(
+      `/api/internal/member-registration/requests?teamId=${encodeURIComponent(teamId)}`,
+    )
+  }
+
+  async approveMemberRegistration(teamId: string, requestId: string, actorUserId: string): Promise<void> {
+    await this.call(`/api/internal/member-registration/requests/${encodeURIComponent(requestId)}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ teamId, actorUserId }),
+    })
+  }
+
+  async rejectMemberRegistration(
+    teamId: string,
+    requestId: string,
+    actorUserId: string,
+    reason: string,
+  ): Promise<void> {
+    await this.call(`/api/internal/member-registration/requests/${encodeURIComponent(requestId)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ teamId, actorUserId, reason }),
+    })
+  }
+
+  inviteMember(input: InviteMemberInput): Promise<InviteMemberResult> {
+    return this.call<InviteMemberResult>('/api/internal/member-registration/invitations', {
       method: 'POST',
       body: JSON.stringify(input),
     })
