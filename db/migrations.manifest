@@ -159,6 +159,8 @@ federation-hub/mysql/migration_add_regulatory_policy_center.sql
 federation-hub/mysql/migration_add_competition_insurance_requirement.sql
 federation-hub/mysql/migration_add_regulatory_sla_policies.sql
 federation-hub/mysql/migration_add_regulatory_permission_mode.sql
+# GOV-007 : exceptions/dérogations strictement bornées, référencées et auditables.
+federation-hub/mysql/migration_add_governance_exceptions.sql
 federation-hub/migrations/add_is_active_to_federations.sql
 federation-hub/migrations/add_is_active_to_leagues.sql
 federation-hub/migrations/add_unique_vote_per_match_device.sql
