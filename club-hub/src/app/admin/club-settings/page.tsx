@@ -19,6 +19,9 @@ export default async function ClubSettingsPage() {
         <Link className="btn btn-outline-primary btn-sm" href="/admin/club-settings/features">
           Fonctionnalités du club
         </Link>
+        <Link className="btn btn-outline-primary btn-sm" href="/admin/club-settings/member-registration">
+          Inscriptions membres
+        </Link>
       </div>
       <h1 className="h4 mb-4">Contact &amp; réseaux — Réseaux sociaux</h1>
       <SocialsForm
