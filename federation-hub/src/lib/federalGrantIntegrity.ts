@@ -11,7 +11,7 @@ import {
   requireEnum,
 } from './federalOperationsCommon'
 import { FederalOperationWorkflowError } from './federalOperationsRules'
-import { assertGrantJustificatifsSatisfied } from './federalPrograms'
+import { assertGrantJustificatifsWithExceptionsSatisfied } from './governanceExceptions'
 import { assertOperationDelegated } from './regulatoryPolicyCenter'
 
 const APPLICATION_STATUSES = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'PARTIALLY_APPROVED', 'REJECTED', 'PAID', 'CLOSED'] as const
@@ -82,7 +82,13 @@ export async function transitionGrantApplicationSafely(
 
     let approved = row.approved_amount == null ? null : Number(row.approved_amount)
     if (to === 'APPROVED' || to === 'PARTIALLY_APPROVED') {
-      await assertGrantJustificatifsSatisfied(manager, row.federation_id, row.league_id, row.season_id, id)
+      await assertGrantJustificatifsWithExceptionsSatisfied(
+        manager,
+        row.federation_id,
+        row.league_id,
+        row.season_id,
+        id,
+      )
       approved = requireAmount(approvedAmount, 'Montant approuvé')
       if (approved > Number(row.requested_amount) + 0.001) {
         throw new FederalOperationWorkflowError('Le montant approuvé ne peut pas dépasser le montant demandé')
