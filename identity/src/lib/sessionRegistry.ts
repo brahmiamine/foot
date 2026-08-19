@@ -42,7 +42,7 @@ export async function createOrRefreshSession(input: {
 
   if (input.sessionId) {
     const existing = await repo.findOne({ where: { id: input.sessionId, userId: input.userId } });
-    if (existing && !existing.revokedAt) {
+    if (existing && !existing.revokedAt && existing.expiresAt.getTime() > now.getTime()) {
       existing.tokenVersion = input.tokenVersion;
       existing.lastSeenAt = now;
       existing.expiresAt = expiresAt;
