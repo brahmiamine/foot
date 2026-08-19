@@ -26,13 +26,13 @@ const session: SsoUser = {
   leagueId: "league-1",
 };
 
-function pendingItem(federationId: string, entityId: string) {
+function pendingItem(federationId: string, entityId: string, leagueId: string | null = null) {
   return {
     domain: "GRANT" as const,
     entityId,
     label: entityId,
     federationId,
-    leagueId: null,
+    leagueId,
     pendingSince: new Date("2026-08-19T08:00:00Z"),
     hoursPending: 5,
     state: "OVERDUE" as const,
@@ -64,7 +64,7 @@ describe("Federation action dashboard (GOV-009)", () => {
         escalationAt: new Date("2026-08-19T11:00:00Z"),
         policyVersion: 2,
       },
-      pendingItem("fed-1", "grant-1"),
+      pendingItem("fed-1", "grant-1", "league-1"),
     ]);
     mocks.hasPermission.mockImplementation(
       async (_source: DataSource, _session: SsoUser, permission: string) => permission === "grant.review",
