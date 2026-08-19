@@ -146,6 +146,12 @@ export async function issueSession(
   user: SsoUser,
   context?: SessionRequestContext,
 ) {
+  const dataSource = await getDataSource();
+  const current = await dataSource.getRepository(User).findOne({ where: { id: user.id } });
+  if (!current || !isAccountAccessAllowed(current) || current.tokenVersion !== user.tokenVersion) {
+    throw new Error("account_access_denied");
+  }
+
   const sessionId = await createOrRefreshSession({
     userId: user.id,
     tokenVersion: user.tokenVersion,
