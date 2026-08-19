@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { generateKeyPairSync } from "crypto";
 import { decodeJwt, importPKCS8, SignJWT } from "jose";
+import { User } from "@/entities/User";
 import { createTestDataSource } from "@/test/testDataSource";
 import { seedUser } from "@/test/fixtures";
 import { resetJwtKeyCache } from "@/lib/jwtKeys";
@@ -138,11 +139,12 @@ describe("verifySessionToken", () => {
       },
     );
     expect(update.ok).toBe(true);
+    const persisted = await dataSource.getRepository(User).findOneByOrFail({ id: user.id });
 
     const token = await signCurrent("user-1", {
       email: user.email,
       role: user.role,
-      tokenVersion: 0,
+      tokenVersion: persisted.tokenVersion,
     });
     expect(await verifySessionToken(token)).toBeNull();
   });
@@ -158,11 +160,12 @@ describe("verifySessionToken", () => {
       },
     );
     expect(update.ok).toBe(true);
+    const persisted = await dataSource.getRepository(User).findOneByOrFail({ id: user.id });
 
     const token = await signCurrent("user-1", {
       email: user.email,
       role: user.role,
-      tokenVersion: 0,
+      tokenVersion: persisted.tokenVersion,
     });
     expect(await verifySessionToken(token)).toBeNull();
   });
