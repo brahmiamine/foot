@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   news: vi.fn(),
   announcement: vi.fn(),
   product: vi.fn(),
+  decisions: vi.fn(),
 }));
 
 vi.mock("@/services/ClubApprovalService", () => ({
@@ -17,6 +18,11 @@ vi.mock("@/services/ClubApprovalService", () => ({
 vi.mock("@/services/NewsService", () => ({ NewsService: class { findById = mocks.news; } }));
 vi.mock("@/services/AnnouncementService", () => ({ AnnouncementService: class { findById = mocks.announcement; } }));
 vi.mock("@/services/ProductService", () => ({ ProductService: class { findById = mocks.product; } }));
+vi.mock("@/lib/database", () => ({
+  getDataSource: vi.fn(async () => ({
+    getRepository: vi.fn(() => ({ find: mocks.decisions })),
+  })),
+}));
 
 import { ActionDashboardService } from "./ActionDashboardService";
 
@@ -53,6 +59,7 @@ describe("ActionDashboardService Club Hub (GOV-009)", () => {
     mocks.news.mockResolvedValue({ title: "Actualité à valider" });
     mocks.announcement.mockResolvedValue({ title: "Communiqué" });
     mocks.product.mockResolvedValue({ nameFr: "Maillot" });
+    mocks.decisions.mockResolvedValue([]);
   });
 
   it("returns only approvals the current user can actually decide", async () => {
@@ -83,5 +90,15 @@ describe("ActionDashboardService Club Hub (GOV-009)", () => {
 
     const items = await new ActionDashboardService().listForUser("team-1", access);
     expect(items).toHaveLength(1);
+  });
+
+  it("hides a dual-approval request after the actor has already recorded a decision", async () => {
+    mocks.listPending.mockResolvedValue([
+      request({ id: "dual-1", makerUserId: "maker-2", approvalMode: "DUAL_APPROVAL", requiredApprovals: 2 }),
+    ]);
+    mocks.decisions.mockResolvedValue([{ requestId: "dual-1" }]);
+
+    const items = await new ActionDashboardService().listForUser("team-1", access);
+    expect(items).toEqual([]);
   });
 });
