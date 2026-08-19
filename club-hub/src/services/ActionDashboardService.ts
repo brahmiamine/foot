@@ -1,5 +1,11 @@
-import type { ClubApprovalDomain, ClubApprovalRequest } from "@/entities/ClubGovernance";
+import { In } from "typeorm";
+import {
+  ClubApprovalDecision,
+  type ClubApprovalDomain,
+  type ClubApprovalRequest,
+} from "@/entities/ClubGovernance";
 import { can, type UserAccess } from "@/lib/access";
+import { getDataSource } from "@/lib/database";
 import { AnnouncementService } from "@/services/AnnouncementService";
 import { ClubApprovalService } from "@/services/ClubApprovalService";
 import { NewsService } from "@/services/NewsService";
@@ -43,9 +49,23 @@ export class ActionDashboardService {
     if (access.teamId !== teamId) {
       throw new Error("Action non autorisée : club hors de votre périmètre");
     }
-    const requests = (await new ClubApprovalService().listPending(teamId)).filter((request) =>
-      isActionableBy(request, access),
+
+    const permittedRequests = (await new ClubApprovalService().listPending(teamId)).filter(
+      (request) => isActionableBy(request, access),
     );
+    if (permittedRequests.length === 0) return [];
+
+    const dataSource = await getDataSource();
+    const previousDecisions = await dataSource.getRepository(ClubApprovalDecision).find({
+      where: {
+        actorUserId: access.userId,
+        requestId: In(permittedRequests.map((request) => request.id)),
+      },
+      select: { requestId: true },
+    });
+    const alreadyDecided = new Set(previousDecisions.map((decision) => decision.requestId));
+    const requests = permittedRequests.filter((request) => !alreadyDecided.has(request.id));
+
     const items = await Promise.all(
       requests.map(async (request): Promise<ActionItem> => ({
         id: `club-approval:${request.id}`,
