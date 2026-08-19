@@ -5,6 +5,11 @@ import {
   requireConfigurationChangeReason,
   type ConfigurationAuditContext,
 } from "../../../packages/domain-contracts/src/configuration-audit";
+import {
+  resolvePolicy,
+  type PolicyRecord,
+  type ResolvedPolicy,
+} from "../../../packages/domain-contracts/src/policy";
 
 export class PublicFormClosedError extends Error {
   constructor(message: string) {
@@ -40,10 +45,22 @@ const DEFAULTS: PublicFormSettingsInput = {
   rateLimitWindowMinutes: null,
 };
 
-function isActive(row: PublicFormSettings, at: Date): boolean {
-  if (row.effectiveFrom && row.effectiveFrom.getTime() > at.getTime()) return false;
-  if (row.effectiveUntil && row.effectiveUntil.getTime() <= at.getTime()) return false;
-  return true;
+function toPolicyRecord(row: PublicFormSettings): PolicyRecord<PublicFormSettingsInput> {
+  return {
+    id: row.id,
+    scopeType: "CLUB",
+    scopeId: row.teamId,
+    version: row.version,
+    effectiveFrom: row.effectiveFrom,
+    effectiveUntil: row.effectiveUntil,
+    values: {
+      isOpen: Boolean(row.isOpen),
+      opensAt: row.opensAt,
+      closesAt: row.closesAt,
+      rateLimitMax: row.rateLimitMax,
+      rateLimitWindowMinutes: row.rateLimitWindowMinutes,
+    },
+  };
 }
 
 function snapshot(row: PublicFormSettings): ClubConfigurationSnapshot {
@@ -68,34 +85,32 @@ function snapshot(row: PublicFormSettings): ClubConfigurationSnapshot {
  * changement est append-only et audité dans la même transaction.
  */
 export class PublicFormSettingsService {
-  async get(
+  /** GOV-006 : résolution standardisée avec provenance DEFAULT ou CLUB/version. */
+  async getExplained(
     teamId: string,
     domain: PublicFormDomain,
     at: Date = new Date(),
-  ): Promise<EffectivePublicFormSettings> {
+  ): Promise<ResolvedPolicy<PublicFormSettingsInput>> {
     const ds = await getDataSource();
     const rows = await ds.getRepository(PublicFormSettings).find({
       where: { teamId, domain },
       order: { version: "DESC" },
     });
-    const row = rows.find((candidate) => isActive(candidate, at));
-    if (!row) {
-      return {
-        ...DEFAULTS,
-        version: 0,
-        effectiveFrom: null,
-        effectiveUntil: null,
-      };
-    }
+    return resolvePolicy(DEFAULTS, rows.map(toPolicyRecord), { clubId: teamId }, at);
+  }
+
+  async get(
+    teamId: string,
+    domain: PublicFormDomain,
+    at: Date = new Date(),
+  ): Promise<EffectivePublicFormSettings> {
+    const resolved = await this.getExplained(teamId, domain, at);
+    const source = resolved.sources.isOpen;
     return {
-      isOpen: Boolean(row.isOpen),
-      opensAt: row.opensAt,
-      closesAt: row.closesAt,
-      rateLimitMax: row.rateLimitMax,
-      rateLimitWindowMinutes: row.rateLimitWindowMinutes,
-      version: row.version,
-      effectiveFrom: row.effectiveFrom,
-      effectiveUntil: row.effectiveUntil,
+      ...resolved.values,
+      version: source.kind === "POLICY" ? source.version ?? 0 : 0,
+      effectiveFrom: source.kind === "POLICY" && source.effectiveFrom ? new Date(source.effectiveFrom) : null,
+      effectiveUntil: source.kind === "POLICY" && source.effectiveUntil ? new Date(source.effectiveUntil) : null,
     };
   }
 
