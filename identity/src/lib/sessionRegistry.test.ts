@@ -34,7 +34,7 @@ afterEach(async () => {
 });
 
 describe("session registry", () => {
-  it("does not revive an expired session when a token is reissued", async () => {
+  it("refuses to reissue an expired session instead of silently creating a replacement", async () => {
     const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 3 });
     const repo = dataSource.getRepository(UserSession);
     const expiredAt = new Date(Date.now() - 60_000);
@@ -53,15 +53,47 @@ describe("session registry", () => {
     );
 
     const { createOrRefreshSession } = await import("./sessionRegistry");
-    const replacement = await createOrRefreshSession({
-      userId: user.id,
-      tokenVersion: user.tokenVersion,
-      sessionId: "expired-session",
-      ttlSeconds: 3600,
-    });
+    await expect(
+      createOrRefreshSession({
+        userId: user.id,
+        tokenVersion: user.tokenVersion,
+        sessionId: "expired-session",
+        ttlSeconds: 3600,
+      }),
+    ).rejects.toThrow("SESSION_NOT_ACTIVE");
 
-    expect(replacement).not.toBe("expired-session");
-    expect((await repo.findOneByOrFail({ id: "expired-session" })).expiresAt).toEqual(expiredAt);
+    const stored = await repo.find();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.id).toBe("expired-session");
+    expect(stored[0]?.expiresAt).toEqual(expiredAt);
+  });
+
+  it("refuses to reissue a revoked session", async () => {
+    const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 3 });
+    const repo = dataSource.getRepository(UserSession);
+    await repo.save(
+      repo.create({
+        id: "revoked-session",
+        userId: user.id,
+        tokenVersion: user.tokenVersion,
+        ipAddress: null,
+        userAgent: null,
+        lastSeenAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        revokedAt: new Date(),
+        revokedReason: "USER_REVOKED",
+      }),
+    );
+
+    const { createOrRefreshSession } = await import("./sessionRegistry");
+    await expect(
+      createOrRefreshSession({
+        userId: user.id,
+        tokenVersion: user.tokenVersion,
+        sessionId: "revoked-session",
+        ttlSeconds: 3600,
+      }),
+    ).rejects.toThrow("SESSION_NOT_ACTIVE");
   });
 
   it("revokes one session without invalidating another session for the same user", async () => {
