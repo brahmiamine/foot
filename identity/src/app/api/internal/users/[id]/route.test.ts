@@ -67,6 +67,34 @@ describe("PATCH /api/internal/users/[id]", () => {
     expect(body.role).toBe("ADMIN");
   });
 
+  it("updates a bounded temporary access window", async () => {
+    const { PATCH } = await import("./route");
+    await seedUser(dataSource, { id: "user-1", tokenVersion: 4 });
+
+    const response = await PATCH(buildRequest("PATCH", {
+      accessValidFrom: "2026-08-20T08:00:00.000Z",
+      accessValidUntil: "2026-08-20T18:00:00.000Z",
+    }), { params: Promise.resolve({ id: "user-1" }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.accessValidFrom).toBe("2026-08-20T08:00:00.000Z");
+    expect(body.accessValidUntil).toBe("2026-08-20T18:00:00.000Z");
+  });
+
+  it("rejects an inverted temporary access window", async () => {
+    const { PATCH } = await import("./route");
+    await seedUser(dataSource, { id: "user-1" });
+
+    const response = await PATCH(buildRequest("PATCH", {
+      accessValidFrom: "2026-08-20T18:00:00.000Z",
+      accessValidUntil: "2026-08-20T08:00:00.000Z",
+    }), { params: Promise.resolve({ id: "user-1" }) });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_access_window" });
+  });
+
   it("rejects an empty body", async () => {
     const { PATCH } = await import("./route");
     await seedUser(dataSource, { id: "user-1" });
