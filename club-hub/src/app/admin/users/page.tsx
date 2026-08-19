@@ -34,6 +34,8 @@ export default async function UsersPage() {
     email: u.email,
     role: u.role,
     isActive: u.isActive,
+    accessValidFrom: u.accessValidFrom,
+    accessValidUntil: u.accessValidUntil,
     createdAt: u.createdAt.toISOString(),
     roleLabels: rolesByUser.get(u.id) ?? [],
   }));
