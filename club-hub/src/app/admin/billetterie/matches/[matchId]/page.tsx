@@ -17,7 +17,10 @@ export default async function MatchTicketingPage({ params }: { params: Promise<{
   const match = await service.findHomeMatch(matchId, teamId);
   if (!match) notFound();
 
-  const [categories, offers] = await Promise.all([service.listCategories(teamId), service.listOffers(matchId)]);
+  const [categories, offers] = await Promise.all([
+    service.listCategories(teamId),
+    service.listOffers(matchId, teamId),
+  ]);
 
   return (
     <MatchOffersManagement
