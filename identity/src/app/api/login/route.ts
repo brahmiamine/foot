@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/lib/authenticate";
 import { issueSession } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 import { sanitizeRedirect } from "@/lib/redirect";
 import { getClientIP } from "@/lib/getClientIP";
 import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt } from "@/lib/loginRateLimit";
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
       mfaEnrollmentGrace: mfaPolicy.mode === "REQUIRED",
       mfaGraceEndsAt: mfaPolicy.graceEndsAt?.toISOString() ?? null,
     });
-    await issueSession(response, user);
+    await issueSession(response, user, sessionContextFromRequest(request));
     return response;
   } catch (error) {
     console.error("SSO login error:", error);
