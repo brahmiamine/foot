@@ -7,7 +7,9 @@ export const runtime = "nodejs";
 function parseOptionalInstant(value: unknown): { ok: true; value: Date | null | undefined } | { ok: false } {
   if (value === undefined) return { ok: true, value: undefined };
   if (value === null) return { ok: true, value: null };
-  if (typeof value !== "string" || value.trim() === "") return { ok: false };
+  if (typeof value !== "string" || value.trim() === "" || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) {
+    return { ok: false };
+  }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return { ok: false };
   return { ok: true, value: parsed };
