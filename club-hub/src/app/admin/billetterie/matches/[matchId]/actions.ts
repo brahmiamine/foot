@@ -33,16 +33,7 @@ export async function upsertMatchOffer(matchId: string, formData: FormData) {
 
     const teamId = await requireTeamId();
     const service = new TicketingService();
-    const match = await service.findHomeMatch(matchId, teamId);
-    if (!match) {
-      return { success: false, error: "Match introuvable pour ce club." };
-    }
-    const category = await service.findCategory(data.categoryId, teamId);
-    if (!category) {
-      return { success: false, error: "Catégorie introuvable pour ce club." };
-    }
-
-    const offer = await service.upsertOffer(matchId, data.categoryId, {
+    const offer = await service.upsertOffer(teamId, matchId, data.categoryId, {
       price: data.price.toFixed(3),
       capacity: data.capacity,
       allowedAudience: data.allowedAudience,
@@ -51,8 +42,7 @@ export async function upsertMatchOffer(matchId: string, formData: FormData) {
       endsAt: parseDateInput(data.endsAt),
     });
 
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
+    await new AuditLogService().create({
       userId: session.user.id,
       action: "UPDATE",
       entity: "MatchTicketCategory",
@@ -77,14 +67,9 @@ export async function deleteMatchOffer(matchId: string, offerId: string) {
 
     const teamId = await requireTeamId();
     const service = new TicketingService();
-    const match = await service.findHomeMatch(matchId, teamId);
-    if (!match) {
-      return { success: false, error: "Match introuvable pour ce club." };
-    }
-    await service.deleteOffer(offerId, matchId);
+    await service.deleteOffer(teamId, offerId, matchId);
 
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
+    await new AuditLogService().create({
       userId: session.user.id,
       action: "DELETE",
       entity: "MatchTicketCategory",
