@@ -63,8 +63,13 @@ export async function GET(request: NextRequest) {
           name: profile.name || profile.email,
           invitationToken: expected.invitationToken ?? null,
         });
-        if (result.status === "PENDING_CLUB_APPROVAL") {
-          return loginErrorRedirect(request, "club_approval_pending");
+        if (result.status !== "ACTIVE") {
+          return loginErrorRedirect(
+            request,
+            result.status === "PENDING_EMAIL_VERIFICATION"
+              ? "email_verification_pending"
+              : "club_approval_pending",
+          );
         }
         const response = NextResponse.redirect(new URL(target, getRequestOrigin(request)));
         response.cookies.set({ name: OAUTH_STATE_COOKIE, value: "", path: "/api/auth/google", maxAge: 0 });
