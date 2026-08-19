@@ -2,6 +2,7 @@ import { getDataSource } from "@/lib/database";
 import { SponsorRequest, SponsorLevel, SponsorLogoSize, SponsorRequestStatus } from "@/entities/SponsorRequest";
 import { Sponsor } from "@/entities/Sponsor";
 import { Repository } from "typeorm";
+import { ClubFeatureSettingsService } from "./ClubFeatureSettingsService";
 
 interface CreateSponsorRequestData {
   companyName: string;
@@ -38,13 +39,12 @@ interface UpdateSponsorData {
   isActive?: boolean;
 }
 
-/**
- * Service for Sponsor / SponsorRequest operations. Une entreprise soumet
- * une demande via le formulaire public (SponsorRequest) ; le club l'accepte
- * (ce qui crée un dossier Sponsor actif avec les termes du contrat) ou la
- * refuse.
- */
+/** Sponsor / SponsorRequest operations, serveur-gardées par GOV-010. */
 export class SponsorService {
+  private async assertEnabled(teamId: string): Promise<void> {
+    await new ClubFeatureSettingsService().assertEnabled(teamId, "SPONSORING");
+  }
+
   private async getRequestRepository(): Promise<Repository<SponsorRequest>> {
     const dataSource = await getDataSource();
     return dataSource.getRepository(SponsorRequest);
@@ -55,9 +55,8 @@ export class SponsorService {
     return dataSource.getRepository(Sponsor);
   }
 
-  // ----- Demandes de partenariat -----
-
   async findAllRequests(teamId: string, status?: SponsorRequestStatus): Promise<SponsorRequest[]> {
+    await this.assertEnabled(teamId);
     const repository = await this.getRequestRepository();
     return repository.find({
       where: status ? { teamId, status } : { teamId },
@@ -66,34 +65,26 @@ export class SponsorService {
   }
 
   async findRequestById(id: number, teamId: string): Promise<SponsorRequest | null> {
+    await this.assertEnabled(teamId);
     const repository = await this.getRequestRepository();
     return repository.findOne({ where: { id, teamId } });
   }
 
-  /**
-   * Soumission publique d'une demande de partenariat (aucune authentification).
-   */
   async createRequest(data: CreateSponsorRequestData, teamId: string): Promise<SponsorRequest> {
+    await this.assertEnabled(teamId);
     const repository = await this.getRequestRepository();
     const request = repository.create({ ...data, teamId, status: "PENDING" });
     return repository.save(request);
   }
 
-  /**
-   * Accepter une demande : crée le dossier Sponsor actif avec les termes du
-   * contrat, et marque la demande comme acceptée.
-   */
   async acceptRequest(id: number, teamId: string, data: AcceptSponsorRequestData, reviewedBy: string | null): Promise<Sponsor> {
+    await this.assertEnabled(teamId);
     const requestRepository = await this.getRequestRepository();
     const sponsorRepository = await this.getSponsorRepository();
 
-    const request = await this.findRequestById(id, teamId);
-    if (!request) {
-      throw new Error("Demande non trouvée");
-    }
-    if (request.status !== "PENDING") {
-      throw new Error("Cette demande a déjà été traitée");
-    }
+    const request = await requestRepository.findOne({ where: { id, teamId } });
+    if (!request) throw new Error("Demande non trouvée");
+    if (request.status !== "PENDING") throw new Error("Cette demande a déjà été traitée");
 
     const sponsor = sponsorRepository.create({
       teamId,
@@ -116,20 +107,15 @@ export class SponsorService {
     request.reviewedBy = reviewedBy;
     request.reviewedAt = new Date();
     await requestRepository.save(request);
-
     return savedSponsor;
   }
 
   async refuseRequest(id: number, teamId: string, adminNotes: string, reviewedBy: string | null): Promise<SponsorRequest> {
+    await this.assertEnabled(teamId);
     const repository = await this.getRequestRepository();
-    const request = await this.findRequestById(id, teamId);
-    if (!request) {
-      throw new Error("Demande non trouvée");
-    }
-    if (request.status !== "PENDING") {
-      throw new Error("Cette demande a déjà été traitée");
-    }
-
+    const request = await repository.findOne({ where: { id, teamId } });
+    if (!request) throw new Error("Demande non trouvée");
+    if (request.status !== "PENDING") throw new Error("Cette demande a déjà été traitée");
     request.status = "REFUSED";
     request.adminNotes = adminNotes;
     request.reviewedBy = reviewedBy;
@@ -138,33 +124,31 @@ export class SponsorService {
   }
 
   async deleteRequest(id: number, teamId: string): Promise<boolean> {
+    await this.assertEnabled(teamId);
     const repository = await this.getRequestRepository();
-    const request = await this.findRequestById(id, teamId);
-    if (!request) {
-      throw new Error("Demande non trouvée");
-    }
+    const request = await repository.findOne({ where: { id, teamId } });
+    if (!request) throw new Error("Demande non trouvée");
     await repository.remove(request);
     return true;
   }
 
-  // ----- Dossiers sponsors actifs -----
-
   async findAllSponsors(teamId: string): Promise<Sponsor[]> {
+    await this.assertEnabled(teamId);
     const repository = await this.getSponsorRepository();
     return repository.find({ where: { teamId }, order: { createdAt: "DESC" } });
   }
 
   async findSponsorById(id: number, teamId: string): Promise<Sponsor | null> {
+    await this.assertEnabled(teamId);
     const repository = await this.getSponsorRepository();
     return repository.findOne({ where: { id, teamId } });
   }
 
   async updateSponsor(id: number, teamId: string, data: UpdateSponsorData): Promise<Sponsor> {
+    await this.assertEnabled(teamId);
     const repository = await this.getSponsorRepository();
-    const sponsor = await this.findSponsorById(id, teamId);
-    if (!sponsor) {
-      throw new Error("Sponsor non trouvé");
-    }
+    const sponsor = await repository.findOne({ where: { id, teamId } });
+    if (!sponsor) throw new Error("Sponsor non trouvé");
 
     if (data.companyName !== undefined) sponsor.companyName = data.companyName;
     if (data.logoUrl !== undefined) sponsor.logoUrl = data.logoUrl;
@@ -174,20 +158,16 @@ export class SponsorService {
     if (data.logoPlacement !== undefined) sponsor.logoPlacement = data.logoPlacement.join(",");
     if (data.contractStart !== undefined) sponsor.contractStart = data.contractStart;
     if (data.contractEnd !== undefined) sponsor.contractEnd = data.contractEnd;
-    if (data.contractAmount !== undefined) {
-      sponsor.contractAmount = data.contractAmount !== null ? String(data.contractAmount) : null;
-    }
+    if (data.contractAmount !== undefined) sponsor.contractAmount = data.contractAmount !== null ? String(data.contractAmount) : null;
     if (data.isActive !== undefined) sponsor.isActive = data.isActive;
-
     return repository.save(sponsor);
   }
 
   async deleteSponsor(id: number, teamId: string): Promise<boolean> {
+    await this.assertEnabled(teamId);
     const repository = await this.getSponsorRepository();
-    const sponsor = await this.findSponsorById(id, teamId);
-    if (!sponsor) {
-      throw new Error("Sponsor non trouvé");
-    }
+    const sponsor = await repository.findOne({ where: { id, teamId } });
+    if (!sponsor) throw new Error("Sponsor non trouvé");
     await repository.remove(sponsor);
     return true;
   }

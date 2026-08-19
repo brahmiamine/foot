@@ -1,5 +1,4 @@
 // Import reflect-metadata FIRST - required for TypeORM decorators
-// This must be imported before any entity imports
 import "reflect-metadata";
 
 import { DataSource } from "typeorm";
@@ -97,13 +96,8 @@ import { Membership, MembershipType } from "@/entities/Membership";
 import { PublicFormSettings } from "@/entities/PublicFormSettings";
 import { PublicContentPolicy } from "@/entities/PublicContentPolicy";
 import { ClubConfigurationAudit } from "@/entities/ClubConfigurationAudit";
+import { ClubFeatureSettings } from "@/entities/ClubFeatureSettings";
 
-/**
- * Database connection configuration
- * Uses TypeORM with MariaDB — base "foot" partagée avec ArbiNote et cardManager.
- * Federation/Team/Match sont mappées sur leurs tables existantes (mêmes
- * UUID) ; tout le reste est propre à cette app (préfixe cms_).
- */
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
 
@@ -146,7 +140,7 @@ export async function getDataSource(): Promise<DataSource> {
         CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow,
         TransferWindowHistory, ClubGovernanceSettings, ClubApprovalRequest,
         ClubApprovalDecision, Membership, MembershipType, PublicFormSettings,
-        PublicContentPolicy, ClubConfigurationAudit,
+        PublicContentPolicy, ClubConfigurationAudit, ClubFeatureSettings,
       ],
       migrations: [],
       charset: "utf8mb4",

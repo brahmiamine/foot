@@ -219,6 +219,8 @@ club-hub/sql/migration_add_supporter_community.sql
 club-hub/sql/migration_add_public_governance.sql
 # GOV-004/GOV-005 : versions temporelles formulaires + audit standard configuration/contenu.
 club-hub/sql/migration_add_configuration_policy_history.sql
+# GOV-010 : activation serveur versionnée des modules par club.
+club-hub/sql/migration_add_feature_settings.sql
 
 # --- match-operations (feuille de match électronique, dépend de Player/Card/Match) ---
 match-operations/sql/migration_match-operations_init.sql

@@ -1,5 +1,6 @@
 import { getDataSource } from "@/lib/database";
 import { PlayerApplication, ApplicationStatus } from "@/entities/PlayerApplication";
+import { ClubFeatureSettingsService } from "./ClubFeatureSettingsService";
 
 interface CreatePlayerApplicationData {
   childLastName: string;
@@ -14,12 +15,14 @@ interface CreatePlayerApplicationData {
   documentUrl?: string | null;
 }
 
-/**
- * Service pour les candidatures "Inscrire mon enfant" (formulaire public
- * /inscription, traitement dans /admin/academy/applications).
- */
+/** Candidatures "Inscrire mon enfant", rattachées au module ACADEMY. */
 export class PlayerApplicationService {
+  private async assertEnabled(teamId: string): Promise<void> {
+    await new ClubFeatureSettingsService().assertEnabled(teamId, "ACADEMY");
+  }
+
   async findAll(teamId: string, status?: ApplicationStatus): Promise<PlayerApplication[]> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(PlayerApplication).find({
       where: status ? { teamId, status } : { teamId },
@@ -28,18 +31,20 @@ export class PlayerApplicationService {
   }
 
   async findById(id: number, teamId: string): Promise<PlayerApplication | null> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(PlayerApplication).findOne({ where: { id, teamId } });
   }
 
-  /** Soumission publique, sans authentification. */
   async create(teamId: string, data: CreatePlayerApplicationData): Promise<PlayerApplication> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(PlayerApplication);
     return repository.save(repository.create({ ...data, teamId, status: "NEW" }));
   }
 
   async updateStatus(id: number, teamId: string, status: ApplicationStatus, adminNotes?: string | null): Promise<PlayerApplication> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(PlayerApplication);
     const application = await repository.findOne({ where: { id, teamId } });
@@ -50,6 +55,7 @@ export class PlayerApplicationService {
   }
 
   async delete(id: number, teamId: string): Promise<boolean> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(PlayerApplication);
     const application = await repository.findOne({ where: { id, teamId } });

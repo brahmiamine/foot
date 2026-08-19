@@ -2,6 +2,7 @@ import { getDataSource } from "@/lib/database";
 import { RecruitmentNeed } from "@/entities/RecruitmentNeed";
 import { RecruitmentApplication } from "@/entities/RecruitmentApplication";
 import { ApplicationStatus } from "@/entities/PlayerApplication";
+import { ClubFeatureSettingsService } from "./ClubFeatureSettingsService";
 
 interface RecruitmentNeedData {
   category: string;
@@ -26,9 +27,12 @@ interface CreateRecruitmentApplicationData {
 
 /** Service pour la page /recrutement : postes recherchés + candidatures reçues. */
 export class RecruitmentService {
-  // ----- Postes recherchés -----
+  private async assertEnabled(teamId: string): Promise<void> {
+    await new ClubFeatureSettingsService().assertEnabled(teamId, "RECRUITMENT");
+  }
 
   async findAllNeeds(teamId: string, activeOnly = false): Promise<RecruitmentNeed[]> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(RecruitmentNeed).find({
       where: activeOnly ? { teamId, isActive: true } : { teamId },
@@ -37,12 +41,14 @@ export class RecruitmentService {
   }
 
   async createNeed(teamId: string, data: RecruitmentNeedData): Promise<RecruitmentNeed> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(RecruitmentNeed);
     return repository.save(repository.create({ ...data, teamId }));
   }
 
   async updateNeed(id: number, teamId: string, data: Partial<RecruitmentNeedData>): Promise<RecruitmentNeed> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(RecruitmentNeed);
     const need = await repository.findOne({ where: { id, teamId } });
@@ -52,6 +58,7 @@ export class RecruitmentService {
   }
 
   async deleteNeed(id: number, teamId: string): Promise<boolean> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(RecruitmentNeed);
     const need = await repository.findOne({ where: { id, teamId } });
@@ -60,9 +67,8 @@ export class RecruitmentService {
     return true;
   }
 
-  // ----- Candidatures -----
-
   async findAllApplications(teamId: string, status?: ApplicationStatus): Promise<RecruitmentApplication[]> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(RecruitmentApplication).find({
       where: status ? { teamId, status } : { teamId },
@@ -72,6 +78,7 @@ export class RecruitmentService {
 
   /** Soumission publique, sans authentification. */
   async createApplication(teamId: string, data: CreateRecruitmentApplicationData): Promise<RecruitmentApplication> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(RecruitmentApplication);
     return repository.save(repository.create({ ...data, teamId, status: "NEW" }));
@@ -81,8 +88,9 @@ export class RecruitmentService {
     id: number,
     teamId: string,
     status: ApplicationStatus,
-    adminNotes?: string | null
+    adminNotes?: string | null,
   ): Promise<RecruitmentApplication> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(RecruitmentApplication);
     const application = await repository.findOne({ where: { id, teamId } });
@@ -93,6 +101,7 @@ export class RecruitmentService {
   }
 
   async deleteApplication(id: number, teamId: string): Promise<boolean> {
+    await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(RecruitmentApplication);
     const application = await repository.findOne({ where: { id, teamId } });
