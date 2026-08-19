@@ -1,4 +1,6 @@
 import { TeamService } from "@/services/TeamService";
+import { ActionDashboardService } from "@/services/ActionDashboardService";
+import { getUserAccess } from "@/lib/access";
 import { requireTeamId } from "@/lib/team-context";
 import { getDataSource } from "@/lib/database";
 import { Card } from "@/entities/Card";
@@ -12,6 +14,7 @@ export const dynamic = "force-dynamic";
 /** Admin Dashboard Page — accueil du club + résumé disciplinaire. */
 export default async function AdminDashboardPage() {
   const teamId = await requireTeamId();
+  const access = await getUserAccess();
   const teamService = new TeamService();
   const team = await teamService.findById(teamId);
 
@@ -21,7 +24,7 @@ export default async function AdminDashboardPage() {
   const fineRepo = dataSource.getRepository(Fine);
   const playerRepo = dataSource.getRepository(Player);
 
-  const [yellowCards, redCards, activeSuspensions, pendingFines, fineBlockedPlayers, atRiskPlayers] =
+  const [yellowCards, redCards, activeSuspensions, pendingFines, fineBlockedPlayers, atRiskPlayers, actionItems] =
     await Promise.all([
       cardRepo.count({ where: { isNeutralized: false, type: "YELLOW", player: { teamId } } }),
       cardRepo
@@ -58,16 +61,22 @@ export default async function AdminDashboardPage() {
         .addSelect("COUNT(*)", "count")
         .having("COUNT(*) = 2")
         .getRawMany<{ playerId: string; firstNameFr: string; lastNameFr: string; count: string }>(),
+      new ActionDashboardService().listForUser(teamId, access),
     ]);
 
   return (
     <div className="container-fluid px-0">
       <div className="card mb-4">
-        <div className="card-body">
-          <h2 className="h5 mb-1">Tableau de bord</h2>
-          <p className="text-muted mb-0">
-            Bienvenue dans l&apos;espace d&apos;administration du club {team?.nom ?? ""}.
-          </p>
+        <div className="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 className="h5 mb-1">Tableau de bord</h2>
+            <p className="text-muted mb-0">
+              Bienvenue dans l&apos;espace d&apos;administration du club {team?.nom ?? ""}.
+            </p>
+          </div>
+          <Link href="/admin/actions" className="btn btn-primary">
+            Mes actions à traiter <span className="badge bg-light text-primary ms-1">{actionItems.length}</span>
+          </Link>
         </div>
       </div>
 
