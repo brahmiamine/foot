@@ -6,6 +6,7 @@ import { useAdminSidebar } from './AdminSidebarContext'
 
 const navItems = [
   { label: 'Tableau de bord', href: '/admin', icon: 'bx bx-home-circle' },
+  { label: 'Mes actions', href: '/admin/actions', icon: 'bx bx-task' },
   { label: 'Fédérations', href: '/admin/federations', icon: 'bx bx-buildings' },
   { label: 'Ligues', href: '/admin/leagues', icon: 'bx bx-trophy' },
   { label: 'Saisons', href: '/admin/saisons', icon: 'bx bx-calendar-event' },
