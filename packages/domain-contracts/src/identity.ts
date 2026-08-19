@@ -26,6 +26,8 @@ export interface IdentityUserProfile {
 
 export interface IdentityUserRecord extends IdentityUserProfile {
   isActive: boolean
+  accessValidFrom?: string | null
+  accessValidUntil?: string | null
   teamId: string | null
   playerId?: string | null
   federationId?: string | null
@@ -45,6 +47,8 @@ export interface CreateIdentityAccountInput {
   password: string
   role: IdentityRole
   isActive?: boolean
+  accessValidFrom?: string | null
+  accessValidUntil?: string | null
   teamId?: string | null
   playerId?: string | null
   federationId?: string | null
@@ -57,6 +61,8 @@ export interface UpdateIdentityAccountInput {
   isActive?: boolean
   role?: IdentityRole
   password?: string
+  accessValidFrom?: string | null
+  accessValidUntil?: string | null
 }
 
 export interface InvitePlayerAccountInput {
