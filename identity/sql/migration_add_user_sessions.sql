@@ -1,8 +1,14 @@
--- ID-005 — registre de sessions individuelles Identity.
+-- ID-005/ID-006 — registre de sessions individuelles et accès temporaire Identity.
 -- `token_version` conserve la génération globale de révocation ; `id` est le
 -- claim JWT `sid` utilisé pour invalider une session sans toucher aux autres.
+-- La fenêtre compte suit [access_valid_from, access_valid_until) et est relue
+-- côté Identity à chaque login/introspection.
 
 USE foot;
+
+ALTER TABLE `User`
+  ADD COLUMN access_valid_from DATETIME NULL AFTER isActive,
+  ADD COLUMN access_valid_until DATETIME NULL AFTER access_valid_from;
 
 CREATE TABLE IF NOT EXISTS identity_user_sessions (
   id VARCHAR(36) NOT NULL,
