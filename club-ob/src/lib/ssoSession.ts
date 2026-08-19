@@ -4,6 +4,7 @@ import {
   getSsoCookieName,
   verifySsoTokenWithRevocation,
 } from "../../../packages/auth-shared/src/session";
+import { getObTeam } from "@/lib/ob-team";
 
 /**
  * Wrapper local au-dessus de la vérification JWT partagée (voir
@@ -47,16 +48,20 @@ export function buildMemberLoginUrl(currentUrl: string): string {
 }
 
 /**
- * Variante pour les Server Components (pas de NextRequest disponible) :
- * reconstruit l'URL absolue de l'app à partir des en-têtes de la requête
- * entrante, pour que `sso` puisse rediriger vers le bon hôte après connexion.
+ * Variante pour les Server Components : reconstruit l'URL absolue de l'app
+ * et transporte aussi l'identifiant OB vers Identity. Ainsi un nouvel
+ * utilisateur qui passe par « créer un compte » reste soumis à la policy
+ * d'inscription MEMBER du club au lieu de retomber sur le parcours global.
  */
 export async function buildMemberLoginUrlForPath(path: string): Promise<string> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
   const currentUrl = `${proto}://${host}${path}`;
-  return buildMemberLoginUrl(currentUrl);
+  const loginUrl = new URL(buildMemberLoginUrl(currentUrl));
+  const team = await getObTeam();
+  if (team?.id) loginUrl.searchParams.set("teamId", team.id);
+  return loginUrl.toString();
 }
 
 export function buildLogoutUrl(currentUrl: string): string {
