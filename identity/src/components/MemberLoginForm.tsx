@@ -15,15 +15,17 @@ const ERROR_MESSAGES: Record<string, TranslationKey> = {
 export default function MemberLoginForm({
   redirectTo,
   initialError,
+  teamId,
 }: {
   redirectTo: string;
   initialError?: string | null;
+  teamId?: string | null;
 }) {
   const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
-    initialError ? t(ERROR_MESSAGES[initialError] ?? "auth.login.unavailable") : null
+    initialError ? t(ERROR_MESSAGES[initialError] ?? "auth.login.unavailable") : null,
   );
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +53,12 @@ export default function MemberLoginForm({
     }
   }
 
-  const googleHref = `/api/auth/google?redirect=${encodeURIComponent(redirectTo)}`;
+  const googleParams = new URLSearchParams({ redirect: redirectTo });
+  if (teamId) googleParams.set("teamId", teamId);
+  const googleHref = `/api/auth/google?${googleParams.toString()}`;
+
+  const registerParams = new URLSearchParams({ redirect: redirectTo });
+  if (teamId) registerParams.set("teamId", teamId);
 
   return (
     <form onSubmit={handleSubmit} className="sso-form">
@@ -93,7 +100,7 @@ export default function MemberLoginForm({
         {loading ? t("auth.login.pending") : t("auth.login.submit")}
       </button>
 
-      <Link href={`/membre/register?redirect=${encodeURIComponent(redirectTo)}`} className="sso-switch">
+      <Link href={`/membre/register?${registerParams.toString()}`} className="sso-switch">
         {t("auth.login.registerPrompt")}
       </Link>
 
