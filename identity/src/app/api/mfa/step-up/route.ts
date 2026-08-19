@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession, issueSession } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
 import { consumeRecoveryCode, verifyTotpCode } from "@/lib/mfa";
@@ -68,18 +69,23 @@ export async function POST(request: NextRequest) {
 
     clearFailedLoginAttempts(clientIP);
     const response = NextResponse.json({ success: true, redirect: redirect ?? "/" });
-    await issueSession(response, {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      teamId: user.teamId ?? null,
-      federationId: user.federationId ?? null,
-      leagueId: user.leagueId ?? null,
-      playerId: user.playerId ?? null,
-      tokenVersion: user.tokenVersion,
-      mfaVerifiedAt: Date.now(),
-    });
+    await issueSession(
+      response,
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        teamId: user.teamId ?? null,
+        federationId: user.federationId ?? null,
+        leagueId: user.leagueId ?? null,
+        playerId: user.playerId ?? null,
+        tokenVersion: user.tokenVersion,
+        sessionId: session.sessionId,
+        mfaVerifiedAt: Date.now(),
+      },
+      sessionContextFromRequest(request),
+    );
     return response;
   } catch (error) {
     console.error("MFA step-up error:", error);
