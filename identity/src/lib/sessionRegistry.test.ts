@@ -96,6 +96,63 @@ describe("session registry", () => {
     ).rejects.toThrow("SESSION_NOT_ACTIVE");
   });
 
+  it("keeps the same sid while moving the current session to a newer token generation", async () => {
+    const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 2 });
+    const repo = dataSource.getRepository(UserSession);
+    await repo.save(
+      repo.create({
+        id: "current-session",
+        userId: user.id,
+        tokenVersion: 2,
+        ipAddress: "127.0.0.1",
+        userAgent: "Old browser",
+        lastSeenAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        revokedAt: null,
+        revokedReason: null,
+      }),
+    );
+
+    const { createOrRefreshSession } = await import("./sessionRegistry");
+    const sid = await createOrRefreshSession({
+      userId: user.id,
+      tokenVersion: 3,
+      sessionId: "current-session",
+      ttlSeconds: 3600,
+      context: { ipAddress: "127.0.0.2", userAgent: "New browser" },
+    });
+
+    expect(sid).toBe("current-session");
+    const refreshed = await repo.findOneByOrFail({ id: sid });
+    expect(refreshed.tokenVersion).toBe(3);
+    expect(refreshed.ipAddress).toBe("127.0.0.2");
+    expect(refreshed.userAgent).toBe("New browser");
+  });
+
+  it("lists only active sessions from the requested token generation", async () => {
+    const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 4 });
+    const repo = dataSource.getRepository(UserSession);
+    const common = {
+      userId: user.id,
+      ipAddress: null,
+      userAgent: null,
+      lastSeenAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      revokedReason: null,
+    };
+    await repo.save([
+      repo.create({ ...common, id: "current-generation", tokenVersion: 4 }),
+      repo.create({ ...common, id: "stale-generation", tokenVersion: 3 }),
+    ]);
+
+    const { listUserSessions } = await import("./sessionRegistry");
+    const sessions = await listUserSessions(user.id, 4, "current-generation");
+
+    expect(sessions.map((session) => session.id)).toEqual(["current-generation"]);
+    expect(sessions[0]?.current).toBe(true);
+  });
+
   it("revokes one session without invalidating another session for the same user", async () => {
     const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 1 });
     const { NextResponse } = await import("next/server");
