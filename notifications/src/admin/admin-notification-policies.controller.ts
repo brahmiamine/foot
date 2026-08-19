@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
   Get,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -40,6 +42,40 @@ export class AdminNotificationPoliciesController {
                 policy.scopeId === user.teamId,
             ),
       );
+  }
+
+  /**
+   * GOV-006 : expose la policy réellement appliquée et la provenance de
+   * chaque canal. Un ADMIN est toujours borné à son propre club ; seul un
+   * SUPERADMIN peut demander explicitement un autre teamId.
+   */
+  @Get('effective')
+  @Roles('SUPERADMIN', 'ADMIN')
+  async resolveEffective(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('category') category?: string,
+    @Query('teamId') requestedTeamId?: string | null,
+    @Query('at') rawAt?: string,
+  ) {
+    if (user.role !== 'SUPERADMIN' && !user.teamId) {
+      throw new ForbiddenException(
+        'Actor has no club to resolve a CLUB notification policy for',
+      );
+    }
+
+    const teamId =
+      user.role === 'SUPERADMIN'
+        ? requestedTeamId?.trim() || null
+        : user.teamId;
+    const at = rawAt ? new Date(rawAt) : new Date();
+    if (Number.isNaN(at.getTime())) {
+      throw new BadRequestException('Invalid effective policy resolution date');
+    }
+
+    // Une catégorie absente force volontairement le fallback vers les
+    // policies joker `category IS NULL` sans introduire un nouveau scope.
+    const effectiveCategory = category?.trim() || '__WILDCARD__';
+    return this.policyService.resolveExplained(teamId, effectiveCategory, at);
   }
 
   @Post('platform')
