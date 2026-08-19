@@ -1,11 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getUserAccess } from "@/lib/access";
 import { requireTeamId } from "@/lib/team-context";
 import { PublicFormSettingsService } from "@/services/PublicFormSettingsService";
 import { PUBLIC_FORM_DOMAINS, type PublicFormDomain } from "@/entities/PublicFormSettings";
-import { AuditLogService } from "@/services/AuditLogService";
 
 function readDomain(formData: FormData): PublicFormDomain {
   const value = String(formData.get("domain") ?? "");
@@ -31,15 +31,19 @@ function readOptionalDate(formData: FormData, key: string): Date | null {
   return date;
 }
 
+function firstForwardedIp(value: string | null): string | null {
+  if (!value) return null;
+  return value.split(",")[0]?.trim() || null;
+}
+
 export async function updatePublicFormSettings(formData: FormData): Promise<void> {
   const access = await getUserAccess();
   if (!access.isClubAdmin) throw new Error("Action réservée à l'administrateur du club");
   const teamId = await requireTeamId();
   const domain = readDomain(formData);
-  const service = new PublicFormSettingsService();
+  const requestHeaders = await headers();
 
-  const before = await service.get(teamId, domain);
-  const after = await service.update(
+  await new PublicFormSettingsService().update(
     teamId,
     domain,
     {
@@ -49,16 +53,16 @@ export async function updatePublicFormSettings(formData: FormData): Promise<void
       rateLimitMax: readOptionalInt(formData, "rateLimitMax"),
       rateLimitWindowMinutes: readOptionalInt(formData, "rateLimitWindowMinutes"),
     },
-    access.userId,
+    {
+      actorUserId: access.userId,
+      actorRole: access.actorRole ?? "CLUB_ADMIN",
+      reason: String(formData.get("reason") ?? ""),
+      effectiveFrom: readOptionalDate(formData, "effectiveFrom"),
+      effectiveUntil: readOptionalDate(formData, "effectiveUntil"),
+      ipAddress: firstForwardedIp(requestHeaders.get("x-forwarded-for")),
+      userAgent: requestHeaders.get("user-agent"),
+    },
   );
 
-  await new AuditLogService().create({
-    userId: access.userId,
-    action: "UPDATE",
-    entity: "PublicFormSettings",
-    entityId: `${teamId}:${domain}`,
-    before,
-    after,
-  });
   revalidatePath("/admin/settings/public-forms");
 }

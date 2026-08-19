@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { createTestDataSource } from "@/test/testDataSource";
 import { IdentityPolicyAudit } from "@/entities/IdentityPolicyAudit";
+import { MfaRolePolicy } from "@/entities/MfaRolePolicy";
 
 let dataSource: DataSource;
 vi.mock("@/lib/db", () => ({ getDataSource: async () => dataSource }));
@@ -69,7 +70,7 @@ describe("MFA role policies", () => {
     });
   });
 
-  it("increments versions and writes immutable before/after audit context", async () => {
+  it("increments versions, preserves immutable snapshots and writes before/after audit context", async () => {
     const { updateMfaRolePolicy } = await import("./mfaPolicy");
     const first = await updateMfaRolePolicy({
       role: "REFEREE",
@@ -87,6 +88,15 @@ describe("MFA role policies", () => {
 
     expect(first.version).toBe(1);
     expect(second.version).toBe(2);
+
+    const snapshots = await dataSource.getRepository(MfaRolePolicy).find({
+      where: { role: "REFEREE" },
+      order: { version: "ASC" },
+    });
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots.map((row) => row.version)).toEqual([1, 2]);
+    expect(snapshots[0]).toMatchObject({ mode: "REQUIRED", gracePeriodDays: 5 });
+    expect(snapshots[1]).toMatchObject({ mode: "OPTIONAL", gracePeriodDays: 0 });
 
     const audits = await dataSource.getRepository(IdentityPolicyAudit).find({
       order: { createdAt: "ASC" },
@@ -107,6 +117,28 @@ describe("MFA role policies", () => {
     });
     expect(audits[1].before).toMatchObject({ role: "REFEREE", mode: "REQUIRED", version: 1 });
     expect(audits[1].after).toMatchObject({ role: "REFEREE", mode: "OPTIONAL", version: 2 });
+  });
+
+  it("does not apply a future MFA policy version before effectiveFrom", async () => {
+    const { updateMfaRolePolicy, getMfaRolePolicy } = await import("./mfaPolicy");
+    await updateMfaRolePolicy({
+      role: "PLAYER",
+      mode: "REQUIRED",
+      gracePeriodDays: 0,
+      effectiveFrom: new Date("2026-09-01T00:00:00Z"),
+      ...auditContext(),
+    } as Parameters<typeof updateMfaRolePolicy>[0] & { effectiveFrom: Date });
+
+    await expect(getMfaRolePolicy("PLAYER", new Date("2026-08-20T00:00:00Z"))).resolves.toMatchObject({
+      mode: "OPTIONAL",
+      version: 0,
+      source: "DEFAULT",
+    });
+    await expect(getMfaRolePolicy("PLAYER", new Date("2026-09-02T00:00:00Z"))).resolves.toMatchObject({
+      mode: "REQUIRED",
+      version: 1,
+      source: "DATABASE",
+    });
   });
 
   it("stores DISABLED overrides and rejects invalid grace periods or missing reasons", async () => {

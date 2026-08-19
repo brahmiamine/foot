@@ -1,9 +1,14 @@
 import { IsNull } from "typeorm";
 import { getDataSource } from "@/lib/database";
+import { ClubConfigurationAudit, type ClubConfigurationSnapshot } from "@/entities/ClubConfigurationAudit";
 import {
   resolvePolicy,
   type PolicyRecord,
 } from "../../../packages/domain-contracts/src/policy";
+import {
+  requireConfigurationChangeReason,
+  type ConfigurationAuditContext,
+} from "../../../packages/domain-contracts/src/configuration-audit";
 import {
   PublicContentPolicy,
   PUBLIC_SECTION_KEYS,
@@ -13,13 +18,9 @@ import {
 } from "@/entities/PublicContentPolicy";
 
 /**
- * Chaque section est sa propre clé de premier niveau (et non regroupée
- * sous un objet `sections`) pour que `resolvePolicy` hérite section par
- * section entre PLATFORM et CLUB — voir le même choix (et sa justification
- * détaillée) dans `notifications/src/policy/policy.service.ts`. La bannière
- * d'urgence, elle, reste un objet atomique unique : un club qui la
- * surcharge veut remplacer le message plateforme en entier, pas fusionner
- * ses champs.
+ * Chaque section est sa propre clé de premier niveau pour que `resolvePolicy`
+ * hérite section par section entre PLATFORM et CLUB. La bannière d'urgence
+ * reste un objet atomique unique.
  */
 export type PublicContentPolicyValues = Record<PublicSectionKey, boolean> & {
   emergencyBanner: EmergencyBanner;
@@ -30,14 +31,13 @@ const DEFAULT_VALUES: PublicContentPolicyValues = {
   emergencyBanner: { enabled: false, messageFr: null, messageAr: null, severity: "INFO" },
 };
 
-export interface UpsertPublicContentPolicyInput {
+export interface UpsertPublicContentPolicyInput extends ConfigurationAuditContext {
   scopeType: PublicContentScopeType;
   scopeId: string | null;
   sections?: Partial<Record<PublicSectionKey, boolean>>;
   emergencyBanner?: Partial<EmergencyBanner>;
   effectiveFrom?: Date | null;
   effectiveUntil?: Date | null;
-  actorUserId: string;
 }
 
 function toPolicyRecord(row: PublicContentPolicy): PolicyRecord<PublicContentPolicyValues> {
@@ -56,11 +56,23 @@ function toPolicyRecord(row: PublicContentPolicy): PolicyRecord<PublicContentPol
   };
 }
 
+function snapshot(row: PublicContentPolicy): ClubConfigurationSnapshot {
+  return {
+    id: row.id,
+    scopeType: row.scopeType,
+    scopeId: row.scopeId,
+    version: row.version,
+    effectiveFrom: row.effectiveFrom?.toISOString() ?? null,
+    effectiveUntil: row.effectiveUntil?.toISOString() ?? null,
+    sections: row.sections,
+    emergencyBanner: row.emergencyBanner,
+  };
+}
+
 /**
- * OB-004 : sections publiques activables + bannière d'urgence, résolues
- * PLATFORM -> CLUB (GOV-001). "Programmation de publication" = une nouvelle
- * version dont `effectiveFrom` est dans le futur, gérée nativement par
- * `resolvePolicy` (aucun mécanisme séparé nécessaire).
+ * OB-004 / GOV-004 / GOV-005 : sections publiques + bannière d'urgence,
+ * résolues PLATFORM -> CLUB. Chaque nouvelle version est append-only et son
+ * changement de configuration est audité dans la même transaction.
  */
 export class PublicContentPolicyService {
   async resolve(teamId: string | null, at: Date = new Date()): Promise<PublicContentPolicyValues> {
@@ -85,28 +97,54 @@ export class PublicContentPolicyService {
       throw new Error("scopeId is required for CLUB-scoped public content policies");
     }
     const scopeId = input.scopeType === "PLATFORM" ? null : input.scopeId;
+    const activation = input.effectiveFrom ?? new Date();
+    if (input.effectiveUntil && input.effectiveUntil.getTime() <= activation.getTime()) {
+      throw new Error("La fin d'effet de la policy publique doit être postérieure à son début d'effet");
+    }
+    const reason = requireConfigurationChangeReason(input.reason);
     const ds = await getDataSource();
 
     return ds.transaction(async (manager) => {
       const repository = manager.getRepository(PublicContentPolicy);
+      const auditRepository = manager.getRepository(ClubConfigurationAudit);
       const current = await repository.findOne({
         where: { scopeType: input.scopeType, scopeId: scopeId ?? IsNull() },
         order: { version: "DESC" },
       });
 
       const nextVersion = current ? current.version + 1 : 1;
-      return repository.save(
+      const saved = await repository.save(
         repository.create({
           scopeType: input.scopeType,
           scopeId,
           version: nextVersion,
-          effectiveFrom: input.effectiveFrom ?? null,
+          effectiveFrom: activation,
           effectiveUntil: input.effectiveUntil ?? null,
           sections: input.sections ?? null,
           emergencyBanner: input.emergencyBanner ?? null,
           updatedBy: input.actorUserId,
         }),
       );
+
+      await auditRepository.save(
+        auditRepository.create({
+          domain: "CLUB_PUBLIC",
+          configurationKey: "PUBLIC_CONTENT_POLICY",
+          scopeType: input.scopeType,
+          scopeId,
+          previousVersion: current?.version ?? null,
+          newVersion: saved.version,
+          before: current ? snapshot(current) : null,
+          after: snapshot(saved),
+          actorUserId: input.actorUserId,
+          actorRole: input.actorRole,
+          reason,
+          ipAddress: input.ipAddress ?? null,
+          userAgent: input.userAgent ?? null,
+        }),
+      );
+
+      return saved;
     });
   }
 }

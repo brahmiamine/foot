@@ -1,5 +1,10 @@
 import { getDataSource } from "@/lib/database";
+import { ClubConfigurationAudit, type ClubConfigurationSnapshot } from "@/entities/ClubConfigurationAudit";
 import { PublicFormSettings, type PublicFormDomain } from "@/entities/PublicFormSettings";
+import {
+  requireConfigurationChangeReason,
+  type ConfigurationAuditContext,
+} from "../../../packages/domain-contracts/src/configuration-audit";
 
 export class PublicFormClosedError extends Error {
   constructor(message: string) {
@@ -16,6 +21,17 @@ export interface PublicFormSettingsInput {
   rateLimitWindowMinutes?: number | null;
 }
 
+export interface PublicFormSettingsMutationContext extends ConfigurationAuditContext {
+  effectiveFrom?: Date | null;
+  effectiveUntil?: Date | null;
+}
+
+export interface EffectivePublicFormSettings extends PublicFormSettingsInput {
+  version: number;
+  effectiveFrom: Date | null;
+  effectiveUntil: Date | null;
+}
+
 const DEFAULTS: PublicFormSettingsInput = {
   isOpen: true,
   opensAt: null,
@@ -24,19 +40,53 @@ const DEFAULTS: PublicFormSettingsInput = {
   rateLimitWindowMinutes: null,
 };
 
+function isActive(row: PublicFormSettings, at: Date): boolean {
+  if (row.effectiveFrom && row.effectiveFrom.getTime() > at.getTime()) return false;
+  if (row.effectiveUntil && row.effectiveUntil.getTime() <= at.getTime()) return false;
+  return true;
+}
+
+function snapshot(row: PublicFormSettings): ClubConfigurationSnapshot {
+  return {
+    id: row.id,
+    teamId: row.teamId,
+    domain: row.domain,
+    isOpen: Boolean(row.isOpen),
+    opensAt: row.opensAt?.toISOString() ?? null,
+    closesAt: row.closesAt?.toISOString() ?? null,
+    rateLimitMax: row.rateLimitMax,
+    rateLimitWindowMinutes: row.rateLimitWindowMinutes,
+    version: row.version,
+    effectiveFrom: row.effectiveFrom?.toISOString() ?? null,
+    effectiveUntil: row.effectiveUntil?.toISOString() ?? null,
+  };
+}
+
 /**
- * OB-001 : source unique de vérité pour l'ouverture/fermeture et le rate
- * limit des formulaires publics (académie/recrutement/sponsor/vendeur/
- * contact). Consommée depuis club-hub (ses propres server actions) et,
- * via `/api/internal/public-form-settings`, depuis club-ob pour le
- * formulaire vendeur — jamais de logique d'autorisation dupliquée côté
- * frontend public.
+ * OB-001 / GOV-004 / GOV-005 : source unique de vérité versionnée pour
+ * l'ouverture/fermeture et le rate limit des formulaires publics. Chaque
+ * changement est append-only et audité dans la même transaction.
  */
 export class PublicFormSettingsService {
-  async get(teamId: string, domain: PublicFormDomain): Promise<PublicFormSettingsInput & { version: number }> {
+  async get(
+    teamId: string,
+    domain: PublicFormDomain,
+    at: Date = new Date(),
+  ): Promise<EffectivePublicFormSettings> {
     const ds = await getDataSource();
-    const row = await ds.getRepository(PublicFormSettings).findOne({ where: { teamId, domain } });
-    if (!row) return { ...DEFAULTS, version: 0 };
+    const rows = await ds.getRepository(PublicFormSettings).find({
+      where: { teamId, domain },
+      order: { version: "DESC" },
+    });
+    const row = rows.find((candidate) => isActive(candidate, at));
+    if (!row) {
+      return {
+        ...DEFAULTS,
+        version: 0,
+        effectiveFrom: null,
+        effectiveUntil: null,
+      };
+    }
     return {
       isOpen: Boolean(row.isOpen),
       opensAt: row.opensAt,
@@ -44,42 +94,85 @@ export class PublicFormSettingsService {
       rateLimitMax: row.rateLimitMax,
       rateLimitWindowMinutes: row.rateLimitWindowMinutes,
       version: row.version,
+      effectiveFrom: row.effectiveFrom,
+      effectiveUntil: row.effectiveUntil,
     };
   }
 
   async listForTeam(teamId: string): Promise<PublicFormSettings[]> {
     const ds = await getDataSource();
-    return ds.getRepository(PublicFormSettings).find({ where: { teamId } });
+    return ds.getRepository(PublicFormSettings).find({
+      where: { teamId },
+      order: { domain: "ASC", version: "DESC" },
+    });
   }
 
   async update(
     teamId: string,
     domain: PublicFormDomain,
     input: PublicFormSettingsInput,
-    actorUserId: string,
+    context: PublicFormSettingsMutationContext,
   ): Promise<PublicFormSettings> {
+    const reason = requireConfigurationChangeReason(context.reason);
+    const activation = context.effectiveFrom ?? new Date();
+    if (
+      context.effectiveUntil &&
+      context.effectiveUntil.getTime() <= activation.getTime()
+    ) {
+      throw new Error("La fin d'effet de la configuration doit être postérieure à son début d'effet");
+    }
+
     const ds = await getDataSource();
-    const repository = ds.getRepository(PublicFormSettings);
-    const existing = await repository.findOne({ where: { teamId, domain } });
-    const row =
-      existing ??
-      repository.create({ teamId, domain, ...DEFAULTS, version: 0 });
-    row.isOpen = input.isOpen;
-    row.opensAt = input.opensAt ?? null;
-    row.closesAt = input.closesAt ?? null;
-    row.rateLimitMax = input.rateLimitMax ?? null;
-    row.rateLimitWindowMinutes = input.rateLimitWindowMinutes ?? null;
-    row.version = (existing?.version ?? 0) + 1;
-    row.updatedBy = actorUserId;
-    return repository.save(row);
+    return ds.transaction(async (manager) => {
+      const repository = manager.getRepository(PublicFormSettings);
+      const auditRepository = manager.getRepository(ClubConfigurationAudit);
+      const versions = await repository.find({
+        where: { teamId, domain },
+        order: { version: "DESC" },
+      });
+      const latest = versions[0] ?? null;
+      const nextVersion = (latest?.version ?? 0) + 1;
+      const row = repository.create({
+        teamId,
+        domain,
+        isOpen: input.isOpen,
+        opensAt: input.opensAt ?? null,
+        closesAt: input.closesAt ?? null,
+        rateLimitMax: input.rateLimitMax ?? null,
+        rateLimitWindowMinutes: input.rateLimitWindowMinutes ?? null,
+        version: nextVersion,
+        effectiveFrom: activation,
+        effectiveUntil: context.effectiveUntil ?? null,
+        updatedBy: context.actorUserId,
+      });
+      const saved = await repository.save(row);
+
+      await auditRepository.save(
+        auditRepository.create({
+          domain: "CLUB_PUBLIC",
+          configurationKey: "PUBLIC_FORM_SETTINGS",
+          scopeType: "CLUB_FORM",
+          scopeId: `${teamId}:${domain}`,
+          previousVersion: latest?.version ?? null,
+          newVersion: saved.version,
+          before: latest ? snapshot(latest) : null,
+          after: snapshot(saved),
+          actorUserId: context.actorUserId,
+          actorRole: context.actorRole,
+          reason,
+          ipAddress: context.ipAddress ?? null,
+          userAgent: context.userAgent ?? null,
+        }),
+      );
+
+      return saved;
+    });
   }
 
   /**
    * Garde serveur unique, appelée par CHAQUE action de soumission publique
    * avant d'écrire quoi que ce soit. `countRecentSubmissions` est fourni
-   * par l'appelant (chaque domaine compte dans sa propre table métier —
-   * ContactMessage/RecruitmentApplication/PlayerApplication/SponsorRequest
-   * — plutôt que de dupliquer un journal générique).
+   * par l'appelant (chaque domaine compte dans sa propre table métier).
    */
   async assertOpen(
     teamId: string,
@@ -87,7 +180,7 @@ export class PublicFormSettingsService {
     countRecentSubmissions?: (windowStart: Date) => Promise<number>,
     now: Date = new Date(),
   ): Promise<void> {
-    const settings = await this.get(teamId, domain);
+    const settings = await this.get(teamId, domain, now);
     if (!settings.isOpen) {
       throw new PublicFormClosedError("Ce formulaire est actuellement fermé.");
     }

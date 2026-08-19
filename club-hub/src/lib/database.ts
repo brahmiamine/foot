@@ -96,6 +96,7 @@ import { ClubApprovalDecision, ClubApprovalRequest, ClubGovernanceSettings } fro
 import { Membership, MembershipType } from "@/entities/Membership";
 import { PublicFormSettings } from "@/entities/PublicFormSettings";
 import { PublicContentPolicy } from "@/entities/PublicContentPolicy";
+import { ClubConfigurationAudit } from "@/entities/ClubConfigurationAudit";
 
 /**
  * Database connection configuration
@@ -145,7 +146,7 @@ export async function getDataSource(): Promise<DataSource> {
         CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow,
         TransferWindowHistory, ClubGovernanceSettings, ClubApprovalRequest,
         ClubApprovalDecision, Membership, MembershipType, PublicFormSettings,
-        PublicContentPolicy,
+        PublicContentPolicy, ClubConfigurationAudit,
       ],
       migrations: [],
       charset: "utf8mb4",
