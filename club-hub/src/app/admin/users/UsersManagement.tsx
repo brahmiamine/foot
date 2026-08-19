@@ -14,8 +14,39 @@ interface ClubUserData {
   email: string;
   role: string;
   isActive: boolean;
+  accessValidFrom: string | null;
+  accessValidUntil: string | null;
   createdAt: string;
   roleLabels: string[];
+}
+
+function toDatetimeLocal(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return shifted.toISOString().slice(0, 16);
+}
+
+function formatInstant(value: string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function describeAccess(user: ClubUserData): string {
+  if (!user.isActive) return "Inactif";
+  const now = Date.now();
+  if (user.accessValidFrom && now < new Date(user.accessValidFrom).getTime()) {
+    return `À partir du ${formatInstant(user.accessValidFrom)}`;
+  }
+  if (user.accessValidUntil && now >= new Date(user.accessValidUntil).getTime()) {
+    return `Expiré le ${formatInstant(user.accessValidUntil)}`;
+  }
+  if (user.accessValidUntil) return `Jusqu'au ${formatInstant(user.accessValidUntil)}`;
+  if (user.accessValidFrom) return `Depuis le ${formatInstant(user.accessValidFrom)}`;
+  return "Permanent";
 }
 
 export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[] }) {
@@ -50,6 +81,18 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
     setSaving(true);
     try {
       const formData = new FormData(e.currentTarget);
+      for (const key of ["accessValidFrom", "accessValidUntil"] as const) {
+        const raw = formData.get(key);
+        if (typeof raw === "string" && raw.trim()) {
+          const parsed = new Date(raw);
+          if (Number.isNaN(parsed.getTime())) {
+            setError("Date d'accès temporaire invalide");
+            return;
+          }
+          formData.set(key, parsed.toISOString());
+        }
+      }
+
       const result = editingUser ? await updateClubUser(editingUser.id, formData) : await createClubUser(formData);
       if (result.success) {
         setSuccess(result.message ?? null);
@@ -72,6 +115,8 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
       setError(result.error || "Erreur lors de la suppression");
     }
   };
+
+  const canLimitAccess = editingUser?.role !== "ADMIN";
 
   return (
     <div className="container-fluid px-0">
@@ -115,15 +160,11 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
           <div className="card-body">
             <form onSubmit={handleSubmit} className="row g-3">
               <div className="col-md-6">
-                <label htmlFor="name" className="form-label">
-                  Nom complet
-                </label>
+                <label htmlFor="name" className="form-label">Nom complet</label>
                 <input type="text" id="name" name="name" className="form-control" required maxLength={191} defaultValue={editingUser?.name ?? ""} />
               </div>
               <div className="col-md-6">
-                <label htmlFor="email" className="form-label">
-                  Email
-                </label>
+                <label htmlFor="email" className="form-label">Email</label>
                 <input type="email" id="email" name="email" className="form-control" required maxLength={191} defaultValue={editingUser?.email ?? ""} />
               </div>
               <div className="col-md-6">
@@ -149,11 +190,43 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
                     name="isActive"
                     defaultChecked={editingUser?.isActive ?? true}
                   />
-                  <label className="form-check-label" htmlFor="isActive">
-                    Compte actif
-                  </label>
+                  <label className="form-check-label" htmlFor="isActive">Compte actif</label>
                 </div>
               </div>
+
+              <div className="col-12">
+                <hr className="my-1" />
+                <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+                  <div>
+                    <div className="fw-semibold">Accès temporaire</div>
+                    <div className="text-muted small">Optionnel. Toute modification déconnecte les sessions existantes.</div>
+                  </div>
+                  {!canLimitAccess && <span className="badge bg-secondary-subtle text-secondary">Non applicable à l'administrateur</span>}
+                </div>
+              </div>
+              <div className="col-md-6">
+                <label htmlFor="accessValidFrom" className="form-label">Valide à partir de</label>
+                <input
+                  type="datetime-local"
+                  id="accessValidFrom"
+                  name="accessValidFrom"
+                  className="form-control"
+                  defaultValue={toDatetimeLocal(editingUser?.accessValidFrom ?? null)}
+                  disabled={!canLimitAccess}
+                />
+              </div>
+              <div className="col-md-6">
+                <label htmlFor="accessValidUntil" className="form-label">Valide jusqu'au</label>
+                <input
+                  type="datetime-local"
+                  id="accessValidUntil"
+                  name="accessValidUntil"
+                  className="form-control"
+                  defaultValue={toDatetimeLocal(editingUser?.accessValidUntil ?? null)}
+                  disabled={!canLimitAccess}
+                />
+              </div>
+
               <div className="col-12">
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? (
@@ -161,11 +234,7 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
                       Enregistrement...
                     </>
-                  ) : editingUser ? (
-                    "Enregistrer"
-                  ) : (
-                    "Créer le compte"
-                  )}
+                  ) : editingUser ? "Enregistrer" : "Créer le compte"}
                 </button>
               </div>
             </form>
@@ -187,6 +256,7 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
                     <th>Type</th>
                     <th>Rôles attribués</th>
                     <th>Statut</th>
+                    <th>Accès</th>
                     <th className="text-end">Actions</th>
                   </tr>
                 </thead>
@@ -207,9 +277,7 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
                           <span className="text-muted small">Aucun rôle</span>
                         ) : (
                           u.roleLabels.map((label, i) => (
-                            <span key={i} className="badge bg-info-subtle text-info me-1">
-                              {label}
-                            </span>
+                            <span key={i} className="badge bg-info-subtle text-info me-1">{label}</span>
                           ))
                         )}
                       </td>
@@ -220,6 +288,7 @@ export function UsersManagement({ initialUsers }: { initialUsers: ClubUserData[]
                           <span className="badge bg-secondary-subtle text-secondary">Inactif</span>
                         )}
                       </td>
+                      <td><span className="small">{describeAccess(u)}</span></td>
                       <td className="text-end">
                         <div className="btn-group" role="group">
                           <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => openEditForm(u)}>
