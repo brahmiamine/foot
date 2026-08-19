@@ -54,6 +54,8 @@ identity/sql/migration_add_member_team_affiliations.sql
 identity/sql/migration_add_member_registration_policy.sql
 # ID-005 : registre de sessions individuelles (`sid`) et révocation ciblée.
 identity/sql/migration_add_user_sessions.sql
+# ID-006 : fenêtre d'accès temporaire des comptes, relue côté serveur.
+identity/sql/migration_add_user_access_window.sql
 identity/sql/migration_add_mfa_enrollment_challenges.sql
 # Policy MFA par rôle : REQUIRED/OPTIONAL/DISABLED + période de grâce.
 identity/sql/migration_add_mfa_role_policies.sql
