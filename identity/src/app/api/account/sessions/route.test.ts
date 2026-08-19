@@ -24,8 +24,12 @@ describe("GET /api/account/sessions", () => {
     expect(mocks.listUserSessions).not.toHaveBeenCalled();
   });
 
-  it("lists only sessions for the authenticated account and marks the current sid", async () => {
-    mocks.getCurrentSession.mockResolvedValue({ id: "user-1", sessionId: "sid-current" });
+  it("lists only current-generation sessions for the authenticated account", async () => {
+    mocks.getCurrentSession.mockResolvedValue({
+      id: "user-1",
+      tokenVersion: 7,
+      sessionId: "sid-current",
+    });
     mocks.listUserSessions.mockResolvedValue([
       {
         id: "sid-current",
@@ -42,7 +46,7 @@ describe("GET /api/account/sessions", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(mocks.listUserSessions).toHaveBeenCalledWith("user-1", "sid-current");
+    expect(mocks.listUserSessions).toHaveBeenCalledWith("user-1", 7, "sid-current");
     expect(body.sessions).toHaveLength(1);
     expect(body.sessions[0].current).toBe(true);
   });
