@@ -65,14 +65,14 @@ export default async function MemberRegistrationSettingsPage() {
           <h2 className="h6">Inviter un membre</h2>
           <form action={inviteMemberAction} className="d-flex gap-2 flex-wrap">
             <input className="form-control flex-grow-1" type="email" name="email" required placeholder="supporter@example.com" />
-            <button className="btn btn-outline-primary" type="submit">Envoyer l'invitation</button>
+            <button className="btn btn-outline-primary" type="submit">Envoyer l&apos;invitation</button>
           </form>
         </div>
       </div>
 
       <div className="card border-0 shadow-sm">
         <div className="card-header bg-transparent">
-          <strong>Demandes en attente d'approbation ({requests.length})</strong>
+          <strong>Demandes en attente d&apos;approbation ({requests.length})</strong>
         </div>
         <div className="card-body p-0">
           {requests.length === 0 ? (
