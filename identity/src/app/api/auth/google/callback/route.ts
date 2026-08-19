@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchGoogleProfile } from "@/lib/google";
 import { findOrCreateGoogleMember } from "@/lib/members";
+import {
+  MemberRegistrationError,
+  registerGoogleMemberForClub,
+} from "@/lib/memberRegistration";
 import { issueSession } from "@/lib/session";
 import { sanitizeRedirect } from "@/lib/redirect";
 import { OAUTH_STATE_COOKIE } from "@/lib/oauthState";
@@ -27,7 +31,12 @@ export async function GET(request: NextRequest) {
   const googleError = request.nextUrl.searchParams.get("error");
 
   const stateCookie = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
-  let expected: { state: string; redirect: string } | null = null;
+  let expected: {
+    state: string;
+    redirect: string;
+    teamId?: string | null;
+    invitationToken?: string | null;
+  } | null = null;
   try {
     expected = stateCookie ? JSON.parse(decodeURIComponent(stateCookie)) : null;
   } catch {
@@ -45,12 +54,40 @@ export async function GET(request: NextRequest) {
       return loginErrorRedirect(request, "google_unverified");
     }
 
+    const target = sanitizeRedirect(expected.redirect) ?? "/";
+    if (expected.teamId) {
+      try {
+        const result = await registerGoogleMemberForClub({
+          teamId: expected.teamId,
+          email: profile.email,
+          name: profile.name || profile.email,
+          invitationToken: expected.invitationToken ?? null,
+        });
+        if (result.status === "PENDING_CLUB_APPROVAL") {
+          return loginErrorRedirect(request, "club_approval_pending");
+        }
+        const response = NextResponse.redirect(new URL(target, getRequestOrigin(request)));
+        response.cookies.set({ name: OAUTH_STATE_COOKIE, value: "", path: "/api/auth/google", maxAge: 0 });
+        await issueSession(response, result.user);
+        return response;
+      } catch (error) {
+        if (error instanceof MemberRegistrationError) {
+          const codeMap: Record<string, string> = {
+            REGISTRATION_CLOSED: "registration_closed",
+            INVITATION_REQUIRED: "invitation_required",
+            EMAIL_TAKEN: "staff_email",
+          };
+          return loginErrorRedirect(request, codeMap[error.code] ?? "registration");
+        }
+        throw error;
+      }
+    }
+
     const result = await findOrCreateGoogleMember(profile);
     if (!result.ok) {
       return loginErrorRedirect(request, "staff_email");
     }
 
-    const target = sanitizeRedirect(expected.redirect) ?? "/";
     const response = NextResponse.redirect(new URL(target, getRequestOrigin(request)));
     response.cookies.set({ name: OAUTH_STATE_COOKIE, value: "", path: "/api/auth/google", maxAge: 0 });
     await issueSession(response, result.user);
