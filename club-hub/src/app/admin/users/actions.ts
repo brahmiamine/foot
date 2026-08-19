@@ -16,6 +16,11 @@ async function requireClubAdmin() {
   return session;
 }
 
+function optionalAccessValue(formData: FormData, key: string): string | null {
+  const value = formData.get(key);
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
 export async function createClubUser(formData: FormData) {
   try {
     const session = await requireClubAdmin();
@@ -23,7 +28,9 @@ export async function createClubUser(formData: FormData) {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       password: formData.get("password") as string,
-      isActive: formData.get("isActive") !== "off",
+      isActive: formData.get("isActive") === "on",
+      accessValidFrom: optionalAccessValue(formData, "accessValidFrom"),
+      accessValidUntil: optionalAccessValue(formData, "accessValidUntil"),
     });
 
     const teamId = await requireTeamId();
@@ -36,7 +43,13 @@ export async function createClubUser(formData: FormData) {
       action: "CREATE",
       entity: "User",
       entityId: user.id,
-      after: { name: user.name, email: user.email },
+      after: {
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+        accessValidFrom: user.accessValidFrom,
+        accessValidUntil: user.accessValidUntil,
+      },
     });
 
     revalidatePath("/admin/users");
@@ -55,15 +68,38 @@ export async function updateClubUser(id: string, formData: FormData) {
       name: (formData.get("name") as string) || undefined,
       email: (formData.get("email") as string) || undefined,
       password: password || undefined,
-      isActive: formData.get("isActive") !== "off",
+      isActive: formData.get("isActive") === "on",
+      accessValidFrom: optionalAccessValue(formData, "accessValidFrom"),
+      accessValidUntil: optionalAccessValue(formData, "accessValidUntil"),
     });
 
     const teamId = await requireTeamId();
     const userService = new UserService();
-    await userService.update(id, teamId, { ...data, password: data.password || undefined });
+    const before = await userService.findById(id, teamId);
+    if (!before) throw new Error("Compte non trouvé");
+    const updated = await userService.update(id, teamId, { ...data, password: data.password || undefined });
 
     const auditLogService = new AuditLogService();
-    await auditLogService.create({ userId: session.user.id, action: "UPDATE", entity: "User", entityId: id });
+    await auditLogService.create({
+      userId: session.user.id,
+      action: "UPDATE",
+      entity: "User",
+      entityId: id,
+      before: {
+        name: before.name,
+        email: before.email,
+        isActive: before.isActive,
+        accessValidFrom: before.accessValidFrom,
+        accessValidUntil: before.accessValidUntil,
+      },
+      after: {
+        name: updated.name,
+        email: updated.email,
+        isActive: updated.isActive,
+        accessValidFrom: updated.accessValidFrom,
+        accessValidUntil: updated.accessValidUntil,
+      },
+    });
 
     revalidatePath("/admin/users");
     return { success: true, message: "Compte modifié avec succès" };
