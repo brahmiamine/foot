@@ -6,6 +6,7 @@ import {
   registerGoogleMemberForClub,
 } from "@/lib/memberRegistration";
 import { issueSession } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 import { sanitizeRedirect } from "@/lib/redirect";
 import { OAUTH_STATE_COOKIE } from "@/lib/oauthState";
 
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
     }
 
     const target = sanitizeRedirect(expected.redirect) ?? "/";
+    const sessionContext = sessionContextFromRequest(request);
     if (expected.teamId) {
       try {
         const result = await registerGoogleMemberForClub({
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
         }
         const response = NextResponse.redirect(new URL(target, getRequestOrigin(request)));
         response.cookies.set({ name: OAUTH_STATE_COOKIE, value: "", path: "/api/auth/google", maxAge: 0 });
-        await issueSession(response, result.user);
+        await issueSession(response, result.user, sessionContext);
         return response;
       } catch (error) {
         if (error instanceof MemberRegistrationError) {
@@ -95,7 +97,7 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.redirect(new URL(target, getRequestOrigin(request)));
     response.cookies.set({ name: OAUTH_STATE_COOKIE, value: "", path: "/api/auth/google", maxAge: 0 });
-    await issueSession(response, result.user);
+    await issueSession(response, result.user, sessionContext);
     return response;
   } catch (error) {
     console.error("Google OAuth callback error:", error);
