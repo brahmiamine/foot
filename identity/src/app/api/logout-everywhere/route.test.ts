@@ -40,7 +40,7 @@ function buildRequest(origin?: string) {
   });
 }
 
-/** TS-34 — logout everywhere (tokenVersion bump). */
+/** TS-34 / ID-005 — logout everywhere (tokenVersion + registre de sessions). */
 describe("POST /api/logout-everywhere", () => {
   it("rejects a request from an untrusted origin", async () => {
     const { POST } = await import("./route");
@@ -59,17 +59,35 @@ describe("POST /api/logout-everywhere", () => {
     expect(response.status).toBe(401);
   });
 
-  it("bumps tokenVersion and clears the session cookie on success", async () => {
+  it("bumps tokenVersion, revokes registered sessions and clears the cookie", async () => {
     const { POST } = await import("./route");
     const { User } = await import("@/entities/User");
+    const { UserSession } = await import("@/entities/UserSession");
     const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 4 });
     currentSession = { id: user.id, email: user.email };
+    const sessionRepo = dataSource.getRepository(UserSession);
+    await sessionRepo.save(
+      sessionRepo.create({
+        id: "session-1",
+        userId: user.id,
+        tokenVersion: 4,
+        ipAddress: null,
+        userAgent: null,
+        lastSeenAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        revokedAt: null,
+        revokedReason: null,
+      }),
+    );
 
     const response = await POST(buildRequest("http://localhost:3004"));
 
     expect(response.status).toBe(200);
     const reloaded = await dataSource.getRepository(User).findOne({ where: { id: "user-1" } });
     expect(reloaded?.tokenVersion).toBe(5);
+    const revoked = await sessionRepo.findOneByOrFail({ id: "session-1" });
+    expect(revoked.revokedAt).toBeInstanceOf(Date);
+    expect(revoked.revokedReason).toBe("LOGOUT_EVERYWHERE");
     const setCookie = response.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("foot_sso_session=;");
   });
