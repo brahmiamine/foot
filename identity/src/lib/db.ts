@@ -8,6 +8,8 @@ import { SecurityEvent } from "@/entities/SecurityEvent";
 import { AccountInvitation } from "@/entities/AccountInvitation";
 import { MfaRolePolicy } from "@/entities/MfaRolePolicy";
 import { IdentityPolicyAudit } from "@/entities/IdentityPolicyAudit";
+import { MemberRegistrationPolicy } from "@/entities/MemberRegistrationPolicy";
+import { MemberRegistrationRequest } from "@/entities/MemberRegistrationRequest";
 
 const globalForDataSource = globalThis as unknown as {
   dataSource?: DataSource;
@@ -39,6 +41,8 @@ function createDataSource() {
       AccountInvitation,
       MfaRolePolicy,
       IdentityPolicyAudit,
+      MemberRegistrationPolicy,
+      MemberRegistrationRequest,
     ],
   });
 }

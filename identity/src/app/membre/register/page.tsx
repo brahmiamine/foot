@@ -6,10 +6,11 @@ import MemberRegisterForm from "@/components/MemberRegisterForm";
 export default async function MemberRegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirect?: string }>;
+  searchParams: Promise<{ redirect?: string; teamId?: string; invite?: string }>;
 }) {
-  const { redirect: redirectParam } = await searchParams;
+  const { redirect: redirectParam, teamId: teamIdParam, invite: invitationToken } = await searchParams;
   const target = sanitizeRedirect(redirectParam) ?? "/";
+  const teamId = typeof teamIdParam === "string" && teamIdParam.trim() ? teamIdParam.trim() : null;
 
   const session = await getCurrentSession();
   if (session) {
@@ -21,7 +22,11 @@ export default async function MemberRegisterPage({
       <div className="sso-card">
         <h1>Créer un compte</h1>
         <p className="sso-muted">Rejoignez l&apos;espace membre en quelques secondes.</p>
-        <MemberRegisterForm redirectTo={target} />
+        <MemberRegisterForm
+          redirectTo={target}
+          teamId={teamId}
+          invitationToken={invitationToken ?? null}
+        />
       </div>
       <style>{`
         .sso-page {

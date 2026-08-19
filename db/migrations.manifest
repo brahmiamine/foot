@@ -50,6 +50,8 @@ identity/sql/migration_add_security_events.sql
 identity/sql/migration_add_member_profile_fields.sql
 identity/sql/migration_add_member_role.sql
 identity/sql/migration_add_member_team_affiliations.sql
+# ID-004 : policy d'inscription MEMBER par club + email/approval/invitation.
+identity/sql/migration_add_member_registration_policy.sql
 identity/sql/migration_add_mfa_enrollment_challenges.sql
 # Policy MFA par rôle : REQUIRED/OPTIONAL/DISABLED + période de grâce.
 identity/sql/migration_add_mfa_role_policies.sql

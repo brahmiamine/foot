@@ -75,6 +75,60 @@ export interface IdentityAccountInvitationResult {
   expiresAt: string
 }
 
+export type MemberRegistrationMode =
+  | 'OPEN'
+  | 'EMAIL_VERIFICATION'
+  | 'CLUB_APPROVAL'
+  | 'INVITE_ONLY'
+  | 'CLOSED'
+
+export interface EffectiveMemberRegistrationPolicy {
+  teamId: string
+  mode: MemberRegistrationMode
+  version: number
+  source: 'DEFAULT' | 'DATABASE'
+  effectiveFrom: string | null
+  effectiveUntil: string | null
+}
+
+export interface UpdateMemberRegistrationPolicyInput {
+  teamId: string
+  mode: MemberRegistrationMode
+  actorUserId: string
+  actorRole: string
+  reason: string
+  effectiveFrom?: string | null
+  effectiveUntil?: string | null
+  ipAddress?: string | null
+  userAgent?: string | null
+}
+
+export interface MemberRegistrationQueueItem {
+  id: string
+  teamId: string
+  email: string
+  name: string
+  firstName: string | null
+  lastName: string | null
+  phoneNumber: string | null
+  provider: 'PASSWORD' | 'GOOGLE' | 'INVITATION'
+  modeSnapshot: MemberRegistrationMode
+  status: 'PENDING_CLUB_APPROVAL'
+  userId: string | null
+  createdAt: string
+}
+
+export interface InviteMemberInput {
+  teamId: string
+  email: string
+  actorUserId: string
+}
+
+export interface InviteMemberResult {
+  requestId: string
+  expiresAt: string
+}
+
 export interface IdentityProfilePort {
   getUserProfile(id: string): Promise<IdentityUserProfile | null>
 }
@@ -94,4 +148,13 @@ export interface IdentityAccountProvisioningPort {
 /** Dedicated capability: callers never provide or generate a temporary password. */
 export interface IdentityPlayerInvitationPort {
   invitePlayerAccount(input: InvitePlayerAccountInput): Promise<IdentityAccountInvitationResult>
+}
+
+export interface IdentityMemberRegistrationAdminPort {
+  getMemberRegistrationPolicy(teamId: string): Promise<EffectiveMemberRegistrationPolicy>
+  updateMemberRegistrationPolicy(input: UpdateMemberRegistrationPolicyInput): Promise<EffectiveMemberRegistrationPolicy>
+  listPendingMemberRegistrations(teamId: string): Promise<MemberRegistrationQueueItem[]>
+  approveMemberRegistration(teamId: string, requestId: string, actorUserId: string): Promise<void>
+  rejectMemberRegistration(teamId: string, requestId: string, actorUserId: string, reason: string): Promise<void>
+  inviteMember(input: InviteMemberInput): Promise<InviteMemberResult>
 }

@@ -9,6 +9,16 @@ export interface MfaRolePolicySnapshot {
   effectiveUntil: string | null;
 }
 
+export interface MemberRegistrationPolicySnapshot {
+  teamId: string;
+  mode: string;
+  version: number;
+  effectiveFrom: string | null;
+  effectiveUntil: string | null;
+}
+
+export type IdentityPolicySnapshot = MfaRolePolicySnapshot | MemberRegistrationPolicySnapshot;
+
 @Entity("identity_policy_audit")
 export class IdentityPolicyAudit {
   @PrimaryGeneratedColumn("uuid")
@@ -35,10 +45,10 @@ export class IdentityPolicyAudit {
   newVersion!: number;
 
   @Column({ type: "simple-json", nullable: true, name: "before_value" })
-  before?: MfaRolePolicySnapshot | null;
+  before?: IdentityPolicySnapshot | null;
 
   @Column({ type: "simple-json", name: "after_value" })
-  after!: MfaRolePolicySnapshot;
+  after!: IdentityPolicySnapshot;
 
   @Column({ type: "varchar", length: 191, name: "actor_user_id" })
   actorUserId!: string;
