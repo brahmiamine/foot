@@ -117,9 +117,8 @@ export async function updateMemberRegistrationPolicy(
   const reason = requireConfigurationChangeReason(input.reason);
   const activation = input.effectiveFrom ?? new Date();
   const dataSource = await getDataSource();
-  let saved: MemberRegistrationPolicy | null = null;
 
-  await dataSource.transaction(async (manager) => {
+  const saved = await dataSource.transaction(async (manager) => {
     const repository = manager.getRepository(MemberRegistrationPolicy);
     const auditRepository = manager.getRepository(IdentityPolicyAudit);
     const versions = await repository.find({ where: { teamId: input.teamId }, order: { version: "DESC" } });
@@ -132,7 +131,7 @@ export async function updateMemberRegistrationPolicy(
       effectiveUntil: input.effectiveUntil ?? null,
       updatedBy: input.updatedBy,
     });
-    saved = await repository.save(entity);
+    const persisted = await repository.save(entity);
     await auditRepository.save(
       auditRepository.create({
         domain: "IDENTITY_MEMBERSHIP",
@@ -140,9 +139,9 @@ export async function updateMemberRegistrationPolicy(
         scopeType: "CLUB",
         scopeId: input.teamId,
         previousVersion: latest?.version ?? null,
-        newVersion: saved.version,
+        newVersion: persisted.version,
         before: latest ? snapshot(latest) : null,
-        after: snapshot(saved),
+        after: snapshot(persisted),
         actorUserId: input.updatedBy,
         actorRole: input.actorRole,
         reason,
@@ -150,9 +149,9 @@ export async function updateMemberRegistrationPolicy(
         userAgent: input.userAgent ?? null,
       }),
     );
+    return persisted;
   });
 
-  if (!saved) return getMemberRegistrationPolicy(input.teamId, activation);
   return {
     teamId: saved.teamId,
     mode: saved.mode,
