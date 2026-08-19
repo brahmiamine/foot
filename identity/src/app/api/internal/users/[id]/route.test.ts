@@ -95,6 +95,18 @@ describe("PATCH /api/internal/users/[id]", () => {
     await expect(response.json()).resolves.toEqual({ error: "invalid_access_window" });
   });
 
+  it("rejects timezone-ambiguous temporary access instants", async () => {
+    const { PATCH } = await import("./route");
+    await seedUser(dataSource, { id: "user-1" });
+
+    const response = await PATCH(buildRequest("PATCH", {
+      accessValidUntil: "2026-08-20T18:00:00",
+    }), { params: Promise.resolve({ id: "user-1" }) });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_access_window" });
+  });
+
   it("rejects an empty body", async () => {
     const { PATCH } = await import("./route");
     await seedUser(dataSource, { id: "user-1" });
