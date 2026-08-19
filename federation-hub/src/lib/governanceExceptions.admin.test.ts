@@ -5,7 +5,10 @@ import {
   createGovernanceException,
   revokeGovernanceException,
 } from './governanceExceptions'
-import { FederalOperationAuthorizationError } from './federalOperationsCommon'
+import {
+  FederalOperationAuthorizationError,
+  FederalOperationInputError,
+} from './federalOperationsCommon'
 
 const federationAdmin: SsoUser = {
   id: 'fed-admin-1',
@@ -60,6 +63,28 @@ describe('governance exception administration (GOV-007)', () => {
     })
     expect(query.mock.calls.some(([sql]) => sql.includes('INSERT INTO governance_exceptions'))).toBe(true)
     expect(query.mock.calls.some(([sql]) => sql.includes('INSERT INTO federal_operation_audit'))).toBe(true)
+  })
+
+  it('maps an invalid audit reason to a client input error before starting a transaction', async () => {
+    const { source, transaction } = dataSourceForCreate()
+
+    await expect(
+      createGovernanceException(
+        source,
+        federationAdmin,
+        { userId: federationAdmin.id, role: federationAdmin.role },
+        {
+          federationId: 'fed-1',
+          ruleKey: 'REGULATORY_DOCUMENT_REQUIRED',
+          targetType: 'GRANT_APPLICATION',
+          targetId: 'application-1',
+          reference: 'requirement-1',
+          reason: 'x',
+          validUntil: '2026-08-20T10:00:00Z',
+        },
+      ),
+    ).rejects.toBeInstanceOf(FederalOperationInputError)
+    expect(transaction).not.toHaveBeenCalled()
   })
 
   it('prevents a league admin from creating its own waiver', async () => {
