@@ -10,7 +10,7 @@ export default async function AccountSessionsPage() {
   const session = await getCurrentSession();
   if (!session) redirect("/login");
 
-  const sessions = await listUserSessions(session.id, session.sessionId);
+  const sessions = await listUserSessions(session.id, session.tokenVersion, session.sessionId);
   const serializableSessions = sessions.map((item) => ({
     ...item,
     createdAt: item.createdAt.toISOString(),
