@@ -19,4 +19,4 @@ CREATE TABLE IF NOT EXISTS identity_user_sessions (
   INDEX idx_identity_user_sessions_user_active (user_id, revoked_at, expires_at),
   CONSTRAINT fk_identity_user_sessions_user
     FOREIGN KEY (user_id) REFERENCES `User`(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
