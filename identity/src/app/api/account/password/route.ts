@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession, issueSession } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 import { changePassword } from "@/lib/passwordReset";
 import { getClientIP } from "@/lib/getClientIP";
 import { logSecurityEvent } from "@/lib/securityLog";
@@ -51,16 +52,22 @@ export async function POST(request: NextRequest) {
     logSecurityEvent({ type: "PASSWORD_CHANGED", userId: session.id, ip: getClientIP(request) });
 
     const response = NextResponse.json({ success: true });
-    await issueSession(response, {
-      id: result.user.id,
-      email: result.user.email,
-      name: result.user.name,
-      role: result.user.role,
-      teamId: result.user.teamId ?? null,
-      federationId: result.user.federationId ?? null,
-      leagueId: result.user.leagueId ?? null,
-      tokenVersion: result.user.tokenVersion,
-    });
+    await issueSession(
+      response,
+      {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        role: result.user.role,
+        teamId: result.user.teamId ?? null,
+        federationId: result.user.federationId ?? null,
+        leagueId: result.user.leagueId ?? null,
+        playerId: result.user.playerId ?? null,
+        tokenVersion: result.user.tokenVersion,
+        sessionId: session.sessionId,
+      },
+      sessionContextFromRequest(request),
+    );
     return response;
   } catch (error) {
     console.error("SSO change-password error:", error);
