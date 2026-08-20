@@ -124,6 +124,12 @@ export class TripExpenseReceipt {
   @Column({ type: "decimal", precision: 12, scale: 3 })
   amount!: string;
 
+  @Column({ type: "decimal", precision: 12, scale: 3, name: "receipt_threshold_snapshot" })
+  receiptThresholdSnapshot!: string;
+
+  @Column({ type: "tinyint", default: 0, name: "receipt_required" })
+  receiptRequired!: boolean;
+
   @Column({ type: "varchar", length: 255, nullable: true, name: "document_url" })
   documentUrl?: string | null;
 
