@@ -385,7 +385,7 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
   {
     name: "Responsable médical",
     description: "Responsabilité médicale complète incluant les règles de clearance et de second avis du club.",
-    isGlobal: false,
+    isGlobal: true,
     permissions: [
       ...MEDICAL_CONTEXT_PERMISSIONS,
       "medical.injuries.manage",
