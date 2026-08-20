@@ -43,10 +43,11 @@ const manager = {
     entity.name === 'PlayerApplication' ? applicationRepository : playerRepository,
   ),
 }
+type ManagerMock = typeof manager
 
 const dataSource = {
   getRepository: vi.fn(() => applicationRepository),
-  transaction: vi.fn(async (callback: (manager: typeof manager) => Promise<unknown>) => callback(manager)),
+  transaction: vi.fn(async (callback: (transactionManager: ManagerMock) => Promise<unknown>) => callback(manager)),
 }
 
 vi.mock('@/lib/database', () => ({ getDataSource: vi.fn(async () => dataSource) }))
