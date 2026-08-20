@@ -54,6 +54,13 @@ import { MatchInjury } from "@/entities/MatchInjury";
 import { Trip } from "@/entities/Trip";
 import { TripVehicle } from "@/entities/TripVehicle";
 import { TripParticipant } from "@/entities/TripParticipant";
+import {
+  TripBudgetApproval,
+  TripBudgetDecision,
+  TripExpenseReceipt,
+  TripGovernanceSettings,
+  TripWorkflowEvent,
+} from "@/entities/TripGovernance";
 import { ClubInfo } from "@/entities/ClubInfo";
 import { History } from "@/entities/History";
 import { HistoryFigure } from "@/entities/HistoryFigure";
@@ -131,18 +138,20 @@ export async function getDataSource(): Promise<DataSource> {
         SponsorshipGovernanceSettings, SponsorWorkflowEvent, MatchLineup, Role, UserRole,
         FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard,
         TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury, Trip,
-        TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor,
-        AcademyCategory, AcademyInfo, PlayerApplication, PlayerApplicationEvent,
-        RecruitmentNeed, RecruitmentApplication, RecruitmentApplicationEvent,
-        Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory,
-        MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem,
-        NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund,
-        PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement,
-        ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument,
-        PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory,
-        PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract,
-        StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory,
-        LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
+        TripVehicle, TripParticipant, TripGovernanceSettings, TripBudgetApproval,
+        TripBudgetDecision, TripExpenseReceipt, TripWorkflowEvent, ClubInfo, History,
+        HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication,
+        PlayerApplicationEvent, RecruitmentNeed, RecruitmentApplication,
+        RecruitmentApplicationEvent, Announcement, TeamSocials, ContactInfo,
+        ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder,
+        ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent,
+        StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication,
+        ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense,
+        PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration,
+        PlayerRegistrationHistory, PlayerContract, PlayerContractDocument,
+        PlayerContractHistory, StaffContract, StaffContractDocument,
+        StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase,
+        LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
         SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory,
         BoardMandate, BoardMember, BoardMandateHistory, CoachQualification,
         CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory,
