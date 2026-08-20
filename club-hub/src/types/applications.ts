@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { AGE_CATEGORIES } from "@/types/categories";
 
+const applicationDocumentPathSchema = z
+  .string()
+  .max(255)
+  .regex(/^\/uploads\/applications\/[A-Za-z0-9._-]+$/, "Chemin de document invalide");
+
 /** Formulaire public "Inscrire mon enfant" (/inscription). */
 export const createPlayerApplicationSchema = z.object({
   childLastName: z.string().min(1, "Le nom de l'enfant est requis").max(100),
@@ -12,7 +17,7 @@ export const createPlayerApplicationSchema = z.object({
   parentPhone: z.string().min(1, "Le téléphone est requis").max(30),
   parentEmail: z.string().email("Email invalide").max(190),
   message: z.string().max(2000).optional().nullable(),
-  documentUrl: z.string().optional().nullable(),
+  documentUrl: applicationDocumentPathSchema.optional().nullable(),
 });
 
 /** Conservé pour le workflow recrutement historique, encore séparé de CLUB-006. */
