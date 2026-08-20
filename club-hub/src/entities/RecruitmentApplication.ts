@@ -1,10 +1,15 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { Team } from "./Team";
-import type { ApplicationStatus } from "./PlayerApplication";
+
+export type RecruitmentApplicationStatus = "NEW" | "CONTACTED" | "TRIAL" | "ACCEPTED" | "REJECTED";
 
 /**
  * RecruitmentApplication Entity — candidature soumise via le formulaire
  * public /recrutement (détection/recrutement, jeunes et seniors).
+ *
+ * Le statut est volontairement propre au recrutement : l'académie et le
+ * recrutement ont des workflows distincts et ne doivent pas partager leur
+ * machine d'état par simple réutilisation de type.
  */
 @Entity("cms_recruitment_applications")
 export class RecruitmentApplication {
@@ -46,7 +51,7 @@ export class RecruitmentApplication {
   message?: string | null;
 
   @Column({ type: "enum", enum: ["NEW", "CONTACTED", "TRIAL", "ACCEPTED", "REJECTED"], default: "NEW" })
-  status!: ApplicationStatus;
+  status!: RecruitmentApplicationStatus;
 
   @Column({ type: "text", nullable: true, name: "admin_notes" })
   adminNotes?: string | null;
