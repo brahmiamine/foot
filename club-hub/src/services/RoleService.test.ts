@@ -4,7 +4,7 @@ import { UserRole } from "@/entities/UserRole";
 import type { IdentityDirectoryPort } from '../../../packages/domain-contracts/src/identity'
 
 const roleFindOne = vi.fn();
-const userRoleFindOne = vi.fn();
+const userRoleFind = vi.fn();
 const userRoleCreate = vi.fn((data: unknown) => data);
 const userRoleSave = vi.fn((data: unknown) => data);
 const getUserById = vi.fn();
@@ -14,7 +14,7 @@ vi.mock("@/lib/database", () => ({
     getRepository: (entity: unknown) => {
       if (entity === Role) return { findOne: roleFindOne };
       if (entity === UserRole) {
-        return { findOne: userRoleFindOne, create: userRoleCreate, save: userRoleSave };
+        return { find: userRoleFind, create: userRoleCreate, save: userRoleSave };
       }
       throw new Error("unexpected entity");
     },
@@ -30,7 +30,7 @@ const identity: IdentityDirectoryPort = {
 beforeEach(() => {
   roleFindOne.mockReset();
   getUserById.mockReset();
-  userRoleFindOne.mockReset();
+  userRoleFind.mockReset().mockResolvedValue([]);
   userRoleCreate.mockReset().mockImplementation((data: unknown) => data);
   userRoleSave.mockReset().mockImplementation((data: unknown) => data);
 });
@@ -58,7 +58,7 @@ describe("RoleService.assignRole cross-team guard", () => {
     await expect(service.assignRole("team-owner", "user-other-club", 1, null)).rejects.toThrow(
       "Utilisateur non trouvé pour ce club",
     );
-    expect(userRoleFindOne).not.toHaveBeenCalled();
+    expect(userRoleFind).not.toHaveBeenCalled();
     expect(userRoleSave).not.toHaveBeenCalled();
   });
 
@@ -85,7 +85,6 @@ describe("RoleService.assignRole cross-team guard", () => {
       teamId: "team-owner",
       createdAt: new Date().toISOString(),
     });
-    userRoleFindOne.mockResolvedValue(null);
 
     const { RoleService } = await import("./RoleService");
     const service = new RoleService(identity);
@@ -96,5 +95,27 @@ describe("RoleService.assignRole cross-team guard", () => {
       expect.objectContaining({ teamId: "team-owner", userId: "user-1", roleId: 1 }),
     );
     expect(assignment).toMatchObject({ teamId: "team-owner", userId: "user-1", roleId: 1 });
+  });
+
+  it("requires a reason for a temporary assignment", async () => {
+    roleFindOne.mockResolvedValue({ id: 1, teamId: "team-owner", isGlobal: true });
+    getUserById.mockResolvedValue({
+      id: "user-1",
+      name: "User",
+      email: "user@example.com",
+      role: "OBSERVATEUR",
+      isActive: true,
+      teamId: "team-owner",
+      createdAt: new Date().toISOString(),
+    });
+
+    const { RoleService } = await import("./RoleService");
+    const service = new RoleService(identity);
+
+    await expect(service.assignRole("team-owner", "user-1", 1, null, {
+      validFrom: new Date("2026-08-20T14:00:00.000Z"),
+      validUntil: new Date("2026-08-21T14:00:00.000Z"),
+    })).rejects.toThrow("motif");
+    expect(userRoleSave).not.toHaveBeenCalled();
   });
 });

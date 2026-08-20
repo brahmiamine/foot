@@ -192,6 +192,8 @@ club-hub/sql/migration_add_training_details_and_presence_states.sql
 club-hub/sql/migration_add_training_configuration.sql
 # CLUB-011 : RuleSet disciplinaires datés, overrides audités et snapshots appliqués.
 club-hub/sql/migration_add_versioned_discipline_rules.sql
+# CLUB-012 : rôles directs temporaires, révocation explicite et délégations bornées.
+club-hub/sql/migration_add_temporary_roles_delegations.sql
 club-hub/sql/migration_add_trips.sql
 # CLUB-009 : budget, approbations, consentements, justificatifs et clôture.
 club-hub/sql/migration_add_trip_governance.sql
