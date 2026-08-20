@@ -73,6 +73,16 @@ export class TripService {
     });
   }
 
+  async findParticipantById(participantId: number, teamId: string): Promise<TripParticipant | null> {
+    const repository = await this.getParticipantRepository();
+    const participant = await repository.findOne({
+      where: { id: participantId },
+      relations: ["trip", "player"],
+    });
+    if (!participant || participant.trip?.teamId !== teamId) return null;
+    return participant;
+  }
+
   async create(
     data: {
       category: AgeCategory;
