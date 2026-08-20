@@ -196,6 +196,8 @@ club-hub/sql/migration_add_club_pages_academy_applications.sql
 club-hub/sql/migration_enrich_academy_application_workflow.sql
 # CLUB-007 : validation scout/coach, essai, directeur sportif et négociation auditables.
 club-hub/sql/migration_enrich_recruitment_workflow.sql
+# CLUB-008 : revue, négociation, contrat, approbation financière, activation et expiration.
+club-hub/sql/migration_add_sponsorship_workflow.sql
 # Dépend de Card (table de base, voir db/foot.sql) et de club-hub/match-operations
 # alignés sur la même contrainte (voir db/OWNERSHIP.md, "Card a deux écrivains").
 club-hub/sql/migration_add_card_unique_constraint.sql
