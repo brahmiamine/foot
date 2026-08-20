@@ -8,7 +8,6 @@ import {
   createRole,
   createRoleDelegation,
   deleteRole,
-  removeRoleAssignment,
   revokeRoleAssignment,
   revokeRoleDelegation,
   updateRole,
@@ -139,6 +138,17 @@ export function RolesManagement({
     await run(() => action(data));
   };
 
+  const revokeAssignment = (assignment: AssignmentData) => {
+    const defaultReason = assignment.validFrom || assignment.validUntil
+      ? "Fin anticipée de l'intérim"
+      : "Retrait administratif de l'attribution";
+    const reason = window.prompt("Motif de révocation", defaultReason);
+    if (!reason?.trim()) return;
+    const data = new FormData();
+    data.set("reason", reason.trim());
+    void run(() => revokeRoleAssignment(assignment.id, data));
+  };
+
   return (
     <div className="container-fluid px-0">
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -182,20 +192,20 @@ export function RolesManagement({
         </section>
       )}
 
-      <section className="card mb-4">
-        <div className="card-header"><h2 className="h6 mb-0">Rôles du club</h2></div>
-        <div className="card-body">
-          <div className="row g-3">
-            {initialRoles.map((role) => (
-              <div className="col-lg-6" key={role.id}>
-                <div className="border rounded p-3 h-100">
-                  <div className="d-flex justify-content-between gap-2 mb-2">
-                    <div><strong>{role.name}</strong> {role.isSystem && <span className="badge bg-secondary ms-1">Système</span>} {role.isGlobal && <span className="badge bg-primary ms-1">Global</span>}</div>
-                    <span className="badge bg-light text-dark">{role.permissions.length} permissions</span>
-                  </div>
-                  <p className="small text-muted">{role.description || "Sans description"}</p>
-                  <div className="small mb-3">{role.permissions.join(", ") || "Aucune permission"}</div>
-                  {canAdministerRoles && (
+      {canAdministerRoles && (
+        <section className="card mb-4">
+          <div className="card-header"><h2 className="h6 mb-0">Rôles du club</h2></div>
+          <div className="card-body">
+            <div className="row g-3">
+              {initialRoles.map((role) => (
+                <div className="col-lg-6" key={role.id}>
+                  <div className="border rounded p-3 h-100">
+                    <div className="d-flex justify-content-between gap-2 mb-2">
+                      <div><strong>{role.name}</strong> {role.isSystem && <span className="badge bg-secondary ms-1">Système</span>} {role.isGlobal && <span className="badge bg-primary ms-1">Global</span>}</div>
+                      <span className="badge bg-light text-dark">{role.permissions.length} permissions</span>
+                    </div>
+                    <p className="small text-muted">{role.description || "Sans description"}</p>
+                    <div className="small mb-3">{role.permissions.join(", ") || "Aucune permission"}</div>
                     <details>
                       <summary className="btn btn-outline-secondary btn-sm">Modifier</summary>
                       <form className="mt-3" onSubmit={(event) => { event.preventDefault(); void run(() => updateRole(role.id, new FormData(event.currentTarget))); }}>
@@ -217,13 +227,13 @@ export function RolesManagement({
                         </div>
                       </form>
                     </details>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {canAdministerRoles && (
         <section className="card mb-4">
@@ -245,15 +255,15 @@ export function RolesManagement({
       )}
 
       <section className="card mb-4">
-        <div className="card-header"><h2 className="h6 mb-0">Attributions directes</h2></div>
+        <div className="card-header"><h2 className="h6 mb-0">Attributions directes visibles</h2></div>
         <div className="table-responsive">
           <table className="table align-middle mb-0"><thead><tr><th>Compte</th><th>Rôle</th><th>Portée</th><th>Fenêtre</th><th>Statut</th>{canAdministerRoles && <th>Action</th>}</tr></thead><tbody>
             {initialAssignments.map((assignment) => {
               const status = accessStatus(assignment.validFrom, assignment.validUntil, assignment.revokedAt);
               const temporary = Boolean(assignment.validFrom || assignment.validUntil);
-              return <tr key={assignment.id}><td>{assignment.userName}</td><td>{assignment.roleName}</td><td>{assignment.category ? AGE_CATEGORY_LABELS[assignment.category as keyof typeof AGE_CATEGORY_LABELS] ?? assignment.category : "Toutes"}</td><td><div className="small">{temporary ? `${formatDate(assignment.validFrom)} → ${formatDate(assignment.validUntil)}` : "Permanent"}</div>{assignment.grantReason && <div className="small text-muted">{assignment.grantReason}</div>}</td><td><span className={`badge ${status.className}`}>{status.label}</span>{assignment.revocationReason && <div className="small text-muted mt-1">{assignment.revocationReason}</div>}</td>{canAdministerRoles && <td>{!assignment.revokedAt && (temporary ? <button className="btn btn-outline-danger btn-sm" onClick={() => { const reason = window.prompt("Motif de révocation", "Fin anticipée de l'intérim"); if (reason) { const data = new FormData(); data.set("reason", reason); void run(() => revokeRoleAssignment(assignment.id, data)); } }}>Révoquer</button> : <button className="btn btn-outline-danger btn-sm" onClick={() => { if (window.confirm("Retirer cette attribution permanente ?")) void run(() => removeRoleAssignment(assignment.id)); }}>Retirer</button>)}</td>}</tr>;
+              return <tr key={assignment.id}><td>{assignment.userName}</td><td>{assignment.roleName}</td><td>{assignment.category ? AGE_CATEGORY_LABELS[assignment.category as keyof typeof AGE_CATEGORY_LABELS] ?? assignment.category : "Toutes"}</td><td><div className="small">{temporary ? `${formatDate(assignment.validFrom)} → ${formatDate(assignment.validUntil)}` : "Permanent"}</div>{assignment.grantReason && <div className="small text-muted">{assignment.grantReason}</div>}</td><td><span className={`badge ${status.className}`}>{status.label}</span>{assignment.revocationReason && <div className="small text-muted mt-1">{assignment.revocationReason}</div>}</td>{canAdministerRoles && <td>{!assignment.revokedAt && <button className="btn btn-outline-danger btn-sm" onClick={() => revokeAssignment(assignment)}>Révoquer</button>}</td>}</tr>;
             })}
-            {initialAssignments.length === 0 && <tr><td colSpan={canAdministerRoles ? 6 : 5} className="text-center text-muted py-4">Aucune attribution</td></tr>}
+            {initialAssignments.length === 0 && <tr><td colSpan={canAdministerRoles ? 6 : 5} className="text-center text-muted py-4">Aucune attribution visible</td></tr>}
           </tbody></table>
         </div>
       </section>
@@ -286,13 +296,13 @@ export function RolesManagement({
       </section>
 
       <section className="card">
-        <div className="card-header"><h2 className="h6 mb-0">Délégations</h2></div>
+        <div className="card-header"><h2 className="h6 mb-0">Délégations visibles</h2></div>
         <div className="table-responsive"><table className="table align-middle mb-0"><thead><tr><th>De</th><th>Vers</th><th>Portée</th><th>Permissions</th><th>Fenêtre</th><th>Statut</th><th>Action</th></tr></thead><tbody>
           {initialDelegations.map((delegation) => {
             const status = accessStatus(delegation.validFrom, delegation.validUntil, delegation.revokedAt);
-            return <tr key={delegation.id}><td>{delegation.delegatorName}</td><td>{delegation.delegateeName}</td><td>{delegation.category ? AGE_CATEGORY_LABELS[delegation.category as keyof typeof AGE_CATEGORY_LABELS] ?? delegation.category : "Toutes"}</td><td><span className="small">{delegation.permissions.join(", ")}</span><div className="small text-muted">{delegation.reason}</div></td><td className="small">{formatDate(delegation.validFrom)} → {formatDate(delegation.validUntil)}</td><td><span className={`badge ${status.className}`}>{status.label}</span>{delegation.revocationReason && <div className="small text-muted mt-1">{delegation.revocationReason}</div>}</td><td>{delegation.canRevoke && !delegation.revokedAt && <button className="btn btn-outline-danger btn-sm" onClick={() => { const reason = window.prompt("Motif de révocation"); if (!reason) return; const data = new FormData(); data.set("delegationId", String(delegation.id)); data.set("reason", reason); void run(() => revokeRoleDelegation(data)); }}>Révoquer</button>}</td></tr>;
+            return <tr key={delegation.id}><td>{delegation.delegatorName}</td><td>{delegation.delegateeName}</td><td>{delegation.category ? AGE_CATEGORY_LABELS[delegation.category as keyof typeof AGE_CATEGORY_LABELS] ?? delegation.category : "Toutes"}</td><td><span className="small">{delegation.permissions.join(", ")}</span><div className="small text-muted">{delegation.reason}</div></td><td className="small">{formatDate(delegation.validFrom)} → {formatDate(delegation.validUntil)}</td><td><span className={`badge ${status.className}`}>{status.label}</span>{delegation.revocationReason && <div className="small text-muted mt-1">{delegation.revocationReason}</div>}</td><td>{delegation.canRevoke && !delegation.revokedAt && <button className="btn btn-outline-danger btn-sm" onClick={() => { const reason = window.prompt("Motif de révocation"); if (!reason?.trim()) return; const data = new FormData(); data.set("delegationId", String(delegation.id)); data.set("reason", reason.trim()); void run(() => revokeRoleDelegation(data)); }}>Révoquer</button>}</td></tr>;
           })}
-          {initialDelegations.length === 0 && <tr><td colSpan={7} className="text-center text-muted py-4">Aucune délégation</td></tr>}
+          {initialDelegations.length === 0 && <tr><td colSpan={7} className="text-center text-muted py-4">Aucune délégation visible</td></tr>}
         </tbody></table></div>
       </section>
     </div>
