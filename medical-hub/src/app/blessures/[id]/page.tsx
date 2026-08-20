@@ -43,14 +43,22 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
   if (!injury) redirect("/blessures");
 
   const [roster, followUps, clearances, settings] = await Promise.all([
-    medicalPortalService.rosterInCategories(session.user.teamId, "ALL"),
+    medicalPortalService.rosterInCategories(session.user.teamId, access.categories),
     medicalPortalService.listFollowUps(injuryId, session.user.teamId),
     medicalPortalService.listClearances(injuryId, session.user.teamId),
     medicalPortalService.getSettings(session.user.teamId),
   ]);
   const player = roster.find((item) => item.id === injury.playerId);
+  // Category scope is enforced on the detail route too; knowing an injury id
+  // must not allow a medical staff member to escape their assigned category.
+  if (!player) redirect("/blessures");
+
   const documents = parseDocuments(injury.documents);
-  const canManage = can(access, "medical.manage");
+  const canEditInjury = can(access, "medical.injuries.manage");
+  const canManageFollowUps = can(access, "medical.followups.manage");
+  const canManageRtp = can(access, "medical.rtp.manage");
+  const canManageClearance = can(access, "medical.clearance.manage");
+  const canManageDocuments = can(access, "medical.documents.manage");
   const neededClearances = requiredClearances(injury.severity, settings);
   const currentClearances = countLatestClearances(clearances);
 
@@ -59,7 +67,7 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <div>
           <h1 style={{ fontSize: "1.2rem", margin: "0 0 4px" }}>
-            {player ? `${player.firstNameFr} ${player.lastNameFr}` : injury.playerId} — {injury.zone}
+            {`${player.firstNameFr} ${player.lastNameFr}`} — {injury.zone}
           </h1>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <Badge label={STATUS_LABEL[injury.status]?.label ?? injury.status} tone={STATUS_LABEL[injury.status]?.tone ?? "danger"} />
@@ -78,13 +86,14 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
           clearanceRequired={settings.clearanceRequired}
           requiredClearances={neededClearances}
           currentClearances={currentClearances}
-          canManage={canManage}
+          canTransition={canManageRtp}
+          canClearance={canManageClearance}
         />
       </Card>
 
       <Card>
         <div style={{ fontSize: "0.8rem", color: "var(--mh-text-muted)", fontWeight: 600, marginBottom: 10 }}>Dossier médical</div>
-        {canManage ? (
+        {canEditInjury ? (
           <InjuryEditForm injury={injury} />
         ) : (
           <div style={{ display: "grid", gap: 8, fontSize: "0.9rem" }}>
@@ -108,7 +117,7 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
         <div style={{ fontSize: "0.8rem", color: "var(--mh-text-muted)", fontWeight: 600, marginBottom: 10 }}>
           Journal médical append-only
         </div>
-        {canManage && <FollowUpNoteForm injuryId={injury.id} />}
+        {canManageFollowUps && <FollowUpNoteForm injuryId={injury.id} />}
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
           {followUps.length === 0 && !injury.notes ? (
             <p style={{ color: "var(--mh-text-muted)", fontSize: "0.85rem", margin: 0 }}>Aucune entrée de suivi.</p>
@@ -138,7 +147,7 @@ export default async function InjuryDetailPage({ params }: { params: Promise<{ i
 
       <Card>
         <div style={{ fontSize: "0.8rem", color: "var(--mh-text-muted)", fontWeight: 600, marginBottom: 10 }}>Documents</div>
-        {canManage && <AddDocumentForm injuryId={injury.id} />}
+        {canManageDocuments && <AddDocumentForm injuryId={injury.id} />}
         {documents.length === 0 ? (
           <p style={{ color: "var(--mh-text-muted)", fontSize: "0.85rem", marginTop: 12 }}>Aucun document.</p>
         ) : (
