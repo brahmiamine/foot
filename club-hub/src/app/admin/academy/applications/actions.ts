@@ -15,6 +15,13 @@ import {
 
 const PATH = "/admin/academy/applications";
 
+export interface AcademyApplicationActionResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  playerId?: string;
+}
+
 async function context(id: number, permissions: string[]) {
   const session = await auth();
   if (!session?.user) throw new Error("Non authentifié");
@@ -37,11 +44,17 @@ async function context(id: number, permissions: string[]) {
   return { service, teamId, actorId: session.user.id };
 }
 
-function resultError(error: unknown) {
-  return { success: false, error: error instanceof Error ? error.message : "Erreur lors du traitement de la candidature" };
+function resultError(error: unknown): AcademyApplicationActionResult {
+  return {
+    success: false,
+    error: error instanceof Error ? error.message : "Erreur lors du traitement de la candidature",
+  };
 }
 
-export async function preScreenPlayerApplication(id: number, formData: FormData) {
+export async function preScreenPlayerApplication(
+  id: number,
+  formData: FormData,
+): Promise<AcademyApplicationActionResult> {
   try {
     const data = academyPreScreenSchema.parse({ notes: formData.get("notes") || null });
     const { service, teamId, actorId } = await context(id, ["playerApplications.manage"]);
@@ -53,7 +66,10 @@ export async function preScreenPlayerApplication(id: number, formData: FormData)
   }
 }
 
-export async function schedulePlayerApplicationTrial(id: number, formData: FormData) {
+export async function schedulePlayerApplicationTrial(
+  id: number,
+  formData: FormData,
+): Promise<AcademyApplicationActionResult> {
   try {
     const data = academyTrialSchema.parse({
       scheduledAt: formData.get("scheduledAt"),
@@ -69,7 +85,10 @@ export async function schedulePlayerApplicationTrial(id: number, formData: FormD
   }
 }
 
-export async function approvePlayerApplicationTechnical(id: number, formData: FormData) {
+export async function approvePlayerApplicationTechnical(
+  id: number,
+  formData: FormData,
+): Promise<AcademyApplicationActionResult> {
   try {
     const data = academyApprovalSchema.parse({ notes: formData.get("notes") || null });
     const { service, teamId, actorId } = await context(id, ["playerApplications.manage"]);
@@ -81,7 +100,10 @@ export async function approvePlayerApplicationTechnical(id: number, formData: Fo
   }
 }
 
-export async function approvePlayerApplicationAdministrative(id: number, formData: FormData) {
+export async function approvePlayerApplicationAdministrative(
+  id: number,
+  formData: FormData,
+): Promise<AcademyApplicationActionResult> {
   try {
     const data = academyApprovalSchema.parse({ notes: formData.get("notes") || null });
     const { service, teamId, actorId } = await context(id, ["playerApplications.manage", "players.create"]);
@@ -93,7 +115,10 @@ export async function approvePlayerApplicationAdministrative(id: number, formDat
   }
 }
 
-export async function rejectPlayerApplication(id: number, formData: FormData) {
+export async function rejectPlayerApplication(
+  id: number,
+  formData: FormData,
+): Promise<AcademyApplicationActionResult> {
   try {
     const data = academyRejectionSchema.parse({ reason: formData.get("reason") });
     const { service, teamId, actorId } = await context(id, ["playerApplications.manage"]);
@@ -105,7 +130,10 @@ export async function rejectPlayerApplication(id: number, formData: FormData) {
   }
 }
 
-export async function createPlayerFromApplication(id: number, formData: FormData) {
+export async function createPlayerFromApplication(
+  id: number,
+  formData: FormData,
+): Promise<AcademyApplicationActionResult> {
   try {
     const data = academyCreatePlayerSchema.parse({
       number: formData.get("number"),
@@ -122,7 +150,7 @@ export async function createPlayerFromApplication(id: number, formData: FormData
   }
 }
 
-export async function deletePlayerApplication(id: number) {
+export async function deletePlayerApplication(id: number): Promise<AcademyApplicationActionResult> {
   try {
     const { service, teamId } = await context(id, ["playerApplications.manage"]);
     await service.delete(id, teamId);
