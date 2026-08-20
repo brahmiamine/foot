@@ -4,7 +4,6 @@ import { Card, type CardType } from "@/entities/Card";
 import { Player } from "@/entities/Player";
 import { Suspension } from "@/entities/Suspension";
 import { Fine } from "@/entities/Fine";
-import { DisciplineRuleApplication } from "@/entities/DisciplineRule";
 import { QueryFailedError, Repository } from "typeorm";
 import { SuspensionService } from "./SuspensionService";
 import { DisciplineRuleService } from "./DisciplineRuleService";
@@ -154,8 +153,9 @@ export class CardService {
   }
 
   /**
-   * Supprime un carton et ses dérivés. Le snapshot de règle lié au carton est
-   * supprimé avec lui : il ne représente plus une sanction existante.
+   * Supprime un carton et ses dérivés opérationnels. Le snapshot de règle
+   * reste volontairement en base comme preuve d'audit de la sanction qui a
+   * été calculée avant suppression du carton.
    */
   async delete(id: string, teamId: string): Promise<Card> {
     const dataSource = await getDataSource();
@@ -163,7 +163,6 @@ export class CardService {
     const playerRepo = dataSource.getRepository(Player);
     const suspensionRepo = dataSource.getRepository(Suspension);
     const fineRepo = dataSource.getRepository(Fine);
-    const ruleApplicationRepo = dataSource.getRepository(DisciplineRuleApplication);
 
     const card = await this.findById(id, teamId);
     if (!card) throw new Error("Carton non trouvé");
@@ -182,7 +181,6 @@ export class CardService {
 
     await suspensionRepo.delete({ cardId: id });
     await fineRepo.delete({ cardId: id });
-    await ruleApplicationRepo.delete({ cardId: id, teamId });
     await repository.remove(card);
 
     const remainingActive = await suspensionRepo.count({ where: { playerId: card.playerId, status: "ACTIVE" } });
