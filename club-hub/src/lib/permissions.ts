@@ -218,6 +218,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     permissions: [
       { key: "trips.view", label: "Voir les déplacements" },
       { key: "trips.manage", label: "Organiser les déplacements" },
+      { key: "trips.approve", label: "Approuver ou rejeter les budgets de déplacement" },
     ],
   },
   {
