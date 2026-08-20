@@ -7,8 +7,8 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 /**
- * Page Réglages disciplinaires globaux — port de
- * cardManager/app/[locale]/admin/dashboard/settings. Réservé ADMIN.
+ * Réglages disciplinaires historiques. Ils restent le fallback tant qu'aucun
+ * RuleSet CLUB-011 n'est applicable au contexte du match.
  */
 export default async function SettingsPage() {
   const session = await auth();
@@ -20,8 +20,14 @@ export default async function SettingsPage() {
   return (
     <div className="container-fluid px-0 skote-settings-narrow">
       <div className="d-flex justify-content-between align-items-center mb-4 gap-2">
-        <h1 className="h4 mb-0">Réglages disciplinaires</h1>
+        <div>
+          <h1 className="h4 mb-0">Réglages disciplinaires</h1>
+          <p className="text-muted small mb-0">Valeurs legacy utilisées uniquement lorsqu’aucune règle versionnée n’est applicable.</p>
+        </div>
         <div className="d-flex flex-wrap gap-2">
+          <Link href="/admin/discipline/rules" className="btn btn-primary btn-sm">
+            Règles versionnées
+          </Link>
           <Link
             href="/admin/settings/effective-configuration"
             className="btn btn-outline-primary btn-sm"
