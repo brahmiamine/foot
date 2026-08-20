@@ -38,7 +38,7 @@ SELECT
   t.id,
   'Responsable médical',
   'Responsabilité médicale complète incluant les règles de clearance et de second avis du club.',
-  0,
+  1,
   1,
   '["players.view","staff.view","matches.view","convocations.view","trainings.view","medical.view","medical.injuries.manage","medical.followups.manage","medical.rtp.manage","medical.clearance.manage","medical.documents.manage","medical.settings.manage"]'
 FROM teams t
