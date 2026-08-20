@@ -1,21 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/hooks/useConfirm";
 import { AGE_CATEGORIES, AGE_CATEGORY_LABELS } from "@/types/categories";
-import { createRole, updateRole, deleteRole, assignRoleToUser, removeRoleAssignment } from "./actions";
+import {
+  assignRoleToUser,
+  createRole,
+  createRoleDelegation,
+  deleteRole,
+  removeRoleAssignment,
+  revokeRoleAssignment,
+  revokeRoleDelegation,
+  updateRole,
+} from "./actions";
 
-interface PermissionDef {
-  key: string;
-  label: string;
-}
-interface PermissionModule {
-  key: string;
-  label: string;
-  permissions: PermissionDef[];
-}
-
+interface PermissionDef { key: string; label: string; }
+interface PermissionModule { key: string; label: string; permissions: PermissionDef[]; }
 interface RoleData {
   id: number;
   name: string;
@@ -24,7 +24,6 @@ interface RoleData {
   isSystem: boolean;
   permissions: string[];
 }
-
 interface AssignmentData {
   id: number;
   userId: string;
@@ -32,440 +31,270 @@ interface AssignmentData {
   roleId: number;
   roleName: string;
   category: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  grantReason: string | null;
+  revokedAt: string | null;
+  revocationReason: string | null;
+}
+interface DelegationData {
+  id: number;
+  delegatorUserId: string;
+  delegatorName: string;
+  delegateeUserId: string;
+  delegateeName: string;
+  permissions: string[];
+  category: string | null;
+  validFrom: string;
+  validUntil: string;
+  reason: string;
+  revokedAt: string | null;
+  revocationReason: string | null;
+  canRevoke: boolean;
+}
+interface UserOption { id: string; name: string; email: string; }
+
+function toIsoLocal(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new Error("Date invalide");
+  return date.toISOString();
 }
 
-interface UserOption {
-  id: string;
-  name: string;
-  email: string;
+function formatDate(value: string | null): string {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function accessStatus(
+  validFrom: string | null,
+  validUntil: string | null,
+  revokedAt: string | null,
+): { label: string; className: string } {
+  if (revokedAt) return { label: "Révoqué", className: "bg-danger-subtle text-danger" };
+  const now = Date.now();
+  if (validFrom && new Date(validFrom).getTime() > now) return { label: "Planifié", className: "bg-info-subtle text-info" };
+  if (validUntil && new Date(validUntil).getTime() <= now) return { label: "Expiré", className: "bg-secondary-subtle text-secondary" };
+  return { label: "Actif", className: "bg-success-subtle text-success" };
 }
 
 export function RolesManagement({
   initialRoles,
   initialAssignments,
+  initialDelegations,
   users,
   permissionModules,
+  canAdministerRoles,
+  delegableScopes,
 }: {
   initialRoles: RoleData[];
   initialAssignments: AssignmentData[];
+  initialDelegations: DelegationData[];
   users: UserOption[];
   permissionModules: PermissionModule[];
+  canAdministerRoles: boolean;
+  delegableScopes: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { confirm, confirmDialog } = useConfirm();
-
-  const [editingRole, setEditingRole] = useState<RoleData | null>(null);
-  const [showRoleForm, setShowRoleForm] = useState(false);
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
-  const [isGlobal, setIsGlobal] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [assignmentRoleId, setAssignmentRoleId] = useState<number | null>(initialRoles[0]?.id ?? null);
+  const scopeKeys = useMemo(() => Object.keys(delegableScopes), [delegableScopes]);
+  const [delegationScope, setDelegationScope] = useState(scopeKeys[0] ?? "");
+  const selectedRole = initialRoles.find((role) => role.id === assignmentRoleId) ?? null;
+  const allowedDelegationPermissions = useMemo(
+    () => new Set(delegableScopes[delegationScope] ?? []),
+    [delegableScopes, delegationScope],
+  );
 
-  const [assignRoleId, setAssignRoleId] = useState<string>("");
-  const [assigning, setAssigning] = useState(false);
-
-  const openCreateForm = () => {
-    setEditingRole(null);
-    setSelectedPermissions([]);
-    setIsGlobal(false);
-    setShowRoleForm(true);
-  };
-
-  const openEditForm = (role: RoleData) => {
-    setEditingRole(role);
-    setSelectedPermissions(role.permissions);
-    setIsGlobal(role.isGlobal);
-    setShowRoleForm(true);
-  };
-
-  const togglePermission = (key: string) => {
-    setSelectedPermissions((prev) => (prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]));
-  };
-
-  const toggleModule = (mod: PermissionModule) => {
-    const keys = mod.permissions.map((p) => p.key);
-    const allSelected = keys.every((k) => selectedPermissions.includes(k));
-    setSelectedPermissions((prev) =>
-      allSelected ? prev.filter((p) => !keys.includes(p)) : Array.from(new Set([...prev, ...keys]))
-    );
-  };
-
-  const handleRoleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const run = async (operation: () => Promise<{ success: boolean; error?: string; message?: string }>) => {
     setError(null);
     setSuccess(null);
-    setSaving(true);
+    const result = await operation();
+    if (!result.success) {
+      setError(result.error ?? "Une erreur est survenue");
+      return;
+    }
+    setSuccess(result.message ?? "Opération réussie");
+    startTransition(() => router.refresh());
+  };
+
+  const submitWithIsoDates = async (
+    form: HTMLFormElement,
+    action: (data: FormData) => Promise<{ success: boolean; error?: string; message?: string }>,
+    dateKeys: string[],
+  ) => {
+    const data = new FormData(form);
     try {
-      const formData = new FormData(e.currentTarget);
-      selectedPermissions.forEach((p) => formData.append("permissions", p));
-
-      const result = editingRole ? await updateRole(editingRole.id, formData) : await createRole(formData);
-      if (result.success) {
-        setSuccess(result.message ?? null);
-        setShowRoleForm(false);
-        startTransition(() => router.refresh());
-      } else {
-        setError(result.error || "Erreur");
+      for (const key of dateKeys) {
+        const iso = toIsoLocal(data.get(key));
+        if (iso) data.set(key, iso);
+        else data.delete(key);
       }
-    } finally {
-      setSaving(false);
+    } catch (dateError) {
+      setError(dateError instanceof Error ? dateError.message : "Date invalide");
+      return;
     }
+    await run(() => action(data));
   };
-
-  const handleDeleteRole = async (role: RoleData) => {
-    if (!(await confirm(`Supprimer le rôle "${role.name}" ?`))) return;
-    const result = await deleteRole(role.id);
-    if (result.success) {
-      startTransition(() => router.refresh());
-    } else {
-      setError(result.error || "Erreur lors de la suppression");
-    }
-  };
-
-  const handleAssignSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setAssigning(true);
-    try {
-      const formData = new FormData(e.currentTarget);
-      const result = await assignRoleToUser(formData);
-      if (result.success) {
-        setSuccess(result.message ?? null);
-        e.currentTarget.reset();
-        setAssignRoleId("");
-        startTransition(() => router.refresh());
-      } else {
-        setError(result.error || "Erreur lors de l'attribution");
-      }
-    } finally {
-      setAssigning(false);
-    }
-  };
-
-  const handleRemoveAssignment = async (assignment: AssignmentData) => {
-    if (!(await confirm(`Retirer le rôle "${assignment.roleName}" à ${assignment.userName} ?`))) return;
-    const result = await removeRoleAssignment(assignment.id);
-    if (result.success) {
-      startTransition(() => router.refresh());
-    } else {
-      setError(result.error || "Erreur lors du retrait");
-    }
-  };
-
-  const selectedRoleForAssign = initialRoles.find((r) => String(r.id) === assignRoleId);
 
   return (
     <div className="container-fluid px-0">
-      {confirmDialog}
-      <div className="d-flex justify-content-between align-items-center mb-4 gap-2 flex-wrap">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
-          <h1 className="h4 mb-1">Rôles & permissions</h1>
-          <p className="text-muted mb-0">
-            Créez des rôles (ex: Secrétaire, Coach) et attribuez-les aux comptes de votre club. Un rôle « global »
-            donne accès à toutes les catégories ; sinon chaque attribution précise une catégorie (ex: Coach → U17).
-          </p>
+          <h1 className="h4 mb-1">Rôles, accès temporaires & délégations</h1>
+          <p className="text-muted mb-0">Les délégations sont bornées dans le temps et ne peuvent jamais être redéléguées.</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={openCreateForm}>
-          <i className="fas fa-plus me-2" aria-hidden="true" />
-          Nouveau rôle
-        </button>
       </div>
 
-      {error && (
-        <div className="alert alert-danger d-flex justify-content-between align-items-start mb-4">
-          <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} aria-label="Fermer" className="btn-close" />
-        </div>
-      )}
-      {success && (
-        <div className="alert alert-success d-flex justify-content-between align-items-start mb-4">
-          <span>{success}</span>
-          <button type="button" onClick={() => setSuccess(null)} aria-label="Fermer" className="btn-close" />
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
 
-      {showRoleForm && (
-        <div className="card border border-primary mb-4">
-          <div className="card-header bg-transparent d-flex align-items-center justify-content-between">
-            <h5 className="card-title mb-0 text-primary">{editingRole ? `Modifier « ${editingRole.name} »` : "Nouveau rôle"}</h5>
-            <button type="button" onClick={() => setShowRoleForm(false)} className="btn-close" aria-label="Fermer" />
-          </div>
+      {canAdministerRoles && (
+        <section className="card mb-4">
+          <div className="card-header"><h2 className="h6 mb-0">Créer un rôle</h2></div>
           <div className="card-body">
-            <form onSubmit={handleRoleSubmit} className="row g-3">
-              <div className="col-md-6">
-                <label htmlFor="name" className="form-label">
-                  Nom du rôle
-                </label>
-                <input type="text" id="name" name="name" className="form-control" required maxLength={100} defaultValue={editingRole?.name ?? ""} />
+            <form onSubmit={(event) => { event.preventDefault(); void run(() => createRole(new FormData(event.currentTarget))); }}>
+              <div className="row g-3">
+                <div className="col-md-4"><label className="form-label">Nom</label><input name="name" className="form-control" required maxLength={100} /></div>
+                <div className="col-md-6"><label className="form-label">Description</label><input name="description" className="form-control" maxLength={255} /></div>
+                <div className="col-md-2 d-flex align-items-end"><div className="form-check mb-2"><input id="create-global" name="isGlobal" type="checkbox" className="form-check-input" /><label htmlFor="create-global" className="form-check-label">Global</label></div></div>
               </div>
-              <div className="col-md-6">
-                <label htmlFor="description" className="form-label">
-                  Description
-                </label>
-                <input type="text" id="description" name="description" className="form-control" maxLength={255} defaultValue={editingRole?.description ?? ""} />
-              </div>
-              <div className="col-12">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="isGlobal"
-                    name="isGlobal"
-                    checked={isGlobal}
-                    onChange={(e) => setIsGlobal(e.target.checked)}
-                  />
-                  <label className="form-check-label" htmlFor="isGlobal">
-                    Rôle global (accès à toutes les catégories — ex: Secrétaire Général, Trésorier)
-                  </label>
-                </div>
-                {!isGlobal && (
-                  <div className="form-text">
-                    Rôle scopé par catégorie : chaque personne à qui il est attribué sera limitée à la catégorie choisie
-                    (ex: « Coach » attribué à Amine pour U17).
+              <div className="row g-3 mt-1">
+                {permissionModules.map((module) => (
+                  <div className="col-md-4" key={module.key}>
+                    <div className="border rounded p-3 h-100">
+                      <strong className="d-block mb-2">{module.label}</strong>
+                      {module.permissions.map((permission) => (
+                        <div className="form-check" key={permission.key}>
+                          <input className="form-check-input" type="checkbox" name="permissions" value={permission.key} id={`create-${permission.key}`} />
+                          <label className="form-check-label" htmlFor={`create-${permission.key}`}>{permission.label}</label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
+              <button className="btn btn-primary mt-3" disabled={isPending}>Créer le rôle</button>
+            </form>
+          </div>
+        </section>
+      )}
 
-              <div className="col-12">
-                <label className="form-label d-block">Permissions</label>
-                <div className="row g-2">
-                  {permissionModules.map((mod) => {
-                    const keys = mod.permissions.map((p) => p.key);
-                    const allSelected = keys.every((k) => selectedPermissions.includes(k));
-                    return (
-                      <div className="col-md-6 col-lg-4" key={mod.key}>
-                        <div className="border rounded p-2 h-100">
-                          <div className="form-check mb-1">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id={`mod-${mod.key}`}
-                              checked={allSelected}
-                              onChange={() => toggleModule(mod)}
-                            />
-                            <label className="form-check-label fw-semibold" htmlFor={`mod-${mod.key}`}>
-                              {mod.label}
-                            </label>
-                          </div>
-                          {mod.permissions.map((p) => (
-                            <div className="form-check ms-3" key={p.key}>
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id={`perm-${p.key}`}
-                                checked={selectedPermissions.includes(p.key)}
-                                onChange={() => togglePermission(p.key)}
-                              />
-                              <label className="form-check-label small" htmlFor={`perm-${p.key}`}>
-                                {p.label}
-                              </label>
-                            </div>
+      <section className="card mb-4">
+        <div className="card-header"><h2 className="h6 mb-0">Rôles du club</h2></div>
+        <div className="card-body">
+          <div className="row g-3">
+            {initialRoles.map((role) => (
+              <div className="col-lg-6" key={role.id}>
+                <div className="border rounded p-3 h-100">
+                  <div className="d-flex justify-content-between gap-2 mb-2">
+                    <div><strong>{role.name}</strong> {role.isSystem && <span className="badge bg-secondary ms-1">Système</span>} {role.isGlobal && <span className="badge bg-primary ms-1">Global</span>}</div>
+                    <span className="badge bg-light text-dark">{role.permissions.length} permissions</span>
+                  </div>
+                  <p className="small text-muted">{role.description || "Sans description"}</p>
+                  <div className="small mb-3">{role.permissions.join(", ") || "Aucune permission"}</div>
+                  {canAdministerRoles && (
+                    <details>
+                      <summary className="btn btn-outline-secondary btn-sm">Modifier</summary>
+                      <form className="mt-3" onSubmit={(event) => { event.preventDefault(); void run(() => updateRole(role.id, new FormData(event.currentTarget))); }}>
+                        <div className="row g-2">
+                          <div className="col-md-5"><input name="name" className="form-control form-control-sm" defaultValue={role.name} required /></div>
+                          <div className="col-md-7"><input name="description" className="form-control form-control-sm" defaultValue={role.description ?? ""} /></div>
+                        </div>
+                        <div className="form-check my-2"><input name="isGlobal" id={`global-${role.id}`} type="checkbox" className="form-check-input" defaultChecked={role.isGlobal} /><label htmlFor={`global-${role.id}`} className="form-check-label">Portée globale</label></div>
+                        <div className="row g-2">
+                          {permissionModules.map((module) => (
+                            <div className="col-md-6" key={module.key}><div className="border rounded p-2 h-100"><strong className="small">{module.label}</strong>{module.permissions.map((permission) => (
+                              <div className="form-check" key={permission.key}><input className="form-check-input" type="checkbox" name="permissions" value={permission.key} id={`role-${role.id}-${permission.key}`} defaultChecked={role.permissions.includes(permission.key)} /><label className="form-check-label small" htmlFor={`role-${role.id}-${permission.key}`}>{permission.label}</label></div>
+                            ))}</div></div>
                           ))}
                         </div>
-                      </div>
-                    );
-                  })}
+                        <div className="d-flex gap-2 mt-3">
+                          <button className="btn btn-primary btn-sm" disabled={isPending}>Enregistrer</button>
+                          {!role.isSystem && <button type="button" className="btn btn-outline-danger btn-sm" disabled={isPending} onClick={() => { if (window.confirm(`Supprimer le rôle « ${role.name} » ?`)) void run(() => deleteRole(role.id)); }}>Supprimer</button>}
+                        </div>
+                      </form>
+                    </details>
+                  )}
                 </div>
               </div>
-
-              <div className="col-12">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                      Enregistrement...
-                    </>
-                  ) : editingRole ? (
-                    "Enregistrer"
-                  ) : (
-                    "Créer le rôle"
-                  )}
-                </button>
-              </div>
-            </form>
+            ))}
           </div>
         </div>
+      </section>
+
+      {canAdministerRoles && (
+        <section className="card mb-4">
+          <div className="card-header"><h2 className="h6 mb-0">Attribuer un rôle direct</h2></div>
+          <div className="card-body">
+            <form onSubmit={(event) => { event.preventDefault(); void submitWithIsoDates(event.currentTarget, assignRoleToUser, ["validFrom", "validUntil"]); }}>
+              <div className="row g-3">
+                <div className="col-lg-3"><label className="form-label">Compte</label><select name="userId" className="form-select" required><option value="">Choisir…</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name} — {user.email}</option>)}</select></div>
+                <div className="col-lg-3"><label className="form-label">Rôle</label><select name="roleId" className="form-select" required value={assignmentRoleId ?? ""} onChange={(event) => setAssignmentRoleId(Number(event.target.value))}><option value="">Choisir…</option>{initialRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></div>
+                <div className="col-lg-2"><label className="form-label">Catégorie</label><select name="category" className="form-select" disabled={selectedRole?.isGlobal}><option value="">{selectedRole?.isGlobal ? "Toutes" : "Choisir…"}</option>{AGE_CATEGORIES.map((category) => <option key={category} value={category}>{AGE_CATEGORY_LABELS[category]}</option>)}</select></div>
+                <div className="col-lg-2"><label className="form-label">Actif à partir de</label><input type="datetime-local" name="validFrom" className="form-control" /></div>
+                <div className="col-lg-2"><label className="form-label">Jusqu’au</label><input type="datetime-local" name="validUntil" className="form-control" /></div>
+                <div className="col-12"><label className="form-label">Motif <span className="text-muted">(obligatoire si temporaire)</span></label><input name="reason" className="form-control" maxLength={1000} placeholder="Remplacement, intérim, tournoi…" /></div>
+              </div>
+              <button className="btn btn-primary mt-3" disabled={isPending}>Attribuer</button>
+            </form>
+          </div>
+        </section>
       )}
 
-      <div className="card mb-4">
-        <div className="card-header">
-          <h5 className="card-title mb-0">Rôles du club</h5>
+      <section className="card mb-4">
+        <div className="card-header"><h2 className="h6 mb-0">Attributions directes</h2></div>
+        <div className="table-responsive">
+          <table className="table align-middle mb-0"><thead><tr><th>Compte</th><th>Rôle</th><th>Portée</th><th>Fenêtre</th><th>Statut</th>{canAdministerRoles && <th>Action</th>}</tr></thead><tbody>
+            {initialAssignments.map((assignment) => {
+              const status = accessStatus(assignment.validFrom, assignment.validUntil, assignment.revokedAt);
+              const temporary = Boolean(assignment.validFrom || assignment.validUntil);
+              return <tr key={assignment.id}><td>{assignment.userName}</td><td>{assignment.roleName}</td><td>{assignment.category ? AGE_CATEGORY_LABELS[assignment.category as keyof typeof AGE_CATEGORY_LABELS] ?? assignment.category : "Toutes"}</td><td><div className="small">{temporary ? `${formatDate(assignment.validFrom)} → ${formatDate(assignment.validUntil)}` : "Permanent"}</div>{assignment.grantReason && <div className="small text-muted">{assignment.grantReason}</div>}</td><td><span className={`badge ${status.className}`}>{status.label}</span>{assignment.revocationReason && <div className="small text-muted mt-1">{assignment.revocationReason}</div>}</td>{canAdministerRoles && <td>{!assignment.revokedAt && (temporary ? <button className="btn btn-outline-danger btn-sm" onClick={() => { const reason = window.prompt("Motif de révocation", "Fin anticipée de l'intérim"); if (reason) { const data = new FormData(); data.set("reason", reason); void run(() => revokeRoleAssignment(assignment.id, data)); } }}>Révoquer</button> : <button className="btn btn-outline-danger btn-sm" onClick={() => { if (window.confirm("Retirer cette attribution permanente ?")) void run(() => removeRoleAssignment(assignment.id)); }}>Retirer</button>)}</td>}</tr>;
+            })}
+            {initialAssignments.length === 0 && <tr><td colSpan={canAdministerRoles ? 6 : 5} className="text-center text-muted py-4">Aucune attribution</td></tr>}
+          </tbody></table>
         </div>
-        <div className="card-body">
-          {initialRoles.length === 0 ? (
-            <p className="text-muted mb-0">Aucun rôle créé</p>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Rôle</th>
-                    <th>Portée</th>
-                    <th>Permissions</th>
-                    <th className="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {initialRoles.map((role) => (
-                    <tr key={role.id}>
-                      <td>
-                        <strong>{role.name}</strong>
-                        {role.description && <div className="text-muted small">{role.description}</div>}
-                      </td>
-                      <td>
-                        {role.isGlobal ? (
-                          <span className="badge bg-primary-subtle text-primary">Toutes catégories</span>
-                        ) : (
-                          <span className="badge bg-info-subtle text-info">Par catégorie</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="text-muted small">{role.permissions.length} permission(s)</span>
-                      </td>
-                      <td className="text-end">
-                        <div className="btn-group" role="group">
-                          <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => openEditForm(role)}>
-                            <i className="fas fa-edit" aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDeleteRole(role)}
-                            disabled={isPending}
-                          >
-                            <i className="fas fa-trash" aria-hidden="true" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+      </section>
 
-      <div className="card mb-4">
-        <div className="card-header">
-          <h5 className="card-title mb-0">Attribuer un rôle</h5>
-        </div>
+      <section className="card mb-4">
+        <div className="card-header"><h2 className="h6 mb-0">Créer une délégation temporaire</h2></div>
         <div className="card-body">
-          {users.length === 0 ? (
-            <p className="text-muted mb-0">
-              Aucun compte à qui attribuer un rôle. Créez d&apos;abord des comptes dans <strong>Utilisateurs</strong>.
-            </p>
+          {scopeKeys.length === 0 ? (
+            <div className="alert alert-info mb-0">Vous ne possédez pas directement <code>roles.manage</code> sur une portée délégable. Un droit reçu par délégation ne peut pas être redélégué.</div>
           ) : (
-            <form onSubmit={handleAssignSubmit} className="row g-3 align-items-end">
-              <div className="col-md-4">
-                <label htmlFor="userId" className="form-label">
-                  Personne
-                </label>
-                <select id="userId" name="userId" className="form-select" required defaultValue="">
-                  <option value="" disabled>
-                    Choisir une personne
-                  </option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
-                </select>
+            <form onSubmit={(event) => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); data.set("category", delegationScope === "ALL" ? "" : delegationScope); try { const from = toIsoLocal(data.get("validFrom")); const until = toIsoLocal(data.get("validUntil")); if (!from || !until) throw new Error("Début et fin de délégation requis"); data.set("validFrom", from); data.set("validUntil", until); } catch (dateError) { setError(dateError instanceof Error ? dateError.message : "Date invalide"); return; } void run(() => createRoleDelegation(data)); }}>
+              <div className="row g-3">
+                <div className="col-lg-4"><label className="form-label">Destinataire</label><select name="delegateeUserId" className="form-select" required><option value="">Choisir…</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name} — {user.email}</option>)}</select></div>
+                <div className="col-lg-2"><label className="form-label">Portée</label><select className="form-select" value={delegationScope} onChange={(event) => setDelegationScope(event.target.value)}>{scopeKeys.map((scope) => <option key={scope} value={scope}>{scope === "ALL" ? "Toutes catégories" : AGE_CATEGORY_LABELS[scope as keyof typeof AGE_CATEGORY_LABELS] ?? scope}</option>)}</select></div>
+                <div className="col-lg-3"><label className="form-label">Début</label><input type="datetime-local" name="validFrom" className="form-control" required /></div>
+                <div className="col-lg-3"><label className="form-label">Fin</label><input type="datetime-local" name="validUntil" className="form-control" required /></div>
+                <div className="col-12"><label className="form-label">Motif</label><input name="reason" className="form-control" minLength={3} maxLength={1000} required placeholder="Absence temporaire, suppléance match, déplacement…" /></div>
               </div>
-              <div className="col-md-4">
-                <label htmlFor="roleId" className="form-label">
-                  Rôle
-                </label>
-                <select
-                  id="roleId"
-                  name="roleId"
-                  className="form-select"
-                  required
-                  value={assignRoleId}
-                  onChange={(e) => setAssignRoleId(e.target.value)}
-                >
-                  <option value="" disabled>
-                    Choisir un rôle
-                  </option>
-                  {initialRoles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} {r.isGlobal ? "(global)" : ""}
-                    </option>
-                  ))}
-                </select>
+              <div className="row g-3 mt-1">
+                {permissionModules.map((module) => {
+                  const available = module.permissions.filter((permission) => allowedDelegationPermissions.has(permission.key));
+                  if (available.length === 0) return null;
+                  return <div className="col-md-4" key={module.key}><div className="border rounded p-3 h-100"><strong className="d-block mb-2">{module.label}</strong>{available.map((permission) => <div className="form-check" key={permission.key}><input className="form-check-input" type="checkbox" name="permissions" value={permission.key} id={`delegate-${delegationScope}-${permission.key}`} /><label className="form-check-label" htmlFor={`delegate-${delegationScope}-${permission.key}`}>{permission.label}</label></div>)}</div></div>;
+                })}
               </div>
-              <div className="col-md-3">
-                <label htmlFor="category" className="form-label">
-                  Catégorie
-                </label>
-                <select
-                  id="category"
-                  name="category"
-                  className="form-select"
-                  disabled={!selectedRoleForAssign || selectedRoleForAssign.isGlobal}
-                  required={!!selectedRoleForAssign && !selectedRoleForAssign.isGlobal}
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    {selectedRoleForAssign?.isGlobal ? "Toutes catégories" : "Choisir une catégorie"}
-                  </option>
-                  {AGE_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {AGE_CATEGORY_LABELS[c]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-md-1">
-                <button type="submit" className="btn btn-primary w-100" disabled={assigning}>
-                  {assigning ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : <i className="fas fa-check" aria-hidden="true" />}
-                </button>
-              </div>
+              <button className="btn btn-primary mt-3" disabled={isPending}>Créer la délégation</button>
             </form>
           )}
         </div>
-      </div>
+      </section>
 
-      <div className="card">
-        <div className="card-header">
-          <h5 className="card-title mb-0">Attributions en cours</h5>
-        </div>
-        <div className="card-body">
-          {initialAssignments.length === 0 ? (
-            <p className="text-muted mb-0">Aucune attribution</p>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Personne</th>
-                    <th>Rôle</th>
-                    <th>Catégorie</th>
-                    <th className="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {initialAssignments.map((a) => (
-                    <tr key={a.id}>
-                      <td>{a.userName}</td>
-                      <td>{a.roleName}</td>
-                      <td>{a.category ? AGE_CATEGORY_LABELS[a.category as keyof typeof AGE_CATEGORY_LABELS] ?? a.category : <span className="badge bg-primary-subtle text-primary">Toutes</span>}</td>
-                      <td className="text-end">
-                        <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleRemoveAssignment(a)} disabled={isPending}>
-                          <i className="fas fa-times" aria-hidden="true" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+      <section className="card">
+        <div className="card-header"><h2 className="h6 mb-0">Délégations</h2></div>
+        <div className="table-responsive"><table className="table align-middle mb-0"><thead><tr><th>De</th><th>Vers</th><th>Portée</th><th>Permissions</th><th>Fenêtre</th><th>Statut</th><th>Action</th></tr></thead><tbody>
+          {initialDelegations.map((delegation) => {
+            const status = accessStatus(delegation.validFrom, delegation.validUntil, delegation.revokedAt);
+            return <tr key={delegation.id}><td>{delegation.delegatorName}</td><td>{delegation.delegateeName}</td><td>{delegation.category ? AGE_CATEGORY_LABELS[delegation.category as keyof typeof AGE_CATEGORY_LABELS] ?? delegation.category : "Toutes"}</td><td><span className="small">{delegation.permissions.join(", ")}</span><div className="small text-muted">{delegation.reason}</div></td><td className="small">{formatDate(delegation.validFrom)} → {formatDate(delegation.validUntil)}</td><td><span className={`badge ${status.className}`}>{status.label}</span>{delegation.revocationReason && <div className="small text-muted mt-1">{delegation.revocationReason}</div>}</td><td>{delegation.canRevoke && !delegation.revokedAt && <button className="btn btn-outline-danger btn-sm" onClick={() => { const reason = window.prompt("Motif de révocation"); if (!reason) return; const data = new FormData(); data.set("delegationId", String(delegation.id)); data.set("reason", reason); void run(() => revokeRoleDelegation(data)); }}>Révoquer</button>}</td></tr>;
+          })}
+          {initialDelegations.length === 0 && <tr><td colSpan={7} className="text-center text-muted py-4">Aucune délégation</td></tr>}
+        </tbody></table></div>
+      </section>
     </div>
   );
 }
