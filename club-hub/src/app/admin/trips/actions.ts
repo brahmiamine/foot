@@ -25,6 +25,15 @@ function readTripForm(formData: FormData) {
   };
 }
 
+function revalidateTrips() {
+  revalidatePath("/admin/trips");
+  revalidatePath("/admin/trips/governance");
+}
+
+function assertTeamContext(accessTeamId: string, teamId: string) {
+  if (accessTeamId !== teamId) throw new Error("Action non autorisée : contexte club incohérent");
+}
+
 export async function createTrip(formData: FormData) {
   try {
     const session = await auth();
@@ -37,13 +46,14 @@ export async function createTrip(formData: FormData) {
     requireCategory(access, data.category);
 
     const teamId = await requireTeamId();
+    assertTeamContext(access.teamId, teamId);
     const service = new TripService();
     const trip = await service.create(data, teamId, session.user.id);
 
     const auditLogService = new AuditLogService();
     await auditLogService.create({ userId: session.user.id, action: "CREATE", entity: "Trip", entityId: String(trip.id) });
 
-    revalidatePath("/admin/trips");
+    revalidateTrips();
     return { success: true, message: "Déplacement créé avec succès" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la création" };
@@ -59,6 +69,7 @@ export async function updateTrip(id: number, formData: FormData) {
     requirePermission(access, "trips.manage");
 
     const teamId = await requireTeamId();
+    assertTeamContext(access.teamId, teamId);
     const service = new TripService();
     const existing = await service.findById(id, teamId);
     if (!existing) throw new Error("Déplacement non trouvé");
@@ -72,7 +83,7 @@ export async function updateTrip(id: number, formData: FormData) {
     const auditLogService = new AuditLogService();
     await auditLogService.create({ userId: session.user.id, action: "UPDATE", entity: "Trip", entityId: String(id) });
 
-    revalidatePath("/admin/trips");
+    revalidateTrips();
     return { success: true, message: "Déplacement modifié avec succès" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la modification" };
@@ -88,6 +99,7 @@ export async function deleteTrip(id: number) {
     requirePermission(access, "trips.manage");
 
     const teamId = await requireTeamId();
+    assertTeamContext(access.teamId, teamId);
     const service = new TripService();
     const existing = await service.findById(id, teamId);
     if (!existing) throw new Error("Déplacement non trouvé");
@@ -98,7 +110,7 @@ export async function deleteTrip(id: number) {
     const auditLogService = new AuditLogService();
     await auditLogService.create({ userId: session.user.id, action: "DELETE", entity: "Trip", entityId: String(id) });
 
-    revalidatePath("/admin/trips");
+    revalidateTrips();
     return { success: true, message: "Déplacement supprimé avec succès" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la suppression" };
@@ -123,14 +135,15 @@ export async function addTripParticipant(formData: FormData) {
     });
 
     const teamId = await requireTeamId();
+    assertTeamContext(access.teamId, teamId);
     const service = new TripService();
     const trip = await service.findById(data.tripId, teamId);
     if (!trip) throw new Error("Déplacement non trouvé");
     requireCategory(access, trip.category);
 
-    await service.addParticipant(data.tripId, data);
+    await service.addParticipant(data.tripId, teamId, data);
 
-    revalidatePath("/admin/trips");
+    revalidateTrips();
     return { success: true, message: "Participant ajouté avec succès" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'ajout" };
@@ -145,7 +158,7 @@ export async function toggleTripParticipantConfirmed(participantId: number) {
     const service = new TripService();
     await service.toggleConfirmed(participantId, access.teamId);
 
-    revalidatePath("/admin/trips");
+    revalidateTrips();
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur" };
@@ -160,7 +173,7 @@ export async function removeTripParticipant(participantId: number) {
     const service = new TripService();
     await service.removeParticipant(participantId, access.teamId);
 
-    revalidatePath("/admin/trips");
+    revalidateTrips();
     return { success: true, message: "Participant retiré" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors du retrait" };
