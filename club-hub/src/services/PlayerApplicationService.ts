@@ -8,6 +8,7 @@ import {
 } from "@/entities/PlayerApplicationEvent";
 import { Player } from "@/entities/Player";
 import { AGE_CATEGORIES, type AgeCategory } from "@/types/categories";
+import { PLAYER_POSITIONS } from "@/types/players";
 import { ClubFeatureSettingsService } from "./ClubFeatureSettingsService";
 
 interface CreatePlayerApplicationData {
@@ -32,7 +33,7 @@ export interface ScheduleAcademyTrialData {
 export interface CreatePlayerFromApplicationData {
   number: number;
   category: AgeCategory;
-  position?: string | null;
+  position?: (typeof PLAYER_POSITIONS)[number] | null;
 }
 
 const REJECTABLE_STATUSES: ApplicationStatus[] = [
@@ -218,10 +219,11 @@ export class PlayerApplicationService {
     data: CreatePlayerFromApplicationData,
   ): Promise<Player> {
     await this.assertEnabled(teamId);
-    if (!Number.isInteger(data.number) || data.number < 0 || data.number > 999) {
+    if (!Number.isInteger(data.number) || data.number < 0 || data.number > 99) {
       throw new Error("Numéro de joueur invalide");
     }
     if (!AGE_CATEGORIES.includes(data.category)) throw new Error("Catégorie joueur invalide");
+    if (data.position && !PLAYER_POSITIONS.includes(data.position)) throw new Error("Poste joueur invalide");
 
     const ds = await getDataSource();
     return ds.transaction(async (manager) => {
@@ -266,7 +268,7 @@ export class PlayerApplicationService {
         status: "BLANK",
         isActive: true,
         birthDate: new Date(`${application.birthDate}T00:00:00.000Z`),
-        position: data.position?.trim() || application.position || null,
+        position: data.position ?? null,
         imageUrl: null,
       });
       const savedPlayer = await playerRepository.save(player);
