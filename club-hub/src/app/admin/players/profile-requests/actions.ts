@@ -23,14 +23,15 @@ async function requireRequestAccess(requestId: string) {
 
 export async function approvePlayerProfileRequest(requestId: string) {
   try {
-    const { teamId, access } = await requireRequestAccess(requestId);
+    const { teamId, access, request } = await requireRequestAccess(requestId);
     const result = await service.approve(requestId, teamId, access.userId);
     await new AuditLogService().create({
       userId: access.userId,
       action: "UPDATE",
       entity: "PlayerProfileChangeRequest",
       entityId: requestId,
-      details: JSON.stringify({ status: result.status, playerId: result.playerId }),
+      before: { status: request.status, requestedChanges: request.requestedChanges },
+      after: { status: result.status, playerId: result.playerId },
     });
     revalidatePath("/admin/players");
     revalidatePath("/admin/players/profile-requests");
@@ -42,14 +43,15 @@ export async function approvePlayerProfileRequest(requestId: string) {
 
 export async function rejectPlayerProfileRequest(requestId: string, reason: string) {
   try {
-    const { teamId, access } = await requireRequestAccess(requestId);
+    const { teamId, access, request } = await requireRequestAccess(requestId);
     const result = await service.reject(requestId, teamId, access.userId, reason);
     await new AuditLogService().create({
       userId: access.userId,
       action: "UPDATE",
       entity: "PlayerProfileChangeRequest",
       entityId: requestId,
-      details: JSON.stringify({ status: result.status, playerId: result.playerId, reason: result.reviewReason }),
+      before: { status: request.status, requestedChanges: request.requestedChanges },
+      after: { status: result.status, playerId: result.playerId, reason: result.reviewReason },
     });
     revalidatePath("/admin/players/profile-requests");
     return { success: true };
