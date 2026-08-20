@@ -52,6 +52,7 @@ export default async function TripsPage() {
   const trips = tripsData.map((trip) => ({
     id: trip.id,
     category: trip.category,
+    workflowStatus: trip.workflowStatus,
     matchLabel:
       trip.matchType === "FRIENDLY"
         ? `Amical @ ${trip.friendlyMatch?.opponentTeam?.nom ?? trip.friendlyMatch?.opponentName ?? "Adversaire"}`
