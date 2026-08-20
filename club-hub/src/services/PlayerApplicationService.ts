@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
+import type { EntityManager } from "typeorm";
 import { getDataSource } from "@/lib/database";
 import { PlayerApplication, ApplicationStatus } from "@/entities/PlayerApplication";
+import {
+  PlayerApplicationEvent,
+  type PlayerApplicationEventType,
+} from "@/entities/PlayerApplicationEvent";
 import { Player } from "@/entities/Player";
 import { AGE_CATEGORIES, type AgeCategory } from "@/types/categories";
 import { ClubFeatureSettingsService } from "./ClubFeatureSettingsService";
-import { AuditLogService } from "./AuditLogService";
 
 interface CreatePlayerApplicationData {
   childLastName: string;
@@ -43,37 +47,33 @@ export function normalizeAcademyCategory(value: string): AgeCategory | null {
   return AGE_CATEGORIES.includes(normalized as AgeCategory) ? (normalized as AgeCategory) : null;
 }
 
-function workflowSnapshot(application: PlayerApplication) {
-  return {
-    status: application.status,
-    playerId: application.playerId ?? null,
-    preScreenedBy: application.preScreenedBy ?? null,
-    technicalApprovedBy: application.technicalApprovedBy ?? null,
-    administrativeApprovedBy: application.administrativeApprovedBy ?? null,
-    rejectedBy: application.rejectedBy ?? null,
-  };
-}
-
 /** Candidatures "Inscrire mon enfant", rattachées au module ACADEMY. */
 export class PlayerApplicationService {
   private async assertEnabled(teamId: string): Promise<void> {
     await new ClubFeatureSettingsService().assertEnabled(teamId, "ACADEMY");
   }
 
-  private async auditTransition(
-    actorId: string,
+  private async recordEvent(
+    manager: EntityManager,
     application: PlayerApplication,
-    before: ReturnType<typeof workflowSnapshot>,
-    transition: string,
+    actorId: string,
+    eventType: PlayerApplicationEventType,
+    fromStatus: ApplicationStatus,
+    details?: Record<string, unknown>,
   ): Promise<void> {
-    await new AuditLogService().create({
-      userId: actorId,
-      action: "UPDATE",
-      entity: "PlayerApplication",
-      entityId: String(application.id),
-      before,
-      after: { ...workflowSnapshot(application), transition },
-    });
+    const repository = manager.getRepository(PlayerApplicationEvent);
+    await repository.save(
+      repository.create({
+        id: randomUUID(),
+        teamId: application.teamId,
+        applicationId: application.id,
+        actorId,
+        eventType,
+        fromStatus,
+        toStatus: application.status,
+        detailsJson: details ? JSON.stringify(details) : null,
+      }),
+    );
   }
 
   private async mutate(
@@ -82,13 +82,13 @@ export class PlayerApplicationService {
     actorId: string,
     expectedStatuses: ApplicationStatus[],
     nextStatus: ApplicationStatus,
-    transition: string,
-    patch: (application: PlayerApplication) => void,
+    eventType: PlayerApplicationEventType,
+    patch: (application: PlayerApplication) => Record<string, unknown> | void,
   ): Promise<PlayerApplication> {
     await this.assertEnabled(teamId);
     const ds = await getDataSource();
 
-    const result = await ds.transaction(async (manager) => {
+    return ds.transaction(async (manager) => {
       const repository = manager.getRepository(PlayerApplication);
       const application = await repository.findOne({
         where: { id, teamId },
@@ -99,15 +99,13 @@ export class PlayerApplicationService {
         throw new Error(`Transition de candidature invalide depuis ${application.status}`);
       }
 
-      const before = workflowSnapshot(application);
-      patch(application);
+      const fromStatus = application.status;
+      const details = patch(application) || undefined;
       application.status = nextStatus;
       const saved = await repository.save(application);
-      return { saved, before };
+      await this.recordEvent(manager, saved, actorId, eventType, fromStatus, details);
+      return saved;
     });
-
-    await this.auditTransition(actorId, result.saved, result.before, transition);
-    return result.saved;
   }
 
   async findAll(teamId: string, status?: ApplicationStatus): Promise<PlayerApplication[]> {
@@ -133,7 +131,7 @@ export class PlayerApplicationService {
   }
 
   async preScreen(id: number, teamId: string, actorId: string, notes?: string | null): Promise<PlayerApplication> {
-    return this.mutate(id, teamId, actorId, ["NEW"], "PRE_SCREENED", "PRE_SCREEN", (application) => {
+    return this.mutate(id, teamId, actorId, ["NEW"], "PRE_SCREENED", "PRE_SCREENED", (application) => {
       application.preScreeningNotes = notes?.trim() || null;
       application.preScreenedAt = new Date();
       application.preScreenedBy = actorId;
@@ -151,10 +149,11 @@ export class PlayerApplicationService {
     const location = data.location.trim();
     if (!location) throw new Error("Lieu de l'essai obligatoire");
 
-    return this.mutate(id, teamId, actorId, ["PRE_SCREENED"], "TRIAL_SCHEDULED", "SCHEDULE_TRIAL", (application) => {
+    return this.mutate(id, teamId, actorId, ["PRE_SCREENED"], "TRIAL_SCHEDULED", "TRIAL_SCHEDULED", (application) => {
       application.trialScheduledAt = scheduledAt;
       application.trialLocation = location;
       application.trialNotes = data.notes?.trim() || null;
+      return { scheduledAt: scheduledAt.toISOString(), location };
     });
   }
 
@@ -170,7 +169,7 @@ export class PlayerApplicationService {
       actorId,
       ["TRIAL_SCHEDULED"],
       "TECHNICAL_APPROVED",
-      "TECHNICAL_APPROVAL",
+      "TECHNICAL_APPROVED",
       (application) => {
         application.technicalApprovedAt = new Date();
         application.technicalApprovedBy = actorId;
@@ -191,7 +190,7 @@ export class PlayerApplicationService {
       actorId,
       ["TECHNICAL_APPROVED"],
       "ADMIN_APPROVED",
-      "ADMINISTRATIVE_APPROVAL",
+      "ADMIN_APPROVED",
       (application) => {
         application.administrativeApprovedAt = new Date();
         application.administrativeApprovedBy = actorId;
@@ -204,10 +203,11 @@ export class PlayerApplicationService {
     const rejectionReason = reason.trim();
     if (!rejectionReason) throw new Error("Motif de refus obligatoire");
 
-    return this.mutate(id, teamId, actorId, REJECTABLE_STATUSES, "REJECTED", "REJECT", (application) => {
+    return this.mutate(id, teamId, actorId, REJECTABLE_STATUSES, "REJECTED", "REJECTED", (application) => {
       application.rejectedAt = new Date();
       application.rejectedBy = actorId;
       application.rejectionReason = rejectionReason;
+      return { reason: rejectionReason };
     });
   }
 
@@ -224,7 +224,7 @@ export class PlayerApplicationService {
     if (!AGE_CATEGORIES.includes(data.category)) throw new Error("Catégorie joueur invalide");
 
     const ds = await getDataSource();
-    const result = await ds.transaction(async (manager) => {
+    return ds.transaction(async (manager) => {
       const applicationRepository = manager.getRepository(PlayerApplication);
       const playerRepository = manager.getRepository(Player);
       const application = await applicationRepository.findOne({
@@ -236,7 +236,7 @@ export class PlayerApplicationService {
       if (application.status === "PLAYER_CREATED" && application.playerId) {
         const existing = await playerRepository.findOne({ where: { id: application.playerId, teamId } });
         if (!existing) throw new Error("Candidature liée à un joueur introuvable");
-        return { player: existing, application, before: workflowSnapshot(application), created: false };
+        return existing;
       }
 
       if (application.status !== "ADMIN_APPROVED") {
@@ -253,7 +253,7 @@ export class PlayerApplicationService {
       });
       if (duplicate) throw new Error("Un joueur correspondant existe déjà dans ce club");
 
-      const before = workflowSnapshot(application);
+      const fromStatus = application.status;
       const player = playerRepository.create({
         id: randomUUID(),
         firstNameFr: application.childFirstName,
@@ -276,14 +276,14 @@ export class PlayerApplicationService {
       application.playerCreatedAt = new Date();
       application.playerCreatedBy = actorId;
       const savedApplication = await applicationRepository.save(application);
+      await this.recordEvent(manager, savedApplication, actorId, "PLAYER_CREATED", fromStatus, {
+        playerId: savedPlayer.id,
+        category: data.category,
+        number: data.number,
+      });
 
-      return { player: savedPlayer, application: savedApplication, before, created: true };
+      return savedPlayer;
     });
-
-    if (result.created) {
-      await this.auditTransition(actorId, result.application, result.before, "CREATE_PLAYER");
-    }
-    return result.player;
   }
 
   async delete(id: number, teamId: string): Promise<boolean> {
