@@ -295,7 +295,7 @@ export class RoleService {
     if (!identityUser || identityUser.teamId !== teamId || !identityUser.isActive) {
       return { permissions: new Set(), canGlobalScope: false, category };
     }
-    if (identityUser.role === "ADMIN" || identityUser.role === "CLUB_ADMIN") {
+    if (identityUser.role === "ADMIN") {
       return { permissions: new Set(ALL_PERMISSION_KEYS), canGlobalScope: true, category };
     }
     const assignments = await this.findAssignmentsForUser(teamId, userId);
@@ -313,7 +313,7 @@ export class RoleService {
     if (!identityUser || identityUser.teamId !== teamId || !identityUser.isActive) {
       return { permissions: new Set(), canGlobalScope: false, category };
     }
-    if (identityUser.role === "ADMIN" || identityUser.role === "CLUB_ADMIN") {
+    if (identityUser.role === "ADMIN") {
       return { permissions: new Set(ALL_PERMISSION_KEYS), canGlobalScope: true, category };
     }
     const assignments = await this.findAssignmentsForUser(teamId, userId);
@@ -364,6 +364,9 @@ export class RoleService {
       input.validFrom,
       input.validUntil,
     );
+    if (!authority.permissions.has("roles.manage")) {
+      throw new Error("La création d'une délégation exige roles.manage dans l'autorité directe du délégant");
+    }
     validateDelegationGrant({
       requestedPermissions,
       category: input.category,
@@ -405,6 +408,12 @@ export class RoleService {
         lock: { mode: "pessimistic_write" },
       });
       if (!delegation) throw new Error("Délégation non trouvée");
+
+      const actor = await this.identity.getUserById(actorUserId);
+      const isClubAdmin = Boolean(actor && actor.teamId === teamId && actor.isActive && actor.role === "ADMIN");
+      if (delegation.delegatorUserId !== actorUserId && !isClubAdmin) {
+        throw new Error("Seul le délégant ou l'administrateur du club peut révoquer cette délégation");
+      }
       if (delegation.revokedAt) return delegation;
       delegation.revokedAt = new Date();
       delegation.revokedBy = actorUserId;
