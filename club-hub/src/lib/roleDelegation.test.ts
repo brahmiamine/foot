@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isAccessWindowActive,
   resolveDirectAuthority,
+  resolveDirectAuthorityForWindow,
   validateDelegationGrant,
   type DirectRoleGrant,
 } from "./roleDelegation";
@@ -71,6 +72,22 @@ describe("resolveDirectAuthority", () => {
 
     expect(authority.permissions.has("notifications.send")).toBe(true);
     expect(authority.canGlobalScope).toBe(true);
+  });
+});
+
+describe("resolveDirectAuthorityForWindow", () => {
+  it("only exposes authority that covers the whole requested delegation window", () => {
+    const requestedFrom = new Date("2026-08-20T14:00:00.000Z");
+    const requestedUntil = new Date("2026-08-21T14:00:00.000Z");
+
+    const authority = resolveDirectAuthorityForWindow([
+      grant({ permissions: ["roles.manage", "trainings.view"], validUntil: requestedUntil }),
+      grant({ permissions: ["discipline.manage"], validUntil: new Date("2026-08-21T13:59:59.000Z") }),
+      grant({ permissions: ["notifications.send"], validFrom: new Date("2026-08-20T14:00:01.000Z") }),
+      grant({ permissions: ["ticketing.view"], revokedAt: new Date("2026-08-20T13:00:00.000Z") }),
+    ], "u17", requestedFrom, requestedUntil);
+
+    expect([...authority.permissions].sort()).toEqual(["roles.manage", "trainings.view"]);
   });
 });
 
