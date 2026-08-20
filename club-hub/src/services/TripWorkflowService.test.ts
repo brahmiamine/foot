@@ -39,6 +39,12 @@ describe("trip governance rules", () => {
     expect(playerRequiresTripConsent(null, departure)).toBe(true);
   });
 
+  it("normalizes MariaDB DATE strings before computing majority", () => {
+    expect(playerRequiresTripConsent("2010-09-02", "2026-09-01T08:00:00.000Z")).toBe(true);
+    expect(playerRequiresTripConsent("2008-09-01", "2026-09-01T08:00:00.000Z")).toBe(false);
+    expect(playerRequiresTripConsent("not-a-date", "2026-09-01T08:00:00.000Z")).toBe(true);
+  });
+
   it("accepts only http(s) evidence URLs or normalized local trip upload paths", () => {
     expect(isSafeTripEvidenceLocation("https://files.example.com/receipt.pdf")).toBe(true);
     expect(isSafeTripEvidenceLocation("/uploads/trips/receipt-123.pdf")).toBe(true);
