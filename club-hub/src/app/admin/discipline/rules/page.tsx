@@ -54,7 +54,7 @@ export default async function DisciplineRulesPage() {
     }));
   const matchOptions = matches.map((match) => ({
     id: match.id,
-    label: `${match.homeTeam?.nom_fr ?? match.equipeHome} — ${match.awayTeam?.nom_fr ?? match.equipeAway}`,
+    label: `${match.homeTeam?.nom ?? match.equipeHome} — ${match.awayTeam?.nom ?? match.equipeAway}`,
     date: match.date?.toISOString() ?? null,
   }));
 
