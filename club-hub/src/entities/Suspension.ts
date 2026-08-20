@@ -3,7 +3,7 @@ import { Player } from "./Player";
 import { Card } from "./Card";
 import { Team } from "./Team";
 
-export type SuspensionReason = "THREE_YELLOWS" | "CONSECUTIVE_YELLOWS" | "RED_CARD_1" | "RED_CARD_2" | "RED_CARD_3" | "DISCIPLINARY_DECISION";
+export type SuspensionReason = "THREE_YELLOWS" | "YELLOW_ACCUMULATION" | "CONSECUTIVE_YELLOWS" | "RED_CARD_1" | "RED_CARD_2" | "RED_CARD_3" | "DISCIPLINARY_DECISION";
 export type SuspensionStatus = "ACTIVE" | "PURGED" | "CANCELLED";
 export type DisciplinaryDecision = "CONFIRMED" | "MODIFIED" | "CANCELLED_BY_COMMISSION";
 
@@ -14,7 +14,7 @@ export class Suspension {
   @ManyToOne(() => Player) @JoinColumn({ name: "playerId" }) player?: Player;
   @Column({ type: "varchar", length: 191, nullable: true }) cardId?: string | null;
   @ManyToOne(() => Card, { nullable: true }) @JoinColumn({ name: "cardId" }) card?: Card | null;
-  @Column({ type: "enum", enum: ["THREE_YELLOWS", "CONSECUTIVE_YELLOWS", "RED_CARD_1", "RED_CARD_2", "RED_CARD_3", "DISCIPLINARY_DECISION"] }) reason!: SuspensionReason;
+  @Column({ type: "enum", enum: ["THREE_YELLOWS", "YELLOW_ACCUMULATION", "CONSECUTIVE_YELLOWS", "RED_CARD_1", "RED_CARD_2", "RED_CARD_3", "DISCIPLINARY_DECISION"] }) reason!: SuspensionReason;
   @Column({ type: "int" }) matchesCount!: number;
   @Column({ type: "int", default: 0 }) matchesPurged!: number;
   @Column({ type: "enum", enum: ["ACTIVE", "PURGED", "CANCELLED"], default: "ACTIVE" }) status!: SuspensionStatus;

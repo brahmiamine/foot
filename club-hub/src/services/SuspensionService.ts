@@ -6,19 +6,14 @@ import { Player } from "@/entities/Player";
 import { Settings } from "@/entities/Settings";
 import { Repository } from "typeorm";
 import { sendEmail } from "@/lib/mailer";
+import { LEGACY_DISCIPLINE_RULE, type DisciplineRuleValues } from "@/lib/disciplineRules";
 
 /**
- * @fileoverview Logique de suspension pour la Fédération Tunisienne de
- * Football (FTF) — port direct de cardManager/lib/suspension.ts en TypeORM.
- *
- * Carton jaune — cumul de 3 avertissements (matchs différents, pas
- * nécessairement consécutifs) → 1 match de suspension auto, jaunes
- * neutralisés (compteur remis à zéro). Alerte "à risque" dès 2 jaunes
- * cumulés non-neutralisés.
- *
- * Carton rouge / double jaune — saisie manuelle du nombre de matchs par la
- * commission disciplinaire. Un DOUBLE_YELLOW neutralise aussi tous les
- * jaunes accumulés non-neutralisés du même joueur.
+ * Logique de suspension. Les valeurs de seuil/durée sont injectées depuis le
+ * snapshot du RuleSet effectivement appliqué au carton. Le paramètre reste
+ * optionnel afin de préserver les appels historiques/tests : sans snapshot,
+ * le comportement FTF legacy (alerte 2, suspension 3 jaunes / 1 match) reste
+ * strictement identique.
  */
 export class SuspensionService {
   private async getRepository(): Promise<Repository<Suspension>> {
@@ -40,11 +35,16 @@ export class SuspensionService {
       subject: `⛔ Suspension — ${player.firstNameFr} ${player.lastNameFr}`,
       html: `<p><strong>${player.firstNameFr} ${player.lastNameFr}</strong> est suspendu et <strong>ne peut pas jouer ${
         matchesCount > 1 ? `les ${matchesCount} prochains matchs` : "le prochain match"
-      }</strong> (${reasonLabel} — règlement FTF). Ne pas le convoquer / l'inscrire sur la feuille de match tant que la suspension n'est pas purgée.</p>`,
+      }</strong> (${reasonLabel}). Ne pas le convoquer / l'inscrire sur la feuille de match tant que la suspension n'est pas purgée.</p>`,
     });
   }
 
-  private async sendAtRiskAlert(playerId: string) {
+  private async sendAtRiskAlert(
+    playerId: string,
+    currentYellowCount: number,
+    suspensionThreshold: number,
+    suspensionMatches: number,
+  ) {
     const dataSource = await getDataSource();
     const player = await dataSource.getRepository(Player).findOne({ where: { id: playerId } });
     if (!player) return;
@@ -56,7 +56,7 @@ export class SuspensionService {
     await sendEmail({
       to: alertEmails,
       subject: `⚠️ Risque suspension — ${player.firstNameFr} ${player.lastNameFr}`,
-      html: `<p><strong>${player.firstNameFr} ${player.lastNameFr}</strong> a désormais <strong>2 cartons jaunes cumulés</strong> cette saison. <strong>Un 3e jaune lors d'un prochain match officiel déclenchera une suspension automatique d'1 match.</strong></p>`,
+      html: `<p><strong>${player.firstNameFr} ${player.lastNameFr}</strong> a désormais <strong>${currentYellowCount} cartons jaunes cumulés</strong>. <strong>Le ${suspensionThreshold}e jaune déclenchera une suspension automatique de ${suspensionMatches} match${suspensionMatches > 1 ? "s" : ""}.</strong></p>`,
     });
   }
 
@@ -75,11 +75,16 @@ export class SuspensionService {
   }
 
   /**
-   * Évalue si un nouveau carton doit déclencher une suspension et, le cas
-   * échéant, crée l'enregistrement, suspend le joueur et envoie les alertes.
-   * À appeler APRÈS que le carton a été persisté en base.
+   * Évalue si un nouveau carton doit déclencher une suspension. Le snapshot
+   * fourni doit être celui persisté pour ce carton par DisciplineRuleService.
    */
-  async checkAndCreateSuspension(playerId: string, cardId: string, cardType: CardType, manualMatchesCount?: number): Promise<void> {
+  async checkAndCreateSuspension(
+    playerId: string,
+    cardId: string,
+    cardType: CardType,
+    manualMatchesCount?: number,
+    ruleSnapshot: DisciplineRuleValues = LEGACY_DISCIPLINE_RULE,
+  ): Promise<void> {
     const dataSource = await getDataSource();
     const cardRepo = dataSource.getRepository(Card);
     const playerRepo = dataSource.getRepository(Player);
@@ -110,7 +115,10 @@ export class SuspensionService {
         }
       }
 
-      const matchesCount = manualMatchesCount ?? 1;
+      const configuredDefault = cardType === "DOUBLE_YELLOW"
+        ? ruleSnapshot.defaultDoubleYellowSuspensionMatches
+        : ruleSnapshot.defaultRedSuspensionMatches;
+      const matchesCount = manualMatchesCount ?? configuredDefault;
       const reason = matchesCount >= 3 ? "RED_CARD_3" : matchesCount === 2 ? "RED_CARD_2" : "RED_CARD_1";
 
       const suspension = suspensionRepo.create({
@@ -134,7 +142,7 @@ export class SuspensionService {
       return;
     }
 
-    // ─── CARTON JAUNE — règle du cumul (3 jaunes en 3 matchs différents) ──
+    // ─── CARTON JAUNE — cumul paramétrable par snapshot ───────────────────
     const priorYellows = await cardRepo
       .createQueryBuilder("card")
       .leftJoin(Suspension, "suspension", "suspension.cardId = card.id")
@@ -147,14 +155,15 @@ export class SuspensionService {
       .getRawMany<{ id: string }>();
 
     const totalCount = priorYellows.length + 1;
+    const threshold = ruleSnapshot.yellowSuspensionThreshold;
 
-    if (totalCount >= 3) {
+    if (totalCount >= threshold) {
       const suspension = suspensionRepo.create({
         id: randomUUID(),
         playerId,
         cardId,
-        reason: "THREE_YELLOWS",
-        matchesCount: 1,
+        reason: threshold === 3 ? "THREE_YELLOWS" : "YELLOW_ACCUMULATION",
+        matchesCount: ruleSnapshot.yellowSuspensionMatches,
         teamId: player?.teamId ?? null,
         status: "ACTIVE",
       });
@@ -174,9 +183,18 @@ export class SuspensionService {
           .execute();
       }
 
-      await this.sendSuspensionAlert(playerId, "3 cartons jaunes cumulés", 1);
-    } else if (totalCount === 2) {
-      await this.sendAtRiskAlert(playerId);
+      await this.sendSuspensionAlert(
+        playerId,
+        `${threshold} cartons jaunes cumulés`,
+        ruleSnapshot.yellowSuspensionMatches,
+      );
+    } else if (totalCount === ruleSnapshot.yellowWarningThreshold) {
+      await this.sendAtRiskAlert(
+        playerId,
+        totalCount,
+        threshold,
+        ruleSnapshot.yellowSuspensionMatches,
+      );
     }
   }
 
@@ -218,8 +236,6 @@ export class SuspensionService {
 
     const after = await suspensionRepo.save(current);
 
-    // Réactivation du joueur — uniquement si amende non OVERDUE bloquante
-    // (règlement FTF : PENDING ne bloque pas, seul un retard de paiement bloque)
     if (isPurged || data.status === "CANCELLED" || isCancelledByCommission) {
       const remainingActive = await suspensionRepo.count({
         where: { playerId: current.playerId, status: "ACTIVE" },
