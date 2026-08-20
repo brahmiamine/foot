@@ -17,9 +17,11 @@ export class TripGovernanceSettings {
   @PrimaryColumn({ type: "char", length: 36, name: "team_id" })
   teamId!: string;
 
+  /** 0 = fail-safe : toute soumission nécessite deux approbateurs distincts. */
   @Column({ type: "decimal", precision: 12, scale: 3, default: "0.000", name: "dual_approval_threshold" })
   dualApprovalThreshold!: string;
 
+  /** 0 = justificatif requis pour toute dépense strictement positive. */
   @Column({ type: "decimal", precision: 12, scale: 3, default: "0.000", name: "receipt_required_threshold" })
   receiptRequiredThreshold!: string;
 
@@ -103,6 +105,7 @@ export class TripBudgetDecision {
   createdAt!: Date;
 }
 
+/** Dépense du déplacement ; le justificatif n'est obligatoire qu'au-dessus du seuil configuré. */
 @Entity("cms_trip_expense_receipts")
 @Index(["teamId", "tripId", "createdAt"])
 export class TripExpenseReceipt {
@@ -121,8 +124,8 @@ export class TripExpenseReceipt {
   @Column({ type: "decimal", precision: 12, scale: 3 })
   amount!: string;
 
-  @Column({ type: "varchar", length: 255, name: "document_url" })
-  documentUrl!: string;
+  @Column({ type: "varchar", length: 255, nullable: true, name: "document_url" })
+  documentUrl?: string | null;
 
   @Column({ type: "varchar", length: 191, name: "created_by" })
   createdBy!: string;
