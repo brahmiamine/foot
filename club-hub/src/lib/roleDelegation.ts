@@ -33,6 +33,28 @@ export function isAccessWindowActive(window: AccessWindow, at: Date = new Date()
   return true;
 }
 
+function coversWindow(window: AccessWindow, validFrom: Date, validUntil: Date): boolean {
+  if (window.revokedAt) return false;
+  if (window.validFrom && window.validFrom.getTime() > validFrom.getTime()) return false;
+  if (window.validUntil && window.validUntil.getTime() < validUntil.getTime()) return false;
+  return true;
+}
+
+function addGrantToAuthority(
+  authority: DirectAuthority,
+  grant: DirectRoleGrant,
+  category: string | null,
+): void {
+  if (grant.isGlobal) {
+    authority.canGlobalScope = true;
+    grant.permissions.forEach((permission) => authority.permissions.add(permission));
+    return;
+  }
+  if (category !== null && grant.category === category) {
+    grant.permissions.forEach((permission) => authority.permissions.add(permission));
+  }
+}
+
 /**
  * Resolve authority only from direct role grants. Received delegations must
  * never be fed into this function, which makes delegated rights terminal.
@@ -42,22 +64,31 @@ export function resolveDirectAuthority(
   category: string | null,
   at: Date = new Date(),
 ): DirectAuthority {
-  const permissions = new Set<string>();
-  let canGlobalScope = false;
-
+  const authority: DirectAuthority = { permissions: new Set<string>(), canGlobalScope: false, category };
   for (const grant of grants) {
     if (!isAccessWindowActive(grant, at)) continue;
-    if (grant.isGlobal) {
-      canGlobalScope = true;
-      grant.permissions.forEach((permission) => permissions.add(permission));
-      continue;
-    }
-    if (category !== null && grant.category === category) {
-      grant.permissions.forEach((permission) => permissions.add(permission));
-    }
+    addGrantToAuthority(authority, grant, category);
   }
+  return authority;
+}
 
-  return { permissions, canGlobalScope, category };
+/**
+ * Authority that is guaranteed to remain direct for the whole requested
+ * delegation interval. A temporary source role cannot mint a delegation
+ * extending beyond its own end date.
+ */
+export function resolveDirectAuthorityForWindow(
+  grants: readonly DirectRoleGrant[],
+  category: string | null,
+  validFrom: Date,
+  validUntil: Date,
+): DirectAuthority {
+  const authority: DirectAuthority = { permissions: new Set<string>(), canGlobalScope: false, category };
+  for (const grant of grants) {
+    if (!coversWindow(grant, validFrom, validUntil)) continue;
+    addGrantToAuthority(authority, grant, category);
+  }
+  return authority;
 }
 
 export function validateDelegationGrant(request: DelegationGrantRequest): void {
