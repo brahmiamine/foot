@@ -1,7 +1,10 @@
 import { In } from "typeorm";
 import { Convocation, type ConvocationResponse } from "@/entities/Convocation";
 import { Training } from "@/entities/Training";
-import { TrainingInvitation, type TrainingInvitationResponse } from "@/entities/TrainingInvitation";
+import {
+  TrainingInvitation,
+  type TrainingRsvpStatus,
+} from "@/entities/TrainingInvitation";
 import { PlayerMatchService } from "./PlayerMatchService";
 
 export class PlayerEngagementService extends PlayerMatchService {
@@ -52,16 +55,25 @@ export class PlayerEngagementService extends PlayerMatchService {
   async respondToTraining(
     playerId: string,
     invitationId: number,
-    response: Exclude<TrainingInvitationResponse, "PENDING">,
+    response: Exclude<TrainingRsvpStatus, "PENDING">,
   ): Promise<{ success: boolean; error?: string }> {
     const ds = await this.ds();
-    const repo = ds.getRepository(TrainingInvitation);
-    const invitation = await repo.findOne({ where: { id: invitationId, playerId } });
+    const invitationRepo = ds.getRepository(TrainingInvitation);
+    const invitation = await invitationRepo.findOne({ where: { id: invitationId, playerId } });
     if (!invitation) return { success: false, error: "not_found" };
 
-    invitation.response = response;
-    invitation.respondedAt = new Date();
-    await repo.save(invitation);
+    const training = await ds.getRepository(Training).findOne({ where: { id: invitation.trainingId } });
+    if (!training) return { success: false, error: "training_not_found" };
+    if (training.status === "CANCELLED") return { success: false, error: "cancelled" };
+
+    const now = new Date();
+    if (training.responseDeadline && now.getTime() > training.responseDeadline.getTime()) {
+      return { success: false, error: "response_deadline_passed" };
+    }
+
+    invitation.rsvpStatus = response;
+    invitation.rsvpRespondedAt = now;
+    await invitationRepo.save(invitation);
     return { success: true };
   }
 }
