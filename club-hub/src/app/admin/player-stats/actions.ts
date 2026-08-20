@@ -103,14 +103,21 @@ export async function importPlayerStatsCsv(csvText: string) {
   }
 }
 
-export async function deletePlayerStat(id: number) {
+export async function deletePlayerStat(id: number, reason?: string) {
   try {
+    const session = await auth();
+    if (!session?.user) throw new Error("Non authentifié");
+
     const access = await getUserAccess();
     requirePermission(access, "stats.manage");
 
     const teamId = await requireTeamId();
     const service = new PlayerStatService();
-    await service.delete(id, teamId);
+    await service.delete(id, teamId, {
+      actorUserId: session.user.id,
+      actorRole: access.actorRole ?? (access.isClubAdmin ? "ADMIN" : "STAFF"),
+      reason,
+    });
 
     revalidatePath("/admin/player-stats");
     return { success: true, message: "Entrée supprimée avec succès" };

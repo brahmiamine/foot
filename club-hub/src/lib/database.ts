@@ -113,6 +113,7 @@ import { Membership, MembershipType } from "@/entities/Membership";
 import { PublicFormSettings } from "@/entities/PublicFormSettings";
 import { PublicContentPolicy } from "@/entities/PublicContentPolicy";
 import { ClubConfigurationAudit } from "@/entities/ClubConfigurationAudit";
+import { StatReviewPolicy } from "@/entities/StatReviewPolicy";
 import { ClubFeatureSettings } from "@/entities/ClubFeatureSettings";
 import { DisciplineRuleApplication, DisciplineRuleOverride, DisciplineRuleSet } from "@/entities/DisciplineRule";
 
@@ -164,6 +165,7 @@ export async function getDataSource(): Promise<DataSource> {
         ClubApprovalDecision, Membership, MembershipType, PublicFormSettings,
         PublicContentPolicy, ClubConfigurationAudit, ClubFeatureSettings,
         DisciplineRuleSet, DisciplineRuleOverride, DisciplineRuleApplication,
+        StatReviewPolicy,
       ],
       migrations: [],
       charset: "utf8mb4",

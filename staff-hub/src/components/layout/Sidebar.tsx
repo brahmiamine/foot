@@ -27,6 +27,7 @@ const items: NavItem[] = [
   { labelKey: "nav.trips", href: "/deplacements", icon: "🚌", permission: "trips.view" },
   { labelKey: "nav.license", href: "/licence", icon: "🪪" },
   { labelKey: "nav.notifications", href: "/notifications", icon: "🔔" },
+  { labelKey: "nav.settings", href: "/parametres", icon: "⚙", permission: "staffSettings.manage" },
 ];
 
 export function Sidebar({

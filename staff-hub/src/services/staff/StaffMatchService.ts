@@ -75,6 +75,24 @@ export class StaffMatchService extends StaffRosterService {
     );
   }
 
+  /** STAFF-002 — date de coup d'envoi d'un match officiel ou amical, ou `null` si introuvable/non planifiée. */
+  async resolveKickoff(
+    teamId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<Date | null> {
+    if (matchType === "OFFICIAL") {
+      if (!matchId) return null;
+      const info = await this.resolveMatch(teamId, matchId);
+      return info?.date ?? null;
+    }
+    if (!friendlyMatchId) return null;
+    const ds = await this.ds();
+    const match = await ds.getRepository(FriendlyMatch).findOne({ where: { id: friendlyMatchId, teamId } });
+    return match?.date ?? null;
+  }
+
   async createFriendlyMatch(data: {
     teamId: string;
     category: AgeCategory;

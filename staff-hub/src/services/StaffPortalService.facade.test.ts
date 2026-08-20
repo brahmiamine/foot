@@ -34,6 +34,22 @@ const publicMethods = [
   "getNextTraining",
   "getNextMatch",
   "getAgenda",
+  "resolveKickoff",
+  "getLineupLockPolicy",
+  "updateLineupLockPolicy",
+  "isLineupAutoLocked",
+  "getTrainingApprovalPolicy",
+  "updateTrainingApprovalPolicy",
+  "getStatReviewPolicy",
+  "updateStatReviewPolicy",
+  "auditStatCorrection",
+  "grantHeadCoachDelegation",
+  "revokeHeadCoachDelegation",
+  "listHeadCoachDelegations",
+  "isHeadCoachDelegated",
+  "submitTrainingPlan",
+  "approveTrainingPlan",
+  "updateStat",
 ] as const;
 
 describe("StaffPortalService facade", () => {

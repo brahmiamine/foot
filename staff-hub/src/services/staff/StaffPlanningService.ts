@@ -27,6 +27,76 @@ export class StaffPlanningService extends StaffLineupService {
     return repo.save(repo.create(data));
   }
 
+  /** STAFF-004 — vrai si `stat` porte un match identifiable dont la fenêtre de revue est écoulée. */
+  private async isPlayerStatLocked(teamId: string, stat: PlayerStat): Promise<boolean> {
+    if (!stat.matchId && !stat.friendlyMatchId) return false;
+    const matchDate = await this.resolveKickoff(
+      teamId,
+      stat.matchType ?? "OFFICIAL",
+      stat.matchId ?? undefined,
+      stat.friendlyMatchId ?? undefined,
+    );
+    return this.isStatLocked(teamId, matchDate);
+  }
+
+  private statSnapshot(stat: PlayerStat): Record<string, unknown> {
+    return {
+      minutesPlayed: stat.minutesPlayed,
+      goals: stat.goals,
+      assists: stat.assists,
+      yellowCards: stat.yellowCards,
+      redCards: stat.redCards,
+      injuriesCount: stat.injuriesCount,
+      trainingsAttended: stat.trainingsAttended,
+      trainingsTotal: stat.trainingsTotal,
+    };
+  }
+
+  /**
+   * STAFF-004 — corrige une statistique. Tant que la fenêtre de revue post-match
+   * n'est pas écoulée, la correction est libre ; une fois verrouillée, un motif
+   * est obligatoire et la correction est journalisée dans l'audit standard.
+   */
+  async updateStat(
+    id: number,
+    teamId: string,
+    actorUserId: string,
+    changes: Partial<
+      Pick<
+        PlayerStat,
+        "season" | "minutesPlayed" | "goals" | "assists" | "yellowCards" | "redCards" | "injuriesCount" | "trainingsAttended" | "trainingsTotal"
+      >
+    >,
+    reason?: string,
+  ): Promise<PlayerStat> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(PlayerStat);
+    const stat = await repo.findOne({ where: { id, teamId } });
+    if (!stat) throw new Error("Statistique introuvable");
+
+    const locked = await this.isPlayerStatLocked(teamId, stat);
+    if (locked && !reason?.trim()) {
+      throw new Error("Un motif est obligatoire pour corriger une statistique verrouillée");
+    }
+
+    const before = this.statSnapshot(stat);
+    Object.assign(stat, changes);
+    if (locked) {
+      stat.lockedAt = stat.lockedAt ?? new Date();
+      stat.lockedBy = stat.lockedBy ?? actorUserId;
+    }
+    const saved = await repo.save(stat);
+
+    if (locked) {
+      await this.auditStatCorrection(teamId, id, before, this.statSnapshot(saved), {
+        actorUserId,
+        actorRole: "STAFF",
+        reason: reason!.trim(),
+      });
+    }
+    return saved;
+  }
+
   async listTrips(teamId: string, categories: CategoryScope): Promise<Trip[]> {
     const ds = await this.ds();
     const where = categories === "ALL" ? { teamId } : { teamId, category: categoryWhere(categories) };

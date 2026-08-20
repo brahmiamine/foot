@@ -1,9 +1,23 @@
 import { getDataSource } from "@/lib/database";
 import { PlayerStat } from "@/entities/PlayerStat";
 import { Player } from "@/entities/Player";
+import { Match } from "@/entities/Match";
+import { FriendlyMatch } from "@/entities/FriendlyMatch";
+import { StatReviewPolicy } from "@/entities/StatReviewPolicy";
+import { ClubConfigurationAudit } from "@/entities/ClubConfigurationAudit";
 import { In, Repository } from "typeorm";
 import { AgeCategory } from "@/types/categories";
 import type { CreatePlayerStatInput, CsvPlayerStatRow } from "@/types/player-stats";
+import {
+  resolvePolicy,
+  type PolicyRecord,
+} from "../../../packages/domain-contracts/src/policy";
+import {
+  requireConfigurationChangeReason,
+  type ConfigurationAuditContext,
+} from "../../../packages/domain-contracts/src/configuration-audit";
+
+const STAT_REVIEW_DEFAULTS = { reviewWindowHours: 72 };
 
 export interface PlayerStatTotals {
   playerId: string;
@@ -145,12 +159,72 @@ export class PlayerStatService {
     return { imported: toCreate.length, skipped };
   }
 
-  async delete(id: number, teamId: string): Promise<boolean> {
+  /** STAFF-004 — même fenêtre de revue post-match que staff-hub (`cms_stat_review_policies`) : la suppression d'une entrée liée à un match reste libre tant que la fenêtre n'est pas écoulée, puis exige un motif audité. */
+  private async isLocked(teamId: string, stat: PlayerStat, at: Date = new Date()): Promise<boolean> {
+    if (!stat.matchId && !stat.friendlyMatchId) return false;
+    const dataSource = await getDataSource();
+    const matchDate = stat.matchId
+      ? (await dataSource.getRepository(Match).findOne({ where: { id: stat.matchId } }))?.date ?? null
+      : stat.friendlyMatchId
+        ? (await dataSource.getRepository(FriendlyMatch).findOne({ where: { id: stat.friendlyMatchId, teamId } }))?.date ?? null
+        : null;
+    if (!matchDate) return false;
+
+    const rows = await dataSource.getRepository(StatReviewPolicy).find({ where: { teamId }, order: { version: "DESC" } });
+    const records: PolicyRecord<typeof STAT_REVIEW_DEFAULTS>[] = rows.map((row) => ({
+      id: row.id,
+      scopeType: "CLUB",
+      scopeId: row.teamId,
+      version: row.version,
+      effectiveFrom: row.effectiveFrom,
+      effectiveUntil: row.effectiveUntil,
+      values: { reviewWindowHours: row.reviewWindowHours },
+    }));
+    const { values } = resolvePolicy(STAT_REVIEW_DEFAULTS, records, { clubId: teamId }, at);
+    return at.getTime() >= matchDate.getTime() + values.reviewWindowHours * 60 * 60_000;
+  }
+
+  async delete(
+    id: number,
+    teamId: string,
+    actor: Omit<ConfigurationAuditContext, "reason"> & { reason?: string },
+  ): Promise<boolean> {
     const repository = await this.getRepository();
     const stat = await this.findById(id, teamId);
     if (!stat) {
       throw new Error("Entrée de statistiques non trouvée");
     }
+
+    const locked = await this.isLocked(teamId, stat);
+    if (locked) {
+      const reason = requireConfigurationChangeReason(actor.reason ?? "");
+      const dataSource = await getDataSource();
+      const auditRepository = dataSource.getRepository(ClubConfigurationAudit);
+      await auditRepository.save(
+        auditRepository.create({
+          domain: "STAFF_PLAYER_STAT_CORRECTION",
+          configurationKey: "PLAYER_STAT_DELETION",
+          scopeType: "CLUB",
+          scopeId: `${teamId}:${id}`,
+          previousVersion: null,
+          newVersion: 1,
+          before: {
+            minutesPlayed: stat.minutesPlayed,
+            goals: stat.goals,
+            assists: stat.assists,
+            yellowCards: stat.yellowCards,
+            redCards: stat.redCards,
+          },
+          after: { deleted: true },
+          actorUserId: actor.actorUserId,
+          actorRole: actor.actorRole,
+          reason,
+          ipAddress: actor.ipAddress ?? null,
+          userAgent: actor.userAgent ?? null,
+        }),
+      );
+    }
+
     await repository.remove(stat);
     return true;
   }
