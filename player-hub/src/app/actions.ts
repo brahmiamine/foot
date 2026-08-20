@@ -4,14 +4,37 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { playerPortalService } from "@/services/PlayerPortalService";
 import { markNotificationRead, markAllNotificationsRead } from "@/lib/notificationApi";
+import {
+  submitSensitivePlayerProfileChanges,
+  updateDirectPlayerProfile,
+} from "@/lib/clubPlayerProfileClient";
+import type { PlayerProfileChangeInput } from "@/services/player/profileChangePolicy";
 import type { ConvocationResponse } from "@/entities/Convocation";
 import type { TrainingRsvpStatus } from "@/entities/TrainingInvitation";
 import type { TripTransportOffer } from "@/entities/TripParticipant";
 
-async function requirePlayerId(): Promise<string> {
+async function requirePlayerSession(): Promise<{ playerId: string; userId: string }> {
   const session = await auth();
   if (!session) throw new Error("Not authenticated");
-  return session.user.playerId;
+  return { playerId: session.user.playerId, userId: session.user.id };
+}
+
+async function requirePlayerId(): Promise<string> {
+  return (await requirePlayerSession()).playerId;
+}
+
+export async function updateProfileImageAction(imageUrl: string | null) {
+  const { playerId, userId } = await requirePlayerSession();
+  const result = await updateDirectPlayerProfile({ playerId, requesterUserId: userId, imageUrl });
+  revalidatePath("/profil");
+  return result;
+}
+
+export async function submitProfileChangeRequestAction(changes: PlayerProfileChangeInput) {
+  const { playerId, userId } = await requirePlayerSession();
+  const result = await submitSensitivePlayerProfileChanges({ playerId, requesterUserId: userId, changes });
+  revalidatePath("/profil");
+  return result;
 }
 
 export async function respondConvocationAction(
