@@ -24,7 +24,7 @@ interface CreateRecruitmentApplicationData {
   message?: string | null;
 }
 
-/** Service pour la page /recrutement : postes recherchés + candidatures reçues. */
+/** Service pour la page /recrutement : besoins + lecture/création publique. */
 export class RecruitmentService {
   private async assertEnabled(teamId: string): Promise<void> {
     await new ClubFeatureSettingsService().assertEnabled(teamId, "RECRUITMENT");
@@ -66,7 +66,10 @@ export class RecruitmentService {
     return true;
   }
 
-  async findAllApplications(teamId: string, status?: RecruitmentApplicationStatus): Promise<RecruitmentApplication[]> {
+  async findAllApplications(
+    teamId: string,
+    status?: RecruitmentApplicationStatus,
+  ): Promise<RecruitmentApplication[]> {
     await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(RecruitmentApplication).find({
@@ -75,37 +78,17 @@ export class RecruitmentService {
     });
   }
 
+  async findApplicationById(id: number, teamId: string): Promise<RecruitmentApplication | null> {
+    await this.assertEnabled(teamId);
+    const ds = await getDataSource();
+    return ds.getRepository(RecruitmentApplication).findOne({ where: { id, teamId } });
+  }
+
   /** Soumission publique, sans authentification. */
   async createApplication(teamId: string, data: CreateRecruitmentApplicationData): Promise<RecruitmentApplication> {
     await this.assertEnabled(teamId);
     const ds = await getDataSource();
     const repository = ds.getRepository(RecruitmentApplication);
     return repository.save(repository.create({ ...data, teamId, status: "NEW" }));
-  }
-
-  async updateApplicationStatus(
-    id: number,
-    teamId: string,
-    status: RecruitmentApplicationStatus,
-    adminNotes?: string | null,
-  ): Promise<RecruitmentApplication> {
-    await this.assertEnabled(teamId);
-    const ds = await getDataSource();
-    const repository = ds.getRepository(RecruitmentApplication);
-    const application = await repository.findOne({ where: { id, teamId } });
-    if (!application) throw new Error("Candidature introuvable");
-    application.status = status;
-    if (adminNotes !== undefined) application.adminNotes = adminNotes;
-    return repository.save(application);
-  }
-
-  async deleteApplication(id: number, teamId: string): Promise<boolean> {
-    await this.assertEnabled(teamId);
-    const ds = await getDataSource();
-    const repository = ds.getRepository(RecruitmentApplication);
-    const application = await repository.findOne({ where: { id, teamId } });
-    if (!application) throw new Error("Candidature introuvable");
-    await repository.remove(application);
-    return true;
   }
 }

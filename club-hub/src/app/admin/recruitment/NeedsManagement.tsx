@@ -18,7 +18,13 @@ interface NeedData {
 
 type FormMode = "add" | "edit" | null;
 
-export function NeedsManagement({ initialNeeds }: { initialNeeds: NeedData[] }) {
+export function NeedsManagement({
+  initialNeeds,
+  canManage,
+}: {
+  initialNeeds: NeedData[];
+  canManage: boolean;
+}) {
   const router = useRouter();
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [editing, setEditing] = useState<NeedData | null>(null);
@@ -28,6 +34,7 @@ export function NeedsManagement({ initialNeeds }: { initialNeeds: NeedData[] }) 
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!canManage) return;
     setLoading(true);
     setError(null);
     const formData = new FormData(e.currentTarget);
@@ -49,41 +56,44 @@ export function NeedsManagement({ initialNeeds }: { initialNeeds: NeedData[] }) 
   }
 
   async function handleDelete(need: NeedData) {
+    if (!canManage) return;
     const ok = await confirm(`Retirer le poste "${need.category} — ${need.position}" ?`, { variant: "danger" });
     if (!ok) return;
-    await deleteNeed(need.id);
+    const result = await deleteNeed(need.id);
+    if (!result.success) {
+      setError(result.error || "Erreur lors de la suppression");
+      return;
+    }
     router.refresh();
   }
 
   return (
     <div>
       {confirmDialog}
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      {error && <div className="alert alert-danger">{error}</div>}
+      <div className="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
         <p className="text-muted mb-0">Postes/catégories recherchés, affichés sur la page publique /recrutement.</p>
         <div className="d-flex gap-2">
           <Link href="/admin/recruitment/applications" className="btn btn-outline-secondary btn-sm">
             Candidatures reçues
           </Link>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => {
-              setEditing(null);
-              setFormMode(formMode === "add" ? null : "add");
-            }}
-          >
-            {formMode === "add" ? "Annuler" : "+ Ajouter"}
-          </button>
+          {canManage && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                setEditing(null);
+                setFormMode(formMode === "add" ? null : "add");
+              }}
+            >
+              {formMode === "add" ? "Annuler" : "+ Ajouter"}
+            </button>
+          )}
         </div>
       </div>
 
-      {formMode && (
+      {canManage && formMode && (
         <form onSubmit={handleSubmit} className="card mb-4">
           <div className="card-body row g-3">
-            {error && (
-              <div className="col-12">
-                <div className="alert alert-danger mb-0">{error}</div>
-              </div>
-            )}
             <div className="col-12 col-md-4">
               <label className="form-label">Catégorie *</label>
               <input name="category" className="form-control" placeholder="U15" required defaultValue={editing?.category ?? ""} />
@@ -134,13 +144,13 @@ export function NeedsManagement({ initialNeeds }: { initialNeeds: NeedData[] }) 
               <th>Catégorie</th>
               <th>Poste</th>
               <th>Statut</th>
-              <th></th>
+              {canManage && <th></th>}
             </tr>
           </thead>
           <tbody>
             {initialNeeds.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center text-muted py-4">
+                <td colSpan={canManage ? 4 : 3} className="text-center text-muted py-4">
                   Aucun poste recherché.
                 </td>
               </tr>
@@ -154,20 +164,22 @@ export function NeedsManagement({ initialNeeds }: { initialNeeds: NeedData[] }) 
                     {need.isActive ? "Active" : "Inactive"}
                   </span>
                 </td>
-                <td className="text-end">
-                  <button
-                    className="btn btn-sm btn-outline-secondary me-2"
-                    onClick={() => {
-                      setEditing(need);
-                      setFormMode("edit");
-                    }}
-                  >
-                    Modifier
-                  </button>
-                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(need)}>
-                    Supprimer
-                  </button>
-                </td>
+                {canManage && (
+                  <td className="text-end">
+                    <button
+                      className="btn btn-sm btn-outline-secondary me-2"
+                      onClick={() => {
+                        setEditing(need);
+                        setFormMode("edit");
+                      }}
+                    >
+                      Modifier
+                    </button>
+                    <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(need)}>
+                      Supprimer
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
