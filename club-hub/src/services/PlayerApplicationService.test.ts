@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const assertEnabled = vi.fn()
-const createAudit = vi.fn()
 
 const applications = new Map<number, Record<string, unknown>>()
 const players = new Map<string, Record<string, unknown>>()
+const events: Record<string, unknown>[] = []
 let playerInsertCount = 0
 
 const applicationRepository = {
@@ -38,10 +38,20 @@ const playerRepository = {
   }),
 }
 
+const eventRepository = {
+  create: vi.fn((value: Record<string, unknown>) => value),
+  save: vi.fn(async (value: Record<string, unknown>) => {
+    events.push(value)
+    return value
+  }),
+}
+
 const manager = {
-  getRepository: vi.fn((entity: { name: string }) =>
-    entity.name === 'PlayerApplication' ? applicationRepository : playerRepository,
-  ),
+  getRepository: vi.fn((entity: { name: string }) => {
+    if (entity.name === 'PlayerApplication') return applicationRepository
+    if (entity.name === 'PlayerApplicationEvent') return eventRepository
+    return playerRepository
+  }),
 }
 type ManagerMock = typeof manager
 
@@ -54,11 +64,6 @@ vi.mock('@/lib/database', () => ({ getDataSource: vi.fn(async () => dataSource) 
 vi.mock('./ClubFeatureSettingsService', () => ({
   ClubFeatureSettingsService: class {
     assertEnabled = assertEnabled
-  },
-}))
-vi.mock('./AuditLogService', () => ({
-  AuditLogService: class {
-    create = createAudit
   },
 }))
 
@@ -103,9 +108,9 @@ function seedApplication(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   applications.clear()
   players.clear()
+  events.length = 0
   playerInsertCount = 0
   assertEnabled.mockReset()
-  createAudit.mockReset()
   applicationRepository.find.mockClear()
   applicationRepository.findOne.mockClear()
   applicationRepository.create.mockClear()
@@ -114,11 +119,20 @@ beforeEach(() => {
   playerRepository.findOne.mockClear()
   playerRepository.create.mockClear()
   playerRepository.save.mockClear()
+  eventRepository.create.mockClear()
+  eventRepository.save.mockClear()
   dataSource.transaction.mockClear()
   manager.getRepository.mockClear()
 })
 
 describe('PlayerApplicationService academy workflow', () => {
+  it('normalizes only supported internal Player categories', async () => {
+    const { normalizeAcademyCategory } = await import('./PlayerApplicationService')
+    expect(normalizeAcademyCategory('U15')).toBe('u15')
+    expect(normalizeAcademyCategory(' u7 ')).toBe('u7')
+    expect(normalizeAcademyCategory('U6')).toBeNull()
+  })
+
   it('enforces pre-screening -> trial -> technical approval -> administrative approval', async () => {
     seedApplication()
     const { PlayerApplicationService } = await import('./PlayerApplicationService')
@@ -139,7 +153,14 @@ describe('PlayerApplicationService academy workflow', () => {
 
     await service.approveAdministrative(1, 'team-1', 'admin-user', 'Dossier complet')
     expect(applications.get(1)?.status).toBe('ADMIN_APPROVED')
-    expect(createAudit).toHaveBeenCalledTimes(4)
+    expect(events).toHaveLength(4)
+    expect(events.every((event) => event.teamId === 'team-1')).toBe(true)
+    expect(events.map((event) => event.eventType)).toEqual([
+      'PRE_SCREENED',
+      'TRIAL_SCHEDULED',
+      'TECHNICAL_APPROVED',
+      'ADMIN_APPROVED',
+    ])
   })
 
   it('refuses an administrative approval before technical approval', async () => {
@@ -149,6 +170,7 @@ describe('PlayerApplicationService academy workflow', () => {
     await expect(
       new PlayerApplicationService().approveAdministrative(1, 'team-1', 'admin-user', 'Dossier complet'),
     ).rejects.toThrow('Transition de candidature invalide')
+    expect(events).toHaveLength(0)
   })
 
   it('creates one linked Player only after administrative approval and is idempotent', async () => {
@@ -171,6 +193,13 @@ describe('PlayerApplicationService academy workflow', () => {
     expect(application?.status).toBe('PLAYER_CREATED')
     expect(application?.playerId).toBe(first.id)
     expect(playerInsertCount).toBe(1)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toEqual(expect.objectContaining({
+      teamId: 'team-1',
+      eventType: 'PLAYER_CREATED',
+      fromStatus: 'ADMIN_APPROVED',
+      toStatus: 'PLAYER_CREATED',
+    }))
 
     const second = await service.createPlayer(1, 'team-1', 'admin-user', {
       number: 24,
@@ -180,6 +209,7 @@ describe('PlayerApplicationService academy workflow', () => {
 
     expect(second.id).toBe(first.id)
     expect(playerInsertCount).toBe(1)
+    expect(events).toHaveLength(1)
   })
 
   it('never mutates an application belonging to another club', async () => {
@@ -189,6 +219,7 @@ describe('PlayerApplicationService academy workflow', () => {
     await expect(
       new PlayerApplicationService().preScreen(1, 'team-1', 'technical-user', 'OK'),
     ).rejects.toThrow('Candidature introuvable')
+    expect(events).toHaveLength(0)
   })
 
   it('requires a rejection reason and preserves processed applications from hard delete', async () => {
@@ -202,5 +233,7 @@ describe('PlayerApplicationService academy workflow', () => {
     await service.reject(1, 'team-1', 'admin-user', 'Âge hors critères')
     expect(applications.get(1)?.status).toBe('REJECTED')
     expect(applications.get(1)?.rejectionReason).toBe('Âge hors critères')
+    expect(events).toHaveLength(1)
+    expect(events[0]).toEqual(expect.objectContaining({ eventType: 'REJECTED', teamId: 'team-1' }))
   })
 })
