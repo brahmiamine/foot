@@ -87,6 +87,27 @@ function valuesFrom(rule: DisciplineRuleCandidate): DisciplineRuleValues {
   };
 }
 
+export function validateDisciplineRuleValues(values: DisciplineRuleValues): void {
+  const integerFields: Array<keyof DisciplineRuleValues> = [
+    "yellowWarningThreshold",
+    "yellowSuspensionThreshold",
+    "yellowSuspensionMatches",
+    "fineDueDays",
+    "defaultRedSuspensionMatches",
+    "defaultDoubleYellowSuspensionMatches",
+  ];
+  for (const field of integerFields) {
+    const value = values[field];
+    if (!Number.isInteger(value) || value < 0) throw new Error(`Valeur disciplinaire invalide: ${field}`);
+  }
+  if (values.yellowSuspensionThreshold < 1) throw new Error("Le seuil de suspension jaune doit être supérieur à 0");
+  if (values.yellowWarningThreshold >= values.yellowSuspensionThreshold) {
+    throw new Error("Le seuil d'alerte jaune doit être inférieur au seuil de suspension");
+  }
+  if (!Number.isFinite(values.yellowFineAmount) || values.yellowFineAmount < 0) throw new Error("Montant d'amende jaune invalide");
+  if (!Number.isFinite(values.redFineAmount) || values.redFineAmount < 0) throw new Error("Montant d'amende rouge invalide");
+}
+
 export function resolveDisciplineRule(
   candidates: readonly DisciplineRuleCandidate[],
   context: DisciplineRuleContext,
@@ -114,8 +135,10 @@ export function resolveDisciplineRule(
     };
   }
 
+  const values = valuesFrom(selected);
+  validateDisciplineRuleValues(values);
   return {
-    ...valuesFrom(selected),
+    ...values,
     source: "RULE_SET",
     ruleSetId: selected.id,
     version: selected.version,
@@ -137,30 +160,11 @@ export function applyDisciplineOverride(
     return { ...base };
   }
 
-  return {
+  const next: ResolvedDisciplineRule = {
     ...base,
     ...override.values,
     overrideId: override.id,
   };
-}
-
-export function validateDisciplineRuleValues(values: DisciplineRuleValues): void {
-  const integerFields: Array<keyof DisciplineRuleValues> = [
-    "yellowWarningThreshold",
-    "yellowSuspensionThreshold",
-    "yellowSuspensionMatches",
-    "fineDueDays",
-    "defaultRedSuspensionMatches",
-    "defaultDoubleYellowSuspensionMatches",
-  ];
-  for (const field of integerFields) {
-    const value = values[field];
-    if (!Number.isInteger(value) || value < 0) throw new Error(`Valeur disciplinaire invalide: ${field}`);
-  }
-  if (values.yellowSuspensionThreshold < 1) throw new Error("Le seuil de suspension jaune doit être supérieur à 0");
-  if (values.yellowWarningThreshold >= values.yellowSuspensionThreshold) {
-    throw new Error("Le seuil d'alerte jaune doit être inférieur au seuil de suspension");
-  }
-  if (!Number.isFinite(values.yellowFineAmount) || values.yellowFineAmount < 0) throw new Error("Montant d'amende jaune invalide");
-  if (!Number.isFinite(values.redFineAmount) || values.redFineAmount < 0) throw new Error("Montant d'amende rouge invalide");
+  validateDisciplineRuleValues(next);
+  return next;
 }
