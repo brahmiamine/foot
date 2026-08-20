@@ -48,12 +48,22 @@ export class StaffLineupService extends StaffConvocationService {
     );
   }
 
-  private ensureEditable(formation: MatchFormation): void {
+  /** STAFF-002 — le verrouillage automatique s'ajoute au workflow manuel, il ne le remplace pas. */
+  private async ensureEditable(
+    formation: MatchFormation,
+    teamId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<void> {
     if (formation.isLocked || formation.workflowStatus === "LOCKED") {
       throw new Error("La composition est verrouillée");
     }
     if (formation.workflowStatus === "APPROVED") {
       throw new Error("La composition approuvée ne peut plus être modifiée");
+    }
+    if (await this.isLineupAutoLocked(teamId, matchType, matchId, friendlyMatchId)) {
+      throw new Error("La composition est verrouillée automatiquement avant le coup d'envoi");
     }
   }
 
@@ -79,7 +89,7 @@ export class StaffLineupService extends StaffConvocationService {
     const ds = await this.ds();
     const repo = ds.getRepository(MatchFormation);
     const entry = await this.getOrCreateFormation(teamId, matchType, matchId, friendlyMatchId);
-    this.ensureEditable(entry);
+    await this.ensureEditable(entry, teamId, matchType, matchId, friendlyMatchId);
     if (entry.formation !== formation) {
       entry.formation = formation;
       await repo.save(entry);
@@ -121,7 +131,7 @@ export class StaffLineupService extends StaffConvocationService {
       options.matchId,
       options.friendlyMatchId,
     );
-    this.ensureEditable(formation);
+    await this.ensureEditable(formation, teamId, matchType, options.matchId, options.friendlyMatchId);
 
     const ds = await this.ds();
     const repo = ds.getRepository(MatchLineup);
@@ -159,7 +169,7 @@ export class StaffLineupService extends StaffConvocationService {
       entry.matchId ?? undefined,
       entry.friendlyMatchId ?? undefined,
     );
-    this.ensureEditable(formation);
+    await this.ensureEditable(formation, teamId, entry.matchType, entry.matchId ?? undefined, entry.friendlyMatchId ?? undefined);
     await repo.remove(entry);
     await this.markDraftAfterEdit(formation);
   }
@@ -174,7 +184,7 @@ export class StaffLineupService extends StaffConvocationService {
     const ds = await this.ds();
     const repo = ds.getRepository(MatchFormation);
     const formation = await this.getOrCreateFormation(teamId, matchType, matchId, friendlyMatchId);
-    this.ensureEditable(formation);
+    await this.ensureEditable(formation, teamId, matchType, matchId, friendlyMatchId);
     const lineup = await this.getLineup(teamId, matchType, matchId, friendlyMatchId);
     if (lineup.length === 0) throw new Error("Ajoutez au moins un joueur avant de soumettre la composition");
 
@@ -241,6 +251,7 @@ export class StaffLineupService extends StaffConvocationService {
   ): Promise<FormationWorkflowStatus> {
     const formation = await this.getFormation(teamId, matchType, matchId, friendlyMatchId);
     if (formation?.isLocked) return "LOCKED";
+    if (await this.isLineupAutoLocked(teamId, matchType, matchId, friendlyMatchId)) return "LOCKED";
     return formation?.workflowStatus ?? "DRAFT";
   }
 

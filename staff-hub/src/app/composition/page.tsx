@@ -53,6 +53,7 @@ export default async function CompositionPage({ searchParams }: { searchParams: 
             <Card>
               <CompositionEditor
                 teamId={teamId}
+                userId={session.user.id}
                 matchKey={selectedKey}
                 categories={access.categories}
                 canEdit={can(access, "lineups.edit")}
@@ -69,6 +70,7 @@ export default async function CompositionPage({ searchParams }: { searchParams: 
 
 async function CompositionEditor({
   teamId,
+  userId,
   matchKey,
   categories,
   canEdit,
@@ -76,6 +78,7 @@ async function CompositionEditor({
   canApprove,
 }: {
   teamId: string;
+  userId: string;
   matchKey: string;
   categories: Awaited<ReturnType<typeof getUserAccess>>["categories"];
   canEdit: boolean;
@@ -93,15 +96,17 @@ async function CompositionEditor({
   const matchId = kind === "OFFICIAL" ? id : undefined;
   const friendlyMatchId = kind === "FRIENDLY" ? Number(id) : undefined;
 
-  const [roster, lineup, formation] = await Promise.all([
+  const [roster, lineup, formation, workflowStatus, delegatedApprove] = await Promise.all([
     staffPortalService.getRoster(teamId, categories),
     staffPortalService.getLineup(teamId, kind, matchId, friendlyMatchId),
     staffPortalService.getFormation(teamId, kind, matchId, friendlyMatchId),
+    staffPortalService.getLineupWorkflowStatus(teamId, kind, matchId, friendlyMatchId),
+    canApprove ? Promise.resolve(true) : staffPortalService.isHeadCoachDelegated(teamId, userId, { matchId, friendlyMatchId }),
   ]);
 
   const lineupByPlayer = new Map(lineup.map((entry) => [entry.playerId, entry]));
-  const workflowStatus = formation?.isLocked ? "LOCKED" : (formation?.workflowStatus ?? "DRAFT");
-  const canInteract = canEdit || canPropose || canApprove;
+  const canApproveEffective = canApprove || delegatedApprove;
+  const canInteract = canEdit || canPropose || canApproveEffective;
 
   if (!canInteract) {
     return (
@@ -134,7 +139,7 @@ async function CompositionEditor({
       workflowStatus={workflowStatus}
       canEdit={canEdit}
       canPropose={canPropose}
-      canApprove={canApprove}
+      canApprove={canApproveEffective}
       initialRoster={roster.map((player) => {
         const existing = lineupByPlayer.get(player.id);
         return {

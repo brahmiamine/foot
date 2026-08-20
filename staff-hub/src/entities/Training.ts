@@ -3,6 +3,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeor
 export type TrainingType = "TECHNIQUE" | "PHYSIQUE" | "TACTIQUE" | "PREPARATION_MATCH" | "RECUPERATION" | "AUTRE";
 export type TrainingStatus = "SCHEDULED" | "DONE" | "CANCELLED";
 export type TrainingIntensity = "LOW" | "MEDIUM" | "HIGH";
+/** STAFF-003 — DRAFT/SUBMITTED tant que la policy club l'exige, sinon toujours APPROVED. */
+export type TrainingPlanStatus = "DRAFT" | "SUBMITTED" | "APPROVED";
 
 /** `cms_trainings` (possédée par club-hub) — voir club-hub/src/entities/Training.ts. Lecture seule. */
 @Entity("cms_trainings")
@@ -41,6 +43,21 @@ export class Training {
 
   @Column({ type: "enum", enum: ["SCHEDULED", "DONE", "CANCELLED"], default: "SCHEDULED" })
   status!: TrainingStatus;
+
+  @Column({ type: "enum", enum: ["DRAFT", "SUBMITTED", "APPROVED"], default: "APPROVED", name: "plan_status" })
+  planStatus!: TrainingPlanStatus;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "submitted_by" })
+  submittedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "submitted_at" })
+  submittedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "approved_by" })
+  approvedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "approved_at" })
+  approvedAt?: Date | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

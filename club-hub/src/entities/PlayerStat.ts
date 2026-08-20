@@ -79,6 +79,13 @@ export class PlayerStat {
   @Column({ type: "varchar", length: 500, nullable: true })
   notes?: string | null;
 
+  /** STAFF-004 — posé une fois la fenêtre de revue post-match écoulée (voir StatReviewPolicy). */
+  @Column({ type: "datetime", nullable: true, name: "locked_at" })
+  lockedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "locked_by" })
+  lockedBy?: string | null;
+
   @Column({ type: "varchar", length: 191, nullable: true, name: "created_by" })
   createdBy?: string | null;
 

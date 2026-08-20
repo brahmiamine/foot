@@ -245,6 +245,12 @@ club-hub/sql/migration_add_public_governance.sql
 club-hub/sql/migration_add_configuration_policy_history.sql
 # GOV-010 : activation serveur versionnée des modules par club.
 club-hub/sql/migration_add_feature_settings.sql
+# STAFF-002 à STAFF-005 : verrouillage composition, validation entraînements,
+# revue/verrouillage statistiques, délégation temporaire de coach principal.
+# Dépend de cms_staff/cms_trainings/cms_player_stats (migration_cms_unification.sql,
+# migration_add_roles_scheduling_and_formations.sql) et de cms_configuration_audit
+# (migration_add_configuration_policy_history.sql).
+club-hub/sql/migration_add_staff_governance.sql
 
 # --- match-operations (feuille de match électronique, dépend de Player/Card/Match) ---
 match-operations/sql/migration_match-operations_init.sql

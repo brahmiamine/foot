@@ -3,10 +3,10 @@ import { Player } from "@/entities/Player";
 import { Training } from "@/entities/Training";
 import { TrainingInvitation, type TrainingInvitationResponse } from "@/entities/TrainingInvitation";
 import type { AgeCategory } from "@/types/categories";
-import { StaffMatchService } from "./StaffMatchService";
+import { StaffGovernanceService } from "./StaffGovernanceService";
 import { categoryWhere, type CategoryScope } from "./StaffServiceBase";
 
-export class StaffTrainingService extends StaffMatchService {
+export class StaffTrainingService extends StaffGovernanceService {
   async listTrainings(teamId: string, categories: CategoryScope): Promise<Training[]> {
     const ds = await this.ds();
     const where = categories === "ALL" ? { teamId } : { teamId, category: categoryWhere(categories) };
@@ -14,11 +14,56 @@ export class StaffTrainingService extends StaffMatchService {
   }
 
   async createTraining(
-    data: Partial<Training> & { teamId: string; category: AgeCategory; title: string; date: Date },
+    data: Partial<Training> & { teamId: string; category: AgeCategory; title: string; date: Date; createdBy?: string },
   ): Promise<Training> {
+    const policy = await this.getTrainingApprovalPolicy(data.teamId);
     const ds = await this.ds();
     const repo = ds.getRepository(Training);
-    return repo.save(repo.create({ status: "SCHEDULED", ...data }));
+    const { createdBy, ...rest } = data;
+    return repo.save(
+      repo.create({
+        status: "SCHEDULED",
+        ...rest,
+        planStatus: policy.approvalRequired ? "DRAFT" : "APPROVED",
+        submittedBy: null,
+        submittedAt: null,
+        approvedBy: policy.approvalRequired ? null : (createdBy ?? null),
+        approvedAt: policy.approvalRequired ? null : new Date(),
+      }),
+    );
+  }
+
+  /** STAFF-003 — soumet un plan d'entraînement brouillon à l'approbation (aucun effet si la validation n'est pas requise). */
+  async submitTrainingPlan(id: number, teamId: string, actorUserId: string): Promise<Training> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(Training);
+    const training = await repo.findOne({ where: { id, teamId } });
+    if (!training) throw new Error("Entraînement introuvable");
+    if (training.planStatus !== "DRAFT") {
+      throw new Error("Seul un plan brouillon peut être soumis à l'approbation");
+    }
+    training.planStatus = "SUBMITTED";
+    training.submittedBy = actorUserId;
+    training.submittedAt = new Date();
+    return repo.save(training);
+  }
+
+  /** STAFF-003 — approuve un plan d'entraînement soumis ; le proposant ne peut pas approuver son propre plan. */
+  async approveTrainingPlan(id: number, teamId: string, actorUserId: string): Promise<Training> {
+    const ds = await this.ds();
+    const repo = ds.getRepository(Training);
+    const training = await repo.findOne({ where: { id, teamId } });
+    if (!training) throw new Error("Entraînement introuvable");
+    if (training.planStatus !== "SUBMITTED") {
+      throw new Error("Le plan doit être soumis avant approbation");
+    }
+    if (training.submittedBy === actorUserId) {
+      throw new Error("Le proposant ne peut pas approuver son propre plan d'entraînement");
+    }
+    training.planStatus = "APPROVED";
+    training.approvedBy = actorUserId;
+    training.approvedAt = new Date();
+    return repo.save(training);
   }
 
   async cancelTraining(id: number, teamId: string): Promise<void> {
@@ -50,6 +95,9 @@ export class StaffTrainingService extends StaffMatchService {
     const ds = await this.ds();
     const training = await ds.getRepository(Training).findOne({ where: { id: trainingId, teamId } });
     if (!training) return 0;
+    if (training.planStatus !== "APPROVED") {
+      throw new Error("Le plan d'entraînement doit être approuvé avant de convoquer l'effectif");
+    }
 
     const roster = await ds.getRepository(Player).find({
       where: { teamId, category: training.category, isActive: true },

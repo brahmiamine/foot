@@ -137,7 +137,14 @@ export function PlayerStatsManagement({
 
   const handleDeleteEntry = async (id: number) => {
     if (!(await confirm("Supprimer cette entrée de statistiques ?"))) return;
-    const result = await deletePlayerStat(id);
+    let result = await deletePlayerStat(id);
+    if (!result.success && /motif/i.test(result.error || "")) {
+      const reason = window.prompt(
+        "La fenêtre de revue post-match est écoulée : un motif est obligatoire pour supprimer cette entrée.",
+      );
+      if (!reason || !reason.trim()) return;
+      result = await deletePlayerStat(id, reason.trim());
+    }
     if (result.success) {
       startTransition(() => router.refresh());
     } else {

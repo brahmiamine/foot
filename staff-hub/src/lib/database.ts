@@ -22,6 +22,11 @@ import { Injury } from "@/entities/Injury";
 import { MatchLineup } from "@/entities/MatchLineup";
 import { MatchFormation } from "@/entities/MatchFormation";
 import { TacticsBoard } from "@/entities/TacticsBoard";
+import { LineupLockPolicy } from "@/entities/LineupLockPolicy";
+import { TrainingApprovalPolicy } from "@/entities/TrainingApprovalPolicy";
+import { StatReviewPolicy } from "@/entities/StatReviewPolicy";
+import { HeadCoachDelegation } from "@/entities/HeadCoachDelegation";
+import { StaffConfigurationAudit } from "@/entities/StaffConfigurationAudit";
 
 /**
  * Connexion TypeORM vers la base "foot" partagée — voir
@@ -71,6 +76,11 @@ export async function getDataSource(): Promise<DataSource> {
         MatchLineup,
         MatchFormation,
         TacticsBoard,
+        LineupLockPolicy,
+        TrainingApprovalPolicy,
+        StatReviewPolicy,
+        HeadCoachDelegation,
+        StaffConfigurationAudit,
       ],
       migrations: [],
       charset: "utf8mb4",

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Table, Thead, Th, Tr, Td } from "@/components/ui/Table";
 import { EmptyState } from "@/components/ui/States";
 import { CreateStatForm } from "@/components/portal/CreateStatForm";
+import { EditStatButton } from "@/components/portal/EditStatButton";
 
 export default async function StatistiquesPage() {
   const session = await auth();
@@ -42,6 +43,7 @@ export default async function StatistiquesPage() {
               <Th>Passes</Th>
               <Th>Jaunes</Th>
               <Th>Rouges</Th>
+              <Th></Th>
             </Thead>
             <tbody>
               {stats.map((s) => (
@@ -53,6 +55,18 @@ export default async function StatistiquesPage() {
                   <Td>{s.assists}</Td>
                   <Td>{s.yellowCards}</Td>
                   <Td>{s.redCards}</Td>
+                  <Td>
+                    {can(access, "stats.manage") && (
+                      <EditStatButton
+                        id={s.id}
+                        minutesPlayed={s.minutesPlayed}
+                        goals={s.goals}
+                        assists={s.assists}
+                        yellowCards={s.yellowCards}
+                        redCards={s.redCards}
+                      />
+                    )}
+                  </Td>
                 </Tr>
               ))}
             </tbody>

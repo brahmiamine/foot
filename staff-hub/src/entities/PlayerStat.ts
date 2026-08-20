@@ -50,6 +50,13 @@ export class PlayerStat {
   @Column({ type: "int", default: 0, name: "trainings_total" })
   trainingsTotal!: number;
 
+  /** STAFF-004 — posé une fois la fenêtre de revue post-match écoulée. */
+  @Column({ type: "datetime", nullable: true, name: "locked_at" })
+  lockedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "locked_by" })
+  lockedBy?: string | null;
+
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
 }

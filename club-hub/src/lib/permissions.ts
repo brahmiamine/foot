@@ -228,6 +228,17 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    key: "staffSettings",
+    label: "Politiques du staff technique",
+    permissions: [
+      {
+        key: "staffSettings.manage",
+        label:
+          "Configurer le verrouillage de la composition avant coup d'envoi, la validation des plans d'entraînement, la fenêtre de revue des statistiques et les délégations temporaires d'entraîneur principal",
+      },
+    ],
+  },
+  {
     key: "tactics",
     label: "Planches tactiques",
     permissions: [
@@ -339,6 +350,7 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
       "notifications.send",
       "trips.view",
       "trips.manage",
+      "staffSettings.manage",
     ],
   },
   {

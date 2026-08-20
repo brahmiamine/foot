@@ -1,18 +1,48 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { getUserAccess, requirePermission } from "@/lib/access";
+import { getUserAccess, can, requirePermission } from "@/lib/access";
 import { staffPortalService } from "@/services/StaffPortalService";
 import { markNotificationRead, markAllNotificationsRead } from "@/lib/notificationApi";
 import type { TrainingInvitationResponse } from "@/entities/TrainingInvitation";
 import type { LineupRole } from "@/entities/MatchLineup";
 import type { AgeCategory } from "@/types/categories";
+import type { PlayerStat } from "@/entities/PlayerStat";
 
 async function requireSession() {
   const session = await auth();
   if (!session) throw new Error("Not authenticated");
   return session.user;
+}
+
+function requestIp(headersList: Headers): string | null {
+  const forwarded = headersList.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || null;
+  return headersList.get("x-real-ip");
+}
+
+async function auditContext(access: Awaited<ReturnType<typeof getUserAccess>>, reason: string) {
+  const requestHeaders = await headers();
+  return {
+    actorUserId: access.userId,
+    actorRole: access.isClubAdmin ? "ADMIN" : "STAFF",
+    reason,
+    ipAddress: requestIp(requestHeaders),
+    userAgent: requestHeaders.get("user-agent"),
+  };
+}
+
+/** STAFF-005 — autorisé si permission directe `lineups.approve` ou délégation active de coach principal pour ce match. */
+async function canApproveLineup(
+  access: Awaited<ReturnType<typeof getUserAccess>>,
+  teamId: string,
+  matchId?: string,
+  friendlyMatchId?: number,
+): Promise<boolean> {
+  if (can(access, "lineups.approve")) return true;
+  return staffPortalService.isHeadCoachDelegated(teamId, access.userId, { matchId, friendlyMatchId });
 }
 
 export async function createFriendlyMatchAction(data: {
@@ -49,10 +79,27 @@ export async function createTrainingAction(data: {
     date: new Date(data.date),
     durationMinutes: data.durationMinutes,
     venueName: data.venueName,
+    createdBy: user.id,
   });
   revalidatePath("/entrainements");
   revalidatePath("/calendrier");
   revalidatePath("/");
+}
+
+export async function submitTrainingPlanAction(id: number) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requirePermission(access, "trainings.edit");
+  await staffPortalService.submitTrainingPlan(id, user.teamId, user.id);
+  revalidatePath("/entrainements");
+}
+
+export async function approveTrainingPlanAction(id: number) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requirePermission(access, "trainings.edit");
+  await staffPortalService.approveTrainingPlan(id, user.teamId, user.id);
+  revalidatePath("/entrainements");
 }
 
 export async function cancelTrainingAction(id: number) {
@@ -149,7 +196,9 @@ export async function approveLineupAction(
 ): Promise<void> {
   const user = await requireSession();
   const access = await getUserAccess();
-  requirePermission(access, "lineups.approve");
+  if (!(await canApproveLineup(access, user.teamId, matchId, friendlyMatchId))) {
+    throw new Error("Action non autorisée : permission manquante");
+  }
   await staffPortalService.approveLineup(user.teamId, matchType, user.id, matchId, friendlyMatchId);
   revalidatePath("/composition");
 }
@@ -161,7 +210,9 @@ export async function lockLineupAction(
 ): Promise<void> {
   const user = await requireSession();
   const access = await getUserAccess();
-  requirePermission(access, "lineups.approve");
+  if (!(await canApproveLineup(access, user.teamId, matchId, friendlyMatchId))) {
+    throw new Error("Action non autorisée : permission manquante");
+  }
   await staffPortalService.lockLineup(user.teamId, matchType, user.id, matchId, friendlyMatchId);
   revalidatePath("/composition");
 }
@@ -179,6 +230,20 @@ export async function createStatAction(data: {
   const access = await getUserAccess();
   requirePermission(access, "stats.manage");
   await staffPortalService.createStat({ teamId: user.teamId, createdBy: user.id, ...data });
+  revalidatePath("/statistiques");
+}
+
+export async function updateStatAction(
+  id: number,
+  changes: Partial<
+    Pick<PlayerStat, "season" | "minutesPlayed" | "goals" | "assists" | "yellowCards" | "redCards" | "injuriesCount" | "trainingsAttended" | "trainingsTotal">
+  >,
+  reason?: string,
+) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requirePermission(access, "stats.manage");
+  await staffPortalService.updateStat(id, user.teamId, user.id, changes, reason);
   revalidatePath("/statistiques");
 }
 
@@ -209,4 +274,70 @@ export async function markAllNotificationsReadAction() {
   await requireSession();
   await markAllNotificationsRead();
   revalidatePath("/notifications");
+}
+
+function requireStaffSettingsAccess(access: Awaited<ReturnType<typeof getUserAccess>>) {
+  if (!access.isClubAdmin && !can(access, "staffSettings.manage")) {
+    throw new Error("Action réservée à la configuration des politiques du staff");
+  }
+}
+
+export async function updateLineupLockPolicyAction(input: { enabled: boolean; lockMinutesBeforeKickoff: number }, reason: string) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requireStaffSettingsAccess(access);
+  await staffPortalService.updateLineupLockPolicy(user.teamId, input, await auditContext(access, reason));
+  revalidatePath("/composition");
+  revalidatePath("/parametres");
+}
+
+export async function updateTrainingApprovalPolicyAction(input: { approvalRequired: boolean }, reason: string) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requireStaffSettingsAccess(access);
+  await staffPortalService.updateTrainingApprovalPolicy(user.teamId, input, await auditContext(access, reason));
+  revalidatePath("/entrainements");
+  revalidatePath("/parametres");
+}
+
+export async function updateStatReviewPolicyAction(input: { reviewWindowHours: number }, reason: string) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requireStaffSettingsAccess(access);
+  await staffPortalService.updateStatReviewPolicy(user.teamId, input, await auditContext(access, reason));
+  revalidatePath("/statistiques");
+  revalidatePath("/parametres");
+}
+
+export async function grantHeadCoachDelegationAction(input: {
+  delegateeUserId: string;
+  delegateeStaffId: number;
+  matchId?: string;
+  friendlyMatchId?: number;
+  validFrom?: string;
+  validUntil?: string;
+  reason: string;
+}) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requireStaffSettingsAccess(access);
+  await staffPortalService.grantHeadCoachDelegation(user.teamId, {
+    delegatorUserId: user.id,
+    delegateeUserId: input.delegateeUserId,
+    delegateeStaffId: input.delegateeStaffId,
+    matchId: input.matchId,
+    friendlyMatchId: input.friendlyMatchId,
+    validFrom: input.validFrom ? new Date(input.validFrom) : null,
+    validUntil: input.validUntil ? new Date(input.validUntil) : null,
+    reason: input.reason,
+  });
+  revalidatePath("/parametres");
+}
+
+export async function revokeHeadCoachDelegationAction(id: string, reason: string) {
+  const user = await requireSession();
+  const access = await getUserAccess();
+  requireStaffSettingsAccess(access);
+  await staffPortalService.revokeHeadCoachDelegation(id, user.teamId, user.id, reason);
+  revalidatePath("/parametres");
 }
