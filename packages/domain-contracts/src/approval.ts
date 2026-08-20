@@ -21,6 +21,14 @@ export interface ApprovalEvaluation {
   canFinalize: boolean
 }
 
+export interface RegisteredApproval {
+  /** Canonical resulting approval state. */
+  state: ApprovalState
+  /** Explicit alias for callers that need to distinguish input vs resulting state. */
+  nextState: ApprovalState
+  evaluation: ApprovalEvaluation
+}
+
 export class ApprovalPolicyError extends Error {
   constructor(
     readonly code:
@@ -93,7 +101,7 @@ export function registerApproval(
   policy: ApprovalPolicy,
   state: ApprovalState,
   actorUserId: string,
-): { state: ApprovalState; evaluation: ApprovalEvaluation } {
+): RegisteredApproval {
   if (policy.mode === 'AUTO') {
     throw new ApprovalPolicyError(
       'AUTO_APPROVAL_IS_NOT_MANUAL',
@@ -117,5 +125,9 @@ export function registerApproval(
     ...state,
     approverUserIds: [...state.approverUserIds, actorUserId],
   }
-  return { state: nextState, evaluation: evaluateApproval(policy, nextState) }
+  return {
+    state: nextState,
+    nextState,
+    evaluation: evaluateApproval(policy, nextState),
+  }
 }
