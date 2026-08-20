@@ -90,13 +90,17 @@ CREATE TABLE cms_trip_expense_receipts (
   receipt_threshold_snapshot DECIMAL(12,3) NOT NULL,
   receipt_required TINYINT(1) NOT NULL DEFAULT 0,
   document_url VARCHAR(255) NULL,
+  status ENUM('ACTIVE','VOIDED') NOT NULL DEFAULT 'ACTIVE',
+  voided_by VARCHAR(191) NULL,
+  voided_at DATETIME NULL,
   created_by VARCHAR(191) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_cms_trip_expense_receipts_team
     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
   CONSTRAINT fk_cms_trip_expense_receipts_trip
     FOREIGN KEY (trip_id) REFERENCES cms_trips(id) ON DELETE CASCADE,
-  INDEX idx_cms_trip_expense_receipts_trip (team_id, trip_id, created_at)
+  INDEX idx_cms_trip_expense_receipts_trip (team_id, trip_id, created_at),
+  INDEX idx_cms_trip_expense_receipts_status (team_id, trip_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 CREATE TABLE cms_trip_workflow_events (
