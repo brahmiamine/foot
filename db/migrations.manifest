@@ -188,6 +188,8 @@ club-hub/sql/migration_add_notification_scope.sql
 club-hub/sql/migration_add_roles_scheduling_and_formations.sql
 club-hub/sql/migration_add_tactics_boards.sql
 club-hub/sql/migration_add_training_details_and_presence_states.sql
+# CLUB-010 : RSVP joueur, deadlines, roster lock, rappels et modèles de séance.
+club-hub/sql/migration_add_training_configuration.sql
 club-hub/sql/migration_add_trips.sql
 # CLUB-009 : budget, approbations, consentements, justificatifs et clôture.
 club-hub/sql/migration_add_trip_governance.sql

@@ -1,21 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Training } from "@/entities/Training";
 import { TrainingInvitation } from "@/entities/TrainingInvitation";
 
 const findOne = vi.fn();
+const trainingFindOne = vi.fn();
 const save = vi.fn();
 const remove = vi.fn();
 
+function repositoryFor(entity: unknown) {
+  if (entity === TrainingInvitation) return { findOne, save, remove, find: vi.fn() };
+  if (entity === Training) return { findOne: trainingFindOne };
+  throw new Error("unexpected entity");
+}
+
 vi.mock("@/lib/database", () => ({
   getDataSource: async () => ({
-    getRepository: (entity: unknown) => {
-      if (entity === TrainingInvitation) return { findOne, save, remove, find: vi.fn() };
-      throw new Error("unexpected entity");
-    },
+    getRepository: repositoryFor,
+    transaction: async (work: (manager: { getRepository: typeof repositoryFor }) => unknown) =>
+      work({ getRepository: repositoryFor }),
   }),
 }));
 
 beforeEach(() => {
   findOne.mockReset();
+  trainingFindOne.mockReset();
   save.mockReset();
   remove.mockReset();
 });
@@ -64,6 +72,7 @@ describe("TrainingInvitationService cross-team guards", () => {
     const service = new TrainingInvitationService();
 
     await expect(service.remove(1, "team-attacker")).rejects.toThrow("Invitation non trouvée");
+    expect(trainingFindOne).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });
 });

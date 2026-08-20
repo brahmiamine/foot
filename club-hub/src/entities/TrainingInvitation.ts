@@ -2,13 +2,11 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { Training } from "./Training";
 import { Player } from "./Player";
 
+/** Pointage réel de la séance, détenu par le staff. */
 export type TrainingInvitationResponse = "PENDING" | "PRESENT" | "ABSENT" | "LATE" | "INJURED";
+/** Réponse du joueur avant séance. */
+export type TrainingRsvpStatus = "PENDING" | "ACCEPTED" | "DECLINED";
 
-/**
- * TrainingInvitation Entity — joueur invité à une séance d'entraînement,
- * avec suivi de sa réponse (présent / absent), même logique que Convocation
- * pour les matchs.
- */
 @Entity("cms_training_invitations")
 export class TrainingInvitation {
   @PrimaryGeneratedColumn({ type: "bigint" })
@@ -36,6 +34,20 @@ export class TrainingInvitation {
 
   @Column({ type: "datetime", nullable: true, name: "responded_at" })
   respondedAt?: Date | null;
+
+  @Column({
+    type: "enum",
+    enum: ["PENDING", "ACCEPTED", "DECLINED"],
+    default: "PENDING",
+    name: "rsvp_status",
+  })
+  rsvpStatus!: TrainingRsvpStatus;
+
+  @Column({ type: "datetime", nullable: true, name: "rsvp_responded_at" })
+  rsvpRespondedAt?: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "reminder_sent_at" })
+  reminderSentAt?: Date | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

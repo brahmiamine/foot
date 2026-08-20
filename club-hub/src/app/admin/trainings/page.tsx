@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { requireTeamId } from "@/lib/team-context";
-import { getUserAccess, can, selectableCategories } from "@/lib/access";
+import { getUserAccess, can, requirePermission, selectableCategories } from "@/lib/access";
 import { TrainingService } from "@/services/TrainingService";
 import { TrainingInvitationService } from "@/services/TrainingInvitationService";
 import { PlayerService } from "@/services/PlayerService";
@@ -14,6 +15,8 @@ export const dynamic = "force-dynamic";
 export default async function TrainingsPage() {
   const teamId = await requireTeamId();
   const access = await getUserAccess();
+  if (teamId !== access.teamId) throw new Error("Contexte club invalide");
+  requirePermission(access, "trainings.view");
 
   const trainingService = new TrainingService();
   const invitationService = new TrainingInvitationService();
@@ -92,16 +95,23 @@ export default async function TrainingsPage() {
   const tacticsBoards = tacticsBoardsData.map((board) => ({ id: board.id, title: board.title }));
 
   return (
-    <TrainingsManagement
-      initialTrainings={trainings}
-      players={players}
-      stadiums={stadiums}
-      tacticsBoards={tacticsBoards}
-      allowedCategories={selectableCategories(access, AGE_CATEGORIES)}
-      canCreate={can(access, "trainings.create")}
-      canEdit={can(access, "trainings.edit")}
-      canDelete={can(access, "trainings.delete")}
-      canInvite={can(access, "trainings.invite")}
-    />
+    <>
+      <div className="mb-3 d-flex justify-content-end">
+        <Link href="/admin/trainings/configuration" className="btn btn-outline-primary btn-sm">
+          Deadlines, rappels & modèles
+        </Link>
+      </div>
+      <TrainingsManagement
+        initialTrainings={trainings}
+        players={players}
+        stadiums={stadiums}
+        tacticsBoards={tacticsBoards}
+        allowedCategories={selectableCategories(access, AGE_CATEGORIES)}
+        canCreate={can(access, "trainings.create")}
+        canEdit={can(access, "trainings.edit")}
+        canDelete={can(access, "trainings.delete")}
+        canInvite={can(access, "trainings.invite")}
+      />
+    </>
   );
 }

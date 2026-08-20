@@ -33,6 +33,9 @@ export class Training {
   @Column({ type: "datetime" })
   date!: Date;
 
+  @Column({ type: "datetime", nullable: true, name: "response_deadline" })
+  responseDeadline?: Date | null;
+
   @Column({ type: "int", nullable: true, name: "duration_minutes" })
   durationMinutes?: number | null;
 

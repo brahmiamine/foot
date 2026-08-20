@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { playerPortalService } from "@/services/PlayerPortalService";
 import { markNotificationRead, markAllNotificationsRead } from "@/lib/notificationApi";
 import type { ConvocationResponse } from "@/entities/Convocation";
-import type { TrainingInvitationResponse } from "@/entities/TrainingInvitation";
+import type { TrainingRsvpStatus } from "@/entities/TrainingInvitation";
 import type { TripTransportOffer } from "@/entities/TripParticipant";
 
 async function requirePlayerId(): Promise<string> {
@@ -28,7 +28,7 @@ export async function respondConvocationAction(
 
 export async function respondTrainingAction(
   invitationId: number,
-  response: Exclude<TrainingInvitationResponse, "PENDING">
+  response: Exclude<TrainingRsvpStatus, "PENDING">
 ) {
   const playerId = await requirePlayerId();
   const result = await playerPortalService.respondToTraining(playerId, invitationId, response);

@@ -14,11 +14,7 @@ function readTrainingForm(formData: FormData) {
   const dateStr = formData.get("date") as string;
   const blocksJson = (formData.get("blocksJson") as string) || "[]";
   let blocks: unknown[] = [];
-  try {
-    blocks = JSON.parse(blocksJson);
-  } catch {
-    blocks = [];
-  }
+  try { blocks = JSON.parse(blocksJson); } catch { blocks = []; }
   return {
     category: (formData.get("category") as string) || "seniors",
     title: formData.get("title") as string,
@@ -35,24 +31,23 @@ function readTrainingForm(formData: FormData) {
   };
 }
 
+async function secureTeamId(accessTeamId: string): Promise<string> {
+  const teamId = await requireTeamId();
+  if (teamId !== accessTeamId) throw new Error("Contexte club invalide");
+  return teamId;
+}
+
 export async function createTraining(formData: FormData) {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Non authentifié");
-
     const access = await getUserAccess();
     requirePermission(access, "trainings.create");
-
     const data = createTrainingSchema.parse(readTrainingForm(formData));
     requireCategory(access, data.category);
-
-    const teamId = await requireTeamId();
-    const service = new TrainingService();
-    const training = await service.create(data, teamId, session.user.id);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({ userId: session.user.id, action: "CREATE", entity: "Training", entityId: String(training.id) });
-
+    const teamId = await secureTeamId(access.teamId);
+    const training = await new TrainingService().create(data, teamId, session.user.id);
+    await new AuditLogService().create({ userId: session.user.id, action: "CREATE", entity: "Training", entityId: String(training.id) });
     revalidatePath("/admin/trainings");
     return { success: true, message: "Entraînement créé avec succès" };
   } catch (error) {
@@ -64,26 +59,19 @@ export async function updateTraining(id: number, formData: FormData) {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Non authentifié");
-
     const access = await getUserAccess();
     requirePermission(access, "trainings.edit");
-
-    const teamId = await requireTeamId();
+    const teamId = await secureTeamId(access.teamId);
     const service = new TrainingService();
     const existing = await service.findById(id, teamId);
     if (!existing) throw new Error("Entraînement non trouvé");
     requireCategory(access, existing.category);
-
     const raw = readTrainingForm(formData);
     const status = (formData.get("status") as string) || undefined;
     const data = updateTrainingSchema.parse({ ...raw, status });
     if (data.category) requireCategory(access, data.category);
-
     await service.update(id, teamId, data);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({ userId: session.user.id, action: "UPDATE", entity: "Training", entityId: String(id) });
-
+    await new AuditLogService().create({ userId: session.user.id, action: "UPDATE", entity: "Training", entityId: String(id) });
     revalidatePath("/admin/trainings");
     return { success: true, message: "Entraînement modifié avec succès" };
   } catch (error) {
@@ -95,21 +83,15 @@ export async function deleteTraining(id: number) {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Non authentifié");
-
     const access = await getUserAccess();
     requirePermission(access, "trainings.delete");
-
-    const teamId = await requireTeamId();
+    const teamId = await secureTeamId(access.teamId);
     const service = new TrainingService();
     const existing = await service.findById(id, teamId);
     if (!existing) throw new Error("Entraînement non trouvé");
     requireCategory(access, existing.category);
-
     await service.delete(id, teamId);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({ userId: session.user.id, action: "DELETE", entity: "Training", entityId: String(id) });
-
+    await new AuditLogService().create({ userId: session.user.id, action: "DELETE", entity: "Training", entityId: String(id) });
     revalidatePath("/admin/trainings");
     return { success: true, message: "Entraînement supprimé avec succès" };
   } catch (error) {
@@ -121,38 +103,27 @@ export async function inviteToTraining(formData: FormData) {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Non authentifié");
-
     const access = await getUserAccess();
     requirePermission(access, "trainings.invite");
-
     const data = inviteToTrainingSchema.parse({
       trainingId: formData.get("trainingId") as string,
       playerIds: formData.getAll("playerIds") as string[],
     });
-
-    const teamId = await requireTeamId();
-    const trainingService = new TrainingService();
-    const training = await trainingService.findById(data.trainingId, teamId);
+    const teamId = await secureTeamId(access.teamId);
+    const training = await new TrainingService().findById(data.trainingId, teamId);
     if (!training) throw new Error("Entraînement non trouvé");
     requireCategory(access, training.category);
-
-    const invitationService = new TrainingInvitationService();
-    const invitations = await invitationService.inviteBulk(data.trainingId, data.playerIds);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
+    const invitations = await new TrainingInvitationService().inviteBulk(data.trainingId, teamId, data.playerIds);
+    await new AuditLogService().create({
       userId: session.user.id,
       action: "CREATE",
       entity: "TrainingInvitation",
       entityId: String(data.trainingId),
       after: { count: invitations.length },
     });
-
     revalidatePath("/admin/trainings");
-    return {
-      success: true,
-      message: invitations.length > 0 ? `${invitations.length} joueur(s) invité(s)` : "Ces joueurs étaient déjà invités",
-    };
+    revalidatePath("/admin/trainings/configuration");
+    return { success: true, message: invitations.length > 0 ? `${invitations.length} joueur(s) invité(s)` : "Ces joueurs étaient déjà invités" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'invitation" };
   }
@@ -162,16 +133,16 @@ export async function updateTrainingInvitationResponse(id: number, response: Tra
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Non authentifié");
-
     const access = await getUserAccess();
     requirePermission(access, "trainings.invite");
-
     const data = updateTrainingInvitationResponseSchema.parse({ response });
     const invitationService = new TrainingInvitationService();
+    const invitation = await invitationService.findById(id);
+    if (!invitation || invitation.training?.teamId !== access.teamId) throw new Error("Invitation non trouvée");
+    requireCategory(access, invitation.training.category);
     await invitationService.updateResponse(id, access.teamId, data.response);
-
     revalidatePath("/admin/trainings");
-    return { success: true, message: "Réponse mise à jour" };
+    return { success: true, message: "Présence mise à jour" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la mise à jour" };
   }
@@ -181,14 +152,15 @@ export async function removeTrainingInvitation(id: number) {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Non authentifié");
-
     const access = await getUserAccess();
     requirePermission(access, "trainings.invite");
-
     const invitationService = new TrainingInvitationService();
+    const invitation = await invitationService.findById(id);
+    if (!invitation || invitation.training?.teamId !== access.teamId) throw new Error("Invitation non trouvée");
+    requireCategory(access, invitation.training.category);
     await invitationService.remove(id, access.teamId);
-
     revalidatePath("/admin/trainings");
+    revalidatePath("/admin/trainings/configuration");
     return { success: true, message: "Invitation retirée" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors du retrait" };
