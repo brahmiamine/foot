@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AGE_CATEGORIES } from "@/types/categories";
 
 /** Formulaire public "Inscrire mon enfant" (/inscription). */
 export const createPlayerApplicationSchema = z.object({
@@ -14,10 +15,39 @@ export const createPlayerApplicationSchema = z.object({
   documentUrl: z.string().optional().nullable(),
 });
 
+/** Conservé pour le workflow recrutement historique, encore séparé de CLUB-006. */
 export const applicationStatusSchema = z.object({
   status: z.enum(["NEW", "CONTACTED", "TRIAL", "ACCEPTED", "REJECTED"]),
   adminNotes: z.string().max(2000).optional().nullable(),
 });
 
+const optionalNotes = z.string().trim().max(2000).optional().nullable();
+
+export const academyPreScreenSchema = z.object({
+  notes: optionalNotes,
+});
+
+export const academyTrialSchema = z.object({
+  scheduledAt: z.string().datetime({ offset: true }),
+  location: z.string().trim().min(1, "Lieu de l'essai obligatoire").max(191),
+  notes: optionalNotes,
+});
+
+export const academyApprovalSchema = z.object({
+  notes: optionalNotes,
+});
+
+export const academyRejectionSchema = z.object({
+  reason: z.string().trim().min(1, "Motif de refus obligatoire").max(2000),
+});
+
+export const academyCreatePlayerSchema = z.object({
+  number: z.coerce.number().int().min(0).max(999),
+  category: z.enum(AGE_CATEGORIES),
+  position: z.string().trim().max(50).optional().nullable(),
+});
+
 export type CreatePlayerApplicationInput = z.infer<typeof createPlayerApplicationSchema>;
 export type ApplicationStatusInput = z.infer<typeof applicationStatusSchema>;
+export type AcademyTrialInput = z.infer<typeof academyTrialSchema>;
+export type AcademyCreatePlayerInput = z.infer<typeof academyCreatePlayerSchema>;
