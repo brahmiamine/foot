@@ -11,6 +11,7 @@ import {
 
 export type TripBudgetApprovalMode = "SINGLE_APPROVAL" | "DUAL_APPROVAL";
 export type TripBudgetApprovalStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+export type TripExpenseStatus = "ACTIVE" | "VOIDED";
 
 @Entity("cms_trip_governance_settings")
 export class TripGovernanceSettings {
@@ -108,6 +109,7 @@ export class TripBudgetDecision {
 /** Dépense du déplacement ; le justificatif n'est obligatoire qu'au-dessus du seuil configuré. */
 @Entity("cms_trip_expense_receipts")
 @Index(["teamId", "tripId", "createdAt"])
+@Index(["teamId", "tripId", "status"])
 export class TripExpenseReceipt {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -132,6 +134,15 @@ export class TripExpenseReceipt {
 
   @Column({ type: "varchar", length: 255, nullable: true, name: "document_url" })
   documentUrl?: string | null;
+
+  @Column({ type: "simple-enum", enum: ["ACTIVE", "VOIDED"], default: "ACTIVE" })
+  status!: TripExpenseStatus;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "voided_by" })
+  voidedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "voided_at" })
+  voidedAt?: Date | null;
 
   @Column({ type: "varchar", length: 191, name: "created_by" })
   createdBy!: string;
