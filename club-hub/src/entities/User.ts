@@ -21,33 +21,10 @@ export class User {
 
   @Column({
     type: "enum",
-    enum: [
-      "ADMIN",
-      "OBSERVATEUR",
-      "SUPERADMIN",
-      "MEMBER",
-      "PLATFORM_SUPERADMIN",
-      "FEDERATION_ADMIN",
-      "LEAGUE_ADMIN",
-      "REFEREE",
-      "MATCH_OFFICIAL",
-      "REFEREE_OBSERVER",
-      "PLAYER",
-    ],
+    enum: ["ADMIN", "OBSERVATEUR", "SUPERADMIN"],
     default: "OBSERVATEUR",
   })
-  role!:
-    | "ADMIN"
-    | "OBSERVATEUR"
-    | "SUPERADMIN"
-    | "MEMBER"
-    | "PLATFORM_SUPERADMIN"
-    | "FEDERATION_ADMIN"
-    | "LEAGUE_ADMIN"
-    | "REFEREE"
-    | "MATCH_OFFICIAL"
-    | "REFEREE_OBSERVER"
-    | "PLAYER";
+  role!: "ADMIN" | "OBSERVATEUR" | "SUPERADMIN";
 
   @Column({ type: "tinyint" })
   isActive!: boolean;
@@ -63,10 +40,6 @@ export class User {
 
   @Column({ type: "varchar", length: 191, nullable: true })
   teamId?: string | null;
-
-  /** Identité sportive d'un compte PLAYER, possédée par Identity. */
-  @Column({ type: "varchar", length: 191, nullable: true, name: "player_id" })
-  playerId?: string | null;
 
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
