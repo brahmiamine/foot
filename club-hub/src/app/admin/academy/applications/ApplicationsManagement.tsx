@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AGE_CATEGORIES, AGE_CATEGORY_LABELS, type AgeCategory } from "@/types/categories";
+import { PLAYER_POSITIONS } from "@/types/players";
 import { useConfirm } from "@/hooks/useConfirm";
 import {
   approvePlayerApplicationAdministrative,
@@ -23,6 +24,8 @@ type ApplicationStatus =
   | "ADMIN_APPROVED"
   | "PLAYER_CREATED"
   | "REJECTED";
+
+type PlayerPosition = (typeof PLAYER_POSITIONS)[number];
 
 interface ApplicationData {
   id: number;
@@ -82,6 +85,13 @@ const STATUS_BADGE: Record<ApplicationStatus, string> = {
   REJECTED: "bg-danger",
 };
 
+const POSITION_LABELS: Record<PlayerPosition, string> = {
+  GOALKEEPER: "Gardien",
+  DEFENDER: "Défenseur",
+  MIDFIELDER: "Milieu",
+  FORWARD: "Attaquant",
+};
+
 const REJECTABLE = new Set<ApplicationStatus>(["NEW", "PRE_SCREENED", "TRIAL_SCHEDULED", "TECHNICAL_APPROVED"]);
 
 function formatInstant(value: string | null): string | null {
@@ -89,6 +99,11 @@ function formatInstant(value: string | null): string | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+
+function suggestedPosition(value: string | null): PlayerPosition | "" {
+  if (!value) return "";
+  return PLAYER_POSITIONS.includes(value as PlayerPosition) ? (value as PlayerPosition) : "";
 }
 
 export function ApplicationsManagement({
@@ -300,7 +315,7 @@ export function ApplicationsManagement({
                               <form className="col-12 row g-2" onSubmit={(event) => { event.preventDefault(); void runAction(application.id, createPlayerFromApplication, new FormData(event.currentTarget)); }}>
                                 <div className="col-md-3">
                                   <label className="form-label">Numéro</label>
-                                  <input name="number" type="number" min={0} max={999} className="form-control" required />
+                                  <input name="number" type="number" min={0} max={99} className="form-control" required />
                                 </div>
                                 <div className="col-md-4">
                                   <label className="form-label">Catégorie Player</label>
@@ -311,10 +326,18 @@ export function ApplicationsManagement({
                                 </div>
                                 <div className="col-md-5">
                                   <label className="form-label">Poste</label>
-                                  <input name="position" className="form-control" maxLength={50} defaultValue={application.position ?? ""} />
+                                  <select name="position" className="form-select" defaultValue={suggestedPosition(application.position)}>
+                                    <option value="">Non renseigné</option>
+                                    {PLAYER_POSITIONS.map((position) => (
+                                      <option key={position} value={position}>{POSITION_LABELS[position]}</option>
+                                    ))}
+                                  </select>
                                 </div>
                                 {!application.suggestedPlayerCategory && (
                                   <div className="col-12"><div className="alert alert-warning py-2 mb-0">La catégorie de candidature « {application.category} » n&apos;est pas une catégorie Player interne reconnue : sélection administrative obligatoire.</div></div>
+                                )}
+                                {application.position && !suggestedPosition(application.position) && (
+                                  <div className="col-12"><div className="alert alert-info py-2 mb-0">Le poste libre « {application.position} » doit être converti vers un poste Player standard.</div></div>
                                 )}
                                 <div className="col-12"><button className="btn btn-dark btn-sm" disabled={busy}>Créer le joueur</button></div>
                               </form>
