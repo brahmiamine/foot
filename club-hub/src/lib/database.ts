@@ -113,6 +113,7 @@ import { PublicFormSettings } from "@/entities/PublicFormSettings";
 import { PublicContentPolicy } from "@/entities/PublicContentPolicy";
 import { ClubConfigurationAudit } from "@/entities/ClubConfigurationAudit";
 import { ClubFeatureSettings } from "@/entities/ClubFeatureSettings";
+import { DisciplineRuleApplication, DisciplineRuleOverride, DisciplineRuleSet } from "@/entities/DisciplineRule";
 
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
@@ -161,6 +162,7 @@ export async function getDataSource(): Promise<DataSource> {
         TransferWindowHistory, ClubGovernanceSettings, ClubApprovalRequest,
         ClubApprovalDecision, Membership, MembershipType, PublicFormSettings,
         PublicContentPolicy, ClubConfigurationAudit, ClubFeatureSettings,
+        DisciplineRuleSet, DisciplineRuleOverride, DisciplineRuleApplication,
       ],
       migrations: [],
       charset: "utf8mb4",
