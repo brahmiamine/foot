@@ -1,7 +1,6 @@
 import { getDataSource } from "@/lib/database";
 import { RecruitmentNeed } from "@/entities/RecruitmentNeed";
-import { RecruitmentApplication } from "@/entities/RecruitmentApplication";
-import { ApplicationStatus } from "@/entities/PlayerApplication";
+import { RecruitmentApplication, type RecruitmentApplicationStatus } from "@/entities/RecruitmentApplication";
 import { ClubFeatureSettingsService } from "./ClubFeatureSettingsService";
 
 interface RecruitmentNeedData {
@@ -67,7 +66,7 @@ export class RecruitmentService {
     return true;
   }
 
-  async findAllApplications(teamId: string, status?: ApplicationStatus): Promise<RecruitmentApplication[]> {
+  async findAllApplications(teamId: string, status?: RecruitmentApplicationStatus): Promise<RecruitmentApplication[]> {
     await this.assertEnabled(teamId);
     const ds = await getDataSource();
     return ds.getRepository(RecruitmentApplication).find({
@@ -87,7 +86,7 @@ export class RecruitmentService {
   async updateApplicationStatus(
     id: number,
     teamId: string,
-    status: ApplicationStatus,
+    status: RecruitmentApplicationStatus,
     adminNotes?: string | null,
   ): Promise<RecruitmentApplication> {
     await this.assertEnabled(teamId);
