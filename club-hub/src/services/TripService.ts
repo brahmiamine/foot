@@ -1,9 +1,9 @@
 import { getDataSource } from "@/lib/database";
-import { Trip, TripMatchKind } from "@/entities/Trip";
+import { Trip, type TripMatchKind } from "@/entities/Trip";
 import { TripVehicle } from "@/entities/TripVehicle";
-import { TripParticipant, TripParticipantType, TripTransportOffer } from "@/entities/TripParticipant";
-import { In, Repository } from "typeorm";
-import { AgeCategory } from "@/types/categories";
+import { TripParticipant, type TripParticipantType, type TripTransportOffer } from "@/entities/TripParticipant";
+import { In, type EntityManager, type Repository } from "typeorm";
+import type { AgeCategory } from "@/types/categories";
 import type { TripVehicleInput } from "@/types/trips";
 
 /** Service for Trip operations — déplacements pour les matchs à l'extérieur. */
@@ -58,22 +58,6 @@ export class TripService {
     return repository.find({ where: { tripId: In(tripIds) }, order: { tripId: "ASC", id: "ASC" } });
   }
 
-  async saveVehicles(tripId: number, vehicles: TripVehicleInput[]): Promise<TripVehicle[]> {
-    const repository = await this.getVehicleRepository();
-    await repository.delete({ tripId });
-    if (vehicles.length === 0) return [];
-    const rows = vehicles.map((v) =>
-      repository.create({
-        tripId,
-        vehicleType: v.vehicleType,
-        label: v.label ?? null,
-        driverName: v.driverName ?? null,
-        seats: v.seats,
-      })
-    );
-    return repository.save(rows);
-  }
-
   async findParticipants(tripId: number): Promise<TripParticipant[]> {
     const repository = await this.getParticipantRepository();
     return repository.find({ where: { tripId }, relations: ["player"], order: { createdAt: "ASC" } });
@@ -101,16 +85,19 @@ export class TripService {
       vehicles?: TripVehicleInput[];
     },
     teamId: string,
-    createdBy: string
+    createdBy: string,
   ): Promise<Trip> {
-    const repository = await this.getRepository();
-    const { vehicles, ...tripData } = data;
-    const trip = repository.create({ ...tripData, teamId, createdBy });
-    const saved = await repository.save(trip);
-    if (vehicles && vehicles.length > 0) {
-      await this.saveVehicles(saved.id, vehicles);
-    }
-    return saved;
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      const repository = manager.getRepository(Trip);
+      const { vehicles, ...tripData } = data;
+      const trip = repository.create({ ...tripData, teamId, createdBy, workflowStatus: "DRAFT" });
+      const saved = await repository.save(trip);
+      if (vehicles && vehicles.length > 0) {
+        await this.replaceVehicles(manager, saved.id, vehicles);
+      }
+      return saved;
+    });
   }
 
   async update(
@@ -125,79 +112,122 @@ export class TripService {
       meetingPoint: string | null;
       notes: string | null;
       vehicles: TripVehicleInput[];
-    }>
+    }>,
   ): Promise<Trip> {
-    const repository = await this.getRepository();
-    const trip = await this.findById(id, teamId);
-    if (!trip) {
-      throw new Error("Déplacement non trouvé");
-    }
-    const { vehicles, ...tripData } = data;
-    Object.assign(trip, tripData);
-    const saved = await repository.save(trip);
-    if (vehicles !== undefined) {
-      await this.saveVehicles(id, vehicles);
-    }
-    return saved;
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      const repository = manager.getRepository(Trip);
+      const trip = await repository.findOne({ where: { id, teamId }, lock: { mode: "pessimistic_write" } });
+      if (!trip) throw new Error("Déplacement non trouvé");
+      this.assertDraft(trip);
+      const { vehicles, ...tripData } = data;
+      Object.assign(trip, tripData);
+      const saved = await repository.save(trip);
+      if (vehicles !== undefined) {
+        await this.replaceVehicles(manager, id, vehicles);
+      }
+      return saved;
+    });
   }
 
   async delete(id: number, teamId: string): Promise<boolean> {
-    const repository = await this.getRepository();
-    const trip = await this.findById(id, teamId);
-    if (!trip) {
-      throw new Error("Déplacement non trouvé");
-    }
-    await repository.remove(trip);
-    return true;
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      const repository = manager.getRepository(Trip);
+      const trip = await repository.findOne({ where: { id, teamId }, lock: { mode: "pessimistic_write" } });
+      if (!trip) throw new Error("Déplacement non trouvé");
+      this.assertDraft(trip);
+      await repository.remove(trip);
+      return true;
+    });
   }
 
   async addParticipant(
     tripId: number,
+    teamId: string,
     data: {
       participantType: TripParticipantType;
       playerId?: string | null;
       name?: string | null;
       transportOffer: TripTransportOffer;
       offeredSeats?: number | null;
-    }
+    },
   ): Promise<TripParticipant> {
-    const repository = await this.getParticipantRepository();
-    const participant = repository.create({ tripId, ...data });
-    return repository.save(participant);
-  }
-
-  private async findParticipantForTeam(
-    participantId: number,
-    teamId: string
-  ): Promise<TripParticipant | null> {
-    const repository = await this.getParticipantRepository();
-    const participant = await repository.findOne({
-      where: { id: participantId },
-      relations: ["trip"],
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      const trip = await manager.getRepository(Trip).findOne({
+        where: { id: tripId, teamId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!trip) throw new Error("Déplacement non trouvé");
+      this.assertDraft(trip);
+      const repository = manager.getRepository(TripParticipant);
+      const participant = repository.create({
+        tripId,
+        ...data,
+        consentStatus: "NOT_REQUIRED",
+        consentRecordedBy: null,
+        consentRecordedAt: null,
+        consentNote: null,
+      });
+      return repository.save(participant);
     });
-    if (!participant || participant.trip?.teamId !== teamId) {
-      return null;
-    }
-    return participant;
   }
 
   async toggleConfirmed(participantId: number, teamId: string): Promise<TripParticipant> {
-    const repository = await this.getParticipantRepository();
-    const participant = await this.findParticipantForTeam(participantId, teamId);
-    if (!participant) {
-      throw new Error("Participant non trouvé");
-    }
-    participant.confirmed = !participant.confirmed;
-    return repository.save(participant);
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      const participant = await manager.getRepository(TripParticipant).findOne({ where: { id: participantId } });
+      if (!participant) throw new Error("Participant non trouvé");
+      const trip = await manager.getRepository(Trip).findOne({
+        where: { id: participant.tripId, teamId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!trip) throw new Error("Participant non trouvé");
+      if (["DEPARTED", "COMPLETED", "CANCELLED"].includes(trip.workflowStatus)) {
+        throw new Error("La présence ne peut plus être modifiée après le départ");
+      }
+      participant.confirmed = !participant.confirmed;
+      return manager.getRepository(TripParticipant).save(participant);
+    });
   }
 
   async removeParticipant(participantId: number, teamId: string): Promise<boolean> {
-    const repository = await this.getParticipantRepository();
-    const participant = await this.findParticipantForTeam(participantId, teamId);
-    if (!participant) {
-      throw new Error("Participant non trouvé");
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      const repository = manager.getRepository(TripParticipant);
+      const participant = await repository.findOne({ where: { id: participantId } });
+      if (!participant) throw new Error("Participant non trouvé");
+      const trip = await manager.getRepository(Trip).findOne({
+        where: { id: participant.tripId, teamId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!trip) throw new Error("Participant non trouvé");
+      this.assertDraft(trip);
+      await repository.remove(participant);
+      return true;
+    });
+  }
+
+  private assertDraft(trip: Trip): void {
+    if (trip.workflowStatus !== "DRAFT") {
+      throw new Error("La structure du déplacement est figée après soumission du budget");
     }
-    await repository.remove(participant);
-    return true;
+  }
+
+  private async replaceVehicles(manager: EntityManager, tripId: number, vehicles: TripVehicleInput[]): Promise<TripVehicle[]> {
+    const repository = manager.getRepository(TripVehicle);
+    await repository.delete({ tripId });
+    if (vehicles.length === 0) return [];
+    const rows = vehicles.map((vehicle) =>
+      repository.create({
+        tripId,
+        vehicleType: vehicle.vehicleType,
+        label: vehicle.label ?? null,
+        driverName: vehicle.driverName ?? null,
+        seats: vehicle.seats,
+      }),
+    );
+    return repository.save(rows);
   }
 }
