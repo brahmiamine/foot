@@ -46,8 +46,7 @@ export async function createRole(formData: FormData) {
     });
 
     const teamId = await requireTeamId();
-    const roleService = new RoleService();
-    const role = await roleService.create(data, teamId);
+    const role = await new RoleService().create(data, teamId);
 
     await new AuditLogService().create({
       userId: session.user.id,
@@ -75,8 +74,7 @@ export async function updateRole(id: number, formData: FormData) {
     });
 
     const teamId = await requireTeamId();
-    const roleService = new RoleService();
-    await roleService.update(id, teamId, data);
+    await new RoleService().update(id, teamId, data);
 
     await new AuditLogService().create({
       userId: session.user.id,
@@ -162,22 +160,33 @@ export async function assignRoleToUser(formData: FormData) {
   }
 }
 
+/**
+ * Compatibility action kept for existing clients. CLUB-012 no longer hard
+ * deletes role grants: even a permanent assignment is explicitly revoked so
+ * its history remains auditable.
+ */
 export async function removeRoleAssignment(id: number) {
   try {
     const session = await requireClubAdmin();
     const teamId = await requireTeamId();
-    await new RoleService().removeAssignment(id, teamId);
+    const assignment = await new RoleService().revokeAssignment(
+      id,
+      teamId,
+      session.user.id,
+      "Retrait administratif d'une attribution permanente",
+    );
 
     await new AuditLogService().create({
       userId: session.user.id,
-      action: "DELETE",
+      action: "UPDATE",
       entity: "UserRole",
       entityId: String(id),
+      after: { revokedAt: assignment.revokedAt, reason: assignment.revocationReason },
     });
 
     revalidatePath("/admin/roles");
     revalidatePath("/admin/users");
-    return { success: true, message: "Attribution retirée avec succès" };
+    return { success: true, message: "Attribution révoquée" };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Erreur lors du retrait" };
   }
