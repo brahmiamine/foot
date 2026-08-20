@@ -55,6 +55,7 @@ import { Honor } from "@/entities/Honor";
 import { AcademyCategory } from "@/entities/AcademyCategory";
 import { AcademyInfo } from "@/entities/AcademyInfo";
 import { PlayerApplication } from "@/entities/PlayerApplication";
+import { PlayerApplicationEvent } from "@/entities/PlayerApplicationEvent";
 import { RecruitmentNeed } from "@/entities/RecruitmentNeed";
 import { RecruitmentApplication } from "@/entities/RecruitmentApplication";
 import { Announcement } from "@/entities/Announcement";
@@ -123,14 +124,14 @@ export async function getDataSource(): Promise<DataSource> {
         TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat,
         Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant,
         ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo,
-        PlayerApplication, RecruitmentNeed, RecruitmentApplication, Announcement,
-        TeamSocials, ContactInfo, ContactMessage, TicketCategory, MatchTicketCategory,
-        TicketSaleRule, ShopOrder, ShopOrderItem, NotificationOutboxEvent,
-        ProcessedWebhookEvent, StockUnavailableRefund, PlayerTransfer, TeamAffiliation,
-        ClubLicenseApplication, ClubLicenseRequirement, ClubLicenseDocument,
-        ClubLicenseHistory, PersonLicense, PersonLicenseDocument, PersonLicenseHistory,
-        PlayerRegistration, PlayerRegistrationHistory, PlayerContract,
-        PlayerContractDocument, PlayerContractHistory, StaffContract,
+        PlayerApplication, PlayerApplicationEvent, RecruitmentNeed, RecruitmentApplication,
+        Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory,
+        MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem,
+        NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund,
+        PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement,
+        ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument,
+        PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory,
+        PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract,
         StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory,
         LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
         SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory,
