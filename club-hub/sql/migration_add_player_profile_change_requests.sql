@@ -17,8 +17,13 @@ CREATE TABLE IF NOT EXISTS cms_player_profile_change_requests (
   resolved_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- Une seule demande sensible PENDING par joueur. Les statuts terminaux
+  -- génèrent NULL et peuvent donc conserver un historique illimité.
+  pending_player_id VARCHAR(191)
+    GENERATED ALWAYS AS (CASE WHEN status = 'PENDING' THEN player_id ELSE NULL END) PERSISTENT,
   CONSTRAINT fk_profile_change_request_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
   CONSTRAINT fk_profile_change_request_player FOREIGN KEY (player_id) REFERENCES Player(id) ON DELETE CASCADE,
+  CONSTRAINT uq_player_profile_pending UNIQUE (team_id, pending_player_id),
   INDEX idx_player_profile_requests_team_status (team_id, status, created_at),
   INDEX idx_player_profile_requests_player (team_id, player_id, created_at),
   INDEX idx_player_profile_requests_requester (requester_user_id, created_at)
