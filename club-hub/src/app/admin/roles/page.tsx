@@ -3,15 +3,17 @@ import { requireTeamId } from "@/lib/team-context";
 import { RoleService } from "@/services/RoleService";
 import { UserService } from "@/services/UserService";
 import { PERMISSION_MODULES } from "@/lib/permissions";
-import { AGE_CATEGORIES } from "@/types/categories";
+import { AGE_CATEGORIES, type AgeCategory } from "@/types/categories";
 import { RolesManagement } from "./RolesManagement";
 
 export const dynamic = "force-dynamic";
 
 /**
  * RBAC administration + CLUB-012 temporary assignments/delegations.
- * Viewing the page requires roles.manage; permanent role mutation remains
- * reserved to the intrinsic club admin in Server Actions.
+ * Permanent role mutation remains intrinsic-ADMIN only. Non-admin role
+ * managers receive only governance rows inside their DIRECT roles.manage
+ * scope, preventing a category-scoped delegation from exposing club-wide
+ * RBAC metadata.
  */
 export default async function RolesPage() {
   const teamId = await requireTeamId();
@@ -38,22 +40,43 @@ export default async function RolesPage() {
       roleService.getDirectAuthority(teamId, access.userId, category, now).then((authority) => [category, authority] as const)
     ),
   ]);
+
   const delegableScopes = Object.fromEntries(
     scopeAuthorities
       .filter(([, authority]) => authority.permissions.has("roles.manage"))
       .map(([scope, authority]) => [scope, Array.from(authority.permissions)]),
   );
+  const hasDirectGlobalRoleManagement = scopeAuthorities.some(
+    ([scope, authority]) => scope === "ALL" && authority.permissions.has("roles.manage"),
+  );
+  const directlyManagedCategories = new Set<AgeCategory>(
+    scopeAuthorities
+      .filter(([scope, authority]) => scope !== "ALL" && authority.permissions.has("roles.manage"))
+      .map(([scope]) => scope as AgeCategory),
+  );
+  const canViewAllGovernance = access.isClubAdmin || hasDirectGlobalRoleManagement;
 
-  const roles = rolesData.map((role) => ({
-    id: role.id,
-    name: role.name,
-    description: role.description ?? null,
-    isGlobal: role.isGlobal,
-    isSystem: role.isSystem,
-    permissions: RoleService.parsePermissions(role),
-  }));
+  // Role definitions are club-wide security metadata and are only serialized
+  // to the intrinsic admin. Delegators need the permission catalogue, not the
+  // definitions of unrelated roles.
+  const roles = access.isClubAdmin
+    ? rolesData.map((role) => ({
+        id: role.id,
+        name: role.name,
+        description: role.description ?? null,
+        isGlobal: role.isGlobal,
+        isSystem: role.isSystem,
+        permissions: RoleService.parsePermissions(role),
+      }))
+    : [];
 
-  const assignments = assignmentsData.map((assignment) => ({
+  const visibleAssignments = canViewAllGovernance
+    ? assignmentsData
+    : assignmentsData.filter((assignment) =>
+        assignment.userId === access.userId ||
+        Boolean(assignment.category && directlyManagedCategories.has(assignment.category)),
+      );
+  const assignments = visibleAssignments.map((assignment) => ({
     id: assignment.id,
     userId: assignment.userId,
     userName: usersById.get(assignment.userId)?.name ?? "Compte inconnu",
@@ -67,7 +90,14 @@ export default async function RolesPage() {
     revocationReason: assignment.revocationReason ?? null,
   }));
 
-  const delegations = delegationsData.map((delegation) => ({
+  const visibleDelegations = canViewAllGovernance
+    ? delegationsData
+    : delegationsData.filter((delegation) =>
+        delegation.delegatorUserId === access.userId ||
+        delegation.delegateeUserId === access.userId ||
+        Boolean(delegation.category && directlyManagedCategories.has(delegation.category)),
+      );
+  const delegations = visibleDelegations.map((delegation) => ({
     id: delegation.id,
     delegatorUserId: delegation.delegatorUserId,
     delegatorName: usersById.get(delegation.delegatorUserId)?.name ?? "Administrateur club",
@@ -83,7 +113,8 @@ export default async function RolesPage() {
     canRevoke: access.isClubAdmin || delegation.delegatorUserId === access.userId,
   }));
 
-  const users = usersData
+  const canCreateDelegation = Object.keys(delegableScopes).length > 0;
+  const users = (access.isClubAdmin || canCreateDelegation ? usersData : [])
     .filter((user) => user.role === "OBSERVATEUR" && user.isActive)
     .map((user) => ({ id: user.id, name: user.name, email: user.email }));
 
