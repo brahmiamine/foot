@@ -2,180 +2,193 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
+import { getUserAccess, requirePermission } from "@/lib/access";
 import { requireTeamId } from "@/lib/team-context";
-import { SponsorService } from "@/services/SponsorService";
-import { AuditLogService } from "@/services/AuditLogService";
-import { acceptSponsorRequestSchema, refuseSponsorRequestSchema, updateSponsorSchema } from "@/types/sponsors";
+import { SponsorshipWorkflowService } from "@/services/SponsorshipWorkflowService";
+import {
+  sponsorContractDraftSchema,
+  sponsorshipGovernanceSchema,
+  sponsorRejectionSchema,
+  sponsorWorkflowNoteSchema,
+} from "@/types/sponsors";
 
-function parseAmount(value: FormDataEntryValue | null): number | null {
-  if (!value) return null;
-  const num = parseFloat(value as string);
-  return Number.isFinite(num) ? num : null;
+const PATH = "/admin/sponsors";
+
+interface ActionResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  sponsorId?: number;
+  approvalId?: string;
 }
 
-/** Accepte une demande de partenariat : crée le dossier sponsor actif — réservé ADMIN. */
-export async function acceptSponsorRequest(id: number, formData: FormData) {
+async function context() {
+  const session = await auth();
+  if (!session?.user) throw new Error("Non authentifié");
+
+  const access = await getUserAccess();
+  requirePermission(access, "sponsors.manage");
+  const teamId = await requireTeamId();
+  if (access.teamId !== teamId) throw new Error("Action non autorisée : contexte club incohérent");
+
+  return { teamId, actorUserId: session.user.id, workflow: new SponsorshipWorkflowService() };
+}
+
+function failure(error: unknown, fallback: string): ActionResult {
+  return { success: false, error: error instanceof Error ? error.message : fallback };
+}
+
+function parseContract(formData: FormData) {
+  return sponsorContractDraftSchema.parse({
+    level: formData.get("level"),
+    logoSize: formData.get("logoSize"),
+    logoPlacement: formData.getAll("logoPlacement").filter((value): value is string => typeof value === "string"),
+    contractStart: formData.get("contractStart"),
+    contractEnd: formData.get("contractEnd"),
+    contractAmount: formData.get("contractAmount"),
+    notes: formData.get("notes") || null,
+  });
+}
+
+export async function reviewSponsorRequest(id: number, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (session?.user?.role !== "ADMIN") {
-      return { success: false, error: "Action réservée aux administrateurs du club" };
-    }
-
-    const data = acceptSponsorRequestSchema.parse({
-      level: formData.get("level") as string,
-      logoSize: formData.get("logoSize") as string,
-      logoPlacement: formData.getAll("logoPlacement") as string[],
-      contractStart: (formData.get("contractStart") as string) || undefined,
-      contractEnd: (formData.get("contractEnd") as string) || undefined,
-      contractAmount: parseAmount(formData.get("contractAmount")),
-      adminNotes: (formData.get("adminNotes") as string) || undefined,
-    });
-
-    const teamId = await requireTeamId();
-    const sponsorService = new SponsorService();
-    const sponsor = await sponsorService.acceptRequest(id, teamId, data, session.user.id);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
-      userId: session.user.id,
-      action: "UPDATE",
-      entity: "SponsorRequest",
-      entityId: String(id),
-      after: { status: "ACCEPTED", sponsorId: sponsor.id },
-    });
-
-    revalidatePath("/admin/sponsors");
-    return { success: true, message: "Demande acceptée, le dossier sponsor a été créé" };
+    const data = sponsorWorkflowNoteSchema.parse({ notes: formData.get("notes") || null });
+    const { teamId, actorUserId, workflow } = await context();
+    await workflow.reviewRequest(id, teamId, actorUserId, data.notes);
+    revalidatePath(PATH);
+    return { success: true, message: "Demande passée en revue" };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de l'acceptation" };
+    return failure(error, "Erreur lors de la revue");
   }
 }
 
-/** Refuse une demande de partenariat, avec motif — réservé ADMIN. */
-export async function refuseSponsorRequest(id: number, formData: FormData) {
+export async function startSponsorNegotiation(id: number, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (session?.user?.role !== "ADMIN") {
-      return { success: false, error: "Action réservée aux administrateurs du club" };
-    }
-
-    const data = refuseSponsorRequestSchema.parse({
-      adminNotes: formData.get("adminNotes") as string,
-    });
-
-    const teamId = await requireTeamId();
-    const sponsorService = new SponsorService();
-    await sponsorService.refuseRequest(id, teamId, data.adminNotes, session.user.id);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
-      userId: session.user.id,
-      action: "UPDATE",
-      entity: "SponsorRequest",
-      entityId: String(id),
-      after: { status: "REFUSED", adminNotes: data.adminNotes },
-    });
-
-    revalidatePath("/admin/sponsors");
-    return { success: true, message: "Demande refusée" };
+    const data = sponsorWorkflowNoteSchema.parse({ notes: formData.get("notes") || null });
+    const { teamId, actorUserId, workflow } = await context();
+    await workflow.startNegotiation(id, teamId, actorUserId, data.notes);
+    revalidatePath(PATH);
+    return { success: true, message: "Négociation démarrée" };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors du refus" };
+    return failure(error, "Erreur lors du démarrage de la négociation");
   }
 }
 
-/** Supprime une demande de partenariat (archivage) — réservé ADMIN. */
-export async function deleteSponsorRequest(id: number) {
+export async function draftSponsorContract(requestId: number, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (session?.user?.role !== "ADMIN") {
-      return { success: false, error: "Action réservée aux administrateurs du club" };
-    }
+    const data = parseContract(formData);
+    const { teamId, actorUserId, workflow } = await context();
+    const sponsor = await workflow.draftContract(requestId, teamId, actorUserId, data);
+    revalidatePath(PATH);
+    return { success: true, message: "Brouillon de contrat créé", sponsorId: sponsor.id };
+  } catch (error) {
+    return failure(error, "Erreur lors de la création du contrat");
+  }
+}
 
-    const teamId = await requireTeamId();
-    const sponsorService = new SponsorService();
-    await sponsorService.deleteRequest(id, teamId);
+export async function updateSponsorContractDraft(sponsorId: number, formData: FormData): Promise<ActionResult> {
+  try {
+    const data = parseContract(formData);
+    const { teamId, actorUserId, workflow } = await context();
+    await workflow.updateDraftContract(sponsorId, teamId, actorUserId, data);
+    revalidatePath(PATH);
+    return { success: true, message: "Brouillon de contrat mis à jour" };
+  } catch (error) {
+    return failure(error, "Erreur lors de la mise à jour du contrat");
+  }
+}
 
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
-      userId: session.user.id,
-      action: "DELETE",
-      entity: "SponsorRequest",
-      entityId: String(id),
-    });
+export async function submitSponsorContractForApproval(sponsorId: number): Promise<ActionResult> {
+  try {
+    const { teamId, actorUserId, workflow } = await context();
+    const approval = await workflow.submitForApproval(sponsorId, teamId, actorUserId);
+    revalidatePath(PATH);
+    return {
+      success: true,
+      message:
+        approval.approvalMode === "DUAL_APPROVAL"
+          ? "Contrat soumis à double approbation"
+          : "Contrat soumis à approbation",
+      approvalId: approval.id,
+    };
+  } catch (error) {
+    return failure(error, "Erreur lors de la soumission du contrat");
+  }
+}
 
-    revalidatePath("/admin/sponsors");
+export async function approveSponsorContract(approvalId: string): Promise<ActionResult> {
+  try {
+    const { teamId, actorUserId, workflow } = await context();
+    const approval = await workflow.approveContract(approvalId, teamId, actorUserId);
+    revalidatePath(PATH);
+    return {
+      success: true,
+      message: approval.status === "APPROVED" ? "Contrat approuvé" : "Approbation enregistrée",
+    };
+  } catch (error) {
+    return failure(error, "Erreur lors de l'approbation du contrat");
+  }
+}
+
+export async function rejectSponsorContract(approvalId: string, formData: FormData): Promise<ActionResult> {
+  try {
+    const data = sponsorRejectionSchema.parse({ reason: formData.get("reason") });
+    const { teamId, actorUserId, workflow } = await context();
+    await workflow.rejectContract(approvalId, teamId, actorUserId, data.reason);
+    revalidatePath(PATH);
+    return { success: true, message: "Contrat rejeté et renvoyé en brouillon" };
+  } catch (error) {
+    return failure(error, "Erreur lors du rejet du contrat");
+  }
+}
+
+export async function activateSponsor(sponsorId: number): Promise<ActionResult> {
+  try {
+    const { teamId, actorUserId, workflow } = await context();
+    await workflow.activateSponsor(sponsorId, teamId, actorUserId);
+    revalidatePath(PATH);
+    return { success: true, message: "Sponsor activé" };
+  } catch (error) {
+    return failure(error, "Erreur lors de l'activation du sponsor");
+  }
+}
+
+export async function refuseSponsorRequest(id: number, formData: FormData): Promise<ActionResult> {
+  try {
+    const data = sponsorRejectionSchema.parse({ reason: formData.get("reason") });
+    const { teamId, actorUserId, workflow } = await context();
+    await workflow.refuseRequest(id, teamId, actorUserId, data.reason);
+    revalidatePath(PATH);
+    return { success: true, message: "Demande de sponsoring refusée" };
+  } catch (error) {
+    return failure(error, "Erreur lors du refus de la demande");
+  }
+}
+
+export async function deleteSponsorRequest(id: number): Promise<ActionResult> {
+  try {
+    const { teamId, workflow } = await context();
+    await workflow.deletePendingRequest(id, teamId);
+    revalidatePath(PATH);
     return { success: true, message: "Demande supprimée" };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la suppression" };
+    return failure(error, "Erreur lors de la suppression de la demande");
   }
 }
 
-/** Modifie un dossier sponsor actif (niveau, logo, contrat) — réservé ADMIN. */
-export async function updateSponsor(id: number, formData: FormData) {
+export async function updateSponsorshipGovernance(formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (session?.user?.role !== "ADMIN") {
-      return { success: false, error: "Action réservée aux administrateurs du club" };
-    }
-
-    const isActiveValue = formData.get("isActive");
-
-    const data = updateSponsorSchema.parse({
-      companyName: (formData.get("companyName") as string) || undefined,
-      logoUrl: (formData.get("logoUrl") as string) || undefined,
-      logoSize: (formData.get("logoSize") as string) || undefined,
-      website: (formData.get("website") as string) || undefined,
-      level: (formData.get("level") as string) || undefined,
-      logoPlacement: formData.getAll("logoPlacement").length > 0 ? (formData.getAll("logoPlacement") as string[]) : undefined,
-      contractStart: (formData.get("contractStart") as string) || undefined,
-      contractEnd: (formData.get("contractEnd") as string) || undefined,
-      contractAmount: parseAmount(formData.get("contractAmount")),
-      isActive: isActiveValue !== null ? isActiveValue === "true" || isActiveValue === "on" : undefined,
+    const data = sponsorshipGovernanceSchema.parse({
+      dualApprovalThreshold: formData.get("dualApprovalThreshold"),
     });
-
-    const teamId = await requireTeamId();
-    const sponsorService = new SponsorService();
-    const sponsor = await sponsorService.updateSponsor(id, teamId, data);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
-      userId: session.user.id,
-      action: "UPDATE",
-      entity: "Sponsor",
-      entityId: String(id),
-      after: sponsor,
-    });
-
-    revalidatePath("/admin/sponsors");
-    return { success: true, message: "Sponsor modifié avec succès" };
+    const { teamId, actorUserId, workflow } = await context();
+    const settings = await workflow.updateGovernanceSettings(teamId, actorUserId, data.dualApprovalThreshold);
+    revalidatePath(PATH);
+    return {
+      success: true,
+      message: `Seuil de double approbation mis à jour (${settings.dualApprovalThreshold.toFixed(3)})`,
+    };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la modification" };
-  }
-}
-
-/** Supprime un dossier sponsor — réservé ADMIN. */
-export async function deleteSponsor(id: number) {
-  try {
-    const session = await auth();
-    if (session?.user?.role !== "ADMIN") {
-      return { success: false, error: "Action réservée aux administrateurs du club" };
-    }
-
-    const teamId = await requireTeamId();
-    const sponsorService = new SponsorService();
-    await sponsorService.deleteSponsor(id, teamId);
-
-    const auditLogService = new AuditLogService();
-    await auditLogService.create({
-      userId: session.user.id,
-      action: "DELETE",
-      entity: "Sponsor",
-      entityId: String(id),
-    });
-
-    revalidatePath("/admin/sponsors");
-    return { success: true, message: "Sponsor supprimé" };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur lors de la suppression" };
+    return failure(error, "Erreur lors de la mise à jour de la gouvernance sponsoring");
   }
 }

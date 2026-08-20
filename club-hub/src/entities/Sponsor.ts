@@ -3,11 +3,9 @@ import { Team } from "./Team";
 import { SponsorRequest } from "./SponsorRequest";
 import type { SponsorLogoSize, SponsorLevel } from "./SponsorRequest";
 
-/**
- * Sponsor Entity — dossier de sponsoring actif (contrat) une fois une
- * demande acceptée : niveau, taille/emplacement du logo, durée et montant.
- * Table propre à cette app, scopée par team_id.
- */
+export type SponsorWorkflowStatus = "CONTRACT_DRAFT" | "APPROVAL_PENDING" | "APPROVED" | "ACTIVE" | "EXPIRED";
+
+/** Dossier contractuel sponsor issu d'une demande de partenariat. */
 @Entity("cms_sponsors")
 export class Sponsor {
   @PrimaryGeneratedColumn({ type: "bigint" })
@@ -52,10 +50,33 @@ export class Sponsor {
   @Column({ type: "date", nullable: true, name: "contract_end" })
   contractEnd?: string | null;
 
-  @Column({ type: "decimal", precision: 10, scale: 3, nullable: true, name: "contract_amount" })
+  @Column({ type: "decimal", precision: 12, scale: 3, nullable: true, name: "contract_amount" })
   contractAmount?: string | null;
 
-  @Column({ type: "tinyint", default: 1, name: "is_active" })
+  @Column({
+    type: "enum",
+    enum: ["CONTRACT_DRAFT", "APPROVAL_PENDING", "APPROVED", "ACTIVE", "EXPIRED"],
+    default: "CONTRACT_DRAFT",
+    name: "workflow_status",
+  })
+  workflowStatus!: SponsorWorkflowStatus;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "contract_drafted_by" })
+  contractDraftedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "contract_drafted_at" })
+  contractDraftedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "activated_by" })
+  activatedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "activated_at" })
+  activatedAt?: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "expired_at" })
+  expiredAt?: Date | null;
+
+  @Column({ type: "tinyint", default: 0, name: "is_active" })
   isActive!: boolean;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
