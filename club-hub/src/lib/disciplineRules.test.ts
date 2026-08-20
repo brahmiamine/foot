@@ -45,6 +45,7 @@ describe("resolveDisciplineRule", () => {
       source: "LEGACY",
       ruleSetId: null,
       version: 0,
+      overrideId: null,
     });
   });
 
