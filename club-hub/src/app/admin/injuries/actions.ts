@@ -34,7 +34,7 @@ export async function createInjury(formData: FormData) {
     if (!session?.user) throw new Error("Non authentifié");
 
     const access = await getUserAccess();
-    requirePermission(access, "medical.manage");
+    requirePermission(access, "medical.injuries.manage");
 
     const data = createInjurySchema.parse(readInjuryForm(formData));
 
@@ -63,7 +63,7 @@ export async function updateInjury(id: number, formData: FormData) {
     if (!session?.user) throw new Error("Non authentifié");
 
     const access = await getUserAccess();
-    requirePermission(access, "medical.manage");
+    requirePermission(access, "medical.injuries.manage");
 
     const teamId = await requireTeamId();
     const service = new InjuryService();
@@ -90,7 +90,7 @@ export async function deleteInjury(id: number) {
     if (!session?.user) throw new Error("Non authentifié");
 
     const access = await getUserAccess();
-    requirePermission(access, "medical.manage");
+    requirePermission(access, "medical.injuries.manage");
 
     const teamId = await requireTeamId();
     const service = new InjuryService();

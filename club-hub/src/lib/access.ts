@@ -56,7 +56,10 @@ export async function getUserAccess(): Promise<UserAccess> {
 
 export function can(access: UserAccess, permission: string): boolean {
   if (access.permissions === "ALL") return true;
-  return access.permissions.has(permission);
+  if (access.permissions.has(permission)) return true;
+  // CLUB-013 compatibility bridge for custom roles created before granular
+  // medical permissions existed.
+  return permission.startsWith("medical.") && access.permissions.has("medical.manage");
 }
 
 /** true si l'utilisateur peut voir/gérer une ressource de cette catégorie interne. */

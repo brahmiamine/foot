@@ -1,35 +1,69 @@
 # medical-hub
 
-Espace médical du club (médecin, kiné) : blessures en cours, joueurs
-indisponibles, alertes de retour, disponibilités, documents, historique et
-suivi quotidien — sur la table `cms_injuries` déjà possédée par
-[`club-hub`](../club-hub), avec un accès **strictement réservé** à la
-permission `medical.view`/`medical.manage` (`cms_roles`/`cms_user_roles`,
-déjà en place côté club-hub).
+Espace médical privé du club : blessures, indisponibilités, suivi clinique,
+Return-to-Play, clearances, documents, historique et paramètres médicaux. Les
+données cliniques restent dans le domaine médical et ne sont jamais exposées
+aux rôles techniques ou administratifs généraux.
 
-## Pourquoi une app séparée
+## Contrôle d'accès médical
 
-Le module médical de club-hub est volontairement exclu du preset "Secrétaire
-Général" et des rôles Coach/Adjoint (voir
-`club-hub/src/lib/permissions.ts`, `DEFAULT_ROLE_PRESETS`) : un dossier de
-blessure contient un diagnostic et des documents, que ni le staff technique
-ni l'administration générale n'ont vocation à voir en détail. `player-hub`
-et `staff-hub` n'exposent qu'un **statut simplifié**
-(disponible/blessé/suspendu), jamais ces champs — `medical-hub` est le seul
-endroit qui les affiche, à ceux qui ont explicitement la permission.
+`medical.view` autorise la lecture du dossier médical dans le périmètre de
+catégorie du compte. CLUB-013 sépare ensuite les mutations par capacité :
 
-**Aucun changement identity/auth-shared** ici non plus (même situation que
-`staff-hub`) : le compte est un compte staff club standard (`ADMIN`/
-`OBSERVATEUR` via SSO), avec un rôle club-hub qui porte la permission
-`medical.*`.
+- `medical.injuries.manage` : créer/modifier le dossier de blessure et le diagnostic ;
+- `medical.followups.manage` : ajouter des entrées au journal médical append-only ;
+- `medical.rtp.manage` : faire progresser le workflow Return-to-Play ;
+- `medical.clearance.manage` : enregistrer une décision de clearance ;
+- `medical.documents.manage` : ajouter des références de documents médicaux ;
+- `medical.settings.manage` : administrer les règles médicales globales du club.
+
+La clé historique `medical.manage` est conservée comme alias de compatibilité
+pour les rôles personnalisés existants. Les nouvelles attributions doivent
+utiliser les permissions fines.
+
+Toutes les Server Actions revalident la permission, le `teamId` et, pour une
+ressource joueur/blessure, la catégorie autorisée. Une URL ou un identifiant de
+blessure deviné ne permet donc pas de sortir du périmètre du rôle. Les paramètres
+médicaux sont club-wide et exigent une portée globale.
+
+## Presets Club Hub
+
+Club Hub fournit trois presets médicaux distincts :
+
+| Preset | Portée | Capacités principales |
+| --- | --- | --- |
+| **Kiné** | catégorie | lecture, suivi thérapeutique, progression RTP |
+| **Médecin** | catégorie | diagnostic/blessure, suivi, RTP, documents, clearance |
+| **Responsable médical** | globale | toutes les capacités précédentes + paramètres médicaux du club |
+
+Le preset historique `Staff médical` n'est pas supprimé automatiquement afin de
+ne pas casser les attributions existantes. La migration CLUB-013 crée seulement
+les trois nouveaux presets manquants ; elle n'écrase aucun rôle personnalisé.
+
+Le preset `Secrétaire Général`, les rôles Coach/Adjoint et les autres rôles non
+médicaux n'obtiennent aucune permission `medical.*` par défaut.
+
+## Architecture et confidentialité
+
+`medical-hub` consomme la projection RBAC possédée par Club Hub via le port de
+domaine prévu à cet effet. Les rôles directs temporaires, révocations et
+délégations CLUB-012 sont pris en compte dans cette projection.
+
+`player-hub` et `staff-hub` ne doivent consommer qu'un statut opérationnel
+simplifié quand nécessaire (par exemple disponible/indisponible), jamais le
+diagnostic, les notes cliniques ou les documents médicaux.
+
+Le journal médical (`InjuryFollowUp`) est append-only. Le workflow Return-to-Play
+est structuré : `INJURED → TREATMENT → INDIVIDUAL → PARTIAL → FULL → CLEARANCE → AVAILABLE`
+(selon la policy de clearance). Les décisions de clearance sont historisées et
+les paramètres de second avis sont appliqués côté serveur.
 
 ## Provisionnement
 
-Rien de spécifique : un compte médecin/kiné est un compte staff comme un
-autre, créé dans club-hub (Utilisateurs), avec un rôle (Rôles &
-permissions) qui inclut `medical.view`/`medical.manage` — à créer côté
-club-hub si l'un des rôles standards ne l'a pas déjà (aucun des presets
-`DEFAULT_ROLE_PRESETS` actuels ne l'inclut).
+Un compte médical reste un compte staff club standard authentifié via Identity.
+L'administrateur du club assigne ensuite depuis Club Hub le preset adapté :
+Kiné, Médecin ou Responsable médical. Les presets Kiné/Médecin peuvent être
+attribués par catégorie ; Responsable médical est global.
 
 ## Démarrage local
 
@@ -39,25 +73,11 @@ pnpm install
 pnpm dev   # http://localhost:3012
 ```
 
-## Périmètre de cette implémentation
+## Stockage documentaire
 
-Inclus : tableau de bord, joueurs indisponibles, blessures en cours (liste
-+ création + détail éditable), suivi quotidien (journal texte horodaté,
-sans nouvelle table — voir plus bas), alertes (retours dépassés / proches),
-disponibilités (vue effectif complet), documents (liste consolidée),
-historique (toutes blessures, y compris résolues), notifications.
-
-**Suivi quotidien sans nouveau schéma** : plutôt que d'ajouter une table de
-log, chaque entrée de suivi est ajoutée en tête du champ `notes` existant
-de `cms_injuries`, préfixée d'une date et de l'auteur (voir
-`services/MedicalPortalService.appendFollowUpNote`). Reste additif et
-n'affecte aucune autre app qui lit cette table.
-
-Volontairement laissé de côté : upload de fichier réel pour les documents
-(le formulaire attend une URL déjà hébergée ailleurs, pas de stockage
-propre à cette app), et un vrai "protocole de reprise" structuré par étapes
-(les champs `progressiveReturn`/`progressiveReturnNotes` déjà présents sur
-`Injury` couvrent le besoin minimal).
+La gestion métier des références documentaires est présente. Le stockage objet,
+le chiffrement, l'antivirus, les URLs signées et l'audit d'accès renforcé restent
+suivis séparément par `MED-005` dans `platform-governance-roadmap.md`.
 
 ## Design
 

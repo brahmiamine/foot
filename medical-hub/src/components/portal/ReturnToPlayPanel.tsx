@@ -33,14 +33,16 @@ export function ReturnToPlayPanel({
   clearanceRequired,
   requiredClearances,
   currentClearances,
-  canManage,
+  canTransition,
+  canClearance,
 }: {
   injuryId: number;
   stage: ReturnToPlayStage;
   clearanceRequired: boolean;
   requiredClearances: number;
   currentClearances: number;
-  canManage: boolean;
+  canTransition: boolean;
+  canClearance: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function ReturnToPlayPanel({
 
       {message && <div role="status" style={{ fontSize: "0.82rem", color: "var(--mh-text-muted)" }}>{message}</div>}
 
-      {canManage && next && stage !== "CLEARANCE" && (
+      {canTransition && next && stage !== "CLEARANCE" && (
         <Button
           variant="primary"
           disabled={pending}
@@ -90,7 +92,7 @@ export function ReturnToPlayPanel({
         </Button>
       )}
 
-      {canManage && stage === "CLEARANCE" && (
+      {canClearance && stage === "CLEARANCE" && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Button
             variant="primary"

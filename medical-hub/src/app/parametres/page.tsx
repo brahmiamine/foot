@@ -11,7 +11,7 @@ export default async function MedicalSettingsPage() {
   const session = await auth();
   if (!session) return null;
   const access = await getUserAccess();
-  if (!can(access, "medical.manage")) redirect("/");
+  if (!can(access, "medical.settings.manage")) redirect("/");
 
   const settings = await medicalPortalService.getSettings(session.user.teamId);
 

@@ -32,7 +32,7 @@ export default async function BlessuresPage() {
     <div style={{ display: "grid", gap: "1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <h1 style={{ fontSize: "1.2rem", margin: 0 }}>Blessures en cours</h1>
-        {can(access, "medical.manage") && (
+        {can(access, "medical.injuries.manage") && (
           <CreateInjuryForm roster={roster.map((p) => ({ id: p.id, label: `${p.number} — ${p.firstNameFr} ${p.lastNameFr}` }))} />
         )}
       </div>
