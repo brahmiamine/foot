@@ -48,6 +48,24 @@ export class Training {
   @Column({ type: "datetime" })
   date!: Date;
 
+  /** Dernier instant auquel le joueur peut modifier son RSVP. */
+  @Column({ type: "datetime", nullable: true, name: "response_deadline" })
+  responseDeadline?: Date | null;
+
+  /** Une fois verrouillé, le roster d'invitations ne peut plus changer. */
+  @Column({ type: "tinyint", default: 0, name: "invitations_locked" })
+  invitationsLocked!: boolean;
+
+  @Column({ type: "datetime", nullable: true, name: "invitations_locked_at" })
+  invitationsLockedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "invitations_locked_by" })
+  invitationsLockedBy?: string | null;
+
+  /** Délai du rappel avant la deadline, en minutes. */
+  @Column({ type: "int", default: 1440, name: "reminder_offset_minutes" })
+  reminderOffsetMinutes!: number;
+
   @Column({ type: "int", nullable: true, name: "duration_minutes" })
   durationMinutes?: number | null;
 
