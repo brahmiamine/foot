@@ -58,6 +58,7 @@ import { PlayerApplication } from "@/entities/PlayerApplication";
 import { PlayerApplicationEvent } from "@/entities/PlayerApplicationEvent";
 import { RecruitmentNeed } from "@/entities/RecruitmentNeed";
 import { RecruitmentApplication } from "@/entities/RecruitmentApplication";
+import { RecruitmentApplicationEvent } from "@/entities/RecruitmentApplicationEvent";
 import { Announcement } from "@/entities/Announcement";
 import { TeamSocials } from "@/entities/TeamSocials";
 import { ContactInfo } from "@/entities/ContactInfo";
@@ -125,15 +126,16 @@ export async function getDataSource(): Promise<DataSource> {
         Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant,
         ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo,
         PlayerApplication, PlayerApplicationEvent, RecruitmentNeed, RecruitmentApplication,
-        Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory,
-        MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem,
-        NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund,
-        PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement,
-        ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument,
-        PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory,
-        PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract,
-        StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory,
-        LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
+        RecruitmentApplicationEvent, Announcement, TeamSocials, ContactInfo,
+        ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder,
+        ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent,
+        StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication,
+        ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense,
+        PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration,
+        PlayerRegistrationHistory, PlayerContract, PlayerContractDocument,
+        PlayerContractHistory, StaffContract, StaffContractDocument,
+        StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase,
+        LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
         SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory,
         BoardMandate, BoardMember, BoardMandateHistory, CoachQualification,
         CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory,
