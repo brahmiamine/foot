@@ -1,12 +1,20 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { Team } from "./Team";
 
-export type ApplicationStatus = "NEW" | "CONTACTED" | "TRIAL" | "ACCEPTED" | "REJECTED";
+export type ApplicationStatus =
+  | "NEW"
+  | "PRE_SCREENED"
+  | "TRIAL_SCHEDULED"
+  | "TECHNICAL_APPROVED"
+  | "ADMIN_APPROVED"
+  | "PLAYER_CREATED"
+  | "REJECTED";
 
 /**
  * PlayerApplication Entity — candidature "Inscrire mon enfant" soumise via
- * le formulaire public /inscription. Traitée ensuite côté admin
- * (changement de statut NEW -> CONTACTED -> TRIAL -> ACCEPTED/REJECTED).
+ * le formulaire public /inscription. Le traitement administratif suit un
+ * workflow serveur strict : pré-sélection, essai, validation technique,
+ * validation administrative puis création contrôlée du Player.
  */
 @Entity("cms_player_applications")
 export class PlayerApplication {
@@ -50,11 +58,77 @@ export class PlayerApplication {
   @Column({ type: "varchar", length: 255, nullable: true, name: "document_url" })
   documentUrl?: string | null;
 
-  @Column({ type: "enum", enum: ["NEW", "CONTACTED", "TRIAL", "ACCEPTED", "REJECTED"], default: "NEW" })
+  @Column({
+    type: "enum",
+    enum: [
+      "NEW",
+      "PRE_SCREENED",
+      "TRIAL_SCHEDULED",
+      "TECHNICAL_APPROVED",
+      "ADMIN_APPROVED",
+      "PLAYER_CREATED",
+      "REJECTED",
+    ],
+    default: "NEW",
+  })
   status!: ApplicationStatus;
 
   @Column({ type: "text", nullable: true, name: "admin_notes" })
   adminNotes?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "pre_screening_notes" })
+  preScreeningNotes?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "pre_screened_at" })
+  preScreenedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "pre_screened_by" })
+  preScreenedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "trial_scheduled_at" })
+  trialScheduledAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "trial_location" })
+  trialLocation?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "trial_notes" })
+  trialNotes?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "technical_approved_at" })
+  technicalApprovedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "technical_approved_by" })
+  technicalApprovedBy?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "technical_notes" })
+  technicalNotes?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "administrative_approved_at" })
+  administrativeApprovedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "administrative_approved_by" })
+  administrativeApprovedBy?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "administrative_notes" })
+  administrativeNotes?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "rejected_at" })
+  rejectedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "rejected_by" })
+  rejectedBy?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "rejection_reason" })
+  rejectionReason?: string | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "player_id" })
+  playerId?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "player_created_at" })
+  playerCreatedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "player_created_by" })
+  playerCreatedBy?: string | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

@@ -192,6 +192,8 @@ club-hub/sql/migration_add_trips.sql
 club-hub/sql/migration_add_player_stats.sql
 club-hub/sql/migration_add_injuries.sql
 club-hub/sql/migration_add_club_pages_academy_applications.sql
+# CLUB-006 : pré-sélection, essai, validations technique/admin et création Player contrôlée.
+club-hub/sql/migration_enrich_academy_application_workflow.sql
 # Dépend de Card (table de base, voir db/foot.sql) et de club-hub/match-operations
 # alignés sur la même contrainte (voir db/OWNERSHIP.md, "Card a deux écrivains").
 club-hub/sql/migration_add_card_unique_constraint.sql
