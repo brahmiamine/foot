@@ -5,7 +5,6 @@ import { auth } from "@/lib/auth";
 import { getUserAccess, requireCategory, requirePermission } from "@/lib/access";
 import { requireTeamId } from "@/lib/team-context";
 import { PlayerApplicationService, normalizeAcademyCategory } from "@/services/PlayerApplicationService";
-import { AuditLogService } from "@/services/AuditLogService";
 import {
   academyApprovalSchema,
   academyCreatePlayerSchema,
@@ -35,7 +34,7 @@ async function context(id: number, permissions: string[]) {
     requireCategory(access, category);
   }
 
-  return { service, application, teamId, actorId: session.user.id };
+  return { service, teamId, actorId: session.user.id };
 }
 
 function resultError(error: unknown) {
@@ -125,15 +124,8 @@ export async function createPlayerFromApplication(id: number, formData: FormData
 
 export async function deletePlayerApplication(id: number) {
   try {
-    const { service, application, teamId, actorId } = await context(id, ["playerApplications.manage"]);
+    const { service, teamId } = await context(id, ["playerApplications.manage"]);
     await service.delete(id, teamId);
-    await new AuditLogService().create({
-      userId: actorId,
-      action: "DELETE",
-      entity: "PlayerApplication",
-      entityId: String(id),
-      before: { status: application.status },
-    });
     revalidatePath(PATH);
     return { success: true, message: "Candidature supprimée" };
   } catch (error) {
