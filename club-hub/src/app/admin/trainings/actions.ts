@@ -136,7 +136,11 @@ export async function updateTrainingInvitationResponse(id: number, response: Tra
     const access = await getUserAccess();
     requirePermission(access, "trainings.invite");
     const data = updateTrainingInvitationResponseSchema.parse({ response });
-    await new TrainingInvitationService().updateResponse(id, access.teamId, data.response);
+    const invitationService = new TrainingInvitationService();
+    const invitation = await invitationService.findById(id);
+    if (!invitation || invitation.training?.teamId !== access.teamId) throw new Error("Invitation non trouvée");
+    requireCategory(access, invitation.training.category);
+    await invitationService.updateResponse(id, access.teamId, data.response);
     revalidatePath("/admin/trainings");
     return { success: true, message: "Présence mise à jour" };
   } catch (error) {
@@ -150,7 +154,11 @@ export async function removeTrainingInvitation(id: number) {
     if (!session?.user) throw new Error("Non authentifié");
     const access = await getUserAccess();
     requirePermission(access, "trainings.invite");
-    await new TrainingInvitationService().remove(id, access.teamId);
+    const invitationService = new TrainingInvitationService();
+    const invitation = await invitationService.findById(id);
+    if (!invitation || invitation.training?.teamId !== access.teamId) throw new Error("Invitation non trouvée");
+    requireCategory(access, invitation.training.category);
+    await invitationService.remove(id, access.teamId);
     revalidatePath("/admin/trainings");
     revalidatePath("/admin/trainings/configuration");
     return { success: true, message: "Invitation retirée" };
