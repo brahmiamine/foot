@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AGE_CATEGORIES } from "@/types/categories";
+import { PLAYER_POSITIONS } from "@/types/players";
 
 const applicationDocumentPathSchema = z
   .string()
@@ -47,9 +48,9 @@ export const academyRejectionSchema = z.object({
 });
 
 export const academyCreatePlayerSchema = z.object({
-  number: z.coerce.number().int().min(0).max(999),
+  number: z.coerce.number().int().min(0).max(99),
   category: z.enum(AGE_CATEGORIES),
-  position: z.string().trim().max(50).optional().nullable(),
+  position: z.enum(PLAYER_POSITIONS).optional().nullable(),
 });
 
 export type CreatePlayerApplicationInput = z.infer<typeof createPlayerApplicationSchema>;
