@@ -3,14 +3,18 @@ import { Team } from "./Team";
 
 export type SponsorLogoSize = "SMALL" | "MEDIUM" | "LARGE";
 export type SponsorLevel = "OR" | "ARGENT" | "BRONZE" | "LOCAL";
-export type SponsorRequestStatus = "PENDING" | "ACCEPTED" | "REFUSED";
+export type SponsorRequestStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "NEGOTIATION"
+  | "CONTRACT_DRAFT"
+  | "APPROVAL_PENDING"
+  | "APPROVED"
+  | "ACTIVE"
+  | "EXPIRED"
+  | "REFUSED";
 
-/**
- * SponsorRequest Entity — demande de partenariat soumise via le formulaire
- * public par une entreprise souhaitant devenir sponsor du club. Traitée
- * ensuite dans club-hub (accepter → crée un Sponsor, ou refuser).
- * Table propre à cette app, scopée par team_id.
- */
+/** Demande publique de partenariat, pilotée par le workflow CLUB-008. */
 @Entity("cms_sponsor_requests")
 export class SponsorRequest {
   @PrimaryGeneratedColumn({ type: "bigint" })
@@ -50,7 +54,21 @@ export class SponsorRequest {
   @Column({ type: "text", nullable: true })
   message?: string | null;
 
-  @Column({ type: "enum", enum: ["PENDING", "ACCEPTED", "REFUSED"], default: "PENDING" })
+  @Column({
+    type: "enum",
+    enum: [
+      "PENDING",
+      "UNDER_REVIEW",
+      "NEGOTIATION",
+      "CONTRACT_DRAFT",
+      "APPROVAL_PENDING",
+      "APPROVED",
+      "ACTIVE",
+      "EXPIRED",
+      "REFUSED",
+    ],
+    default: "PENDING",
+  })
   status!: SponsorRequestStatus;
 
   @Column({ type: "text", nullable: true, name: "admin_notes" })
@@ -61,6 +79,24 @@ export class SponsorRequest {
 
   @Column({ type: "datetime", nullable: true, name: "reviewed_at" })
   reviewedAt?: Date | null;
+
+  @Column({ type: "text", nullable: true, name: "negotiation_notes" })
+  negotiationNotes?: string | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "negotiation_started_by" })
+  negotiationStartedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "negotiation_started_at" })
+  negotiationStartedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "refused_by" })
+  refusedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "refused_at" })
+  refusedAt?: Date | null;
+
+  @Column({ type: "text", nullable: true, name: "refusal_reason" })
+  refusalReason?: string | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
