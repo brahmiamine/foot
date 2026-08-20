@@ -65,7 +65,7 @@ export function PlayerProfileRequests({ requests }: { requests: RequestItem[] })
         <div>
           <h1 style={{ margin: 0, fontSize: "1.35rem" }}>Demandes de modification de profil</h1>
           <p style={{ margin: "4px 0 0", color: "var(--text-muted, #64748b)", fontSize: "0.85rem" }}>
-            Les changements d'identité sportive sont appliqués uniquement après validation du club.
+            Les changements d&apos;identité sportive sont appliqués uniquement après validation du club.
           </p>
         </div>
         <Link href="/admin/players" style={{ fontWeight: 600 }}>Retour aux joueurs</Link>

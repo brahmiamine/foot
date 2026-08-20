@@ -114,7 +114,7 @@ export function ProfileEditor({ current, requests }: { current: CurrentProfile; 
       <section style={{ padding: 16, border: "1px solid var(--ph-border)", borderRadius: 12 }}>
         <h2 style={{ fontSize: "1rem", marginTop: 0 }}>Identité sportive</h2>
         <p style={{ color: "var(--ph-text-muted)", fontSize: "0.82rem" }}>
-          Ces changements nécessitent l'approbation du club avant d'être appliqués.
+          Ces changements nécessitent l&apos;approbation du club avant d&apos;être appliqués.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
           <label>Prénom (FR)<input value={form.firstNameFr} onChange={(e) => setForm({ ...form, firstNameFr: e.target.value })} style={inputStyle} /></label>
