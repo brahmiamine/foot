@@ -5,12 +5,22 @@ import {
   type TrainingInvitationResponse,
 } from "@/entities/TrainingInvitation";
 import { Player } from "@/entities/Player";
-import { User } from "@/entities/User";
 import { NotificationOutboxService } from "@/services/NotificationOutboxService";
+import { createClubIdentityAdapter } from "@/adapters/identity/createClubIdentityAdapter";
 import { In, IsNull, type Repository } from "typeorm";
 
 export interface TrainingReminderResult {
   processed: number;
+}
+
+function activePlayerUserMap(
+  users: Awaited<ReturnType<ReturnType<typeof createClubIdentityAdapter>["listUsers"]>>,
+): Map<string, string> {
+  return new Map(
+    users
+      .filter((user) => user.isActive && user.playerId)
+      .map((user) => [user.playerId as string, user.id]),
+  );
 }
 
 /** Service for TrainingInvitation operations (joueurs invités à une séance). */
@@ -47,6 +57,8 @@ export class TrainingInvitationService {
   async inviteBulk(trainingId: number, teamId: string, playerIds: string[]): Promise<TrainingInvitation[]> {
     const uniquePlayerIds = [...new Set(playerIds)];
     if (uniquePlayerIds.length === 0) return [];
+    const identityUsers = await createClubIdentityAdapter().listUsers({ teamId, roles: ["PLAYER"] });
+    const userByPlayerId = activePlayerUserMap(identityUsers);
     const dataSource = await getDataSource();
     return dataSource.transaction(async (manager) => {
       const training = await manager.getRepository(Training).findOne({
@@ -88,17 +100,6 @@ export class TrainingInvitationService {
         })),
       );
 
-      const playerAccounts = await manager.getRepository(User).find({
-        where: {
-          playerId: In(toCreateIds),
-          teamId,
-          role: "PLAYER",
-          isActive: true,
-        },
-      });
-      const userByPlayerId = new Map(
-        playerAccounts.filter((user) => user.playerId).map((user) => [user.playerId as string, user.id]),
-      );
       const outbox = new NotificationOutboxService();
       for (const invitation of created) {
         const userId = userByPlayerId.get(invitation.playerId);
@@ -174,14 +175,22 @@ export class TrainingInvitationService {
       .andWhere("DATE_SUB(training.response_deadline, INTERVAL training.reminder_offset_minutes MINUTE) <= :now", { now })
       .getMany();
 
+    const identity = createClubIdentityAdapter();
     let processed = 0;
     for (const candidate of candidates) {
+      const identityUsers = await identity.listUsers({ teamId: candidate.teamId, roles: ["PLAYER"] });
+      const userByPlayer = activePlayerUserMap(identityUsers);
       processed += await dataSource.transaction(async (manager) => {
         const training = await manager.getRepository(Training).findOne({
           where: { id: candidate.id, teamId: candidate.teamId },
           lock: { mode: "pessimistic_write" },
         });
-        if (!training || training.status !== "SCHEDULED" || !training.responseDeadline || training.responseDeadline <= now) return 0;
+        if (
+          !training ||
+          training.status !== "SCHEDULED" ||
+          !training.responseDeadline ||
+          training.responseDeadline.getTime() <= now.getTime()
+        ) return 0;
 
         const invitations = await manager.getRepository(TrainingInvitation).find({
           where: {
@@ -191,17 +200,6 @@ export class TrainingInvitationService {
           },
         });
         if (invitations.length === 0) return 0;
-        const accounts = await manager.getRepository(User).find({
-          where: {
-            playerId: In(invitations.map((invitation) => invitation.playerId)),
-            teamId: training.teamId,
-            role: "PLAYER",
-            isActive: true,
-          },
-        });
-        const userByPlayer = new Map(
-          accounts.filter((user) => user.playerId).map((user) => [user.playerId as string, user.id]),
-        );
         const outbox = new NotificationOutboxService();
         let count = 0;
         for (const invitation of invitations) {
