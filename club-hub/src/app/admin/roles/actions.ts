@@ -192,7 +192,7 @@ export async function revokeRoleAssignment(id: number, formData: FormData) {
 
     await new AuditLogService().create({
       userId: session.user.id,
-      action: "REVOKE",
+      action: "UPDATE",
       entity: "UserRole",
       entityId: String(id),
       after: { revokedAt: assignment.revokedAt, reason: assignment.revocationReason },
@@ -266,7 +266,7 @@ export async function revokeRoleDelegation(formData: FormData) {
 
     await new AuditLogService().create({
       userId: access.userId,
-      action: "REVOKE",
+      action: "UPDATE",
       entity: "RoleDelegation",
       entityId: String(delegation.id),
       after: { revokedAt: delegation.revokedAt, reason: delegation.revocationReason },
