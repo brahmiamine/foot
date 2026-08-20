@@ -34,7 +34,47 @@ export const addTripParticipantSchema = z.object({
   offeredSeats: z.number().int().min(0).max(20).optional().nullable(),
 });
 
+const moneySchema = z.coerce.number().finite().min(0).max(1_000_000_000);
+
+export const tripGovernanceSettingsSchema = z.object({
+  dualApprovalThreshold: moneySchema,
+  receiptRequiredThreshold: moneySchema,
+});
+
+export const submitTripBudgetSchema = z.object({
+  estimatedBudget: moneySchema,
+});
+
+export const tripDecisionReasonSchema = z.object({
+  reason: z.string().trim().min(3, "Le motif doit contenir au moins 3 caractères").max(2000),
+});
+
+export const tripConsentSchema = z.object({
+  granted: z.enum(["true", "false"]).transform((value) => value === "true"),
+  note: z.string().trim().max(2000).optional().nullable(),
+});
+
+const tripEvidenceLocationSchema = z
+  .string()
+  .trim()
+  .max(255)
+  .refine(
+    (value) => /^https?:\/\//i.test(value) || /^\/uploads\/trips\/[A-Za-z0-9._-]+$/.test(value),
+    "Emplacement du justificatif invalide",
+  );
+
+export const tripExpenseSchema = z.object({
+  label: z.string().trim().min(1, "Libellé obligatoire").max(150),
+  amount: moneySchema.refine((value) => value > 0, "Le montant doit être strictement positif"),
+  documentUrl: z.union([tripEvidenceLocationSchema, z.literal("")]).optional().nullable().transform((value) => value || null),
+});
+
+export const cancelTripSchema = tripDecisionReasonSchema;
+
 export type TripVehicleInput = z.infer<typeof tripVehicleSchema>;
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type AddTripParticipantInput = z.infer<typeof addTripParticipantSchema>;
+export type TripGovernanceSettingsInput = z.infer<typeof tripGovernanceSettingsSchema>;
+export type SubmitTripBudgetInput = z.infer<typeof submitTripBudgetSchema>;
+export type TripExpenseFormInput = z.infer<typeof tripExpenseSchema>;
