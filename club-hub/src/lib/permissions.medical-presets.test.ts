@@ -4,7 +4,11 @@ import { ALL_PERMISSION_KEYS, DEFAULT_ROLE_PRESETS } from "./permissions";
 function preset(name: string) {
   const value = DEFAULT_ROLE_PRESETS.find((role) => role.name === name);
   if (!value) throw new Error(`Preset introuvable: ${name}`);
-  return new Set(value.permissions);
+  return value;
+}
+
+function permissions(name: string) {
+  return new Set(preset(name).permissions);
 }
 
 describe("CLUB-013 medical role presets", () => {
@@ -20,8 +24,9 @@ describe("CLUB-013 medical role presets", () => {
   });
 
   it("gives the physiotherapist only follow-up and rehabilitation authority", () => {
-    const permissions = preset("Kiné");
-    expect(permissions).toEqual(new Set([
+    const role = preset("Kiné");
+    expect(role.isGlobal).toBe(false);
+    expect(new Set(role.permissions)).toEqual(new Set([
       "players.view",
       "staff.view",
       "matches.view",
@@ -31,24 +36,28 @@ describe("CLUB-013 medical role presets", () => {
       "medical.followups.manage",
       "medical.rtp.manage",
     ]));
-    expect(permissions.has("medical.injuries.manage")).toBe(false);
-    expect(permissions.has("medical.clearance.manage")).toBe(false);
-    expect(permissions.has("medical.settings.manage")).toBe(false);
+    expect(role.permissions).not.toContain("medical.injuries.manage");
+    expect(role.permissions).not.toContain("medical.clearance.manage");
+    expect(role.permissions).not.toContain("medical.settings.manage");
   });
 
   it("gives the doctor clinical authority but not organisation-wide settings", () => {
-    const permissions = preset("Médecin");
-    expect(permissions.has("medical.injuries.manage")).toBe(true);
-    expect(permissions.has("medical.followups.manage")).toBe(true);
-    expect(permissions.has("medical.rtp.manage")).toBe(true);
-    expect(permissions.has("medical.clearance.manage")).toBe(true);
-    expect(permissions.has("medical.documents.manage")).toBe(true);
-    expect(permissions.has("medical.settings.manage")).toBe(false);
-    expect(permissions.has("medical.manage")).toBe(false);
+    const role = preset("Médecin");
+    const rolePermissions = new Set(role.permissions);
+    expect(role.isGlobal).toBe(false);
+    expect(rolePermissions.has("medical.injuries.manage")).toBe(true);
+    expect(rolePermissions.has("medical.followups.manage")).toBe(true);
+    expect(rolePermissions.has("medical.rtp.manage")).toBe(true);
+    expect(rolePermissions.has("medical.clearance.manage")).toBe(true);
+    expect(rolePermissions.has("medical.documents.manage")).toBe(true);
+    expect(rolePermissions.has("medical.settings.manage")).toBe(false);
+    expect(rolePermissions.has("medical.manage")).toBe(false);
   });
 
-  it("gives the medical manager every granular medical capability", () => {
-    const permissions = preset("Responsable médical");
+  it("makes the medical manager global and grants every granular medical capability", () => {
+    const role = preset("Responsable médical");
+    const rolePermissions = new Set(role.permissions);
+    expect(role.isGlobal).toBe(true);
     for (const permission of [
       "medical.view",
       "medical.injuries.manage",
@@ -58,13 +67,12 @@ describe("CLUB-013 medical role presets", () => {
       "medical.documents.manage",
       "medical.settings.manage",
     ]) {
-      expect(permissions.has(permission)).toBe(true);
+      expect(rolePermissions.has(permission)).toBe(true);
     }
-    expect(permissions.has("medical.manage")).toBe(false);
+    expect(rolePermissions.has("medical.manage")).toBe(false);
   });
 
   it("keeps the secretary general excluded from every medical permission", () => {
-    const permissions = preset("Secrétaire Général");
-    expect([...permissions].some((permission) => permission.startsWith("medical."))).toBe(false);
+    expect([...permissions("Secrétaire Général")].some((permission) => permission.startsWith("medical."))).toBe(false);
   });
 });
