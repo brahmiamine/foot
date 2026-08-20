@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   permissions: new Set<string>(),
+  categories: "ALL" as "ALL" | string[],
 }));
 
 const createInjury = vi.fn();
@@ -11,6 +12,8 @@ const recordClearance = vi.fn();
 const updateSettings = vi.fn();
 const appendFollowUpNote = vi.fn();
 const addDocument = vi.fn();
+const rosterInCategories = vi.fn();
+const getInjury = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
@@ -22,7 +25,7 @@ vi.mock("@/lib/access", () => ({
     teamId: "team-1",
     isClubAdmin: false,
     permissions: state.permissions,
-    categories: "ALL",
+    categories: state.categories,
   })),
   requirePermission: (_access: unknown, permission: string) => {
     if (!state.permissions.has(permission)) {
@@ -39,6 +42,8 @@ vi.mock("@/services/MedicalPortalService", () => ({
     updateSettings,
     appendFollowUpNote,
     addDocument,
+    rosterInCategories,
+    getInjury,
   },
 }));
 vi.mock("@/lib/notificationApi", () => ({
@@ -48,6 +53,7 @@ vi.mock("@/lib/notificationApi", () => ({
 
 beforeEach(() => {
   state.permissions = new Set();
+  state.categories = "ALL";
   for (const mock of [
     createInjury,
     updateInjury,
@@ -57,6 +63,10 @@ beforeEach(() => {
     appendFollowUpNote,
     addDocument,
   ]) mock.mockReset().mockResolvedValue(undefined);
+  rosterInCategories.mockReset().mockResolvedValue([
+    { id: "player-1", category: "u19" },
+  ]);
+  getInjury.mockReset().mockResolvedValue({ id: 7, teamId: "team-1", playerId: "player-1" });
 });
 
 describe("CLUB-013 least-privilege medical Server Actions", () => {
@@ -118,8 +128,9 @@ describe("CLUB-013 least-privilege medical Server Actions", () => {
     expect(updateSettings).not.toHaveBeenCalled();
   });
 
-  it("reserves medical settings to the medical manager capability", async () => {
+  it("reserves medical settings to a global medical manager", async () => {
     state.permissions = new Set(["medical.settings.manage"]);
+    state.categories = "ALL";
     const { updateMedicalSettingsAction } = await import("./actions");
 
     await updateMedicalSettingsAction({
@@ -131,5 +142,43 @@ describe("CLUB-013 least-privilege medical Server Actions", () => {
       clearanceRequired: true,
       severeSecondOpinionRequired: false,
     });
+  });
+
+  it("rejects club-wide medical settings from a category-scoped role", async () => {
+    state.permissions = new Set(["medical.settings.manage"]);
+    state.categories = ["u19"];
+    const { updateMedicalSettingsAction } = await import("./actions");
+
+    await expect(updateMedicalSettingsAction({
+      clearanceRequired: true,
+      severeSecondOpinionRequired: false,
+    })).rejects.toThrow("portée globale");
+    expect(updateSettings).not.toHaveBeenCalled();
+  });
+
+  it("blocks creating an injury for a player outside the actor category", async () => {
+    state.permissions = new Set(["medical.injuries.manage"]);
+    state.categories = ["u17"];
+    rosterInCategories.mockResolvedValue([{ id: "player-u17", category: "u17" }]);
+    const { createInjuryAction } = await import("./actions");
+
+    await expect(createInjuryAction({
+      playerId: "player-u19",
+      injuryDate: "2026-08-20",
+      zone: "genou",
+      severity: "MODERATE",
+    })).rejects.toThrow("catégorie hors de votre périmètre");
+    expect(createInjury).not.toHaveBeenCalled();
+  });
+
+  it("blocks mutating an injury whose player is outside the actor category", async () => {
+    state.permissions = new Set(["medical.clearance.manage"]);
+    state.categories = ["u17"];
+    getInjury.mockResolvedValue({ id: 7, teamId: "team-1", playerId: "player-u19" });
+    rosterInCategories.mockResolvedValue([{ id: "player-u17", category: "u17" }]);
+    const { recordClearanceAction } = await import("./actions");
+
+    await expect(recordClearanceAction(7, "CLEAR")).rejects.toThrow("catégorie hors de votre périmètre");
+    expect(recordClearance).not.toHaveBeenCalled();
   });
 });
