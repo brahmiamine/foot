@@ -47,3 +47,21 @@ ALTER TABLE cms_player_applications
   ADD CONSTRAINT uq_cms_player_applications_player UNIQUE (player_id),
   ADD CONSTRAINT fk_cms_player_applications_player
     FOREIGN KEY (player_id) REFERENCES Player(id) ON DELETE SET NULL;
+
+CREATE TABLE cms_player_application_events (
+  id CHAR(36) PRIMARY KEY,
+  team_id CHAR(36) NOT NULL,
+  application_id BIGINT NOT NULL,
+  actor_id VARCHAR(191) NOT NULL,
+  event_type VARCHAR(40) NOT NULL,
+  from_status VARCHAR(40) NOT NULL,
+  to_status VARCHAR(40) NOT NULL,
+  details_json LONGTEXT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CONSTRAINT fk_cms_player_application_events_team
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cms_player_application_events_application
+    FOREIGN KEY (application_id) REFERENCES cms_player_applications(id) ON DELETE CASCADE,
+  INDEX idx_cms_player_application_events_team_app (team_id, application_id, created_at),
+  INDEX idx_cms_player_application_events_actor (actor_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
