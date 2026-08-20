@@ -6,6 +6,7 @@ export const TRAINING_STATUSES = ["SCHEDULED", "DONE", "CANCELLED"] as const;
 export const TRAINING_INTENSITIES = ["LOW", "MEDIUM", "HIGH"] as const;
 export const TRAINING_BLOCK_TYPES = ["WARMUP", "TECHNIQUE", "SMALL_SIDED_GAME", "TACTICS", "MATCH", "PHYSICAL", "RECOVERY", "OTHER"] as const;
 export const TRAINING_INVITATION_RESPONSES = ["PENDING", "PRESENT", "ABSENT", "LATE", "INJURED"] as const;
+export const TRAINING_RSVP_STATUSES = ["PENDING", "ACCEPTED", "DECLINED"] as const;
 
 export const trainingBlockSchema = z.object({
   blockType: z.enum(TRAINING_BLOCK_TYPES).default("OTHER"),
@@ -15,6 +16,11 @@ export const trainingBlockSchema = z.object({
   tacticsBoardId: z.number().int().positive().optional().nullable(),
 });
 
+export const responsePolicySchema = z.object({
+  responseDeadline: z.date().optional().nullable(),
+  reminderOffsetMinutes: z.number().int().min(0).max(10080).default(1440),
+});
+
 export const createTrainingSchema = z.object({
   category: z.enum(AGE_CATEGORIES).default("seniors"),
   title: z.string().min(1, "Le titre est requis").max(200),
@@ -22,12 +28,18 @@ export const createTrainingSchema = z.object({
   trainingType: z.enum(TRAINING_TYPES).default("AUTRE"),
   intensity: z.enum(TRAINING_INTENSITIES).optional().nullable(),
   date: z.date({ error: "La date est requise" }),
+  responseDeadline: z.date().optional().nullable(),
+  reminderOffsetMinutes: z.number().int().min(0).max(10080).default(1440),
   durationMinutes: z.number().int().positive().optional().nullable(),
   equipment: z.string().max(500).optional().nullable(),
   stadiumId: z.number().int().positive().optional().nullable(),
   venueName: z.string().max(200).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   blocks: z.array(trainingBlockSchema).max(20).default([]),
+}).superRefine((value, ctx) => {
+  if (value.responseDeadline && value.responseDeadline.getTime() > value.date.getTime()) {
+    ctx.addIssue({ code: "custom", path: ["responseDeadline"], message: "La deadline doit précéder la séance" });
+  }
 });
 
 export const updateTrainingSchema = z.object({
@@ -37,6 +49,8 @@ export const updateTrainingSchema = z.object({
   trainingType: z.enum(TRAINING_TYPES).optional(),
   intensity: z.enum(TRAINING_INTENSITIES).optional().nullable(),
   date: z.date().optional(),
+  responseDeadline: z.date().optional().nullable(),
+  reminderOffsetMinutes: z.number().int().min(0).max(10080).optional(),
   durationMinutes: z.number().int().positive().optional().nullable(),
   equipment: z.string().max(500).optional().nullable(),
   stadiumId: z.number().int().positive().optional().nullable(),
@@ -53,6 +67,20 @@ export const inviteToTrainingSchema = z.object({
 
 export const updateTrainingInvitationResponseSchema = z.object({
   response: z.enum(TRAINING_INVITATION_RESPONSES),
+});
+
+export const updateTrainingResponsePolicySchema = responsePolicySchema.extend({
+  trainingId: z.coerce.number().int().positive(),
+});
+
+export const createTrainingTemplateSchema = z.object({
+  trainingId: z.coerce.number().int().positive(),
+  name: z.string().trim().min(2).max(120),
+});
+
+export const createTrainingFromTemplateSchema = z.object({
+  templateId: z.coerce.number().int().positive(),
+  date: z.date(),
 });
 
 export type TrainingBlockInput = z.infer<typeof trainingBlockSchema>;
