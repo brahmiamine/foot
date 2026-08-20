@@ -37,7 +37,11 @@ export async function getUserAccess(): Promise<UserAccess> {
 
 export function can(access: UserAccess, permission: string): boolean {
   if (access.permissions === 'ALL') return true
-  return access.permissions.has(permission)
+  if (access.permissions.has(permission)) return true
+  // CLUB-013 backward compatibility: legacy custom roles with medical.manage
+  // retain the historical full medical capability until administrators migrate
+  // them to the new least-privilege permissions.
+  return permission.startsWith('medical.') && access.permissions.has('medical.manage')
 }
 
 export function categoryAllowed(access: UserAccess, category: AgeCategory): boolean {
