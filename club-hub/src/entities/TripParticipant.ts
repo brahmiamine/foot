@@ -5,11 +5,12 @@ import { TripVehicle } from "./TripVehicle";
 
 export type TripParticipantType = "PLAYER" | "PARENT" | "STAFF";
 export type TripTransportOffer = "NONE" | "NEEDS_TRANSPORT" | "CAN_DRIVE";
+export type TripConsentStatus = "NOT_REQUIRED" | "PENDING" | "GRANTED" | "REFUSED";
 
 /**
  * TripParticipant Entity — joueur présent, parent accompagnateur ou membre
- * du staff sur un déplacement, avec offre/besoin de transport ("j'ai
- * besoin d'un transport" / "je peux transporter 3 joueurs").
+ * du staff sur un déplacement, avec offre/besoin de transport et, pour les
+ * joueurs mineurs, consentement explicite avant passage du voyage à READY.
  */
 @Entity("cms_trip_participants")
 export class TripParticipant {
@@ -51,6 +52,23 @@ export class TripParticipant {
 
   @Column({ type: "tinyint", default: 0 })
   confirmed!: boolean;
+
+  @Column({
+    type: "enum",
+    enum: ["NOT_REQUIRED", "PENDING", "GRANTED", "REFUSED"],
+    default: "NOT_REQUIRED",
+    name: "consent_status",
+  })
+  consentStatus!: TripConsentStatus;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "consent_recorded_by" })
+  consentRecordedBy?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "consent_recorded_at" })
+  consentRecordedAt?: Date | null;
+
+  @Column({ type: "text", nullable: true, name: "consent_note" })
+  consentNote?: string | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

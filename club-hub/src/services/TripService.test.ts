@@ -1,23 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Trip } from "@/entities/Trip";
 import { TripParticipant } from "@/entities/TripParticipant";
 
-const findOne = vi.fn();
-const save = vi.fn();
-const remove = vi.fn();
+const participantFindOne = vi.fn();
+const tripFindOne = vi.fn();
+const participantSave = vi.fn();
+const participantRemove = vi.fn();
+
+const manager = {
+  getRepository: (entity: unknown) => {
+    if (entity === TripParticipant) {
+      return {
+        findOne: participantFindOne,
+        save: participantSave,
+        remove: participantRemove,
+      };
+    }
+    if (entity === Trip) {
+      return { findOne: tripFindOne };
+    }
+    throw new Error("unexpected entity");
+  },
+};
 
 vi.mock("@/lib/database", () => ({
   getDataSource: async () => ({
-    getRepository: (entity: unknown) => {
-      if (entity === TripParticipant) return { findOne, save, remove };
-      throw new Error("unexpected entity");
-    },
+    transaction: async <T>(callback: (entityManager: typeof manager) => Promise<T>) => callback(manager),
   }),
 }));
 
 beforeEach(() => {
-  findOne.mockReset();
-  save.mockReset();
-  remove.mockReset();
+  participantFindOne.mockReset();
+  tripFindOne.mockReset();
+  participantSave.mockReset();
+  participantRemove.mockReset();
 });
 
 /**
@@ -27,36 +43,40 @@ beforeEach(() => {
  */
 describe("TripService cross-team guards", () => {
   it("toggleConfirmed refuses when the participant's trip belongs to another team", async () => {
-    findOne.mockResolvedValue({ id: 1, tripId: 10, trip: { id: 10, teamId: "team-victim" } });
+    participantFindOne.mockResolvedValue({ id: 1, tripId: 10, confirmed: false });
+    tripFindOne.mockResolvedValue(null);
     const { TripService } = await import("./TripService");
     const service = new TripService();
 
     await expect(service.toggleConfirmed(1, "team-attacker")).rejects.toThrow(
       "Participant non trouvé",
     );
-    expect(save).not.toHaveBeenCalled();
+    expect(participantSave).not.toHaveBeenCalled();
   });
 
   it("toggleConfirmed succeeds when the participant's trip belongs to the caller's team", async () => {
-    const participant = { id: 1, tripId: 10, trip: { id: 10, teamId: "team-owner" }, confirmed: false };
-    findOne.mockResolvedValue(participant);
-    save.mockImplementation((entity) => Promise.resolve(entity));
+    const participant = { id: 1, tripId: 10, confirmed: false };
+    participantFindOne.mockResolvedValue(participant);
+    tripFindOne.mockResolvedValue({ id: 10, teamId: "team-owner", workflowStatus: "DRAFT" });
+    participantSave.mockImplementation((entity) => Promise.resolve(entity));
     const { TripService } = await import("./TripService");
     const service = new TripService();
 
     const result = await service.toggleConfirmed(1, "team-owner");
 
     expect(result.confirmed).toBe(true);
+    expect(participantSave).toHaveBeenCalledWith(participant);
   });
 
   it("removeParticipant refuses when the participant's trip belongs to another team", async () => {
-    findOne.mockResolvedValue({ id: 1, tripId: 10, trip: { id: 10, teamId: "team-victim" } });
+    participantFindOne.mockResolvedValue({ id: 1, tripId: 10 });
+    tripFindOne.mockResolvedValue(null);
     const { TripService } = await import("./TripService");
     const service = new TripService();
 
     await expect(service.removeParticipant(1, "team-attacker")).rejects.toThrow(
       "Participant non trouvé",
     );
-    expect(remove).not.toHaveBeenCalled();
+    expect(participantRemove).not.toHaveBeenCalled();
   });
 });

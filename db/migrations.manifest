@@ -189,6 +189,8 @@ club-hub/sql/migration_add_roles_scheduling_and_formations.sql
 club-hub/sql/migration_add_tactics_boards.sql
 club-hub/sql/migration_add_training_details_and_presence_states.sql
 club-hub/sql/migration_add_trips.sql
+# CLUB-009 : budget, approbations, consentements, justificatifs et clôture.
+club-hub/sql/migration_add_trip_governance.sql
 club-hub/sql/migration_add_player_stats.sql
 club-hub/sql/migration_add_injuries.sql
 club-hub/sql/migration_add_club_pages_academy_applications.sql

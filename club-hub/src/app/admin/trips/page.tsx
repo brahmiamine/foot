@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { requireTeamId } from "@/lib/team-context";
-import { getUserAccess, can, selectableCategories } from "@/lib/access";
+import { getUserAccess, can, requirePermission, selectableCategories } from "@/lib/access";
 import { TripService } from "@/services/TripService";
 import { MatchService } from "@/services/MatchService";
 import { FriendlyMatchService } from "@/services/FriendlyMatchService";
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
 export default async function TripsPage() {
   const teamId = await requireTeamId();
   const access = await getUserAccess();
+  requirePermission(access, "trips.view");
+  if (access.teamId !== teamId) throw new Error("Contexte club incohérent");
 
   const tripService = new TripService();
   const matchService = new MatchService();
@@ -49,6 +52,7 @@ export default async function TripsPage() {
   const trips = tripsData.map((trip) => ({
     id: trip.id,
     category: trip.category,
+    workflowStatus: trip.workflowStatus,
     matchLabel:
       trip.matchType === "FRIENDLY"
         ? `Amical @ ${trip.friendlyMatch?.opponentTeam?.nom ?? trip.friendlyMatch?.opponentName ?? "Adversaire"}`
@@ -93,7 +97,7 @@ export default async function TripsPage() {
     .map((match) => ({
       value: `FRIENDLY:${match.id}`,
       label: `Amical @ ${match.opponentTeam?.nom ?? match.opponentName ?? "Adversaire"} — ${new Date(
-        match.date
+        match.date,
       ).toLocaleDateString("fr-FR")}`,
     }));
 
@@ -105,12 +109,19 @@ export default async function TripsPage() {
     }));
 
   return (
-    <TripsManagement
-      initialTrips={trips}
-      awayMatches={[...awayOfficialMatches, ...awayFriendlyMatches]}
-      players={players}
-      allowedCategories={selectableCategories(access, AGE_CATEGORIES)}
-      canManage={can(access, "trips.manage")}
-    />
+    <>
+      <div className="d-flex justify-content-end mb-3">
+        <Link href="/admin/trips/governance" className="btn btn-outline-primary">
+          Budgets, approbations et consentements
+        </Link>
+      </div>
+      <TripsManagement
+        initialTrips={trips}
+        awayMatches={[...awayOfficialMatches, ...awayFriendlyMatches]}
+        players={players}
+        allowedCategories={selectableCategories(access, AGE_CATEGORIES)}
+        canManage={can(access, "trips.manage")}
+      />
+    </>
   );
 }
