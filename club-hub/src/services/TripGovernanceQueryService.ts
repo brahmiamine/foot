@@ -62,7 +62,7 @@ export class TripGovernanceQueryService {
     if (tripIds.length === 0) return [];
     const ds = await getDataSource();
     return ds.getRepository(TripExpenseReceipt).find({
-      where: { teamId, tripId: In(tripIds) },
+      where: { teamId, tripId: In(tripIds), status: "ACTIVE" },
       order: { createdAt: "ASC" },
     });
   }
