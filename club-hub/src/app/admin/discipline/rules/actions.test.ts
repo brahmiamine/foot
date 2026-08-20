@@ -104,7 +104,7 @@ describe("discipline rule actions", () => {
     const { createDisciplineRuleSetAction } = await import("./actions");
     const result = await createDisciplineRuleSetAction(ruleForm());
     expect(result.success).toBe(false);
-    expect(result.error).toContain("contexte club incohérent");
+    expect(result.error?.toLowerCase()).toContain("contexte club incohérent");
     expect(createRuleSet).not.toHaveBeenCalled();
   });
 

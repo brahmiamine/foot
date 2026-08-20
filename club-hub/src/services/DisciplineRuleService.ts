@@ -17,7 +17,7 @@ import {
   type DisciplineRuleValues,
   type ResolvedDisciplineRule,
 } from "@/lib/disciplineRules";
-import type { EntityManager } from "typeorm";
+import { IsNull, type EntityManager } from "typeorm";
 
 export interface CreateDisciplineRuleSetInput extends DisciplineRuleValues {
   seasonId?: string | null;
@@ -70,11 +70,36 @@ function normalizedValues(input: DisciplineRuleValues): DisciplineRuleValues {
 }
 
 function partialValues(input: Partial<DisciplineRuleValues>): Partial<DisciplineRuleValues> {
-  const allowed = Object.fromEntries(
-    Object.entries(input).filter(([, value]) => value !== undefined),
-  ) as Partial<DisciplineRuleValues>;
-  const merged = normalizedValues({ ...LEGACY_DISCIPLINE_RULE, ...allowed });
-  return Object.fromEntries(Object.keys(allowed).map((key) => [key, merged[key as keyof DisciplineRuleValues]])) as Partial<DisciplineRuleValues>;
+  const entries = Object.entries(input).filter(([, value]) => value !== undefined);
+  const integerFields = new Set<keyof DisciplineRuleValues>([
+    "yellowWarningThreshold",
+    "yellowSuspensionThreshold",
+    "yellowSuspensionMatches",
+    "fineDueDays",
+    "defaultRedSuspensionMatches",
+    "defaultDoubleYellowSuspensionMatches",
+  ]);
+
+  for (const [rawKey, rawValue] of entries) {
+    const key = rawKey as keyof DisciplineRuleValues;
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`Valeur disciplinaire invalide: ${key}`);
+    }
+    if (integerFields.has(key) && !Number.isInteger(value)) {
+      throw new Error(`Valeur disciplinaire invalide: ${key}`);
+    }
+    if (
+      key !== "yellowWarningThreshold" &&
+      key !== "yellowFineAmount" &&
+      key !== "redFineAmount" &&
+      value < 1
+    ) {
+      throw new Error(`Valeur disciplinaire invalide: ${key}`);
+    }
+  }
+
+  return Object.fromEntries(entries.map(([key, value]) => [key, Number(value)])) as Partial<DisciplineRuleValues>;
 }
 
 function candidateFromEntity(rule: DisciplineRuleSet): DisciplineRuleCandidate {
@@ -200,7 +225,12 @@ export class DisciplineRuleService {
     return dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(DisciplineRuleSet);
       const latest = await repository.findOne({
-        where: { teamId, seasonId, competitionType, category },
+        where: {
+          teamId,
+          seasonId: seasonId ?? IsNull(),
+          competitionType: competitionType ?? IsNull(),
+          category: category ?? IsNull(),
+        },
         order: { version: "DESC" },
         lock: { mode: "pessimistic_write" },
       });
@@ -352,6 +382,9 @@ export class DisciplineRuleService {
           values: applicable.values,
         }, context.effectiveAt);
       }
+      // Cross-field validation happens against the real effective RuleSet,
+      // after the optional override has been applied. This avoids rejecting
+      // a valid partial override merely because legacy defaults differ.
       validateDisciplineRuleValues(snapshotValues(resolved));
 
       const application = await applicationRepository.save(applicationRepository.create({
