@@ -40,6 +40,7 @@ import {
 import { MatchLineup } from "@/entities/MatchLineup";
 import { Role } from "@/entities/Role";
 import { UserRole } from "@/entities/UserRole";
+import { RoleDelegation } from "@/entities/RoleDelegation";
 import { FriendlyMatch } from "@/entities/FriendlyMatch";
 import { Training } from "@/entities/Training";
 import { TrainingInvitation } from "@/entities/TrainingInvitation";
@@ -138,7 +139,7 @@ export async function getDataSource(): Promise<DataSource> {
         Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest,
         Sponsor, SponsorContractApproval, SponsorContractDecision,
         SponsorshipGovernanceSettings, SponsorWorkflowEvent, MatchLineup, Role, UserRole,
-        FriendlyMatch, Training, TrainingInvitation, TrainingTemplate, MatchFormation,
+        RoleDelegation, FriendlyMatch, Training, TrainingInvitation, TrainingTemplate, MatchFormation,
         TacticsBoard, TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury,
         Trip, TripVehicle, TripParticipant, TripGovernanceSettings, TripBudgetApproval,
         TripBudgetDecision, TripExpenseReceipt, TripWorkflowEvent, ClubInfo, History,
