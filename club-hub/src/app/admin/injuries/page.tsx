@@ -8,14 +8,14 @@ import { InjuriesManagement } from "./InjuriesManagement";
 export const dynamic = "force-dynamic";
 
 /**
- * Page Blessures & santé — module à accès strictement restreint
- * (permission medical.view / medical.manage), non accordé par défaut aux
- * coachs/adjoints.
+ * Page Blessures & santé — module à accès strictement restreint.
+ * La consultation utilise medical.view ; les mutations diagnostiques sont
+ * réservées à medical.injuries.manage (medical.manage reste un alias legacy).
  */
 export default async function InjuriesPage() {
   const teamId = await requireTeamId();
   const access = await getUserAccess();
-  if (!can(access, "medical.view") && !can(access, "medical.manage")) {
+  if (!can(access, "medical.view")) {
     redirect("/admin");
   }
 
@@ -49,5 +49,5 @@ export default async function InjuriesPage() {
 
   const players = playersData.map((p) => ({ id: p.id, label: `#${p.number} ${p.firstNameFr} ${p.lastNameFr}` }));
 
-  return <InjuriesManagement initialInjuries={injuries} players={players} canManage={can(access, "medical.manage")} />;
+  return <InjuriesManagement initialInjuries={injuries} players={players} canManage={can(access, "medical.injuries.manage")} />;
 }
