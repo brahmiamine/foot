@@ -29,6 +29,8 @@ export interface TripExpenseInput {
   documentUrl?: string | null;
 }
 
+type DateLike = Date | string | null | undefined;
+
 function stableHash(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
@@ -41,8 +43,16 @@ function eventDetails(value: Record<string, unknown>): string | null {
   return Object.keys(value).length > 0 ? JSON.stringify(value) : null;
 }
 
+function asValidDate(value: DateLike): Date | null {
+  if (!value) return null;
+  const normalized = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(normalized.getTime()) ? null : normalized;
+}
+
 function normalizeDate(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  const normalized = asValidDate(value);
+  if (!normalized) throw new Error("Date du déplacement invalide");
+  return normalized.toISOString();
 }
 
 function tripFingerprint(trip: Trip): string {
@@ -81,15 +91,17 @@ export function requiresTripReceipt(amount: number, threshold: number): boolean 
   return amount > 0 && amount >= threshold;
 }
 
-export function playerRequiresTripConsent(birthDate: Date | null | undefined, departure: Date): boolean {
-  if (!birthDate || Number.isNaN(birthDate.getTime()) || Number.isNaN(departure.getTime())) return true;
+export function playerRequiresTripConsent(birthDate: DateLike, departure: Date | string): boolean {
+  const normalizedBirthDate = asValidDate(birthDate);
+  const normalizedDeparture = asValidDate(departure);
+  if (!normalizedBirthDate || !normalizedDeparture) return true;
 
-  let age = departure.getUTCFullYear() - birthDate.getUTCFullYear();
-  const departureMonth = departure.getUTCMonth();
-  const birthMonth = birthDate.getUTCMonth();
+  let age = normalizedDeparture.getUTCFullYear() - normalizedBirthDate.getUTCFullYear();
+  const departureMonth = normalizedDeparture.getUTCMonth();
+  const birthMonth = normalizedBirthDate.getUTCMonth();
   if (
     departureMonth < birthMonth ||
-    (departureMonth === birthMonth && departure.getUTCDate() < birthDate.getUTCDate())
+    (departureMonth === birthMonth && normalizedDeparture.getUTCDate() < normalizedBirthDate.getUTCDate())
   ) {
     age -= 1;
   }
@@ -434,14 +446,14 @@ export class TripWorkflowService {
   async markDeparted(tripId: number, teamId: string, actorUserId: string, now: Date = new Date()): Promise<Trip> {
     const ds = await getDataSource();
     return ds.transaction(async (manager) => {
-      const repo = manager.getRepository(Trip);
-      const trip = await repo.findOne({ where: { id: tripId, teamId }, lock: { mode: "pessimistic_write" } });
+      const tripRepo = manager.getRepository(Trip);
+      const trip = await tripRepo.findOne({ where: { id: tripId, teamId }, lock: { mode: "pessimistic_write" } });
       if (!trip) throw new Error("Déplacement non trouvé");
       if (trip.workflowStatus !== "READY") throw new Error("Le déplacement doit être READY avant le départ");
       trip.workflowStatus = "DEPARTED";
       trip.departedBy = actorUserId;
       trip.departedAt = now;
-      const saved = await repo.save(trip);
+      const saved = await tripRepo.save(trip);
       await this.recordEvent(manager, {
         teamId,
         tripId,
@@ -486,8 +498,9 @@ export class TripWorkflowService {
         throw new Error("Un justificatif est obligatoire pour cette dépense");
       }
 
-      const expense = await manager.getRepository(TripExpenseReceipt).save(
-        manager.getRepository(TripExpenseReceipt).create({
+      const expenseRepo = manager.getRepository(TripExpenseReceipt);
+      const expense = await expenseRepo.save(
+        expenseRepo.create({
           teamId,
           tripId,
           label,
@@ -495,6 +508,9 @@ export class TripWorkflowService {
           receiptThresholdSnapshot: settings.receiptRequiredThreshold.toFixed(3),
           receiptRequired,
           documentUrl,
+          status: "ACTIVE",
+          voidedBy: null,
+          voidedAt: null,
           createdBy: actorUserId,
         }),
       );
@@ -520,20 +536,23 @@ export class TripWorkflowService {
       });
       if (!trip) throw new Error("Déplacement non trouvé");
       if (!["APPROVED", "READY", "DEPARTED"].includes(trip.workflowStatus)) {
-        throw new Error("La dépense ne peut plus être supprimée");
+        throw new Error("La dépense ne peut plus être retirée");
       }
       const repo = manager.getRepository(TripExpenseReceipt);
-      const expense = await repo.findOne({ where: { id: expenseId, tripId, teamId } });
-      if (!expense) throw new Error("Dépense introuvable");
-      await repo.remove(expense);
+      const expense = await repo.findOne({ where: { id: expenseId, tripId, teamId, status: "ACTIVE" } });
+      if (!expense) throw new Error("Dépense active introuvable");
+      expense.status = "VOIDED";
+      expense.voidedBy = actorUserId;
+      expense.voidedAt = new Date();
+      await repo.save(expense);
       await this.recordEvent(manager, {
         teamId,
         tripId,
         actorUserId,
-        transition: "REMOVE_EXPENSE",
+        transition: "VOID_EXPENSE",
         fromStatus: trip.workflowStatus,
         toStatus: trip.workflowStatus,
-        details: { expenseId, amount: expense.amount },
+        details: { expenseId, amount: expense.amount, documentRetained: Boolean(expense.documentUrl) },
       });
     });
   }
@@ -545,7 +564,9 @@ export class TripWorkflowService {
       const trip = await repo.findOne({ where: { id: tripId, teamId }, lock: { mode: "pessimistic_write" } });
       if (!trip) throw new Error("Déplacement non trouvé");
       if (trip.workflowStatus !== "DEPARTED") throw new Error("Le déplacement doit être parti avant clôture");
-      const expenses = await manager.getRepository(TripExpenseReceipt).find({ where: { tripId, teamId } });
+      const expenses = await manager.getRepository(TripExpenseReceipt).find({
+        where: { tripId, teamId, status: "ACTIVE" },
+      });
       const missingEvidence = expenses.filter((expense) => expense.receiptRequired && !expense.documentUrl);
       if (missingEvidence.length > 0) throw new Error("Des justificatifs obligatoires sont manquants");
       const actualBudget = expenses.reduce((total, expense) => total + Number(expense.amount), 0);
