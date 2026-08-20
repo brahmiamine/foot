@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PlayerService } from "@/services/PlayerService";
 import { requireTeamId } from "@/lib/team-context";
 import { getUserAccess, can } from "@/lib/access";
@@ -31,12 +32,22 @@ export default async function PlayersPage() {
     updatedAt: player.updatedAt ? (player.updatedAt instanceof Date ? player.updatedAt.toISOString() : new Date(player.updatedAt).toISOString()) : null,
   }));
 
+  const canEdit = can(access, "players.edit");
   return (
-    <PlayersList
-      initialPlayers={players}
-      canCreate={can(access, "players.create")}
-      canEdit={can(access, "players.edit")}
-      canDelete={can(access, "players.delete")}
-    />
+    <>
+      {canEdit && (
+        <div className="container-fluid pt-3 text-end">
+          <Link href="/admin/players/profile-requests" className="btn btn-outline-primary btn-sm">
+            Demandes de modification de profil
+          </Link>
+        </div>
+      )}
+      <PlayersList
+        initialPlayers={players}
+        canCreate={can(access, "players.create")}
+        canEdit={canEdit}
+        canDelete={can(access, "players.delete")}
+      />
+    </>
   );
 }

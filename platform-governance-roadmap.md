@@ -45,6 +45,7 @@
 - 2026-08-19 — TDD RED CI #1142 puis CI #1182 + Ownership #711 : `ID-005` validé. Identity attache désormais un `sid` aléatoire à chaque nouvelle session et persiste appareil/IP, activité, expiration et état de révocation. L'écran `/account/sessions` liste uniquement les sessions actives de la génération `tokenVersion` courante ; la révocation d'une session est atomique, protégée par origine de confiance et strictement scopée au compte authentifié, tandis que `logout everywhere` conserve `tokenVersion` comme autorité globale et marque aussi le registre. Les réémissions après changement de mot de passe ou MFA conservent le `sid` courant sans réactiver une session expirée/révoquée. Les JWT pré-ID-005 sans `sid` restent compatibles au maximum 12 h après leur émission. La revue Codex Security a détecté puis corrigé une course où un `save()` pouvait théoriquement réécrire `revoked_at=NULL` après une révocation concurrente ; les écritures sont désormais des `UPDATE ... WHERE revoked_at IS NULL` conditionnels. Migration manifestée ; Identity typecheck/lint/build verts, 126 tests Vitest + 6 tests Node verts, DB manifest, Ownership et matrice CI globale verts.
 - 2026-08-19 — TDD RED CI #1184 puis CI #1217 + Ownership #746 : `ID-006` validé. Identity persiste une fenêtre d'accès compte `[accessValidFrom, accessValidUntil)` avec début inclusif et fin exclusive, relue depuis `User` au login, à l'émission de toute session (y compris OAuth/MFA) et à chaque vérification/introspection : un JWT encore cryptographiquement valide est donc refusé hors fenêtre. Toute modification réelle de borne incrémente `tokenVersion`, empêchant une ancienne session de redevenir valide après prolongation/suppression de la fenêtre. L'API interne exige des instants ISO 8601 avec `Z` ou offset explicite et rejette les dates ambiguës/inversées. Club Hub expose une UI de période pour les comptes staff, strictement scopée au `teamId`, journalise before/after et interdit de temporiser le compte `ADMIN` du club. Le fallback shared-DB respecte les mêmes règles que le client HTTP. Migration `migration_add_user_access_window.sql` manifestée ; Identity typecheck/lint/build verts avec 133 tests Vitest + 6 tests Node, Club Hub typecheck/lint/build verts avec 233 tests, DB manifest, architecture, i18n, Ownership et matrice CI globale verts.
 - 2026-08-20 — réconciliation Club Hub après les PRs #114 à #120 : `CLUB-006` à `CLUB-010` sont alignés sur leurs workflows déjà fusionnés et validés ; `CLUB-011` est clôturé après le correctif post-merge #120 avec CI #1288 et Ownership #817 verts. `CLUB-012` est ouvert en Draft PR #121 et reste `IN_PROGRESS` jusqu'à validation de ses gates.
+- 2026-08-20 — `CLUB-012` et `CLUB-013` sont fusionnés sur `main` via les PRs #121 et #122. `PLAYER-001` démarre sur `agent/player-001-profile-change-requests` / PR #123 : photo en self-service direct et identité sportive soumise à approbation Club Hub ; le point reste `IN_PROGRESS` jusqu'aux gates CI/Ownership.
 
 ---
 
@@ -89,14 +90,14 @@
 | CLUB-009 | P1 | DONE | Déplacements avec approbation/budget/consentements | workflow + seuils + justificatifs |
 | CLUB-010 | P1 | DONE | Entraînements paramétrables | deadlines réponses, lock, notifications, templates |
 | CLUB-011 | P1 | DONE | Règles disciplinaires versionnées par compétition/catégorie/saison | RuleSet + override audité |
-| CLUB-012 | P1 | IN_PROGRESS | Rôles temporaires et délégations | validFrom/validUntil + permissions déléguées bornées |
-| CLUB-013 | P1 | TODO | Presets médicaux séparés Médecin/Kiné/Responsable médical | permissions minimales distinctes |
+| CLUB-012 | P1 | DONE | Rôles temporaires et délégations | validFrom/validUntil + permissions déléguées bornées |
+| CLUB-013 | P1 | DONE | Presets médicaux séparés Médecin/Kiné/Responsable médical | permissions minimales distinctes |
 
 # D. Player Hub
 
 | ID | Priorité | Statut | Tâche | Critère de fin |
 |---|---|---|---|---|
-| PLAYER-001 | P1 | TODO | Demandes de modification de profil sensibles | champs simples directs, identité sportive soumise à approbation |
+| PLAYER-001 | P1 | IN_PROGRESS | Demandes de modification de profil sensibles | champs simples directs, identité sportive soumise à approbation |
 | PLAYER-002 | P1 | TODO | Disponibilité structurée AVAILABLE/UNAVAILABLE/LIMITED | période + raison + consommation côté staff |
 | PLAYER-003 | P1 | TODO | Portefeuille documentaire réglementaire en lecture | licence/contrat/inscription/FIT/suspension/expiration sans fuite médicale |
 | PLAYER-004 | P1 | TODO | Consentements/signatures joueur | contrat/transfert/licence/image/règlement + historique |
