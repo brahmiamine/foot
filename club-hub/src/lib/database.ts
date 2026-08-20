@@ -31,6 +31,12 @@ import { ProductCategory } from "@/entities/ProductCategory";
 import { Product } from "@/entities/Product";
 import { SponsorRequest } from "@/entities/SponsorRequest";
 import { Sponsor } from "@/entities/Sponsor";
+import {
+  SponsorContractApproval,
+  SponsorContractDecision,
+  SponsorshipGovernanceSettings,
+  SponsorWorkflowEvent,
+} from "@/entities/SponsorshipGovernance";
 import { MatchLineup } from "@/entities/MatchLineup";
 import { Role } from "@/entities/Role";
 import { UserRole } from "@/entities/UserRole";
@@ -121,21 +127,22 @@ export async function getDataSource(): Promise<DataSource> {
         MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match,
         User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings,
         Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest,
-        Sponsor, MatchLineup, Role, UserRole, FriendlyMatch, Training,
-        TrainingInvitation, MatchFormation, TacticsBoard, TrainingBlock, PlayerStat,
-        Injury, Goal, Substitution, MatchInjury, Trip, TripVehicle, TripParticipant,
-        ClubInfo, History, HistoryFigure, Honor, AcademyCategory, AcademyInfo,
-        PlayerApplication, PlayerApplicationEvent, RecruitmentNeed, RecruitmentApplication,
-        RecruitmentApplicationEvent, Announcement, TeamSocials, ContactInfo,
-        ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder,
-        ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent,
-        StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication,
-        ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense,
-        PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration,
-        PlayerRegistrationHistory, PlayerContract, PlayerContractDocument,
-        PlayerContractHistory, StaffContract, StaffContractDocument,
-        StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase,
-        LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
+        Sponsor, SponsorContractApproval, SponsorContractDecision,
+        SponsorshipGovernanceSettings, SponsorWorkflowEvent, MatchLineup, Role, UserRole,
+        FriendlyMatch, Training, TrainingInvitation, MatchFormation, TacticsBoard,
+        TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury, Trip,
+        TripVehicle, TripParticipant, ClubInfo, History, HistoryFigure, Honor,
+        AcademyCategory, AcademyInfo, PlayerApplication, PlayerApplicationEvent,
+        RecruitmentNeed, RecruitmentApplication, RecruitmentApplicationEvent,
+        Announcement, TeamSocials, ContactInfo, ContactMessage, TicketCategory,
+        MatchTicketCategory, TicketSaleRule, ShopOrder, ShopOrderItem,
+        NotificationOutboxEvent, ProcessedWebhookEvent, StockUnavailableRefund,
+        PlayerTransfer, TeamAffiliation, ClubLicenseApplication, ClubLicenseRequirement,
+        ClubLicenseDocument, ClubLicenseHistory, PersonLicense, PersonLicenseDocument,
+        PersonLicenseHistory, PlayerRegistration, PlayerRegistrationHistory,
+        PlayerContract, PlayerContractDocument, PlayerContractHistory, StaffContract,
+        StaffContractDocument, StaffContractHistory, ClubSanction, ClubSanctionHistory,
+        LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
         SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory,
         BoardMandate, BoardMember, BoardMandateHistory, CoachQualification,
         CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory,
