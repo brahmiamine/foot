@@ -156,6 +156,9 @@ export async function toggleTripParticipantConfirmed(participantId: number) {
     requirePermission(access, "trips.manage");
 
     const service = new TripService();
+    const participant = await service.findParticipantById(participantId, access.teamId);
+    if (!participant) throw new Error("Participant non trouvé");
+    requireCategory(access, participant.trip.category);
     await service.toggleConfirmed(participantId, access.teamId);
 
     revalidateTrips();
@@ -171,6 +174,9 @@ export async function removeTripParticipant(participantId: number) {
     requirePermission(access, "trips.manage");
 
     const service = new TripService();
+    const participant = await service.findParticipantById(participantId, access.teamId);
+    if (!participant) throw new Error("Participant non trouvé");
+    requireCategory(access, participant.trip.category);
     await service.removeParticipant(participantId, access.teamId);
 
     revalidateTrips();
