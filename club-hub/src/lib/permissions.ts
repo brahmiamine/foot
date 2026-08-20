@@ -208,8 +208,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     key: "medical",
     label: "Blessures & santé (accès restreint)",
     permissions: [
-      { key: "medical.view", label: "Voir les dossiers de blessure" },
-      { key: "medical.manage", label: "Gérer les dossiers de blessure" },
+      { key: "medical.view", label: "Voir les dossiers médicaux" },
+      { key: "medical.injuries.manage", label: "Créer et modifier diagnostics/blessures" },
+      { key: "medical.followups.manage", label: "Ajouter des notes de suivi médical" },
+      { key: "medical.rtp.manage", label: "Faire progresser le protocole Return-to-Play" },
+      { key: "medical.clearance.manage", label: "Rendre un avis de clearance médicale" },
+      { key: "medical.documents.manage", label: "Ajouter des documents médicaux" },
+      { key: "medical.settings.manage", label: "Configurer les règles médicales du club" },
+      { key: "medical.manage", label: "Gestion médicale complète (compatibilité legacy)" },
     ],
   },
   {
@@ -282,6 +288,15 @@ export function isValidPermissionKey(key: string): boolean {
   return ALL_PERMISSION_KEYS.includes(key);
 }
 
+const MEDICAL_CONTEXT_PERMISSIONS = [
+  "players.view",
+  "staff.view",
+  "matches.view",
+  "convocations.view",
+  "trainings.view",
+  "medical.view",
+];
+
 /** Permissions par défaut suggérées pour les rôles standards créés automatiquement. */
 export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; isGlobal: boolean; permissions: string[] }> = [
   {
@@ -345,9 +360,40 @@ export const DEFAULT_ROLE_PRESETS: Array<{ name: string; description: string; is
     ],
   },
   {
-    name: "Staff médical",
-    description: "Consultation de l'effectif et des convocations de sa catégorie, gestion des dossiers de blessure.",
+    name: "Kiné",
+    description: "Suivi thérapeutique et progression Return-to-Play de sa catégorie, sans diagnostic, clearance ni configuration médicale.",
     isGlobal: false,
-    permissions: ["players.view", "staff.view", "matches.view", "convocations.view", "trainings.view", "medical.view", "medical.manage"],
+    permissions: [
+      ...MEDICAL_CONTEXT_PERMISSIONS,
+      "medical.followups.manage",
+      "medical.rtp.manage",
+    ],
+  },
+  {
+    name: "Médecin",
+    description: "Responsabilité clinique : diagnostic, suivi, Return-to-Play, documents et clearance de sa catégorie.",
+    isGlobal: false,
+    permissions: [
+      ...MEDICAL_CONTEXT_PERMISSIONS,
+      "medical.injuries.manage",
+      "medical.followups.manage",
+      "medical.rtp.manage",
+      "medical.clearance.manage",
+      "medical.documents.manage",
+    ],
+  },
+  {
+    name: "Responsable médical",
+    description: "Responsabilité médicale complète incluant les règles de clearance et de second avis du club.",
+    isGlobal: false,
+    permissions: [
+      ...MEDICAL_CONTEXT_PERMISSIONS,
+      "medical.injuries.manage",
+      "medical.followups.manage",
+      "medical.rtp.manage",
+      "medical.clearance.manage",
+      "medical.documents.manage",
+      "medical.settings.manage",
+    ],
   },
 ];
