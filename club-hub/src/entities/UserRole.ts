@@ -5,10 +5,10 @@ import { Role } from "./Role";
 import { AgeCategory } from "@/types/categories";
 
 /**
- * UserRole Entity — attribution d'un rôle à un utilisateur du club, avec une
- * catégorie optionnelle (obligatoire en pratique pour les rôles non
- * globaux : un même rôle "Coach" peut être attribué à plusieurs personnes,
- * chacune scopée à sa catégorie).
+ * Direct role assignment. Legacy assignments remain permanent when both
+ * validity bounds are null. Temporary grants use the half-open interval
+ * `[validFrom, validUntil)` and can be explicitly revoked without deleting
+ * their audit evidence.
  */
 @Entity("cms_user_roles")
 export class UserRole {
@@ -38,6 +38,27 @@ export class UserRole {
 
   @Column({ type: "varchar", length: 10, nullable: true })
   category?: AgeCategory | null;
+
+  @Column({ type: "datetime", nullable: true, name: "valid_from" })
+  validFrom?: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "valid_until" })
+  validUntil?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "granted_by" })
+  grantedBy?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "grant_reason" })
+  grantReason?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "revoked_at" })
+  revokedAt?: Date | null;
+
+  @Column({ type: "varchar", length: 191, nullable: true, name: "revoked_by" })
+  revokedBy?: string | null;
+
+  @Column({ type: "text", nullable: true, name: "revocation_reason" })
+  revocationReason?: string | null;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
