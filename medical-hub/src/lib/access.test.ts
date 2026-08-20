@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { UserAccess } from './access'
 
 const auth = vi.fn()
 const getEffectiveAccess = vi.fn()
@@ -38,7 +39,7 @@ describe('getUserAccess', () => {
     })
     getEffectiveAccess.mockResolvedValue({
       permissions: ['medical.view', 'medical.clearance.manage'],
-      categories: ['U19'],
+      categories: ['u19'],
     })
     const { getUserAccess } = await import('./access')
 
@@ -47,20 +48,20 @@ describe('getUserAccess', () => {
     expect(getEffectiveAccess).toHaveBeenCalledWith({ teamId: 'team-1', userId: 'medical-1' })
     expect(access.isClubAdmin).toBe(false)
     expect(access.permissions).toEqual(new Set(['medical.view', 'medical.clearance.manage']))
-    expect(access.categories).toEqual(['U19'])
+    expect(access.categories).toEqual(['u19'])
   })
 })
 
 describe('can', () => {
   it('keeps medical.manage as a backward-compatible full medical capability', async () => {
     const { can } = await import('./access')
-    const access = {
+    const access: UserAccess = {
       userId: 'legacy-medical',
       teamId: 'team-1',
       isClubAdmin: false,
       permissions: new Set(['medical.manage']),
       categories: ['u19'],
-    } as const
+    }
 
     expect(can(access, 'medical.view')).toBe(true)
     expect(can(access, 'medical.injuries.manage')).toBe(true)
@@ -73,13 +74,13 @@ describe('can', () => {
 
   it('does not let one granular capability imply another', async () => {
     const { can } = await import('./access')
-    const access = {
+    const access: UserAccess = {
       userId: 'physio-1',
       teamId: 'team-1',
       isClubAdmin: false,
       permissions: new Set(['medical.view', 'medical.rtp.manage']),
       categories: ['u19'],
-    } as const
+    }
 
     expect(can(access, 'medical.rtp.manage')).toBe(true)
     expect(can(access, 'medical.clearance.manage')).toBe(false)
