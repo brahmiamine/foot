@@ -2,11 +2,8 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } fro
 
 /**
  * User Entity
- * Mappée sur la table `User` partagée avec cardManager (même base "foot",
- * mêmes comptes). Un compte ADMIN/OBSERVATEUR rattaché à un club peut se
- * connecter aussi bien à cardManager (discipline) qu'à club-hub (site du
- * club) avec les mêmes identifiants — l'accès est scopé par `teamId`.
- * SUPERADMIN (teamId null) n'a pas accès à club-hub.
+ * Mappée sur la table `User` partagée avec Identity (même base "foot").
+ * Ce mapping reste nécessaire au fallback shared-db de la frontière Identity.
  */
 @Entity("User")
 export class User {
@@ -31,6 +28,15 @@ export class User {
 
   @Column({ type: "tinyint" })
   isActive!: boolean;
+
+  @Column({ type: "datetime", nullable: true, name: "access_valid_from" })
+  accessValidFrom?: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "access_valid_until" })
+  accessValidUntil?: Date | null;
+
+  @Column({ type: "int", default: 0, name: "token_version" })
+  tokenVersion!: number;
 
   @Column({ type: "varchar", length: 191, nullable: true })
   teamId?: string | null;

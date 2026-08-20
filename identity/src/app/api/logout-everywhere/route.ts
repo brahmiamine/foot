@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession, clearSessionCookie } from "@/lib/session";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
+import { revokeAllUserSessions } from "@/lib/sessionRegistry";
 import { isTrustedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
 /**
  * Invalide toutes les sessions déjà émises pour ce compte, y compris celle
- * qui fait cette requête (contrairement à MFA enable/disable, qui réémet
- * une session à jour) — c'est le but explicite de l'action. Ne demande
- * aucun secret (juste la session active) : vérifie l'origine pour ne pas
- * être déclenchable en aveugle par une autre app de la même famille de
- * cookies (voir lib/csrf.ts).
+ * qui fait cette requête. `tokenVersion` reste la révocation globale de
+ * référence ; le registre est également marqué pour que l'interface ne
+ * continue pas d'afficher des sessions devenues invalides.
  */
 export async function POST(request: NextRequest) {
   if (!isTrustedOrigin(request)) {
@@ -33,6 +32,7 @@ export async function POST(request: NextRequest) {
 
   user.tokenVersion += 1;
   await userRepo.save(user);
+  await revokeAllUserSessions(user.id);
 
   console.log(`[Session] Déconnexion de toutes les sessions pour ${user.email} (${user.id}).`);
 

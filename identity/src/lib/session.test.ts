@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DataSource } from "typeorm";
 import { generateKeyPairSync } from "crypto";
-import { importPKCS8, SignJWT } from "jose";
+import { decodeJwt, importPKCS8, SignJWT } from "jose";
+import { User } from "@/entities/User";
 import { createTestDataSource } from "@/test/testDataSource";
 import { seedUser } from "@/test/fixtures";
 import { resetJwtKeyCache } from "@/lib/jwtKeys";
@@ -63,6 +64,7 @@ describe("verifySessionToken", () => {
       tokenVersion: 2,
     });
     const token = response.cookies.get("foot_sso_session")?.value;
+    expect(typeof decodeJwt(token!).sid).toBe("string");
     expect((await verifySessionToken(token!))?.id).toBe("user-1");
   });
 
@@ -122,6 +124,48 @@ describe("verifySessionToken", () => {
       email: "user1@example.com",
       role: "SUPERADMIN",
       tokenVersion: 0,
+    });
+    expect(await verifySessionToken(token)).toBeNull();
+  });
+
+  it("rejects a token before temporary account access starts", async () => {
+    const { verifySessionToken } = await import("./session");
+    const { updateUser } = await import("./identityService");
+    const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 0 });
+    const update = await updateUser(
+      user.id,
+      { accessValidFrom: new Date(Date.now() + 60_000) } as Parameters<typeof updateUser>[1] & {
+        accessValidFrom: Date;
+      },
+    );
+    expect(update.ok).toBe(true);
+    const persisted = await dataSource.getRepository(User).findOneByOrFail({ id: user.id });
+
+    const token = await signCurrent("user-1", {
+      email: user.email,
+      role: user.role,
+      tokenVersion: persisted.tokenVersion,
+    });
+    expect(await verifySessionToken(token)).toBeNull();
+  });
+
+  it("rejects a token after temporary account access expires", async () => {
+    const { verifySessionToken } = await import("./session");
+    const { updateUser } = await import("./identityService");
+    const user = await seedUser(dataSource, { id: "user-1", tokenVersion: 0 });
+    const update = await updateUser(
+      user.id,
+      { accessValidUntil: new Date(Date.now() - 60_000) } as Parameters<typeof updateUser>[1] & {
+        accessValidUntil: Date;
+      },
+    );
+    expect(update.ok).toBe(true);
+    const persisted = await dataSource.getRepository(User).findOneByOrFail({ id: user.id });
+
+    const token = await signCurrent("user-1", {
+      email: user.email,
+      role: user.role,
+      tokenVersion: persisted.tokenVersion,
     });
     expect(await verifySessionToken(token)).toBeNull();
   });

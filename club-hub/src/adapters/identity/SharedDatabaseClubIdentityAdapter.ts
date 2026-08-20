@@ -11,6 +11,23 @@ import type {
   UpdateIdentityAccountInput,
 } from '../../../../packages/domain-contracts/src/identity'
 
+function parseInstant(value: string | null | undefined): Date | null {
+  if (value === undefined || value === null) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) throw new Error('invalid_access_window')
+  return parsed
+}
+
+function validWindow(from: Date | null, until: Date | null): boolean {
+  return !(from && until && from.getTime() >= until.getTime())
+}
+
+function sameInstant(left: Date | null | undefined, right: Date | null | undefined): boolean {
+  if (!left && !right) return true
+  if (!left || !right) return false
+  return left.getTime() === right.getTime()
+}
+
 function toRecord(user: User): IdentityUserRecord {
   return {
     id: user.id,
@@ -18,6 +35,8 @@ function toRecord(user: User): IdentityUserRecord {
     email: user.email,
     role: user.role,
     isActive: Boolean(user.isActive),
+    accessValidFrom: user.accessValidFrom?.toISOString() ?? null,
+    accessValidUntil: user.accessValidUntil?.toISOString() ?? null,
     teamId: user.teamId ?? null,
     createdAt: user.createdAt.toISOString(),
   }
@@ -59,6 +78,10 @@ export class SharedDatabaseClubIdentityAdapter
       throw new Error('email_taken')
     }
 
+    const accessValidFrom = parseInstant(input.accessValidFrom)
+    const accessValidUntil = parseInstant(input.accessValidUntil)
+    if (!validWindow(accessValidFrom, accessValidUntil)) throw new Error('invalid_access_window')
+
     const user = repository.create({
       id: randomUUID(),
       name: input.name,
@@ -66,6 +89,9 @@ export class SharedDatabaseClubIdentityAdapter
       password: await bcrypt.hash(input.password, 12),
       role: input.role as User['role'],
       isActive: input.isActive ?? true,
+      accessValidFrom,
+      accessValidUntil,
+      tokenVersion: 0,
       teamId: input.teamId ?? null,
     })
     return toRecord(await repository.save(user))
@@ -76,15 +102,38 @@ export class SharedDatabaseClubIdentityAdapter
     const user = await repository.findOne({ where: { id } })
     if (!user) throw new Error('not_found')
 
+    const nextAccessValidFrom =
+      input.accessValidFrom !== undefined ? parseInstant(input.accessValidFrom) : (user.accessValidFrom ?? null)
+    const nextAccessValidUntil =
+      input.accessValidUntil !== undefined ? parseInstant(input.accessValidUntil) : (user.accessValidUntil ?? null)
+    if (!validWindow(nextAccessValidFrom, nextAccessValidUntil)) throw new Error('invalid_access_window')
+
     if (input.email !== undefined && input.email !== user.email) {
       const existing = await repository.findOne({ where: { email: input.email } })
       if (existing && existing.id !== id) throw new Error('email_taken')
       user.email = input.email
     }
     if (input.name !== undefined) user.name = input.name
-    if (input.isActive !== undefined) user.isActive = input.isActive
+
+    let bumpTokenVersion = false
+    if (input.isActive !== undefined && Boolean(input.isActive) !== Boolean(user.isActive)) {
+      user.isActive = input.isActive
+      bumpTokenVersion = true
+    }
     if (input.role !== undefined) user.role = input.role as User['role']
-    if (input.password) user.password = await bcrypt.hash(input.password, 12)
+    if (input.password) {
+      user.password = await bcrypt.hash(input.password, 12)
+      bumpTokenVersion = true
+    }
+    if (input.accessValidFrom !== undefined && !sameInstant(user.accessValidFrom, nextAccessValidFrom)) {
+      user.accessValidFrom = nextAccessValidFrom
+      bumpTokenVersion = true
+    }
+    if (input.accessValidUntil !== undefined && !sameInstant(user.accessValidUntil, nextAccessValidUntil)) {
+      user.accessValidUntil = nextAccessValidUntil
+      bumpTokenVersion = true
+    }
+    if (bumpTokenVersion) user.tokenVersion += 1
 
     return toRecord(await repository.save(user))
   }

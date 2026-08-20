@@ -23,6 +23,8 @@ const baseUser = {
   email: 'user@example.com',
   role: 'OBSERVATEUR' as const,
   isActive: true,
+  accessValidFrom: null,
+  accessValidUntil: null,
   teamId: 'team-1',
   createdAt: new Date('2026-08-15T10:00:00Z').toISOString(),
 }
@@ -60,6 +62,22 @@ describe('UserService Identity boundary', () => {
     await expect(new UserService(identity).findById('user-1', 'team-1')).resolves.toBeNull()
   })
 
+  it('passes a bounded access window only for the current club user', async () => {
+    const accessValidFrom = '2026-08-20T08:00:00.000Z'
+    const accessValidUntil = '2026-08-20T18:00:00.000Z'
+    getUserById.mockResolvedValue(baseUser)
+    updateUser.mockResolvedValue({ ...baseUser, accessValidFrom, accessValidUntil })
+    const { UserService } = await import('./UserService')
+
+    const result = await new UserService(identity).update('user-1', 'team-1', {
+      accessValidFrom,
+      accessValidUntil,
+    })
+
+    expect(updateUser).toHaveBeenCalledWith('user-1', expect.objectContaining({ accessValidFrom, accessValidUntil }))
+    expect(result.accessValidUntil).toBe(accessValidUntil)
+  })
+
   it('refuses to deactivate the club ADMIN account', async () => {
     getUserById.mockResolvedValue({ ...baseUser, role: 'ADMIN' })
     const { UserService } = await import('./UserService')
@@ -67,6 +85,18 @@ describe('UserService Identity boundary', () => {
     await expect(
       new UserService(identity).update('user-1', 'team-1', { isActive: false }),
     ).rejects.toThrow('Impossible de désactiver le compte administrateur du club')
+    expect(updateUser).not.toHaveBeenCalled()
+  })
+
+  it('refuses to put a temporary access window on the club ADMIN account', async () => {
+    getUserById.mockResolvedValue({ ...baseUser, role: 'ADMIN' })
+    const { UserService } = await import('./UserService')
+
+    await expect(
+      new UserService(identity).update('user-1', 'team-1', {
+        accessValidUntil: '2026-08-20T18:00:00.000Z',
+      }),
+    ).rejects.toThrow("Impossible de limiter dans le temps le compte administrateur du club")
     expect(updateUser).not.toHaveBeenCalled()
   })
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataSource } from "@/lib/db";
 import { User } from "@/entities/User";
 import { issueSession, type SsoUser } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 import { sanitizeRedirect } from "@/lib/redirect";
 import { getClientIP } from "@/lib/getClientIP";
 import { clearFailedLoginAttempts, isLoginRateLimited, recordFailedLoginAttempt } from "@/lib/loginRateLimit";
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     };
 
     const response = NextResponse.json({ success: true, redirect: redirect ?? "/" });
-    await issueSession(response, ssoUser);
+    await issueSession(response, ssoUser, sessionContextFromRequest(request));
     return response;
   } catch (error) {
     console.error("SSO login MFA error:", error);

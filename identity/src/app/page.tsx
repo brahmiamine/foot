@@ -54,6 +54,9 @@ export default async function Home() {
             <li>
               <Link href="/account/password">Changer mon mot de passe</Link>
             </li>
+            <li>
+              <Link href="/account/sessions">Appareils et sessions</Link>
+            </li>
             {session.role === "SUPERADMIN" && (
               <li>
                 <Link href="/account/mfa">Authentification à deux facteurs</Link>

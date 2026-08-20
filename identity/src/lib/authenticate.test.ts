@@ -60,6 +60,30 @@ describe("authenticate", () => {
     expect(result).toBeNull();
   });
 
+  it("rejects login before temporary account access starts", async () => {
+    const { authenticate } = await import("./authenticate");
+    await seedUser(dataSource, {
+      email: "future@example.com",
+      password: "s3cret!",
+      role: "SUPERADMIN",
+      accessValidFrom: new Date(Date.now() + 60_000),
+    });
+
+    expect(await authenticate({ email: "future@example.com", password: "s3cret!" })).toBeNull();
+  });
+
+  it("rejects login once temporary account access has expired", async () => {
+    const { authenticate } = await import("./authenticate");
+    await seedUser(dataSource, {
+      email: "expired@example.com",
+      password: "s3cret!",
+      role: "SUPERADMIN",
+      accessValidUntil: new Date(Date.now() - 60_000),
+    });
+
+    expect(await authenticate({ email: "expired@example.com", password: "s3cret!" })).toBeNull();
+  });
+
   it("rejects SUPERADMIN login attempted with a teamId", async () => {
     const { authenticate } = await import("./authenticate");
     await seedUser(dataSource, { email: "admin@example.com", password: "s3cret!", role: "SUPERADMIN" });

@@ -5,6 +5,7 @@ import {
   registerPasswordMemberForClub,
 } from "@/lib/memberRegistration";
 import { issueSession } from "@/lib/session";
+import { sessionContextFromRequest } from "@/lib/sessionRegistry";
 import { sanitizeRedirect } from "@/lib/redirect";
 import { getClientIP } from "@/lib/getClientIP";
 import { isLoginRateLimited, recordFailedLoginAttempt } from "@/lib/loginRateLimit";
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
         ? body.invitationToken.trim()
         : null;
     const redirect = sanitizeRedirect(typeof body.redirect === "string" ? body.redirect : null);
+    const sessionContext = sessionContextFromRequest(request);
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Nom, email et mot de passe requis" }, { status: 400 });
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: ERROR_MESSAGES[result.error] }, { status: 400 });
       }
       const response = NextResponse.json({ success: true, status: "ACTIVE", redirect: redirect ?? "/" });
-      await issueSession(response, result.user);
+      await issueSession(response, result.user, sessionContext);
       return response;
     }
 
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
       });
       if (result.status === "ACTIVE") {
         const response = NextResponse.json({ success: true, status: result.status, redirect: redirect ?? "/" });
-        await issueSession(response, result.user);
+        await issueSession(response, result.user, sessionContext);
         return response;
       }
       return NextResponse.json({ success: true, status: result.status, requestId: result.requestId }, { status: 202 });

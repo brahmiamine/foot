@@ -73,6 +73,21 @@ describe("createUser", () => {
 
     expect(result).toEqual({ ok: false, error: "email_taken" });
   });
+
+  it("rejects an inverted access window", async () => {
+    const { createUser } = await import("./identityService");
+    const result = await createUser({
+      name: "Temporary",
+      email: "temporary@example.com",
+      password: "s3cret!",
+      role: "OBSERVATEUR",
+      teamId: "team-1",
+      accessValidFrom: new Date("2026-08-20T18:00:00.000Z"),
+      accessValidUntil: new Date("2026-08-20T08:00:00.000Z"),
+    });
+
+    expect(result).toEqual({ ok: false, error: "invalid_access_window" });
+  });
 });
 
 describe("getUserById", () => {
@@ -180,6 +195,25 @@ describe("updateUser", () => {
     const stored = await dataSource.getRepository(User).findOne({ where: { id: "user-1" } });
     expect(stored?.tokenVersion).toBe(2);
     expect(await bcrypt.compare("new-password!", stored!.password)).toBe(true);
+  });
+
+  it("persists an access window and bumps tokenVersion", async () => {
+    const { updateUser } = await import("./identityService");
+    await seedUser(dataSource, { id: "user-1", tokenVersion: 7 });
+
+    const result = await updateUser("user-1", {
+      accessValidFrom: new Date("2026-08-20T08:00:00.000Z"),
+      accessValidUntil: new Date("2026-08-20T18:00:00.000Z"),
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.user.accessValidFrom?.toISOString()).toBe("2026-08-20T08:00:00.000Z");
+      expect(result.user.accessValidUntil?.toISOString()).toBe("2026-08-20T18:00:00.000Z");
+    }
+    const { User } = await import("@/entities/User");
+    const stored = await dataSource.getRepository(User).findOne({ where: { id: "user-1" } });
+    expect(stored?.tokenVersion).toBe(8);
   });
 
   it("returns not_found for an unknown id", async () => {

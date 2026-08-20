@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { getDataSource } from "./db";
 import { User } from "@/entities/User";
+import { isValidAccessWindow } from "./accountAccess";
 
 /**
  * Internal Identity API. Identity is the sole owner of User credentials and
@@ -18,6 +19,8 @@ export interface IdentityUser {
   email: string;
   role: User["role"];
   isActive: boolean;
+  accessValidFrom: Date | null;
+  accessValidUntil: Date | null;
   teamId: string | null;
   playerId: string | null;
   federationId: string | null;
@@ -35,6 +38,8 @@ function toIdentityUser(user: User): IdentityUser {
     email: user.email,
     role: user.role,
     isActive: Boolean(user.isActive),
+    accessValidFrom: user.accessValidFrom ?? null,
+    accessValidUntil: user.accessValidUntil ?? null,
     teamId: user.teamId ?? null,
     playerId: user.playerId ?? null,
     federationId: user.federationId ?? null,
@@ -49,6 +54,8 @@ export interface CreateUserInput {
   password: string;
   role: User["role"];
   isActive?: boolean;
+  accessValidFrom?: Date | null;
+  accessValidUntil?: Date | null;
   teamId: string | null;
   playerId?: string | null;
   federationId?: string | null;
@@ -57,11 +64,15 @@ export interface CreateUserInput {
 
 export type CreateUserResult =
   | { ok: true; user: IdentityUser }
-  | { ok: false; error: "email_taken" };
+  | { ok: false; error: "email_taken" | "invalid_access_window" };
 
 export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
   const dataSource = await getDataSource();
   const repository = dataSource.getRepository(User);
+
+  if (!isValidAccessWindow(input.accessValidFrom, input.accessValidUntil)) {
+    return { ok: false, error: "invalid_access_window" };
+  }
 
   const existing = await repository.findOne({ where: { email: input.email } });
   if (existing) return { ok: false, error: "email_taken" };
@@ -74,6 +85,8 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
     password: hashed,
     role: input.role,
     isActive: input.isActive ?? true,
+    accessValidFrom: input.accessValidFrom ?? null,
+    accessValidUntil: input.accessValidUntil ?? null,
     teamId: input.teamId,
     playerId: input.playerId ?? null,
     federationId: input.federationId ?? null,
@@ -130,11 +143,19 @@ export interface UpdateUserInput {
   isActive?: boolean;
   role?: User["role"];
   password?: string;
+  accessValidFrom?: Date | null;
+  accessValidUntil?: Date | null;
 }
 
 export type UpdateUserResult =
   | { ok: true; user: IdentityUser }
-  | { ok: false; error: "not_found" | "email_taken" };
+  | { ok: false; error: "not_found" | "email_taken" | "invalid_access_window" };
+
+function sameInstant(left: Date | null | undefined, right: Date | null | undefined): boolean {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return left.getTime() === right.getTime();
+}
 
 export async function updateUser(id: string, input: UpdateUserInput): Promise<UpdateUserResult> {
   const dataSource = await getDataSource();
@@ -142,6 +163,14 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Up
 
   const user = await repository.findOne({ where: { id } });
   if (!user) return { ok: false, error: "not_found" };
+
+  const nextAccessValidFrom =
+    input.accessValidFrom !== undefined ? input.accessValidFrom : (user.accessValidFrom ?? null);
+  const nextAccessValidUntil =
+    input.accessValidUntil !== undefined ? input.accessValidUntil : (user.accessValidUntil ?? null);
+  if (!isValidAccessWindow(nextAccessValidFrom, nextAccessValidUntil)) {
+    return { ok: false, error: "invalid_access_window" };
+  }
 
   if (input.email !== undefined && input.email !== user.email) {
     const existing = await repository.findOne({ where: { email: input.email } });
@@ -158,6 +187,14 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Up
   if (input.role !== undefined) user.role = input.role;
   if (input.password !== undefined) {
     user.password = await bcrypt.hash(input.password, 12);
+    bumpTokenVersion = true;
+  }
+  if (input.accessValidFrom !== undefined && !sameInstant(user.accessValidFrom, input.accessValidFrom)) {
+    user.accessValidFrom = input.accessValidFrom;
+    bumpTokenVersion = true;
+  }
+  if (input.accessValidUntil !== undefined && !sameInstant(user.accessValidUntil, input.accessValidUntil)) {
+    user.accessValidUntil = input.accessValidUntil;
     bumpTokenVersion = true;
   }
   if (bumpTokenVersion) user.tokenVersion += 1;

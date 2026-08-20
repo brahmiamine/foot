@@ -3,7 +3,13 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getDataSource } from "./db";
 import { User } from "@/entities/User";
+import { isAccountAccessAllowed } from "./accountAccess";
 import { findVerificationKey, getSigningKey } from "./jwtKeys";
+import {
+  createOrRefreshSession,
+  validateRegisteredSession,
+  type SessionRequestContext,
+} from "./sessionRegistry";
 
 export const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const COOKIE_NAME = process.env.SSO_COOKIE_NAME || "foot_sso_session";
@@ -30,6 +36,8 @@ export interface SsoUser {
   leagueId?: string | null;
   playerId?: string | null;
   tokenVersion: number;
+  /** Identifiant de session persistante permettant une révocation ciblée. */
+  sessionId?: string | null;
   /** Epoch milliseconds of the most recent MFA proof bound to this session. */
   mfaVerifiedAt?: number | null;
 }
@@ -47,6 +55,7 @@ async function signSession(user: SsoUser): Promise<string> {
     leagueId: user.leagueId ?? null,
     playerId: user.playerId ?? null,
     tokenVersion: user.tokenVersion,
+    sid: user.sessionId ?? null,
     mfaVerifiedAt: user.mfaVerifiedAt ?? null,
   })
     .setProtectedHeader({ alg: "RS256", kid })
@@ -82,7 +91,20 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
     const tokenVersion = typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0;
     const dataSource = await getDataSource();
     const user = await dataSource.getRepository(User).findOne({ where: { id: payload.sub } });
-    if (!user || !user.isActive || user.tokenVersion !== tokenVersion) return null;
+    if (!user || !isAccountAccessAllowed(user) || user.tokenVersion !== tokenVersion) return null;
+
+    const sessionId = typeof payload.sid === "string" && payload.sid ? payload.sid : null;
+    if (sessionId) {
+      const active = await validateRegisteredSession({
+        sessionId,
+        userId: user.id,
+        tokenVersion,
+      });
+      if (!active) return null;
+    }
+    // Compatibilité de déploiement : les JWT émis avant ID-005 n'ont pas de
+    // `sid`. Ils restent soumis à tokenVersion, à la fenêtre d'accès compte et
+    // expirent naturellement au plus tard 12 h après le déploiement.
 
     return {
       id: payload.sub,
@@ -94,6 +116,7 @@ export async function verifySessionToken(token: string): Promise<SsoUser | null>
       leagueId: typeof payload.leagueId === "string" ? payload.leagueId : null,
       playerId: typeof payload.playerId === "string" ? payload.playerId : null,
       tokenVersion: user.tokenVersion,
+      sessionId,
       mfaVerifiedAt:
         typeof payload.mfaVerifiedAt === "number" && Number.isFinite(payload.mfaVerifiedAt)
           ? payload.mfaVerifiedAt
@@ -118,8 +141,25 @@ export function issueSessionCookie(response: NextResponse, token: string) {
   return response;
 }
 
-export async function issueSession(response: NextResponse, user: SsoUser) {
-  return issueSessionCookie(response, await signSession(user));
+export async function issueSession(
+  response: NextResponse,
+  user: SsoUser,
+  context?: SessionRequestContext,
+) {
+  const dataSource = await getDataSource();
+  const current = await dataSource.getRepository(User).findOne({ where: { id: user.id } });
+  if (!current || !isAccountAccessAllowed(current) || current.tokenVersion !== user.tokenVersion) {
+    throw new Error("account_access_denied");
+  }
+
+  const sessionId = await createOrRefreshSession({
+    userId: user.id,
+    tokenVersion: user.tokenVersion,
+    sessionId: user.sessionId ?? null,
+    ttlSeconds: SESSION_TTL_SECONDS,
+    context,
+  });
+  return issueSessionCookie(response, await signSession({ ...user, sessionId }));
 }
 
 export function clearSessionCookie(response: NextResponse) {

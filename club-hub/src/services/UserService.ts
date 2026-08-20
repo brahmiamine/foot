@@ -7,6 +7,8 @@ export interface ClubAccountUser {
   email: string
   role: IdentityUserRecord['role']
   isActive: boolean
+  accessValidFrom: string | null
+  accessValidUntil: string | null
   teamId: string | null
   createdAt: Date
 }
@@ -18,9 +20,21 @@ function toClubAccount(user: IdentityUserRecord): ClubAccountUser {
     email: user.email,
     role: user.role,
     isActive: user.isActive,
+    accessValidFrom: user.accessValidFrom ?? null,
+    accessValidUntil: user.accessValidUntil ?? null,
     teamId: user.teamId,
     createdAt: new Date(user.createdAt),
   }
+}
+
+type AccessWindowInput = {
+  accessValidFrom?: string | null
+  accessValidUntil?: string | null
+}
+
+function hasBoundedAccess(input: AccessWindowInput): boolean {
+  return input.accessValidFrom !== undefined && input.accessValidFrom !== null
+    || input.accessValidUntil !== undefined && input.accessValidUntil !== null
 }
 
 /**
@@ -48,7 +62,14 @@ export class UserService {
 
   /** New club accounts remain OBSERVATEUR; only the existing ADMIN can manage them. */
   async create(
-    data: { name: string; email: string; password: string; isActive?: boolean },
+    data: {
+      name: string
+      email: string
+      password: string
+      isActive?: boolean
+      accessValidFrom?: string | null
+      accessValidUntil?: string | null
+    },
     teamId: string,
   ): Promise<ClubAccountUser> {
     if (await this.identity.getUserByEmail(data.email)) {
@@ -63,12 +84,17 @@ export class UserService {
           password: data.password,
           role: 'OBSERVATEUR',
           isActive: data.isActive ?? true,
+          accessValidFrom: data.accessValidFrom ?? null,
+          accessValidUntil: data.accessValidUntil ?? null,
           teamId,
         }),
       )
     } catch (error) {
       if (error instanceof Error && error.message === 'email_taken') {
         throw new Error('Un compte existe déjà avec cet email')
+      }
+      if (error instanceof Error && error.message === 'invalid_access_window') {
+        throw new Error("La période d'accès temporaire est invalide")
       }
       throw error
     }
@@ -77,12 +103,22 @@ export class UserService {
   async update(
     id: string,
     teamId: string,
-    data: { name?: string; email?: string; password?: string; isActive?: boolean },
+    data: {
+      name?: string
+      email?: string
+      password?: string
+      isActive?: boolean
+      accessValidFrom?: string | null
+      accessValidUntil?: string | null
+    },
   ): Promise<ClubAccountUser> {
     const user = await this.findById(id, teamId)
     if (!user) throw new Error('Compte non trouvé')
     if (user.role === 'ADMIN' && data.isActive === false) {
       throw new Error('Impossible de désactiver le compte administrateur du club')
+    }
+    if (user.role === 'ADMIN' && hasBoundedAccess(data)) {
+      throw new Error("Impossible de limiter dans le temps le compte administrateur du club")
     }
 
     if (data.email && data.email !== user.email) {
@@ -99,11 +135,16 @@ export class UserService {
           email: data.email,
           password: data.password,
           isActive: data.isActive,
+          accessValidFrom: data.accessValidFrom,
+          accessValidUntil: data.accessValidUntil,
         }),
       )
     } catch (error) {
       if (error instanceof Error && error.message === 'email_taken') {
         throw new Error('Un compte existe déjà avec cet email')
+      }
+      if (error instanceof Error && error.message === 'invalid_access_window') {
+        throw new Error("La période d'accès temporaire est invalide")
       }
       if (error instanceof Error && error.message === 'not_found') {
         throw new Error('Compte non trouvé')
