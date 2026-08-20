@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { registerApproval } from "../../../packages/domain-contracts/src/approval";
 import {
+  isSafeTripEvidenceLocation,
   playerRequiresTripConsent,
   requiresTripReceipt,
   tripApprovalModeForBudget,
@@ -18,8 +19,9 @@ describe("trip governance rules", () => {
   });
 
   it("rejects invalid budgets and thresholds", () => {
-    expect(() => validateTripBudget(-1)).toThrow();
-    expect(() => tripApprovalModeForBudget(100, -1)).toThrow();
+    expect(() => validateTripBudget(-1)).toThrow("Budget du déplacement invalide");
+    expect(() => validateTripBudget(Number.NaN)).toThrow("Budget du déplacement invalide");
+    expect(() => tripApprovalModeForBudget(100, -1)).toThrow("Seuil de double approbation invalide");
   });
 
   it("requires an expense receipt at or above the configured threshold", () => {
@@ -33,7 +35,15 @@ describe("trip governance rules", () => {
     const departure = new Date("2026-09-01T08:00:00.000Z");
     expect(playerRequiresTripConsent(new Date("2010-09-02T00:00:00.000Z"), departure)).toBe(true);
     expect(playerRequiresTripConsent(new Date("2008-09-01T00:00:00.000Z"), departure)).toBe(false);
+    expect(playerRequiresTripConsent(new Date("2008-09-02T00:00:00.000Z"), departure)).toBe(true);
     expect(playerRequiresTripConsent(null, departure)).toBe(true);
+  });
+
+  it("accepts only http(s) evidence URLs or normalized local trip upload paths", () => {
+    expect(isSafeTripEvidenceLocation("https://files.example.com/receipt.pdf")).toBe(true);
+    expect(isSafeTripEvidenceLocation("/uploads/trips/receipt-123.pdf")).toBe(true);
+    expect(isSafeTripEvidenceLocation("javascript:alert(1)")).toBe(false);
+    expect(isSafeTripEvidenceLocation("/uploads/trips/../../secret")).toBe(false);
   });
 
   it("inherits maker/checker semantics for high-budget trips", () => {
