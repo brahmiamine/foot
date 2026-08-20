@@ -37,7 +37,7 @@ describe('getUserAccess', () => {
       user: { id: 'medical-1', teamId: 'team-1', role: 'OBSERVATEUR' },
     })
     getEffectiveAccess.mockResolvedValue({
-      permissions: ['medical.view', 'medical.manage'],
+      permissions: ['medical.view', 'medical.clearance.manage'],
       categories: ['U19'],
     })
     const { getUserAccess } = await import('./access')
@@ -46,7 +46,43 @@ describe('getUserAccess', () => {
 
     expect(getEffectiveAccess).toHaveBeenCalledWith({ teamId: 'team-1', userId: 'medical-1' })
     expect(access.isClubAdmin).toBe(false)
-    expect(access.permissions).toEqual(new Set(['medical.view', 'medical.manage']))
+    expect(access.permissions).toEqual(new Set(['medical.view', 'medical.clearance.manage']))
     expect(access.categories).toEqual(['U19'])
+  })
+})
+
+describe('can', () => {
+  it('keeps medical.manage as a backward-compatible full medical capability', async () => {
+    const { can } = await import('./access')
+    const access = {
+      userId: 'legacy-medical',
+      teamId: 'team-1',
+      isClubAdmin: false,
+      permissions: new Set(['medical.manage']),
+      categories: ['u19'],
+    } as const
+
+    expect(can(access, 'medical.view')).toBe(true)
+    expect(can(access, 'medical.injuries.manage')).toBe(true)
+    expect(can(access, 'medical.followups.manage')).toBe(true)
+    expect(can(access, 'medical.rtp.manage')).toBe(true)
+    expect(can(access, 'medical.clearance.manage')).toBe(true)
+    expect(can(access, 'medical.documents.manage')).toBe(true)
+    expect(can(access, 'medical.settings.manage')).toBe(true)
+  })
+
+  it('does not let one granular capability imply another', async () => {
+    const { can } = await import('./access')
+    const access = {
+      userId: 'physio-1',
+      teamId: 'team-1',
+      isClubAdmin: false,
+      permissions: new Set(['medical.view', 'medical.rtp.manage']),
+      categories: ['u19'],
+    } as const
+
+    expect(can(access, 'medical.rtp.manage')).toBe(true)
+    expect(can(access, 'medical.clearance.manage')).toBe(false)
+    expect(can(access, 'medical.settings.manage')).toBe(false)
   })
 })
