@@ -4,9 +4,10 @@ import { Card, type CardType } from "@/entities/Card";
 import { Player } from "@/entities/Player";
 import { Suspension } from "@/entities/Suspension";
 import { Fine } from "@/entities/Fine";
-import { Settings } from "@/entities/Settings";
+import { DisciplineRuleApplication } from "@/entities/DisciplineRule";
 import { QueryFailedError, Repository } from "typeorm";
 import { SuspensionService } from "./SuspensionService";
+import { DisciplineRuleService } from "./DisciplineRuleService";
 
 /** MySQL/MariaDB : code d'erreur natif d'une violation de contrainte UNIQUE. */
 function isDuplicateEntryError(error: unknown): boolean {
@@ -21,7 +22,7 @@ export interface CreateCardInput {
   cardReasonId?: string | null;
   commentFr?: string | null;
   commentAr?: string | null;
-  /** Nombre de matchs de suspension saisi manuellement (obligatoire pour RED et DOUBLE_YELLOW) */
+  /** Nombre de matchs de suspension saisi manuellement pour RED/DOUBLE_YELLOW. */
   suspendedMatches?: number;
 }
 
@@ -32,13 +33,6 @@ export class DoubleYellowRequiredError extends Error {
   }
 }
 
-/**
- * Un carton de ce type existe déjà pour ce joueur/match ET a déjà été
- * traité (amende générée) — voir CardService.create : jamais renvoyée pour
- * un carton saisi en live par match-operations et pas encore traité, qui est
- * silencieusement adopté (amende + suspension ajoutées sur la ligne
- * existante) plutôt que dupliqué.
- */
 export class CardAlreadyProcessedError extends Error {
   constructor() {
     super("Ce carton a déjà été enregistré et traité (amende déjà générée) pour ce joueur sur ce match.");
@@ -47,9 +41,10 @@ export class CardAlreadyProcessedError extends Error {
 }
 
 /**
- * Service for Card operations — port de cardManager/app/api/cards. Crée
- * automatiquement l'amende associée (règlement FTF) et déclenche
- * `SuspensionService.checkAndCreateSuspension`.
+ * Service des cartons. Chaque traitement club-hub capture désormais une
+ * DisciplineRuleApplication immutable avant de calculer l'amende et la
+ * suspension. Une évolution future du règlement ne modifie donc jamais une
+ * sanction déjà calculée.
  */
 export class CardService {
   private async getRepository(): Promise<Repository<Card>> {
@@ -72,42 +67,17 @@ export class CardService {
     return repository.findOne({ where: { id, player: { teamId } }, relations: { player: true } });
   }
 
-  /**
-   * Crée un carton pour un joueur du club de l'utilisateur connecté, avec
-   * l'amende associée et la vérification de suspension.
-   *
-   * `Card` a deux écrivains (voir db/OWNERSHIP.md, « Card a deux
-   * écrivains ») : match-operations y insère un carton pendant le live, sans
-   * amende ni suspension (voir CardEventService.create côté match-operations) —
-   * à charge pour club-hub de le "retrouver" ensuite. Si un carton
-   * identique (même joueur/match/type) existe déjà et n'a pas encore
-   * d'amende, on l'adopte (on complète cette ligne au lieu d'en créer une
-   * deuxième) : ça évite un carton en double avec double amende/suspension
-   * si le club ressaisit depuis ce module ce qui a déjà été saisi en live.
-   * S'il existe déjà ET a déjà une amende, on refuse (CardAlreadyProcessedError)
-   * plutôt que de facturer deux fois. Une contrainte UNIQUE(playerId,
-   * matchId, type) en base (voir migrations) est le filet de sécurité final
-   * contre une vraie course entre deux insertions concurrentes (aucune des
-   * deux apps ne partage de verrou applicatif, seule la base le peut).
-   *
-   * @throws DoubleYellowRequiredError si le joueur a déjà un jaune dans ce match.
-   * @throws CardAlreadyProcessedError si un carton identique existe déjà et a déjà une amende.
-   */
   async create(data: CreateCardInput, teamId: string, createdBy: string): Promise<Card> {
     const dataSource = await getDataSource();
     const repository = await this.getRepository();
     const playerRepo = dataSource.getRepository(Player);
     const fineRepo = dataSource.getRepository(Fine);
-    const settingsRepo = dataSource.getRepository(Settings);
 
     const targetPlayer = await playerRepo.findOne({ where: { id: data.playerId } });
     if (!targetPlayer || targetPlayer.teamId !== teamId) {
       throw new Error("Joueur introuvable pour ce club");
     }
 
-    // Un joueur ne peut recevoir qu'un seul carton jaune par match — un
-    // deuxième doit être saisi comme DOUBLE_YELLOW (expulsion). S'applique
-    // que le premier jaune vienne de club-hub ou de match-operations.
     if (data.type === "YELLOW") {
       const existingYellow = await repository.findOne({
         where: { playerId: data.playerId, matchId: data.matchId, type: "YELLOW" },
@@ -115,13 +85,6 @@ export class CardService {
       if (existingYellow) throw new DoubleYellowRequiredError();
     }
 
-    const settings = await settingsRepo.findOne({ where: {} });
-    const fineAmount = data.type === "YELLOW" ? (settings?.yellowFineAmount ?? "30") : (settings?.redFineAmount ?? "50");
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + (settings?.fineDueDays ?? 15));
-
-    // Carton déjà saisi (typiquement en live par match-operations) mais pas
-    // encore traité : on l'adopte plutôt que d'en créer un deuxième.
     const existing = await repository.findOne({
       where: { playerId: data.playerId, matchId: data.matchId, type: data.type },
     });
@@ -151,18 +114,26 @@ export class CardService {
       try {
         await repository.save(card);
       } catch (error) {
-        // Filet de sécurité si un carton identique a été inséré (par
-        // match-operations ou un autre onglet) entre le SELECT ci-dessus et cet
-        // INSERT — voir contrainte UNIQUE(playerId, matchId, type).
         if (isDuplicateEntryError(error)) throw new CardAlreadyProcessedError();
         throw error;
       }
     }
 
+    const { resolved } = await new DisciplineRuleService().resolveAndSnapshotForCard(
+      teamId,
+      data.matchId,
+      data.playerId,
+      card.id,
+      createdBy,
+    );
+    const fineAmount = data.type === "YELLOW" ? resolved.yellowFineAmount : resolved.redFineAmount;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + resolved.fineDueDays);
+
     const fine = fineRepo.create({
       id: randomUUID(),
       type: "CARD",
-      amount: fineAmount,
+      amount: fineAmount.toFixed(3),
       reasonFr: `Frais carton ${data.type}`,
       playerId: data.playerId,
       cardId: card.id,
@@ -171,16 +142,20 @@ export class CardService {
     });
     await fineRepo.save(fine);
 
-    const suspensionService = new SuspensionService();
-    await suspensionService.checkAndCreateSuspension(data.playerId, card.id, data.type, data.suspendedMatches);
+    await new SuspensionService().checkAndCreateSuspension(
+      data.playerId,
+      card.id,
+      data.type,
+      data.suspendedMatches,
+      resolved,
+    );
 
     return card;
   }
 
   /**
-   * Supprime un carton et nettoie les entités liées (suspension/amende),
-   * restaure les jaunes neutralisés par un DOUBLE_YELLOW supprimé, et
-   * réactive le joueur si plus aucune suspension active.
+   * Supprime un carton et ses dérivés. Le snapshot de règle lié au carton est
+   * supprimé avec lui : il ne représente plus une sanction existante.
    */
   async delete(id: string, teamId: string): Promise<Card> {
     const dataSource = await getDataSource();
@@ -188,12 +163,11 @@ export class CardService {
     const playerRepo = dataSource.getRepository(Player);
     const suspensionRepo = dataSource.getRepository(Suspension);
     const fineRepo = dataSource.getRepository(Fine);
+    const ruleApplicationRepo = dataSource.getRepository(DisciplineRuleApplication);
 
     const card = await this.findById(id, teamId);
     if (!card) throw new Error("Carton non trouvé");
 
-    // Restaurer les jaunes neutralisés par ce DOUBLE_YELLOW (même match uniquement,
-    // pour ne pas restaurer des jaunes neutralisés par un autre DOUBLE_YELLOW)
     if (card.type === "DOUBLE_YELLOW") {
       await repository
         .createQueryBuilder()
@@ -208,9 +182,9 @@ export class CardService {
 
     await suspensionRepo.delete({ cardId: id });
     await fineRepo.delete({ cardId: id });
+    await ruleApplicationRepo.delete({ cardId: id, teamId });
     await repository.remove(card);
 
-    // Réactiver le joueur si plus de suspension active et pas d'amende OVERDUE bloquante
     const remainingActive = await suspensionRepo.count({ where: { playerId: card.playerId, status: "ACTIVE" } });
     if (remainingActive === 0) {
       const player = await playerRepo.findOne({ where: { id: card.playerId } });
