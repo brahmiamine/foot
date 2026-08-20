@@ -196,6 +196,8 @@ club-hub/sql/migration_add_versioned_discipline_rules.sql
 club-hub/sql/migration_add_temporary_roles_delegations.sql
 # CLUB-013 : backfill additif des presets Kiné/Médecin/Responsable médical.
 club-hub/sql/migration_add_medical_role_presets.sql
+# PLAYER-001 : demandes de modification sensibles avec snapshot et revue club.
+club-hub/sql/migration_add_player_profile_change_requests.sql
 club-hub/sql/migration_add_trips.sql
 # CLUB-009 : budget, approbations, consentements, justificatifs et clôture.
 club-hub/sql/migration_add_trip_governance.sql
