@@ -160,6 +160,32 @@ async function lockPlayer(manager: EntityManager, playerId: string, teamId?: str
   return player;
 }
 
+function isRequestStale(request: PlayerProfileRequestView, player: Player): boolean {
+  const fields = Object.keys(request.beforeSnapshot) as SensitiveField[];
+  const current = snapshot(player, fields);
+  return fields.some((field) => comparable(current[field]) !== comparable(request.beforeSnapshot[field]));
+}
+
+async function appendDecisionAudit(
+  manager: EntityManager,
+  reviewerUserId: string,
+  request: PlayerProfileRequestView,
+  status: "APPROVED" | "REJECTED" | "STALE",
+  reason?: string | null,
+): Promise<void> {
+  await manager.query(
+    `INSERT INTO AuditLog (id, userId, action, entity, entityId, before, after, createdAt)
+     VALUES (?, ?, 'UPDATE', 'PlayerProfileChangeRequest', ?, ?, ?, NOW(3))`,
+    [
+      randomUUID(),
+      reviewerUserId,
+      request.id,
+      JSON.stringify({ status: request.status, requestedChanges: request.requestedChanges, beforeSnapshot: request.beforeSnapshot }),
+      JSON.stringify({ status, playerId: request.playerId, reason: reason ?? null }),
+    ],
+  );
+}
+
 export class PlayerProfileChangeRequestService {
   private readonly outbox = new NotificationOutboxService();
 
@@ -189,15 +215,18 @@ export class PlayerProfileChangeRequestService {
     requesterUserId: string,
     input: PlayerProfileChangeSet,
   ): Promise<PlayerProfileRequestView> {
-    const { persisted, update } = normalizeSensitiveChanges(input);
+    const { persisted } = normalizeSensitiveChanges(input);
     if (Object.keys(persisted).length === 0) throw new Error("Aucune modification sensible demandée");
 
     const ds = await getDataSource();
     return ds.transaction(async (manager) => {
       const player = await lockPlayer(manager, playerId);
-      const fields = Object.keys(persisted) as SensitiveField[];
-      const before = snapshot(player, fields);
-      const changed = fields.some((field) => comparable(before[field]) !== comparable(persisted[field]));
+      const requestedFields = Object.keys(persisted) as SensitiveField[];
+      const snapshotFields = requestedFields.includes("category")
+        ? requestedFields
+        : [...requestedFields, "category" as const];
+      const before = snapshot(player, snapshotFields);
+      const changed = requestedFields.some((field) => comparable(before[field]) !== comparable(persisted[field]));
       if (!changed) throw new Error("La demande ne contient aucune modification");
 
       const pending = await manager.query(
@@ -208,8 +237,6 @@ export class PlayerProfileChangeRequestService {
       ) as Array<{ id: string }>;
       if (pending.length > 0) throw new Error("Une demande de modification est déjà en attente");
 
-      // Parse before persisting so invalid category/number/position/date never enters the queue.
-      void update;
       const id = randomUUID();
       await manager.query(
         `INSERT INTO cms_player_profile_change_requests
@@ -272,16 +299,15 @@ export class PlayerProfileChangeRequestService {
 
       const request = view(row);
       const player = await lockPlayer(manager, request.playerId, teamId);
-      const fields = Object.keys(request.requestedChanges) as SensitiveField[];
-      const current = snapshot(player, fields);
-      const stale = fields.some((field) => comparable(current[field]) !== comparable(request.beforeSnapshot[field]));
-      if (stale) {
+      if (isRequestStale(request, player)) {
+        const reason = "La fiche joueur a changé depuis la demande";
         await manager.query(
           `UPDATE cms_player_profile_change_requests
            SET status = 'STALE', reviewer_user_id = ?, review_reason = ?, resolved_at = NOW(), updated_at = NOW()
            WHERE id = ? AND team_id = ?`,
-          [reviewerUserId, "La fiche joueur a changé depuis la demande", id, teamId],
+          [reviewerUserId, reason, id, teamId],
         );
+        await appendDecisionAudit(manager, reviewerUserId, request, "STALE", reason);
         await this.outbox.enqueue(manager, {
           eventId: `player-profile:${id}:stale`,
           type: "PLAYER_PROFILE_CHANGE_STALE",
@@ -301,6 +327,7 @@ export class PlayerProfileChangeRequestService {
            WHERE id = ? AND team_id = ?`,
           [reviewerUserId, id, teamId],
         );
+        await appendDecisionAudit(manager, reviewerUserId, request, "APPROVED");
         await this.outbox.enqueue(manager, {
           eventId: `player-profile:${id}:approved`,
           type: "PLAYER_PROFILE_CHANGE_APPROVED",
@@ -329,21 +356,45 @@ export class PlayerProfileChangeRequestService {
       if (!row) throw new Error("Demande introuvable");
       if (row.status !== "PENDING") throw new Error("Cette demande n'est plus en attente");
       if (row.requester_user_id === reviewerUserId) throw new Error("Le demandeur ne peut pas rejeter sa propre demande");
-      await manager.query(
-        `UPDATE cms_player_profile_change_requests
-         SET status = 'REJECTED', reviewer_user_id = ?, review_reason = ?, resolved_at = NOW(), updated_at = NOW()
-         WHERE id = ? AND team_id = ?`,
-        [reviewerUserId, normalizedReason, id, teamId],
-      );
-      await this.outbox.enqueue(manager, {
-        eventId: `player-profile:${id}:rejected`,
-        type: "PLAYER_PROFILE_CHANGE_REJECTED",
-        userId: row.requester_user_id,
-        teamId,
-        title: "Modification de profil refusée",
-        body: `Votre club a refusé votre demande : ${normalizedReason}`,
-        data: { requestId: id, playerId: row.player_id },
-      });
+
+      const request = view(row);
+      const player = await lockPlayer(manager, request.playerId, teamId);
+      if (isRequestStale(request, player)) {
+        const staleReason = "La fiche joueur a changé depuis la demande";
+        await manager.query(
+          `UPDATE cms_player_profile_change_requests
+           SET status = 'STALE', reviewer_user_id = ?, review_reason = ?, resolved_at = NOW(), updated_at = NOW()
+           WHERE id = ? AND team_id = ?`,
+          [reviewerUserId, staleReason, id, teamId],
+        );
+        await appendDecisionAudit(manager, reviewerUserId, request, "STALE", staleReason);
+        await this.outbox.enqueue(manager, {
+          eventId: `player-profile:${id}:stale`,
+          type: "PLAYER_PROFILE_CHANGE_STALE",
+          userId: request.requesterUserId,
+          teamId,
+          title: "Demande de profil à renouveler",
+          body: "Votre fiche a changé depuis votre demande. Merci de soumettre une nouvelle demande.",
+          data: { requestId: id, playerId: request.playerId },
+        });
+      } else {
+        await manager.query(
+          `UPDATE cms_player_profile_change_requests
+           SET status = 'REJECTED', reviewer_user_id = ?, review_reason = ?, resolved_at = NOW(), updated_at = NOW()
+           WHERE id = ? AND team_id = ?`,
+          [reviewerUserId, normalizedReason, id, teamId],
+        );
+        await appendDecisionAudit(manager, reviewerUserId, request, "REJECTED", normalizedReason);
+        await this.outbox.enqueue(manager, {
+          eventId: `player-profile:${id}:rejected`,
+          type: "PLAYER_PROFILE_CHANGE_REJECTED",
+          userId: row.requester_user_id,
+          teamId,
+          title: "Modification de profil refusée",
+          body: `Votre club a refusé votre demande : ${normalizedReason}`,
+          data: { requestId: id, playerId: row.player_id },
+        });
+      }
       const finalRows = await manager.query(`SELECT * FROM cms_player_profile_change_requests WHERE id = ?`, [id]) as RawRequestRow[];
       return view(finalRows[0]);
     });
