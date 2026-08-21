@@ -5,7 +5,11 @@ import { createOfficialCriterion, listOfficialCriteria } from '@/lib/officialRef
 export async function GET(request: NextRequest) {
   const session = await getRefereeDomainSession(request)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(await listOfficialCriteria(!canAccessPlatform(session)))
+  const seasonId = request.nextUrl.searchParams.get('season_id')
+  const competitionId = request.nextUrl.searchParams.get('competition_id')
+  return NextResponse.json(
+    await listOfficialCriteria({ activeOnly: !canAccessPlatform(session), seasonId, competitionId }),
+  )
 }
 
 export async function POST(request: NextRequest) {

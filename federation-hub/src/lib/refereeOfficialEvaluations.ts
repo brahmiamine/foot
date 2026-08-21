@@ -23,6 +23,8 @@ export interface CreateEvaluationInput {
   federationId?: string
   leagueId?: string
   criteres: Record<string, number>
+  /** REF-007 — instant de résolution du barème utilisé, figé pour toute la vie du rapport (défaut : maintenant). */
+  criteriaEffectiveAt?: Date
   noteOfficielle: number
   pointsForts?: string | null
   pointsFaibles?: string | null
@@ -56,6 +58,7 @@ export async function createEvaluation(input: CreateEvaluationInput): Promise<Re
     federation_id: federationId,
     league_id: leagueId,
     criteres: input.criteres,
+    criteria_effective_at: input.criteriaEffectiveAt ?? new Date(),
     note_officielle: input.noteOfficielle,
     points_forts: input.pointsForts ?? null,
     points_faibles: input.pointsFaibles ?? null,

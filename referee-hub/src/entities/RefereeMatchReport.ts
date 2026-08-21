@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGenerat
 import { Assignment, type AssignmentRole } from "./Assignment";
 import { Match } from "./Match";
 
-export type RefereeMatchReportStatus = "DRAFT" | "SUBMITTED";
+export type RefereeMatchReportStatus = "DRAFT" | "SUBMITTED" | "AMENDMENT_REQUESTED" | "AMENDED";
 export type RefereeMatchReportType = "REFEREE_COMPLEMENTARY" | "MATCH_DELEGATE" | "REFEREE_OBSERVER";
 export type RefereeMatchReportCategory = "GENERAL" | "SECURITY" | "ORGANIZATION" | "DISCIPLINE" | "TECHNICAL" | "OTHER";
 
@@ -52,11 +52,28 @@ export class RefereeMatchReport {
   @Column({ type: "text" })
   content!: string;
 
-  @Column({ type: "enum", enum: ["DRAFT", "SUBMITTED"], default: "DRAFT" })
+  @Column({
+    type: "enum",
+    enum: ["DRAFT", "SUBMITTED", "AMENDMENT_REQUESTED", "AMENDED"],
+    default: "DRAFT",
+  })
   status!: RefereeMatchReportStatus;
 
   @Column({ type: "datetime", nullable: true, name: "submitted_at" })
   submittedAt?: Date | null;
+
+  /** REF-004 — motif de la demande d'amendement en cours (jamais de correction silencieuse). */
+  @Column({ type: "varchar", length: 500, nullable: true, name: "amendment_reason" })
+  amendmentReason?: string | null;
+
+  @Column({ type: "datetime", nullable: true, name: "amendment_requested_at" })
+  amendmentRequestedAt?: Date | null;
+
+  @Column({ type: "datetime", nullable: true, name: "amended_at" })
+  amendedAt?: Date | null;
+
+  @Column({ type: "int", default: 0, name: "amendment_count" })
+  amendmentCount!: number;
 
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;

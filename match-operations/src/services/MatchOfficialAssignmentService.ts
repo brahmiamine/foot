@@ -3,6 +3,19 @@ import { Match } from '@/entities/Match'
 import { getDataSource } from '@/lib/db'
 import { createRefereeAvailabilityAdapter } from '@/adapters/referee/createRefereeAvailabilityAdapter'
 import type { RefereeAvailabilityPort } from '../../../packages/domain-contracts/src/referee-availability'
+import {
+  rankDesignationCandidates,
+  type DesignationCandidateEvaluation,
+  type DesignationCandidateInput,
+  type DesignationPolicyValues,
+} from '@/lib/designationPolicy'
+import { MatchOfficialDesignationPolicyService } from './MatchOfficialDesignationPolicyService'
+
+export interface DesignationCandidateHint {
+  userId: string
+  grade?: string | null
+  distanceKm?: number | null
+}
 
 export class MatchOfficialAssignmentError extends Error {
   constructor(message: string) {
@@ -141,5 +154,61 @@ export class MatchOfficialAssignmentService {
   async listForMatch(matchId: string): Promise<MatchOfficialAssignment[]> {
     const repo = await this.getRepository()
     return repo.find({ where: { matchId }, order: { assignedAt: 'DESC' } })
+  }
+
+  /**
+   * REF-006 — évalue/classe des candidats selon la policy de désignation
+   * (mode + grade/dispo/repos/distance/historique). Lecture seule : ne
+   * crée jamais d'affectation, `assign()` reste l'unique porte d'entrée
+   * pour ça, avec sa garde de disponibilité indépendante du mode.
+   */
+  async rankCandidates(
+    matchId: string,
+    candidates: DesignationCandidateHint[],
+  ): Promise<{ policy: DesignationPolicyValues; evaluations: DesignationCandidateEvaluation[] }> {
+    const policy = await new MatchOfficialDesignationPolicyService().resolve()
+    const dataSource = await getDataSource()
+    const match = await dataSource.getRepository(Match).findOne({ where: { id: matchId } })
+    if (!match) throw new MatchOfficialAssignmentError('Match introuvable')
+
+    const inputs: DesignationCandidateInput[] = []
+    for (const candidate of candidates) {
+      let available = true
+      if (match.date) {
+        const availability = await this.refereeAvailability.checkAvailability({
+          userId: candidate.userId,
+          date: match.date.toISOString().slice(0, 10),
+        })
+        available = availability.available
+      }
+
+      const priorAssignments = await dataSource
+        .getRepository(MatchOfficialAssignment)
+        .createQueryBuilder('assignment')
+        .leftJoinAndSelect('assignment.match', 'priorMatch')
+        .where('assignment.user_id = :userId', { userId: candidate.userId })
+        .andWhere('assignment.status = :status', { status: 'ACTIVE' })
+        .andWhere('assignment.match_id != :matchId', { matchId })
+        .getMany()
+
+      let restHoursBeforeMatch: number | null = null
+      if (match.date) {
+        const gapsHours = priorAssignments
+          .filter((assignment) => assignment.match?.date)
+          .map((assignment) => Math.abs(match.date!.getTime() - assignment.match!.date!.getTime()) / (60 * 60 * 1000))
+        restHoursBeforeMatch = gapsHours.length > 0 ? Math.min(...gapsHours) : null
+      }
+
+      inputs.push({
+        userId: candidate.userId,
+        available,
+        grade: candidate.grade ?? null,
+        distanceKm: candidate.distanceKm ?? null,
+        restHoursBeforeMatch,
+        priorAssignmentsCount: priorAssignments.length,
+      })
+    }
+
+    return { policy, evaluations: rankDesignationCandidates(policy, inputs) }
   }
 }

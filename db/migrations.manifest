@@ -174,6 +174,8 @@ federation-hub/migrations/add_is_active_to_leagues.sql
 federation-hub/migrations/add_unique_vote_per_match_device.sql
 federation-hub/migrations/add_team_branding.sql
 federation-hub/migrations/add_team_branding_icons.sql
+# REF-007 : barème d'évaluation officielle versionné (id+version), scope saison/compétition, non-rétroactivité.
+federation-hub/mysql/migration_add_official_criteria_versioning.sql
 
 # --- arbinote (perception publique uniquement) ---
 arbinote/mysql/migration_add_vote_authenticated.sql
@@ -276,6 +278,8 @@ match-operations/sql/migration_add_match_staff_assignments.sql
 match-operations/sql/migration_add_competition_match_protocols.sql
 # MATCH-002 : amendement explicite des feuilles post-match signées/clôturées.
 match-operations/sql/migration_add_sheet_amendments.sql
+# REF-006 : policy de désignation MANUAL/SUGGESTED/AUTO (grade/dispo/repos/distance/historique).
+match-operations/sql/migration_add_official_designation_policy.sql
 
 # --- referee-hub (données privées personnelles des officiels) ---
 # Dépend de match_official_assignments et matches pour les rapports.
@@ -284,6 +288,8 @@ referee-hub/sql/migration_add_referee_private_workflows.sql
 referee-hub/sql/migration_extend_match_reports_for_officials.sql
 # Acceptation/refus de désignation + demandes de remplacement revues par la Fédération.
 referee-hub/sql/migration_add_assignment_responses_replacements.sql
+# REF-003/004/005 : policies d'indisponibilité et de rapports, conflits d'intérêts, audit standard.
+referee-hub/sql/migration_add_referee_governance_ref003_005.sql
 
 # --- payments (base payment_api, remboursements multi-provider) ---
 payments/sql/migration_add_refunds.sql

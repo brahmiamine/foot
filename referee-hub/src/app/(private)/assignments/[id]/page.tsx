@@ -7,9 +7,11 @@ import { getLocale, localize } from "@/lib/i18n";
 import { requireRequestSession } from "@/lib/requestSession";
 import { AssignmentService } from "@/services/AssignmentService";
 import { AssignmentWorkflowService } from "@/services/AssignmentWorkflowService";
+import { RefereeConflictDeclarationService } from "@/services/RefereeConflictDeclarationService";
 import { canWriteMatchReport } from "@/lib/refereeRules";
 import {
   acceptAssignmentAction,
+  declareConflictAction,
   declineAssignmentAction,
   requestReplacementAction,
 } from "../actions";
@@ -22,11 +24,12 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
   const service = new AssignmentService();
   const assignment = await service.getMine(session.id, assignmentId);
   if (!assignment?.match) notFound();
-  const [team, workflow] = await Promise.all([
+  const [team, workflow, conflictDeclaration] = await Promise.all([
     service.listMatchTeam(assignment.matchId),
     assignment.status === "ACTIVE"
       ? new AssignmentWorkflowService().getState(session.id, assignmentId)
       : Promise.resolve(null),
+    new RefereeConflictDeclarationService().getForAssignment(session.id, assignmentId),
   ]);
   const match = assignment.match;
   const home = localize(locale, match.homeTeam?.name, match.homeTeam?.nameAr);
@@ -75,8 +78,27 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
                 {locale === "ar" ? "آخر أجل للقبول: " : "Deadline d'acceptation : "}
                 <strong>{workflow.response.responseDeadline.toLocaleString(locale === "ar" ? "ar-TN" : "fr-FR")}</strong>
               </p>
+              {!conflictDeclaration && (
+                <div className="revoked-notice" style={{ marginBottom: 10 }}>
+                  {locale === "ar"
+                    ? "يجب الإدلاء بتصريح تضارب المصالح قبل قبول هذا التعيين."
+                    : "Une déclaration de conflit d'intérêts est requise avant de pouvoir accepter cette désignation."}
+                </div>
+              )}
+              <form action={declareConflictAction.bind(null, assignment.id)} style={{ display: "grid", gap: 8, maxWidth: 620, marginBottom: 12 }}>
+                <label>
+                  <input type="checkbox" name="has_conflict" value="true" defaultChecked={conflictDeclaration?.hasConflict ?? false} />
+                  {" "}{locale === "ar" ? "أصرح بوجود تضارب في المصالح على هذه المباراة" : "Je déclare un conflit d'intérêts sur ce match"}
+                </label>
+                <textarea name="details" maxLength={500} rows={2} defaultValue={conflictDeclaration?.details ?? ""} placeholder={locale === "ar" ? "تفاصيل (إلزامي في حال وجود تضارب)" : "Détails (obligatoire en cas de conflit)"} />
+                <button type="submit" className="secondary-action">
+                  {conflictDeclaration
+                    ? (locale === "ar" ? "تحديث التصريح" : "Mettre à jour la déclaration")
+                    : (locale === "ar" ? "الإدلاء بالتصريح" : "Déclarer")}
+                </button>
+              </form>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
-                {!workflow.acceptanceOverdue && (
+                {!workflow.acceptanceOverdue && conflictDeclaration && !conflictDeclaration.hasConflict && (
                   <form action={acceptAssignmentAction.bind(null, assignment.id)}>
                     <button type="submit" className="primary-action">{locale === "ar" ? "قبول التعيين" : "Accepter la désignation"}</button>
                   </form>

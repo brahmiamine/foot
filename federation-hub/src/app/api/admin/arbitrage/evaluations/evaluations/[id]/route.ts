@@ -33,7 +33,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   try {
     const body = await request.json()
-    const officialScore = body.criteres === undefined ? null : await calculateOfficialScore(body.criteres)
+    const officialScore = body.criteres === undefined
+      ? null
+      : await calculateOfficialScore(body.criteres, { at: evaluation.criteria_effective_at })
     const updated = await updateEvaluation(id, {
       criteres: officialScore?.scores,
       noteOfficielle: officialScore?.note,

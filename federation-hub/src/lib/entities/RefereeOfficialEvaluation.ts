@@ -54,6 +54,10 @@ export class RefereeOfficialEvaluation {
   @Column({ type: 'json' })
   criteres!: Record<string, number>
 
+  /** REF-007 — instant de résolution du barème (`official_referee_criteria`) utilisé pour ce rapport ; figé dès la création, jamais recalculé au fil des évolutions du barème (non-rétroactivité). */
+  @Column({ type: 'datetime' })
+  criteria_effective_at!: Date
+
   @Column({ type: 'decimal', precision: 5, scale: 2 })
   note_officielle!: number
 

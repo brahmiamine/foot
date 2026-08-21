@@ -3,11 +3,13 @@ import { getDataSource } from "@/lib/db";
 import { AssignmentResponse } from "@/entities/AssignmentResponse";
 import { ReplacementRequest } from "@/entities/ReplacementRequest";
 import { AssignmentService } from "./AssignmentService";
+import { RefereeConflictDeclarationService } from "./RefereeConflictDeclarationService";
 import {
   canAcceptAssignment,
   canRequestReplacement,
   computeAssignmentResponseDeadline,
 } from "@/lib/assignmentWorkflowPolicy";
+import { canAcceptWithConflictDeclaration } from "@/lib/conflictDeclarationPolicy";
 
 export interface AssignmentWorkflowState {
   response: AssignmentResponse;
@@ -75,6 +77,9 @@ export class AssignmentWorkflowService {
     if (response.status !== "PENDING_ACCEPTANCE") {
       throw new Error("Cette désignation a déjà reçu une réponse");
     }
+    const declaration = await new RefereeConflictDeclarationService().getForAssignment(userId, assignmentId);
+    const conflictError = canAcceptWithConflictDeclaration(declaration);
+    if (conflictError) throw new Error(conflictError);
     if (
       !canAcceptAssignment({
         assignmentActive: assignment.status === "ACTIVE",
