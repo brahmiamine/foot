@@ -27,6 +27,7 @@ import { TrainingApprovalPolicy } from "@/entities/TrainingApprovalPolicy";
 import { StatReviewPolicy } from "@/entities/StatReviewPolicy";
 import { HeadCoachDelegation } from "@/entities/HeadCoachDelegation";
 import { StaffConfigurationAudit } from "@/entities/StaffConfigurationAudit";
+import { PlayerAvailabilityDeclaration } from "@/entities/PlayerAvailabilityDeclaration";
 
 /**
  * Connexion TypeORM vers la base "foot" partagée — voir
@@ -81,6 +82,7 @@ export async function getDataSource(): Promise<DataSource> {
         StatReviewPolicy,
         HeadCoachDelegation,
         StaffConfigurationAudit,
+        PlayerAvailabilityDeclaration,
       ],
       migrations: [],
       charset: "utf8mb4",

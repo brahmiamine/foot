@@ -40,6 +40,10 @@ export default async function PlayersPage() {
           <Link href="/admin/players/profile-requests" className="btn btn-outline-primary btn-sm">
             Demandes de modification de profil
           </Link>
+          {" "}
+          <Link href="/admin/players/administrative-requests" className="btn btn-outline-primary btn-sm">
+            Demandes administratives
+          </Link>
         </div>
       )}
       <PlayersList

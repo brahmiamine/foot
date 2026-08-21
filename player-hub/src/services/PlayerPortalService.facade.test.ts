@@ -17,6 +17,14 @@ const publicMethods = [
   "getNextConvocation",
   "getAgenda",
   "getAvailability",
+  "listMyAvailabilityDeclarations",
+  "declareAvailability",
+  "cancelAvailabilityDeclaration",
+  "getDocumentPortfolio",
+  "listMyConsents",
+  "signConsent",
+  "listMyAdministrativeRequests",
+  "submitAdministrativeRequest",
 ] as const;
 
 describe("PlayerPortalService facade", () => {

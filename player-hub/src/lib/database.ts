@@ -16,14 +16,24 @@ import { Fine } from "@/entities/Fine";
 import { Trip } from "@/entities/Trip";
 import { TripParticipant } from "@/entities/TripParticipant";
 import { Injury } from "@/entities/Injury";
+import { PlayerAvailabilityDeclaration } from "@/entities/PlayerAvailabilityDeclaration";
+import { PlayerConsent } from "@/entities/PlayerConsent";
+import { PlayerAdministrativeRequest } from "@/entities/PlayerAdministrativeRequest";
+import { PlayerContract } from "@/entities/PlayerContract";
+import { PlayerRegistration } from "@/entities/PlayerRegistration";
+import { MedicalEligibility } from "@/entities/MedicalEligibility";
 
 /**
  * Connexion TypeORM vers la base "foot" partagée avec identity/match-operations/
  * arbinote/federation-hub/club-hub/seller-portal — voir club-hub/src/lib/database.ts
- * (même pattern). player-hub ne possède aucune de ces tables : lecture des
- * données déjà gérées par club-hub, écriture limitée aux réponses du joueur
+ * (même pattern). player-hub lit les données déjà gérées par club-hub/
+ * federation-hub (`PlayerContract`/`PlayerRegistration`/`MedicalEligibility`
+ * ci-dessous sont des sous-ensembles restreints en lecture seule, voir
+ * PLAYER-003) et écrit uniquement ses propres lignes : réponses du joueur
  * connecté (Convocation.response, TrainingInvitation.response,
- * TripParticipant.transportOffer — voir services/PlayerPortalService.ts).
+ * TripParticipant.transportOffer) et, depuis PLAYER-002/004/005, ses propres
+ * déclarations de disponibilité, consentements et demandes administratives
+ * (voir services/PlayerPortalService.ts).
  */
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
@@ -59,6 +69,12 @@ export async function getDataSource(): Promise<DataSource> {
         Trip,
         TripParticipant,
         Injury,
+        PlayerAvailabilityDeclaration,
+        PlayerConsent,
+        PlayerAdministrativeRequest,
+        PlayerContract,
+        PlayerRegistration,
+        MedicalEligibility,
       ],
       migrations: [],
       charset: "utf8mb4",

@@ -97,6 +97,7 @@ import { TeamAffiliation } from "@/entities/TeamAffiliation";
 import { PersonLicense, PersonLicenseDocument, PersonLicenseHistory } from "@/entities/PersonLicense";
 import { PlayerRegistration, PlayerRegistrationHistory } from "@/entities/PlayerRegistration";
 import { PlayerContract, PlayerContractDocument, PlayerContractHistory } from "@/entities/PlayerContract";
+import { PlayerAdministrativeRequest } from "@/entities/PlayerAdministrativeRequest";
 import { StaffContract, StaffContractDocument, StaffContractHistory } from "@/entities/StaffContract";
 import { ClubSanction, ClubSanctionHistory } from "@/entities/ClubSanction";
 import { LegalCase, LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent } from "@/entities/LegalCase";
@@ -153,7 +154,7 @@ export async function getDataSource(): Promise<DataSource> {
         ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense,
         PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration,
         PlayerRegistrationHistory, PlayerContract, PlayerContractDocument,
-        PlayerContractHistory, StaffContract, StaffContractDocument,
+        PlayerContractHistory, PlayerAdministrativeRequest, StaffContract, StaffContractDocument,
         StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase,
         LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
         SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory,

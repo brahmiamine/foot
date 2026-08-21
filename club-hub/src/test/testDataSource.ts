@@ -19,6 +19,7 @@ import { News } from "@/entities/News";
 import { NewsMedia } from "@/entities/NewsMedia";
 import { NotificationOutboxEvent } from "@/entities/NotificationOutboxEvent";
 import { Player } from "@/entities/Player";
+import { PlayerAdministrativeRequest } from "@/entities/PlayerAdministrativeRequest";
 import { PlayerTransfer } from "@/entities/PlayerTransfer";
 import { Product } from "@/entities/Product";
 import { ProductCategory } from "@/entities/ProductCategory";
@@ -76,6 +77,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       NewsMedia,
       NotificationOutboxEvent,
       Player,
+      PlayerAdministrativeRequest,
       PlayerTransfer,
       Product,
       ProductCategory,
