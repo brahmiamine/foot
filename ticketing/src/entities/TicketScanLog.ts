@@ -19,9 +19,9 @@ export class TicketScanLog {
 
   @Column({
     type: "enum",
-    enum: ["SUCCESS", "ALREADY_USED", "NOT_PAID", "MATCH_CANCELLED", "INVALID", "REVOKED"],
+    enum: ["SUCCESS", "ALREADY_USED", "NOT_PAID", "MATCH_CANCELLED", "INVALID", "REVOKED", "GATE_CLOSED"],
   })
-  result!: "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED";
+  result!: "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED" | "GATE_CLOSED";
 
   // User.id (sso, rôle ADMIN/SUPERADMIN) du membre du staff qui a scanné.
   @Column({ type: "varchar", length: 191, name: "scanned_by" })

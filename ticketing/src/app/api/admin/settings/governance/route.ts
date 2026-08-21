@@ -26,27 +26,30 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(await service.getSettings(ctx.clubId));
 }
 
+const PASSTHROUGH_FIELDS = [
+  "saleApprovalRequired",
+  "makerCheckerEnabled",
+  "priceReapprovalRequired",
+  "gateOpenMinutesBeforeKickoff",
+  "gateCloseMinutesAfterKickoff",
+  "offlineManifestValidityMinutes",
+  "transferEnabled",
+  "transferDeadlineHoursBeforeKickoff",
+  "maxTransfersPerTicket",
+  "seasonPassDurationDays",
+  "promotionApprovalRequired",
+] as const;
+
 export async function PUT(request: NextRequest) {
   const ctx = await context(request);
   if ("unauthorized" in ctx) return ctx.unauthorized;
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    return NextResponse.json(
-      await service.updateSettings(ctx.clubId, ctx.actorUserId, {
-        ...(Object.prototype.hasOwnProperty.call(body, "saleApprovalRequired")
-          ? { saleApprovalRequired: body.saleApprovalRequired as boolean }
-          : {}),
-        ...(Object.prototype.hasOwnProperty.call(body, "makerCheckerEnabled")
-          ? { makerCheckerEnabled: body.makerCheckerEnabled as boolean }
-          : {}),
-        ...(Object.prototype.hasOwnProperty.call(
-          body,
-          "priceReapprovalRequired",
-        )
-          ? { priceReapprovalRequired: body.priceReapprovalRequired as boolean }
-          : {}),
-      }),
-    );
+    const input: Record<string, unknown> = {};
+    for (const field of PASSTHROUGH_FIELDS) {
+      if (Object.prototype.hasOwnProperty.call(body, field)) input[field] = body[field];
+    }
+    return NextResponse.json(await service.updateSettings(ctx.clubId, ctx.actorUserId, input));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Paramètres invalides" },

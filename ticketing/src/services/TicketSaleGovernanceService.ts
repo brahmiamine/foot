@@ -10,6 +10,14 @@ const SETTINGS_DEFAULTS = {
   saleApprovalRequired: true,
   makerCheckerEnabled: true,
   priceReapprovalRequired: true,
+  gateOpenMinutesBeforeKickoff: null,
+  gateCloseMinutesAfterKickoff: null,
+  offlineManifestValidityMinutes: null,
+  transferEnabled: false,
+  transferDeadlineHoursBeforeKickoff: 24,
+  maxTransfersPerTicket: 1,
+  seasonPassDurationDays: 365,
+  promotionApprovalRequired: true,
 } as const;
 
 export interface TicketingGovernanceSettingsValue {
@@ -17,6 +25,14 @@ export interface TicketingGovernanceSettingsValue {
   saleApprovalRequired: boolean;
   makerCheckerEnabled: boolean;
   priceReapprovalRequired: boolean;
+  gateOpenMinutesBeforeKickoff: number | null;
+  gateCloseMinutesAfterKickoff: number | null;
+  offlineManifestValidityMinutes: number | null;
+  transferEnabled: boolean;
+  transferDeadlineHoursBeforeKickoff: number;
+  maxTransfersPerTicket: number;
+  seasonPassDurationDays: number;
+  promotionApprovalRequired: boolean;
   version: number;
   updatedBy: string | null;
   updatedAt: Date | null;
@@ -69,31 +85,82 @@ export class TicketSaleGovernanceService {
       saleApprovalRequired: Boolean(row.saleApprovalRequired),
       makerCheckerEnabled: Boolean(row.makerCheckerEnabled),
       priceReapprovalRequired: Boolean(row.priceReapprovalRequired),
+      gateOpenMinutesBeforeKickoff: row.gateOpenMinutesBeforeKickoff ?? null,
+      gateCloseMinutesAfterKickoff: row.gateCloseMinutesAfterKickoff ?? null,
+      offlineManifestValidityMinutes: row.offlineManifestValidityMinutes ?? null,
+      transferEnabled: Boolean(row.transferEnabled),
+      transferDeadlineHoursBeforeKickoff: row.transferDeadlineHoursBeforeKickoff,
+      maxTransfersPerTicket: row.maxTransfersPerTicket,
+      seasonPassDurationDays: row.seasonPassDurationDays,
+      promotionApprovalRequired: Boolean(row.promotionApprovalRequired),
       version: row.version,
       updatedBy: row.updatedBy ?? null,
       updatedAt: row.updatedAt ?? null,
     };
   }
 
+  private static readonly BOOLEAN_FIELDS = [
+    "saleApprovalRequired",
+    "makerCheckerEnabled",
+    "priceReapprovalRequired",
+    "transferEnabled",
+    "promotionApprovalRequired",
+  ] as const;
+
+  private static readonly NULLABLE_INT_FIELDS = [
+    "gateOpenMinutesBeforeKickoff",
+    "gateCloseMinutesAfterKickoff",
+    "offlineManifestValidityMinutes",
+  ] as const;
+
+  private static readonly POSITIVE_INT_FIELDS = [
+    "transferDeadlineHoursBeforeKickoff",
+    "maxTransfersPerTicket",
+    "seasonPassDurationDays",
+  ] as const;
+
   async updateSettings(
     clubId: string,
     actorUserId: string,
-    input: Partial<Pick<TicketingGovernanceSettingsValue, "saleApprovalRequired" | "makerCheckerEnabled" | "priceReapprovalRequired">>,
+    input: Partial<
+      Pick<
+        TicketingGovernanceSettingsValue,
+        | "saleApprovalRequired"
+        | "makerCheckerEnabled"
+        | "priceReapprovalRequired"
+        | "gateOpenMinutesBeforeKickoff"
+        | "gateCloseMinutesAfterKickoff"
+        | "offlineManifestValidityMinutes"
+        | "transferEnabled"
+        | "transferDeadlineHoursBeforeKickoff"
+        | "maxTransfersPerTicket"
+        | "seasonPassDurationDays"
+        | "promotionApprovalRequired"
+      >
+    >,
   ): Promise<TicketingGovernanceSettingsValue> {
     const raw = input as Record<string, unknown>;
-    const safe = {
-      ...(Object.prototype.hasOwnProperty.call(raw, "saleApprovalRequired")
-        ? { saleApprovalRequired: raw.saleApprovalRequired }
-        : {}),
-      ...(Object.prototype.hasOwnProperty.call(raw, "makerCheckerEnabled")
-        ? { makerCheckerEnabled: raw.makerCheckerEnabled }
-        : {}),
-      ...(Object.prototype.hasOwnProperty.call(raw, "priceReapprovalRequired")
-        ? { priceReapprovalRequired: raw.priceReapprovalRequired }
-        : {}),
-    } as Partial<TicketingGovernanceSettingsValue>;
-    for (const [field, value] of Object.entries(safe)) {
-      if (typeof value !== "boolean") throw new Error(`${field} doit être un booléen`);
+    const allFields = [
+      ...TicketSaleGovernanceService.BOOLEAN_FIELDS,
+      ...TicketSaleGovernanceService.NULLABLE_INT_FIELDS,
+      ...TicketSaleGovernanceService.POSITIVE_INT_FIELDS,
+    ];
+    const safe: Record<string, unknown> = {};
+    for (const field of allFields) {
+      if (Object.prototype.hasOwnProperty.call(raw, field)) safe[field] = raw[field];
+    }
+    for (const field of TicketSaleGovernanceService.BOOLEAN_FIELDS) {
+      if (field in safe && typeof safe[field] !== "boolean") throw new Error(`${field} doit être un booléen`);
+    }
+    for (const field of TicketSaleGovernanceService.NULLABLE_INT_FIELDS) {
+      if (field in safe && safe[field] !== null && (!Number.isInteger(safe[field]) || (safe[field] as number) < 0)) {
+        throw new Error(`${field} doit être un entier positif ou nul`);
+      }
+    }
+    for (const field of TicketSaleGovernanceService.POSITIVE_INT_FIELDS) {
+      if (field in safe && (!Number.isInteger(safe[field]) || (safe[field] as number) <= 0)) {
+        throw new Error(`${field} doit être un entier strictement positif`);
+      }
     }
 
     const ds = await getDataSource();
