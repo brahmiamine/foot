@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { Criteres } from '@/types'
 import { fetchArbitreById, fetchVotesByArbitre } from '@/lib/dataAccess'
 import { enforcePublicRateLimit } from '@/lib/publicRateLimit'
+import { isScorePubliclyVisible } from '@/lib/votingPolicy'
+import { ArbiNoteVotingPolicyService } from '@/lib/votingPolicyService'
 
 export async function GET(
   request: Request,
@@ -56,14 +58,22 @@ export async function GET(
       })
     }
 
+    // ARBI-002 : le score agrégé (toutes compétitions confondues) n'est
+    // rendu public qu'à partir du seuil configuré — le nombre de votes reste
+    // affiché pour que l'utilisateur comprenne pourquoi la note est masquée.
+    const votingPolicy = await new ArbiNoteVotingPolicyService().resolve()
+    const scoreVisible = isScorePubliclyVisible(nombreVotes, votingPolicy)
+
     return NextResponse.json({
       arbitre,
       stats: {
         nombre_votes: nombreVotes,
-        moyenne_note: Math.round(moyenneNote * 100) / 100,
-        moyenne_criteres: statsCriteres,
+        moyenne_note: scoreVisible ? Math.round(moyenneNote * 100) / 100 : 0,
+        moyenne_criteres: scoreVisible ? statsCriteres : { fairplay: 0, decisions: 0, gestion: 0, communication: 0 },
+        score_visible: scoreVisible,
+        minimum_votes_before_visible: votingPolicy.minimumVotesBeforeScoreVisible,
       },
-      votes: votes || [],
+      votes: scoreVisible ? (votes || []) : [],
     })
   } catch (error) {
     console.error('Unexpected error:', error)

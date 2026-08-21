@@ -14,6 +14,7 @@ import {
   fetchFederationsWithLeagues,
 } from '@/lib/dataAccess'
 import { getMatchCredibility } from '@/lib/matchCredibility'
+import { ArbiNoteVotingPolicyService } from '@/lib/votingPolicyService'
 import { getDataSource } from '@/lib/db'
 import { Vote as VoteEntity } from '@/lib/entities'
 import type { Metadata } from 'next'
@@ -164,16 +165,21 @@ export default async function JourneePage({
     totalVotes: totalVotesMap.get(match.id) ?? 0,
   }))
 
+  // ARBI-002 : seuil minimal de votes avant score visible, résolu pour la saison de la journée.
+  const votingPolicy = await new ArbiNoteVotingPolicyService().resolve({ seasonId: journee.saison?.id ?? null })
+
   // Récupérer le meilleur arbitre (basé sur note globale)
   const refereeRanking = buildRanking(votes, {
     criteres: definitions.filter((c) => c.categorie === 'arbitre'),
     includeCategories: ['arbitre'],
+    minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
   })
 
   // Classement global basé sur la note globale
   const globalRanking = buildRanking(votes, {
     criteres: definitions,
     includeCategories: ['arbitre', 'var', 'assistant'],
+    minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
   })
 
   // Calculer les notes moyennes VAR et assistants pour la journée

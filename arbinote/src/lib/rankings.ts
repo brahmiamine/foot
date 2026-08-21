@@ -14,6 +14,8 @@ export interface RankingEntry {
 interface BuildRankingOptions {
   criteres?: CritereDefinition[]
   includeCategories?: CritereCategory[]
+  /** ARBI-002 — un arbitre avec moins de votes que ce seuil n'apparaît pas dans le classement. */
+  minVotes?: number
 }
 
 export function buildRanking(
@@ -89,6 +91,7 @@ export function buildRanking(
   })
 
   return Array.from(map.entries())
+    .filter(([, value]) => value.count >= (options.minVotes ?? 0))
     .map(([arbitreId, value]) => {
       const rawKeys =
         criteresOrder.length > 0

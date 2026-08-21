@@ -12,6 +12,7 @@ import {
   fetchFederationsWithLeagues,
 } from "@/lib/dataAccess";
 import { getActiveLeagueId } from "@/lib/leagueSelection";
+import { ArbiNoteVotingPolicyService } from "@/lib/votingPolicyService";
 import ClassementClient from "@/components/ClassementClient";
 import { fetchCurrentJournee, fetchJourneesWithMatchDates, calculateJourneeWindows } from "@/lib/currentJournee";
 import type { Metadata } from "next";
@@ -166,6 +167,12 @@ export default async function ClassementPage() {
   let topAssistantMatches: TopMatchItem[] = [];
   const allMatchIds: string[] = [];
 
+  // ARBI-002 : seuil minimal de votes avant score visible, résolu pour la
+  // saison de la journée affichée (à défaut, valeur PLATFORM par défaut).
+  const votingPolicy = await new ArbiNoteVotingPolicyService().resolve({
+    seasonId: current?.saison_id ?? previous?.saison_id ?? null,
+  });
+
   // Charger les classements pour la journée courante avec score bayésien
   if (current) {
     const matches = await fetchMatchesByJournee(current.id);
@@ -175,6 +182,7 @@ export default async function ClassementPage() {
     currentRanking = buildBayesianRanking(votes, {
       criteres: arbitreCriteres,
       includeCategories: ["arbitre"],
+      minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
     });
   }
 
@@ -187,6 +195,7 @@ export default async function ClassementPage() {
     previousRanking = buildBayesianRanking(votes, {
       criteres: arbitreCriteres,
       includeCategories: ["arbitre"],
+      minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
     });
   }
 

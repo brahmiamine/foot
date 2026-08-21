@@ -15,6 +15,7 @@ import {
   fetchFederationsWithLeagues,
 } from "@/lib/dataAccess";
 import { getActiveLeagueId } from "@/lib/leagueSelection";
+import { ArbiNoteVotingPolicyService } from "@/lib/votingPolicyService";
 import type { Metadata } from "next";
 import { getSEODescription, getSEOKeywords } from "@/lib/seo";
 import StructuredData from "@/components/StructuredData";
@@ -138,14 +139,19 @@ export default async function StatisticPage() {
   const arbitreCriteres = definitions.filter((c) => c.categorie === "arbitre");
   const generalCriteres = definitions;
 
+  // ARBI-002 : seuil minimal de votes avant score visible, résolu pour la saison affichée.
+  const votingPolicy = await new ArbiNoteVotingPolicyService().resolve({ seasonId: saison.id });
+
   const refereeRanking = buildRanking(votes, {
     criteres: arbitreCriteres,
     includeCategories: ["arbitre"],
+    minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
   });
 
   const generalRanking = buildRanking(votes, {
     criteres: generalCriteres,
     includeCategories: ["arbitre", "var", "assistant"],
+    minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
   });
 
   const matchJourneeMap = new Map((matches || []).map((match) => [match.id, match.journee_id]));
@@ -164,6 +170,7 @@ export default async function StatisticPage() {
     const ranking = buildRanking(journeeVotes, {
       criteres: arbitreCriteres,
       includeCategories: ["arbitre"],
+      minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
     });
     return { journee, best: ranking[0] ?? null };
   });

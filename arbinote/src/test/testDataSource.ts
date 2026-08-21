@@ -12,6 +12,8 @@ import {
   Team,
   Vote,
   VoteAlert,
+  ArbiNoteVotingPolicy,
+  ArbiNoteConfigurationAudit,
 } from '@/lib/entities'
 
 /**
@@ -40,6 +42,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       Team,
       Vote,
       VoteAlert,
+      ArbiNoteVotingPolicy,
+      ArbiNoteConfigurationAudit,
     ],
   })
 

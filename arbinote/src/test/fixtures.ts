@@ -80,10 +80,11 @@ export async function seedBaseGraph(dataSource: DataSource) {
 
 export async function seedCriteres(dataSource: DataSource) {
   const repo = dataSource.getRepository<CritereDefinitionEntity>('critere_definitions')
+  const effectiveFrom = new Date('2020-01-01T00:00:00Z')
   return repo.save([
-    repo.create({ id: 'decisions_cles', categorie: 'arbitre', label_fr: 'Décisions clés', label_ar: 'قرارات رئيسية' }),
-    repo.create({ id: 'gestion_match', categorie: 'arbitre', label_fr: 'Gestion du match', label_ar: 'إدارة المباراة' }),
-    repo.create({ id: 'usage_var', categorie: 'var', label_fr: 'Usage de la VAR', label_ar: 'استخدام الفار' }),
+    repo.create({ id: 'decisions_cles', version: 1, effective_from: effectiveFrom, categorie: 'arbitre', label_fr: 'Décisions clés', label_ar: 'قرارات رئيسية' }),
+    repo.create({ id: 'gestion_match', version: 1, effective_from: effectiveFrom, categorie: 'arbitre', label_fr: 'Gestion du match', label_ar: 'إدارة المباراة' }),
+    repo.create({ id: 'usage_var', version: 1, effective_from: effectiveFrom, categorie: 'var', label_fr: 'Usage de la VAR', label_ar: 'استخدام الفار' }),
   ])
 }
 

@@ -17,6 +17,8 @@ import {
   Team,
   Vote,
   VoteAlert,
+  ArbiNoteVotingPolicy,
+  ArbiNoteConfigurationAudit,
 } from './entities'
 
 const globalForDataSource = globalThis as unknown as {
@@ -51,7 +53,7 @@ function createDataSource() {
     // le schéma sur les seules entités TypeORM et pourrait supprimer les colonnes/
     // tables ajoutées pour ob.
     synchronize: false,
-    entities: [Arbitre, Card, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, Player, Saison, Substitution, Team, Vote, VoteAlert],
+    entities: [Arbitre, Card, CritereDefinitionEntity, Contact, Federation, Goal, Injury, League, Journee, Match, Player, Saison, Substitution, Team, Vote, VoteAlert, ArbiNoteVotingPolicy, ArbiNoteConfigurationAudit],
     extra: {
       decimalNumbers: true,
     },
@@ -62,6 +64,8 @@ function createDataSource() {
 const REQUIRED_ENTITIES = [
   { name: 'Contact', tableName: 'contact_messages' },
   { name: 'VoteAlert', tableName: 'vote_alerts' },
+  { name: 'ArbiNoteVotingPolicy', tableName: 'arbinote_voting_policies' },
+  { name: 'ArbiNoteConfigurationAudit', tableName: 'arbinote_configuration_audit' },
 ]
 
 function hasAllRequiredEntities(dataSource: DataSource): boolean {

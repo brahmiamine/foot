@@ -4,6 +4,7 @@ import { getActiveLeagueId } from '@/lib/leagueSelection'
 import { fetchCurrentJournee } from '@/lib/currentJournee'
 import { fetchMatchesByJournee, fetchVotesByMatchIds, fetchCritereDefinitions } from '@/lib/dataAccess'
 import { buildBayesianRanking } from '@/lib/bayesianRanking'
+import { ArbiNoteVotingPolicyService } from '@/lib/votingPolicyService'
 import { buildCsv, csvResponseHeaders } from '@/lib/csv'
 import { enforcePublicRateLimit } from '@/lib/publicRateLimit'
 import type { CritereDefinition, Vote } from '@/types'
@@ -35,9 +36,11 @@ export async function GET(request: NextRequest) {
     const criteresDefinitions = (await fetchCritereDefinitions()) as unknown as CritereDefinition[]
     const arbitreCriteres = criteresDefinitions.filter((c) => c.categorie === 'arbitre')
 
+    const votingPolicy = await new ArbiNoteVotingPolicyService().resolve()
     const ranking = buildBayesianRanking(votes, {
       criteres: arbitreCriteres,
       includeCategories: ['arbitre'],
+      minVotes: votingPolicy.minimumVotesBeforeScoreVisible,
     })
 
     const headers = ['Rang', 'Arbitre', 'Moyenne brute', 'Score bayésien', 'Nombre de votes']

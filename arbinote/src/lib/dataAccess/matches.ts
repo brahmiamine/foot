@@ -89,7 +89,7 @@ export async function fetchMatchesByJourneeWithUserVote(
     note_globale: number
     device_fingerprint?: string | null
     ip_address?: string | null
-    moderation_status?: 'pending' | 'validated' | 'excluded'
+    moderation_status?: 'pending' | 'validated' | 'excluded' | 'quarantined'
     created_at?: Date | string
   }
 

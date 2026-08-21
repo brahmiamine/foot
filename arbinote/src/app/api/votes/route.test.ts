@@ -11,10 +11,14 @@ vi.mock('@/lib/db', () => ({
 }))
 
 const mockVerifySsoTokenWithRevocation = vi.fn()
-vi.mock('../../../../../packages/auth-shared/src/session', () => ({
-  getSsoCookieName: () => 'foot_sso_session',
-  verifySsoTokenWithRevocation: (...args: unknown[]) => mockVerifySsoTokenWithRevocation(...args),
-}))
+vi.mock('../../../../../packages/auth-shared/src/session', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../packages/auth-shared/src/session')>()
+  return {
+    ...actual,
+    getSsoCookieName: () => 'foot_sso_session',
+    verifySsoTokenWithRevocation: (...args: unknown[]) => mockVerifySsoTokenWithRevocation(...args),
+  }
+})
 
 beforeEach(async () => {
   dataSource = await createTestDataSource()

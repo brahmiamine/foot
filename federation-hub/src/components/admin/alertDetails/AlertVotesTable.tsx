@@ -8,6 +8,7 @@ interface AlertVotesTableProps {
     pending: number;
     validated: number;
     excluded: number;
+    quarantined: number;
   };
   moderating: string | null;
   onModerate: (voteId: string, action: "validate" | "exclude", notes?: string) => void;
@@ -27,7 +28,7 @@ export default function AlertVotesTable({
           Votes ({totalVotes})
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Pending: {moderationStats.pending} | Validated: {moderationStats.validated} | Excluded: {moderationStats.excluded}
+          Pending: {moderationStats.pending} | Quarantined: {moderationStats.quarantined} | Validated: {moderationStats.validated} | Excluded: {moderationStats.excluded}
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -94,11 +95,12 @@ export default function AlertVotesTable({
                     >
                       {vote.moderation_status === "validated" && "✓ Validé"}
                       {vote.moderation_status === "excluded" && "✗ Exclu"}
+                      {vote.moderation_status === "quarantined" && "🔒 Quarantaine"}
                       {(!vote.moderation_status || vote.moderation_status === "pending") && "⏳ En attente"}
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    {(!vote.moderation_status || vote.moderation_status === "pending") && (
+                    {(!vote.moderation_status || vote.moderation_status === "pending" || vote.moderation_status === "quarantined") && (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onModerate(vote.id, "validate")}
