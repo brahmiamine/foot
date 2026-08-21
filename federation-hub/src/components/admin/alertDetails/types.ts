@@ -7,7 +7,7 @@ export interface Vote {
   created_at: string;
   device_fingerprint?: string | null;
   ip_address?: string | null;
-  moderation_status?: "pending" | "validated" | "excluded";
+  moderation_status?: "pending" | "validated" | "excluded" | "quarantined";
   moderated_at?: string | null;
   moderated_by?: string | null;
   moderation_notes?: string | null;
@@ -44,6 +44,7 @@ export interface AlertDetails {
     pending: number;
     validated: number;
     excluded: number;
+    quarantined: number;
   };
   totalVotes: number;
 }

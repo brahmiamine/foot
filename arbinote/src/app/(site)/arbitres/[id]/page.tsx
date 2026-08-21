@@ -6,6 +6,8 @@ import Image from 'next/image'
 import { Vote, Criteres, Match as MatchType, CritereDefinition, Arbitre as ArbitreType } from '@/types'
 import { getServerLocale, translate } from '@/lib/i18nServer'
 import { fetchArbitreById, fetchVotesByArbitre, fetchMatchesByArbitre, fetchVotesByMatchIds, fetchCritereDefinitions } from '@/lib/dataAccess'
+import { isScorePubliclyVisible } from '@/lib/votingPolicy'
+import { ArbiNoteVotingPolicyService } from '@/lib/votingPolicyService'
 import StructuredData from '@/components/StructuredData'
 import type { Metadata } from 'next'
 
@@ -167,12 +169,20 @@ async function getArbitreStats(id: string) {
     }
   })
 
+  // ARBI-002 : le score agrégé n'est publiquement visible qu'à partir du
+  // seuil configuré — le nombre de votes reste affiché pour expliquer
+  // pourquoi la note est encore masquée.
+  const votingPolicy = await new ArbiNoteVotingPolicyService().resolve()
+  const scoreVisible = isScorePubliclyVisible(nombreVotes, votingPolicy)
+
   return {
     arbitre,
     stats: {
       nombre_votes: nombreVotes,
-      moyenne_note: Math.round(moyenneNote * 100) / 100,
-      moyenne_criteres: statsCriteres,
+      moyenne_note: scoreVisible ? Math.round(moyenneNote * 100) / 100 : 0,
+      moyenne_criteres: scoreVisible ? statsCriteres : Object.fromEntries(criteriaIds.map((critereId) => [critereId, 0])),
+      score_visible: scoreVisible,
+      minimum_votes_before_visible: votingPolicy.minimumVotesBeforeScoreVisible,
     },
     matches: matches || [],
     matchRatings,
@@ -327,6 +337,11 @@ export default async function ArbitrePage({
               {stats.moyenne_note > 0 ? formatNote(stats.moyenne_note) : 'N/A'}
               {stats.moyenne_note > 0 && <span className="text-2xl">/5</span>}
             </div>
+            {!stats.score_visible && stats.nombre_votes > 0 && (
+              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                {stats.nombre_votes}/{stats.minimum_votes_before_visible}
+              </div>
+            )}
           </div>
 
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">

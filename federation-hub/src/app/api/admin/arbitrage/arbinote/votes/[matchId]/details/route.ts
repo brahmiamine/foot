@@ -77,6 +77,7 @@ export async function GET(
       pending: votes.filter(v => !v.moderation_status || v.moderation_status === 'pending').length,
       validated: votes.filter(v => v.moderation_status === 'validated').length,
       excluded: votes.filter(v => v.moderation_status === 'excluded').length,
+      quarantined: votes.filter(v => v.moderation_status === 'quarantined').length,
     }
 
     return NextResponse.json({

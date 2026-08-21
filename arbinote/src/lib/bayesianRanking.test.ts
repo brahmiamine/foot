@@ -144,6 +144,18 @@ describe('buildBayesianRanking', () => {
     expect(ranking[1].arbitreId).toBe('a1')
   })
 
+  it('excludes an arbitre below the configured minVotes threshold (ARBI-002)', () => {
+    const ranking = buildBayesianRanking(
+      [
+        { arbitre: arbitre1, note_globale: 5 },
+        { arbitre: arbitre2, note_globale: 4 },
+        { arbitre: arbitre2, note_globale: 4 },
+      ],
+      { minVotes: 2 },
+    )
+    expect(ranking.map((r) => r.arbitreId)).toEqual(['a2'])
+  })
+
   it('backfills missing nom_en/nom_ar/photo_url from later votes', () => {
     const ranking = buildBayesianRanking([
       { arbitre: { ...arbitre1, nom_en: null, photo_url: null }, note_globale: 5 },

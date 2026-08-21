@@ -268,6 +268,8 @@ export function buildBayesianRanking(
   options: {
     criteres?: Array<{ id: string; categorie: string }>
     includeCategories?: string[]
+    /** ARBI-002 — un arbitre avec moins de votes que ce seuil n'apparaît pas dans le classement. */
+    minVotes?: number
   } = {},
   m: number = DEFAULT_BAYESIAN_M,
   C: number = DEFAULT_BAYESIAN_C
@@ -346,9 +348,10 @@ export function buildBayesianRanking(
   })
 
   return Array.from(map.entries())
+    .filter(([, value]) => value.count >= (options.minVotes ?? 0))
     .map(([arbitreId, value]) => {
       // Moyenne pondérée
-      const moyenne_brute = value.totalWeight > 0 
+      const moyenne_brute = value.totalWeight > 0
         ? value.weightedTotal / value.totalWeight 
         : 0
       // Nombre de votes effectifs (somme des poids) pour le calcul bayésien

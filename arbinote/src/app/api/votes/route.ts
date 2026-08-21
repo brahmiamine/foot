@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server'
 import { getDataSource } from '@/lib/db'
 import { Match, Vote as VoteEntity } from '@/lib/entities'
-import { canVoteMatch, getClientIP, roundNote } from '@/lib/utils'
+import { getClientIP, roundNote } from '@/lib/utils'
 import { detectVoteAnomalies } from '@/lib/voteAnomalyDetection'
 import { issueFingerprintProofCookie } from '@/lib/fingerprintProof'
+import { resolveVotingEligibility } from '@/lib/votingPolicy'
+import { ArbiNoteVotingPolicyService } from '@/lib/votingPolicyService'
+import { resolveMatchVotingScope } from '@/lib/matchVotingScope'
+import { quarantineSuspiciousVotes } from '@/lib/voteQuarantine'
 import {
   getSsoCookieName,
+  hasRecentMfa,
   verifySsoTokenWithRevocation,
+  type SsoTokenPayload,
 } from '../../../../../packages/auth-shared/src/session'
 import { MoreThan } from 'typeorm'
 
 const CRITERE_MIN = 1
 const CRITERE_MAX = 5
+/** ARBI-001 — fraîcheur MFA exigée par le mode de vote VERIFIED. */
+const VERIFIED_MFA_MAX_AGE_SECONDS = 24 * 60 * 60
 
 /**
  * TASK-P0-022 : lit la session SSO (espace membre) depuis le header Cookie
@@ -22,7 +30,7 @@ const CRITERE_MAX = 5
  * jeton est invalide/expiré) retombe simplement sur le flux anonyme
  * existant (fingerprint + consentement), jamais bloqué.
  */
-async function getAuthenticatedMemberId(request: Request): Promise<string | null> {
+async function getAuthenticatedMemberSession(request: Request): Promise<SsoTokenPayload | null> {
   const cookieHeader = request.headers.get('cookie') ?? ''
   const cookieName = getSsoCookieName()
   const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]*)`))
@@ -31,7 +39,7 @@ async function getAuthenticatedMemberId(request: Request): Promise<string | null
   const token = decodeURIComponent(match[1])
   const payload = await verifySsoTokenWithRevocation(token)
   if (!payload || payload.role !== 'MEMBER') return null
-  return payload.id
+  return payload
 }
 
 // Recalcule note_globale côté serveur à partir des critères plutôt que de faire confiance
@@ -61,8 +69,9 @@ export async function POST(request: Request) {
     // TASK-P0-022 : un visiteur connecté à l'espace membre (session SSO
     // partagée, même cookie que ob/ticketing/club-hub) vote avec son
     // identité réelle plutôt qu'anonymement — jamais requis, juste une
-    // alternative plus forte quand disponible (voir getAuthenticatedMemberId).
-    const authenticatedUserId = await getAuthenticatedMemberId(request)
+    // alternative plus forte quand disponible (voir getAuthenticatedMemberSession).
+    const memberSession = await getAuthenticatedMemberSession(request)
+    const authenticatedUserId = memberSession?.id ?? null
 
     // Validation — le fingerprint et le consentement RGPD ne sont exigés
     // que pour un vote anonyme : un vote authentifié s'appuie sur une
@@ -105,7 +114,7 @@ export async function POST(request: Request) {
 
     // Vérifier que le match existe
     const match = await matchRepo.findOne({
-      select: ['id', 'arbitre_id', 'date', 'status', 'actual_started_at'],
+      select: ['id', 'arbitre_id', 'date', 'status', 'actual_started_at', 'equipe_home_id', 'equipe_away_id'],
       where: { id: match_id },
     })
 
@@ -124,18 +133,31 @@ export async function POST(request: Request) {
       )
     }
 
-    // Vérifier que le match peut être voté (arbitre attribué, statut réel IN_PROGRESS/FINISHED et au moins 30 min écoulées depuis actual_started_at)
-    if (
-      !canVoteMatch({
-        arbitre_id: match.arbitre_id,
+    // ARBI-001 : fenêtre de vote + mode d'éligibilité (anonyme/membres/vérifié)
+    // résolus depuis la policy en vigueur pour la fédération/ligue/saison du
+    // match, jamais un seuil global figé.
+    const votingScope = await resolveMatchVotingScope(match_id)
+    const votingPolicy = await new ArbiNoteVotingPolicyService().resolve(votingScope)
+    const eligibilityError = resolveVotingEligibility(
+      votingPolicy,
+      {
+        arbitreId: match.arbitre_id,
         status: match.status,
-        actual_started_at: match.actual_started_at,
-      })
-    ) {
-      return NextResponse.json(
-        { error: 'Cannot vote: match has no referee assigned, match has not actually started yet (or was cancelled), or less than 30 minutes have elapsed since the match started' },
-        { status: 400 }
-      )
+        actualStartedAt: match.actual_started_at,
+        homeTeamId: match.equipe_home_id,
+        awayTeamId: match.equipe_away_id,
+      },
+      {
+        isAuthenticatedMember: Boolean(memberSession),
+        isClubMember: Boolean(
+          memberSession?.teamId &&
+            (memberSession.teamId === match.equipe_home_id || memberSession.teamId === match.equipe_away_id),
+        ),
+        isVerified: Boolean(memberSession && hasRecentMfa(memberSession, VERIFIED_MFA_MAX_AGE_SECONDS)),
+      },
+    )
+    if (eligibilityError) {
+      return NextResponse.json({ error: eligibilityError }, { status: 400 })
     }
 
     // Rate limiting intelligent : combinaison fingerprint + IP. Les
@@ -304,6 +326,14 @@ export async function POST(request: Request) {
       } catch (alertError) {
         // Ne pas bloquer le vote en cas d'erreur d'alerte
         console.error('Erreur lors de la création de l\'alerte:', alertError)
+      }
+
+      // ARBI-003 : quarantaine automatique des votes suspects au-delà du
+      // seuil de confiance configuré, jamais bloquant pour le vote en cours.
+      try {
+        await quarantineSuspiciousVotes(match_id, votingPolicy.quarantineConfidenceThreshold)
+      } catch (quarantineError) {
+        console.error('Erreur lors de la mise en quarantaine automatique:', quarantineError)
       }
     }
 

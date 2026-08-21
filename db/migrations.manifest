@@ -179,6 +179,8 @@ federation-hub/mysql/migration_add_official_criteria_versioning.sql
 
 # --- arbinote (perception publique uniquement) ---
 arbinote/mysql/migration_add_vote_authenticated.sql
+# ARBI-001..004 : policy de vote (mode/fenêtre/seuil visibilité/quarantaine), audit standard, barème public versionné.
+arbinote/mysql/migration_add_arbinote_governance.sql
 
 # --- club-hub (Player, discipline, cms_*) ---
 club-hub/sql/migration_unify_players.sql

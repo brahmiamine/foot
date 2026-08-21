@@ -47,10 +47,10 @@ export class Vote {
 
   @Column({
     type: 'enum',
-    enum: ['pending', 'validated', 'excluded'],
+    enum: ['pending', 'validated', 'excluded', 'quarantined'],
     default: 'pending',
   })
-  moderation_status?: 'pending' | 'validated' | 'excluded'
+  moderation_status?: 'pending' | 'validated' | 'excluded' | 'quarantined'
 
   @Column({ type: 'datetime', nullable: true })
   moderated_at?: Date | null

@@ -9,7 +9,7 @@ import { Vote, Match } from './entities'
 import { detectVoteAnomalies } from './voteAnomalyDetection'
 import { toPlainArray } from './serialization'
 
-interface VoteRow {
+export interface VoteRow {
   id: string
   note_globale: number | string
   created_at?: Date | string
@@ -26,7 +26,13 @@ interface VoteRow {
  * @param matchDate - Date du match
  * @returns Set d'IDs de votes suspects
  */
-function computeSuspiciousVoteIds(votes: VoteRow[], matchDate?: Date | string | null): Set<string> {
+/**
+ * @param minConfidence - Seuil de confiance à partir duquel le match est
+ * considéré suspect (défaut : 0.5, le seuil historique `isSuspicious` de
+ * `detectVoteAnomalies`). ARBI-003 réutilise cette fonction avec le seuil
+ * configurable de la policy de quarantaine automatique au lieu de ce défaut.
+ */
+export function computeSuspiciousVoteIds(votes: VoteRow[], matchDate?: Date | string | null, minConfidence = 0.5): Set<string> {
   // Si moins de 5 votes, on ne peut pas détecter d'anomalies statistiques
   if (votes.length < 5) {
     return new Set<string>()
@@ -43,8 +49,8 @@ function computeSuspiciousVoteIds(votes: VoteRow[], matchDate?: Date | string | 
 
   const anomaly = detectVoteAnomalies(votesForAnalysis, matchDate)
 
-  // Si le match n'est pas suspect, aucun vote n'est exclu
-  if (!anomaly.isSuspicious) {
+  // Si le seuil de confiance n'est pas atteint, aucun vote n'est exclu
+  if (anomaly.confidence < minConfidence) {
     return new Set<string>()
   }
 
