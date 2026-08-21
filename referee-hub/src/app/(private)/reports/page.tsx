@@ -20,14 +20,28 @@ export default async function ReportsPage() {
         }
       />
       <div className="report-list">
-        {items.map(({ assignment, report }) => {
+        {items.map(({ assignment, report, mandatory }) => {
           const match = assignment.match!;
           const home = localize(locale, match.homeTeam?.name, match.homeTeam?.nameAr);
           const away = localize(locale, match.awayTeam?.name, match.awayTeam?.nameAr);
+          const locked = report?.status === "SUBMITTED" || report?.status === "AMENDED";
+          const stateLabel = report?.status === "AMENDMENT_REQUESTED"
+            ? (locale === "ar" ? "بانتظار التعديل" : "Amendement en cours")
+            : report?.status === "AMENDED"
+              ? (locale === "ar" ? "معدّل" : "Amendé")
+              : report?.status === "SUBMITTED"
+                ? (locale === "ar" ? "تم الإرسال" : "Envoyé")
+                : report
+                  ? (locale === "ar" ? "مسودة" : "Brouillon")
+                  : (locale === "ar" ? "للتحرير" : "À rédiger");
           return <article className="report-row" key={assignment.id}>
-            <span className={`report-state ${report?.status === "SUBMITTED" ? "submitted" : "draft"}`}>{report?.status === "SUBMITTED" ? <FiCheckCircle /> : <FiEdit3 />}{report?.status === "SUBMITTED" ? (locale === "ar" ? "تم الإرسال" : "Envoyé") : report ? (locale === "ar" ? "مسودة" : "Brouillon") : (locale === "ar" ? "للتحرير" : "À rédiger")}</span>
-            <div><strong>{home} — {away}</strong><span>{formatDate(match.date, locale)} · {roleLabel(assignment.role, locale)}</span>{report && <small>{report.subject}</small>}</div>
-            <Link href={`/reports/${assignment.id}`}>{report?.status === "SUBMITTED" ? (locale === "ar" ? "عرض" : "Consulter") : (locale === "ar" ? "تحرير" : "Rédiger")}</Link>
+            <span className={`report-state ${locked ? "submitted" : "draft"}`}>{locked ? <FiCheckCircle /> : <FiEdit3 />}{stateLabel}</span>
+            <div>
+              <strong>{home} — {away}</strong>
+              <span>{formatDate(match.date, locale)} · {roleLabel(assignment.role, locale)}{mandatory && !report && (locale === "ar" ? " · إلزامي" : " · obligatoire")}</span>
+              {report && <small>{report.subject}</small>}
+            </div>
+            <Link href={`/reports/${assignment.id}`}>{locked ? (locale === "ar" ? "عرض" : "Consulter") : (locale === "ar" ? "تحرير" : "Rédiger")}</Link>
           </article>;
         })}
       </div>

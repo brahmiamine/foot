@@ -9,7 +9,7 @@ export default async function AdminOfficielPage() {
     return <AdminLogin />
   }
 
-  const criteres = await listOfficialCriteria(true)
+  const criteres = await listOfficialCriteria({ activeOnly: true })
 
   return (
     <OfficielEvaluationsManager

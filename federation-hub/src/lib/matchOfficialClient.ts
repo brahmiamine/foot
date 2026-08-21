@@ -103,3 +103,41 @@ export async function revokeMatchOfficial(matchId: string, assignmentId: number,
     { revokedBy },
   )
 }
+
+export type DesignationMode = 'MANUAL' | 'SUGGESTED' | 'AUTO'
+
+export interface DesignationPolicy {
+  mode: DesignationMode
+  minRestHours: number
+  requiredGrades: string[] | null
+  minHistoryMatches: number
+  maxDistanceKm: number | null
+  version: number
+  updatedBy: string | null
+  updatedAt: string | null
+}
+
+export interface DesignationCandidateHint {
+  userId: string
+  grade?: string | null
+  distanceKm?: number | null
+}
+
+export interface DesignationCandidateEvaluation {
+  userId: string
+  eligible: boolean
+  reasons: string[]
+  score: number
+}
+
+/** REF-006 — lecture seule : classe les candidats, ne crée jamais d'affectation. */
+export async function rankMatchOfficialCandidates(
+  matchId: string,
+  candidates: DesignationCandidateHint[],
+): Promise<{ policy: DesignationPolicy; evaluations: DesignationCandidateEvaluation[] }> {
+  return requestWithRetries('POST', `/api/internal/matches/${matchId}/officials/candidates`, { candidates })
+}
+
+export async function getDesignationPolicy(): Promise<DesignationPolicy> {
+  return requestWithRetries('GET', '/api/internal/designation-policy')
+}

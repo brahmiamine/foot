@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
       federationId: scope.federationId,
       leagueId: scope.leagueId,
       criteres: officialScore.scores,
+      criteriaEffectiveAt: officialScore.criteriaEffectiveAt,
       noteOfficielle: officialScore.note,
       pointsForts: points_forts,
       pointsFaibles: points_faibles,

@@ -12,6 +12,11 @@ import { Team } from "@/entities/Team";
 import { User } from "@/entities/User";
 import { RefereeMatchReport } from "@/entities/RefereeMatchReport";
 import { RefereeUnavailability } from "@/entities/RefereeUnavailability";
+import { RefereeUnavailabilityPolicy } from "@/entities/RefereeUnavailabilityPolicy";
+import { RefereeReportPolicy } from "@/entities/RefereeReportPolicy";
+import { RefereeConflictDeclaration } from "@/entities/RefereeConflictDeclaration";
+import { RefereeConfigurationAudit } from "@/entities/RefereeConfigurationAudit";
+import { RefereeReportSlaAlert } from "@/entities/RefereeReportSlaAlert";
 
 let dataSource: DataSource | null = null;
 let initPromise: Promise<DataSource> | null = null;
@@ -41,6 +46,11 @@ export async function getDataSource(): Promise<DataSource> {
         Referee,
         RefereeMatchReport,
         RefereeUnavailability,
+        RefereeUnavailabilityPolicy,
+        RefereeReportPolicy,
+        RefereeConflictDeclaration,
+        RefereeConfigurationAudit,
+        RefereeReportSlaAlert,
         Season,
         Team,
         User,

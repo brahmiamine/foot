@@ -27,3 +27,20 @@ export async function saveReportAction(formData: FormData) {
   revalidatePath(`/reports/${assignmentId}`);
   redirect(`/reports/${assignmentId}?success=${intent === "submit" ? "submitted" : "draft"}`);
 }
+
+/** REF-004 — ouvre une fenêtre de correction sur un rapport déjà envoyé, motif obligatoire. */
+export async function requestAmendmentAction(formData: FormData) {
+  const session = await requireRequestSession();
+  const assignmentId = Number.parseInt(String(formData.get("assignment_id") ?? ""), 10);
+  const reason = String(formData.get("amendment_reason") ?? "");
+  try {
+    if (!Number.isSafeInteger(assignmentId) || assignmentId <= 0) throw new Error("Désignation invalide");
+    await new ReportService().requestAmendment(session.id, assignmentId, reason);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Une erreur est survenue";
+    redirect(`/reports/${assignmentId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath("/reports");
+  revalidatePath(`/reports/${assignmentId}`);
+  redirect(`/reports/${assignmentId}?success=amendment_requested`);
+}
