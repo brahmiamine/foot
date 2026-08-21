@@ -255,6 +255,11 @@ club-hub/sql/migration_add_feature_settings.sql
 # migration_add_roles_scheduling_and_formations.sql) et de cms_configuration_audit
 # (migration_add_configuration_policy_history.sql).
 club-hub/sql/migration_add_staff_governance.sql
+# PLAYER-002/004/005 : disponibilité structurée déclarée par le joueur
+# (consommée en lecture par staff-hub), consentements/signatures joueur avec
+# historique, demandes administratives joueur avec suivi. Dépend de
+# teams/Player (db/foot.sql).
+club-hub/sql/migration_add_player_governance.sql
 
 # --- match-operations (feuille de match électronique, dépend de Player/Card/Match) ---
 match-operations/sql/migration_match-operations_init.sql

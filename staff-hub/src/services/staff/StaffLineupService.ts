@@ -4,11 +4,36 @@ import {
   type FormationWorkflowStatus,
 } from "@/entities/MatchFormation";
 import { TacticsBoard } from "@/entities/TacticsBoard";
+import { PlayerAvailabilityDeclaration } from "@/entities/PlayerAvailabilityDeclaration";
 import type { AgeCategory } from "@/types/categories";
 import { StaffConvocationService } from "./StaffConvocationService";
 import type { CategoryScope } from "./StaffServiceBase";
 
 export class StaffLineupService extends StaffConvocationService {
+  /**
+   * PLAYER-002 — consommation en lecture de la disponibilité déclarée par le
+   * joueur (source de vérité : player-hub). `null` si aucune déclaration ne
+   * couvre la date du match : absence de déclaration = disponible par défaut.
+   */
+  async getPlayerAvailabilityDeclaration(
+    teamId: string,
+    playerId: string,
+    matchType: "OFFICIAL" | "FRIENDLY",
+    matchId?: string,
+    friendlyMatchId?: number,
+  ): Promise<PlayerAvailabilityDeclaration | null> {
+    const kickoff = await this.resolveKickoff(teamId, matchType, matchId, friendlyMatchId);
+    if (!kickoff) return null;
+    const date = kickoff.toISOString().slice(0, 10);
+    const ds = await this.ds();
+    const declarations = await ds.getRepository(PlayerAvailabilityDeclaration).find({ where: { playerId } });
+    return (
+      declarations.find(
+        (declaration) => !declaration.cancelledAt && declaration.startDate <= date && date <= declaration.endDate,
+      ) ?? null
+    );
+  }
+
   async getFormation(
     teamId: string,
     matchType: "OFFICIAL" | "FRIENDLY",
@@ -132,6 +157,17 @@ export class StaffLineupService extends StaffConvocationService {
       options.friendlyMatchId,
     );
     await this.ensureEditable(formation, teamId, matchType, options.matchId, options.friendlyMatchId);
+
+    const declaration = await this.getPlayerAvailabilityDeclaration(
+      teamId,
+      playerId,
+      matchType,
+      options.matchId,
+      options.friendlyMatchId,
+    );
+    if (declaration?.status === "UNAVAILABLE") {
+      throw new Error("Ce joueur s'est déclaré indisponible pour cette période");
+    }
 
     const ds = await this.ds();
     const repo = ds.getRepository(MatchLineup);

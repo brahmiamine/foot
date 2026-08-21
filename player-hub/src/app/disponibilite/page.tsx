@@ -3,6 +3,7 @@ import { playerPortalService } from "@/services/PlayerPortalService";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/format";
+import { AvailabilityDeclarationForm } from "./AvailabilityDeclarationForm";
 
 const SEVERITY_LABEL: Record<string, string> = { MINOR: "Légère", MODERATE: "Modérée", SEVERE: "Sévère" };
 const STATUS_LABEL: Record<string, string> = { ONGOING: "En cours", RECOVERING: "En récupération", RESOLVED: "Résolue" };
@@ -11,7 +12,10 @@ export default async function DisponibilitePage() {
   const session = await auth();
   if (!session) return null;
 
-  const availability = await playerPortalService.getAvailability(session.user.playerId, session.user.teamId);
+  const [availability, declarations] = await Promise.all([
+    playerPortalService.getAvailability(session.user.playerId, session.user.teamId),
+    playerPortalService.listMyAvailabilityDeclarations(session.user.playerId),
+  ]);
 
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
@@ -60,6 +64,17 @@ export default async function DisponibilitePage() {
           </div>
         </Card>
       )}
+
+      <AvailabilityDeclarationForm
+        declarations={declarations.map((d) => ({
+          id: d.id,
+          status: d.status,
+          startDate: d.startDate,
+          endDate: d.endDate,
+          reason: d.reason ?? null,
+          cancelledAt: d.cancelledAt ? d.cancelledAt.toISOString() : null,
+        }))}
+      />
     </div>
   );
 }

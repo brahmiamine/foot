@@ -22,6 +22,9 @@ const items: NavItem[] = [
   { labelKey: "nav.trips", href: "/deplacements", icon: "🚌" },
   { labelKey: "nav.availability", href: "/disponibilite", icon: "🩺" },
   { labelKey: "nav.license", href: "/licence", icon: "🪪" },
+  { labelKey: "nav.documents", href: "/dossier", icon: "📁" },
+  { labelKey: "nav.consents", href: "/consentements", icon: "✍" },
+  { labelKey: "nav.requests", href: "/demandes", icon: "📝" },
   { labelKey: "nav.notifications", href: "/notifications", icon: "🔔" },
   { labelKey: "nav.profile", href: "/profil", icon: "👤" },
 ];

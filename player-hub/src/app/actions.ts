@@ -12,11 +12,14 @@ import type { PlayerProfileChangeInput } from "@/services/player/profileChangePo
 import type { ConvocationResponse } from "@/entities/Convocation";
 import type { TrainingRsvpStatus } from "@/entities/TrainingInvitation";
 import type { TripTransportOffer } from "@/entities/TripParticipant";
+import type { PlayerConsentType } from "@/entities/PlayerConsent";
+import type { PlayerAdministrativeRequestType } from "@/entities/PlayerAdministrativeRequest";
+import type { DeclareAvailabilityInput } from "@/services/player/PlayerGovernanceService";
 
-async function requirePlayerSession(): Promise<{ playerId: string; userId: string }> {
+async function requirePlayerSession(): Promise<{ playerId: string; userId: string; teamId: string }> {
   const session = await auth();
   if (!session) throw new Error("Not authenticated");
-  return { playerId: session.user.playerId, userId: session.user.id };
+  return { playerId: session.user.playerId, userId: session.user.id, teamId: session.user.teamId };
 }
 
 async function requirePlayerId(): Promise<string> {
@@ -84,4 +87,43 @@ export async function markAllNotificationsReadAction() {
   await markAllNotificationsRead();
   revalidatePath("/notifications");
   revalidatePath("/");
+}
+
+// --------------------------------------------------------------------
+// PLAYER-002 : disponibilité structurée déclarée par le joueur
+// --------------------------------------------------------------------
+
+export async function declareAvailabilityAction(input: DeclareAvailabilityInput) {
+  const { teamId, playerId, userId } = await requirePlayerSession();
+  const result = await playerPortalService.declareAvailability(teamId, playerId, userId, input);
+  revalidatePath("/disponibilite");
+  return result;
+}
+
+export async function cancelAvailabilityDeclarationAction(id: number) {
+  const { playerId } = await requirePlayerSession();
+  await playerPortalService.cancelAvailabilityDeclaration(playerId, id);
+  revalidatePath("/disponibilite");
+}
+
+// --------------------------------------------------------------------
+// PLAYER-004 : consentements/signatures joueur
+// --------------------------------------------------------------------
+
+export async function signConsentAction(consentType: PlayerConsentType, referenceId?: string | null) {
+  const { teamId, playerId, userId } = await requirePlayerSession();
+  const result = await playerPortalService.signConsent(teamId, playerId, userId, consentType, referenceId);
+  revalidatePath("/consentements");
+  return result;
+}
+
+// --------------------------------------------------------------------
+// PLAYER-005 (P2) : demandes administratives joueur
+// --------------------------------------------------------------------
+
+export async function submitAdministrativeRequestAction(requestType: PlayerAdministrativeRequestType, details: string) {
+  const { teamId, playerId, userId } = await requirePlayerSession();
+  const result = await playerPortalService.submitAdministrativeRequest(teamId, playerId, userId, requestType, details);
+  revalidatePath("/demandes");
+  return result;
 }
