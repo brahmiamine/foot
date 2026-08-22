@@ -25,6 +25,8 @@ export interface OfflineScanManifest {
   matchLabel: string;
   matchCancelled: boolean;
   generatedAt: string;
+  /** TICK-005 — null si le club n'a pas configuré de durée de validité. */
+  expiresAt: string | null;
   tickets: OfflineManifestTicket[];
 }
 
@@ -47,6 +49,33 @@ const MANIFEST_KEY = "ticketing:offline-scan:manifest";
 const QUEUE_KEY = "ticketing:offline-scan:queue";
 const LOCAL_USED_KEY = "ticketing:offline-scan:locally-used";
 const TERMINAL_ID_KEY = "ticketing:offline-scan:terminal-id";
+const DEVICE_CREDENTIALS_KEY = "ticketing:offline-scan:device-credentials";
+
+export interface ScanDeviceCredentials {
+  deviceId: string;
+  secret: string;
+}
+
+/**
+ * TICK-004 — identifiants de l'appareil enregistré (voir
+ * /api/admin/tickets/scan-devices), saisis une fois par le staff après
+ * l'enregistrement et envoyés en en-têtes sur les routes hors-ligne
+ * (manifeste + synchro). Distinct de `terminalId` (getOrCreateTerminalId) :
+ * `terminalId` est un identifiant auto-généré, jamais vérifié serveur ;
+ * les identifiants d'appareil, eux, sont émis par le serveur et vérifiables.
+ */
+export function getDeviceCredentials(): ScanDeviceCredentials | null {
+  return readJson<ScanDeviceCredentials | null>(DEVICE_CREDENTIALS_KEY, null);
+}
+
+export function setDeviceCredentials(credentials: ScanDeviceCredentials): void {
+  writeJson(DEVICE_CREDENTIALS_KEY, credentials);
+}
+
+export function clearDeviceCredentials(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(DEVICE_CREDENTIALS_KEY);
+}
 
 /**
  * Identifiant d'appareil (TASK-P0-008) : généré une fois par navigateur et

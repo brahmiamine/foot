@@ -6,6 +6,7 @@ import { MatchTicketCategory } from "@/entities/MatchTicketCategory";
 import { TicketSaleRule } from "@/entities/TicketSaleRule";
 import { Ticket } from "@/entities/Ticket";
 import { TicketScanLog } from "@/entities/TicketScanLog";
+import { TicketPromotion } from "@/entities/TicketPromotion";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { generateTicketReference } from "@/lib/reference";
 import { getPaymentProvider, getPaymentStatus, initPayment } from "@/lib/paymentApiClient";
@@ -13,6 +14,7 @@ import { fetchMemberAffiliatedTeamIds, fetchMemberProfile } from "@/lib/ssoProfi
 import { fetchActiveMembership } from "@/lib/clubHubMembershipClient";
 import { verifyTicketToken } from "@/lib/ticketQr";
 import { openStockUnavailableRefundCase } from "@/lib/stockUnavailableRefunds";
+import { TicketSaleGovernanceService } from "@/services/TicketSaleGovernanceService";
 
 export interface OpenMatchSummary {
   id: string;
@@ -160,6 +162,8 @@ export interface PurchaseInput {
   // src/entities/TicketSaleRule.ts : ce n'est PAS une vérification
   // d'identité fiable, juste un garde-fou d'usage.
   audienceConfirmed: boolean;
+  /** TICK-008 — code de promotion optionnel, appliqué à tous les billets du panier. */
+  promoCode?: string;
 }
 
 export interface PurchaseResult {
@@ -294,7 +298,7 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
 
   const ds = await getDataSource();
 
-  const { tickets, mtc, allowedAudience, audienceValidationMode, homeTeamId, awayTeamId } = await ds.transaction(async (manager) => {
+  const { tickets, unitPrice, allowedAudience, audienceValidationMode, homeTeamId, awayTeamId } = await ds.transaction(async (manager) => {
     const mtc = await manager.findOne(MatchTicketCategory, {
       where: { id: input.matchTicketCategoryId },
       lock: { mode: "pessimistic_write" },
@@ -386,6 +390,39 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
       throw new ConflictError(`Il ne reste que ${Math.max(0, remaining)} billet(s) disponible(s) pour cette catégorie.`);
     }
 
+    // TICK-008 — promotion à code : n'affecte que le prix effectif du
+    // panier, jamais la disponibilité/l'audience déjà validées ci-dessus.
+    let promotionId: string | null = null;
+    let unitPrice = mtc.price;
+    const promoCode = input.promoCode?.trim().toUpperCase();
+    if (promoCode) {
+      const promotion = await manager.findOne(TicketPromotion, { where: { matchTicketCategoryId: mtc.id, code: promoCode } });
+      if (!promotion) throw new ForbiddenError("Code de promotion invalide pour cette offre.");
+      const settings = await new TicketSaleGovernanceService().getSettings(match.equipeHome);
+      if (promotion.status !== "APPROVED" && settings.promotionApprovalRequired) {
+        throw new ForbiddenError("Cette promotion n'a pas encore été approuvée.");
+      }
+      if (promotion.startsAt && promotion.startsAt > now) throw new ForbiddenError("Cette promotion n'est pas encore active.");
+      if (promotion.endsAt && promotion.endsAt < now) throw new ForbiddenError("Cette promotion est terminée.");
+
+      const promoUpdateResult = await manager
+        .createQueryBuilder()
+        .update(TicketPromotion)
+        .set({ usedCount: () => "used_count + :qty" })
+        .where("id = :id AND (max_uses IS NULL OR used_count + :qty <= max_uses)", { id: promotion.id, qty: input.quantity })
+        .execute();
+      if (promoUpdateResult.affected !== 1) {
+        throw new ForbiddenError("Cette promotion a atteint son nombre maximal d'utilisations.");
+      }
+
+      const discountValue = Number(promotion.discountValue);
+      const basePrice = Number(mtc.price);
+      const discounted =
+        promotion.discountType === "PERCENTAGE" ? basePrice * (1 - discountValue / 100) : basePrice - discountValue;
+      unitPrice = Math.max(0, discounted).toFixed(3);
+      promotionId = promotion.id;
+    }
+
     // TASK-P0-004 : UPDATE conditionnel atomique en défense en profondeur
     // du verrou pessimistic_write ci-dessus — la condition SQL elle-même
     // (et non plus seulement le check applicatif précédent) empêche tout
@@ -412,7 +449,8 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
         purchaserId: input.purchaserId,
         status: "PENDING",
         reference: generateTicketReference(),
-        price: mtc.price,
+        price: unitPrice,
+        promotionId,
         paymentId: null,
         declaredAudience: allowedAudience,
       }),
@@ -421,6 +459,7 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
     return {
       tickets: saved,
       mtc,
+      unitPrice,
       allowedAudience,
       audienceValidationMode,
       homeTeamId: match.equipeHome,
@@ -439,7 +478,7 @@ export async function purchaseTickets(input: PurchaseInput): Promise<PurchaseRes
     );
   }
 
-  const totalAmount = Math.round(parseFloat(mtc.price) * input.quantity * 1000) / 1000;
+  const totalAmount = Math.round(parseFloat(unitPrice) * input.quantity * 1000) / 1000;
   // Référence du premier billet du lot : unique, sert d'orderId payments
   // pour tout le panier (un seul paiement couvre les `quantity` billets).
   const orderId = tickets[0].reference;
@@ -740,7 +779,7 @@ export async function unrevokeTicket(ticketId: string): Promise<void> {
   await ticketRepo.update({ id: ticketId }, { revoked: false, revokedAt: null, revokedReason: null, revokedBy: null });
 }
 
-export type ScanOutcome = "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED";
+export type ScanOutcome = "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED" | "GATE_CLOSED";
 
 export interface ScanResult {
   outcome: ScanOutcome;
@@ -811,6 +850,27 @@ export async function scanTicket(token: string, scannedBy: string, terminalId?: 
   if (ticket.status !== "PAID") {
     await log("NOT_PAID");
     return { outcome: "NOT_PAID", ...base };
+  }
+
+  // TICK-005 — fenêtre d'ouverture/fermeture des gates : n'importe quel club
+  // sans policy configurée (gate_open/gate_close NULL) garde le
+  // comportement historique (aucune fenêtre). Vérifié ici, juste avant la
+  // transition USED, pour qu'un billet par ailleurs invalide (révoqué, pas
+  // payé, match annulé) reste signalé pour la vraie raison plutôt que
+  // masqué par GATE_CLOSED.
+  if (match?.date) {
+    const settings = await new TicketSaleGovernanceService().getSettings(ticket.organizerTeamId);
+    const { gateOpenMinutesBeforeKickoff, gateCloseMinutesAfterKickoff } = settings;
+    if (gateOpenMinutesBeforeKickoff != null || gateCloseMinutesAfterKickoff != null) {
+      const now = Date.now();
+      const kickoff = match.date.getTime();
+      const opensAt = gateOpenMinutesBeforeKickoff != null ? kickoff - gateOpenMinutesBeforeKickoff * 60_000 : -Infinity;
+      const closesAt = gateCloseMinutesAfterKickoff != null ? kickoff + gateCloseMinutesAfterKickoff * 60_000 : Infinity;
+      if (now < opensAt || now > closesAt) {
+        await log("GATE_CLOSED");
+        return { outcome: "GATE_CLOSED", ...base };
+      }
+    }
   }
 
   // TASK-P0-008 : UPDATE conditionnel atomique — deux scans quasi simultanés
@@ -946,6 +1006,8 @@ export interface OfflineScanManifest {
   matchLabel: string;
   matchCancelled: boolean;
   generatedAt: string;
+  /** TICK-005 — null si le club n'a pas configuré de durée de validité (comportement historique : jamais expiré). */
+  expiresAt: string | null;
   tickets: OfflineManifestTicket[];
 }
 
@@ -982,11 +1044,19 @@ export async function getOfflineScanManifest(matchId: string): Promise<OfflineSc
     mtcs.map((mtc) => [mtc.id, categories.find((c) => c.id === mtc.categoryId)?.name ?? "Catégorie"]),
   );
 
+  const generatedAt = new Date();
+  const settings = await new TicketSaleGovernanceService().getSettings(match.equipeHome);
+  const expiresAt =
+    settings.offlineManifestValidityMinutes != null
+      ? new Date(generatedAt.getTime() + settings.offlineManifestValidityMinutes * 60_000).toISOString()
+      : null;
+
   return {
     matchId,
     matchLabel: `${match.homeTeam?.nom ?? "?"} - ${match.awayTeam?.nom ?? "?"}`,
     matchCancelled: match.status === "CANCELLED",
-    generatedAt: new Date().toISOString(),
+    generatedAt: generatedAt.toISOString(),
+    expiresAt,
     // Un billet révoqué (TASK-P0-009) est exclu du manifeste plutôt que
     // marqué d'un statut dédié : evaluateOfflineScan (src/lib/offlineScan.ts)
     // rejette alors le scan en INVALID (entrée introuvable), un refus sûr

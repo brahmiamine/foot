@@ -13,6 +13,12 @@ import { TicketScanLog } from "@/entities/TicketScanLog";
 import { ProcessedWebhookEvent } from "@/entities/ProcessedWebhookEvent";
 import { StockUnavailableRefund } from "@/entities/StockUnavailableRefund";
 import { MatchCancellationRefund } from "@/entities/MatchCancellationRefund";
+import { TicketGrant } from "@/entities/TicketGrant";
+import { ScanDevice } from "@/entities/ScanDevice";
+import { TicketTransfer } from "@/entities/TicketTransfer";
+import { SeasonPass } from "@/entities/SeasonPass";
+import { SeasonPassRedemption } from "@/entities/SeasonPassRedemption";
+import { TicketPromotion } from "@/entities/TicketPromotion";
 
 /**
  * Connexion TypeORM vers la base MariaDB "foot" partagée avec les autres
@@ -46,6 +52,12 @@ export async function getDataSource(): Promise<DataSource> {
         ProcessedWebhookEvent,
         StockUnavailableRefund,
         MatchCancellationRefund,
+        TicketGrant,
+        ScanDevice,
+        TicketTransfer,
+        SeasonPass,
+        SeasonPassRedemption,
+        TicketPromotion,
       ],
       migrations: [],
       charset: "utf8mb4",

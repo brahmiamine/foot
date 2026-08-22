@@ -8,6 +8,7 @@ import {
   clearManifest,
   enqueuePendingScan,
   evaluateOfflineScan,
+  getDeviceCredentials,
   getLocallyUsedTicketIds,
   getOrCreateTerminalId,
   getPendingScans,
@@ -15,13 +16,21 @@ import {
   markLocallyUsed,
   removePendingScan,
   saveManifest,
+  setDeviceCredentials,
   type OfflineScanManifest,
   type PendingScan,
 } from "@/lib/offlineScan";
 
+/** TICK-004 — en-têtes d'identité d'appareil pour les routes hors-ligne, `null` si aucun appareil configuré sur ce terminal. */
+function deviceHeaders(): Record<string, string> {
+  const credentials = getDeviceCredentials();
+  if (!credentials) return {};
+  return { "x-scan-device-id": credentials.deviceId, "x-scan-device-secret": credentials.secret };
+}
+
 export interface RecentScanRow {
   id: string;
-  result: "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED";
+  result: "SUCCESS" | "ALREADY_USED" | "NOT_PAID" | "MATCH_CANCELLED" | "INVALID" | "REVOKED" | "GATE_CLOSED";
   scannedBy: string;
   scannedAtLabel: string;
   reference: string | null;
@@ -55,6 +64,7 @@ const OUTCOME_KEYS: Record<RecentScanRow["result"], TranslationKey> = {
   MATCH_CANCELLED: "scanner.result.matchCancelled",
   INVALID: "scanner.result.invalid",
   REVOKED: "scanner.result.revoked",
+  GATE_CLOSED: "scanner.result.gateClosed",
 };
 
 const OUTCOME_COLORS: Record<RecentScanRow["result"], string> = {
@@ -64,6 +74,7 @@ const OUTCOME_COLORS: Record<RecentScanRow["result"], string> = {
   MATCH_CANCELLED: "var(--tk-danger)",
   INVALID: "var(--tk-danger)",
   REVOKED: "var(--tk-danger)",
+  GATE_CLOSED: "var(--tk-danger)",
 };
 
 export function TicketScanner({
@@ -98,6 +109,19 @@ export function TicketScanner({
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
+  const [deviceId, setDeviceIdState] = useState(() => getDeviceCredentials()?.deviceId ?? null);
+
+  // TICK-004 — identifiants d'appareil saisis une fois (voir
+  // /admin/scan-devices pour l'enregistrement côté staff), stockés en
+  // localStorage sur ce terminal, jamais transmis par un autre canal.
+  function configureDevice() {
+    const id = window.prompt(t("scanner.device.promptId"))?.trim();
+    if (!id) return;
+    const secret = window.prompt(t("scanner.device.promptSecret"))?.trim();
+    if (!secret) return;
+    setDeviceCredentials({ deviceId: id, secret });
+    setDeviceIdState(id);
+  }
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -117,6 +141,7 @@ export function TicketScanner({
     try {
       const res = await fetch(`/api/admin/tickets/offline-manifest?matchId=${encodeURIComponent(selectedMatchId)}`, {
         credentials: "include",
+        headers: deviceHeaders(),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok || !body) throw new Error((body && "error" in body ? body.error : null) ?? t("scanner.manifest.downloadFailed"));
@@ -152,9 +177,10 @@ export function TicketScanner({
       const res = await fetch("/api/admin/tickets/sync-scans", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify({
           scans: queue.map((item) => ({ token: item.token, terminalId, scannedAt: item.scannedAt })),
+          manifestGeneratedAt: manifest?.generatedAt ?? null,
         }),
       });
       if (!res.ok) throw new Error();
@@ -319,6 +345,14 @@ export function TicketScanner({
           <p style={{ marginTop: 0, color: "var(--tk-text-muted)" }}>
             {t("scanner.offline.explanation")}
           </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
+            <span style={{ color: deviceId ? "var(--tk-text-muted)" : "var(--tk-danger)" }}>
+              {deviceId ? t("scanner.device.configured", { id: deviceId }) : t("scanner.device.notConfigured")}
+            </span>
+            <button type="button" onClick={configureDevice} style={{ fontSize: "0.75rem", cursor: "pointer" }}>
+              {t("scanner.device.configure")}
+            </button>
+          </div>
           {manifest ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
               <span>

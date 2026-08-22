@@ -9,6 +9,7 @@ const purchaseSchema = z.object({
   matchTicketCategoryId: z.string().min(1),
   quantity: z.number().int().min(1).max(20),
   audienceConfirmed: z.boolean().optional().default(false),
+  promoCode: z.string().min(1).optional(),
 });
 
 // Le vendeur/organisateur n'est jamais lu depuis le body client, il est
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       matchTicketCategoryId: body.matchTicketCategoryId,
       quantity: body.quantity,
       audienceConfirmed: body.audienceConfirmed,
+      promoCode: body.promoCode,
     });
 
     return NextResponse.json({ tickets, payUrl }, { status: 201 });

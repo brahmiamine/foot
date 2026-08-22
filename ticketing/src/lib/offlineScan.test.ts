@@ -16,6 +16,7 @@ function manifest(overrides: Partial<OfflineScanManifest> = {}): OfflineScanMani
     matchLabel: "Domicile FC - Visiteur FC",
     matchCancelled: false,
     generatedAt: new Date().toISOString(),
+    expiresAt: null,
     tickets: [
       { ticketId: "ticket-paid", reference: "REF-PAID", status: "PAID", categoryName: "Tribune" },
       { ticketId: "ticket-used", reference: "REF-USED", status: "USED", categoryName: "Tribune" },

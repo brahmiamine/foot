@@ -41,6 +41,26 @@ export class Ticket {
   @Column({ type: "decimal", precision: 10, scale: 3 })
   price!: string;
 
+  /**
+   * Origine du billet : PURCHASE (achat normal), GRANT (invitation/gratuit,
+   * TICK-003), SEASON_PASS (retrait via abonnement saison, TICK-007).
+   */
+  @Column({ type: "enum", enum: ["PURCHASE", "GRANT", "SEASON_PASS"], default: "PURCHASE" })
+  source!: "PURCHASE" | "GRANT" | "SEASON_PASS";
+
+  @Column({ type: "char", length: 36, name: "grant_id", nullable: true })
+  grantId!: string | null;
+
+  @Column({ type: "char", length: 36, name: "season_pass_id", nullable: true })
+  seasonPassId!: string | null;
+
+  @Column({ type: "char", length: 36, name: "promotion_id", nullable: true })
+  promotionId!: string | null;
+
+  /** TICK-006 — nombre de transferts déjà effectués sur ce billet, comparé à `maxTransfersPerTicket`. */
+  @Column({ type: "int", name: "transfer_count", default: 0 })
+  transferCount!: number;
+
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   createdAt!: Date;
 

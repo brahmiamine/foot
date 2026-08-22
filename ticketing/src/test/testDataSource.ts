@@ -11,6 +11,12 @@ import { TicketCategory } from "@/entities/TicketCategory";
 import { TicketSaleRule } from "@/entities/TicketSaleRule";
 import { TicketingGovernanceSettings } from "@/entities/TicketingGovernance";
 import { TicketScanLog } from "@/entities/TicketScanLog";
+import { TicketGrant } from "@/entities/TicketGrant";
+import { ScanDevice } from "@/entities/ScanDevice";
+import { TicketTransfer } from "@/entities/TicketTransfer";
+import { SeasonPass } from "@/entities/SeasonPass";
+import { SeasonPassRedemption } from "@/entities/SeasonPassRedemption";
+import { TicketPromotion } from "@/entities/TicketPromotion";
 
 export async function createTestDataSource(): Promise<DataSource> {
   const dataSource = new DataSource({
@@ -30,6 +36,12 @@ export async function createTestDataSource(): Promise<DataSource> {
       TicketSaleRule,
       TicketingGovernanceSettings,
       TicketScanLog,
+      TicketGrant,
+      ScanDevice,
+      TicketTransfer,
+      SeasonPass,
+      SeasonPassRedemption,
+      TicketPromotion,
     ],
   });
   await dataSource.initialize();

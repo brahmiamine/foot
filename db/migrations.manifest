@@ -316,6 +316,12 @@ ticketing/sql/migration_add_match_cancellation_refunds.sql
 ticketing/sql/migration_add_sale_governance.sql
 # OB-003 : prévente réservée aux membres — dépend de migration_add_sale_governance.sql.
 ticketing/sql/migration_add_presale_membership.sql
+# TICK-003 à TICK-008 : billets invitations/gratuits (quota+approbation),
+# appareils scanner (registre/révocation/version de clé), politique
+# d'entrée gates + validité manifeste hors-ligne, transfert de billet,
+# abonnements saison, promotions à code. Dépend de
+# migration_add_sale_governance.sql (tk_governance_settings/tk_ticket_sale_rules).
+ticketing/sql/migration_add_ticketing_governance_extras.sql
 
 # --- seller-portal (sp_*, dépend de teams) ---
 seller-portal/sql/schema.sql

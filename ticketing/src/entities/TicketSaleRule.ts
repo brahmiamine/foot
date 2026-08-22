@@ -38,6 +38,10 @@ export class TicketSaleRule {
   @Column({ type: "int", name: "max_tickets_per_user", default: 4 })
   maxTicketsPerUser!: number;
 
+  /** TICK-003 — nombre maximal de billets gratuits/invitations pour cette offre. 0 = aucun autorisé (comportement historique). */
+  @Column({ type: "int", name: "comp_quota", default: 0 })
+  compQuota!: number;
+
   /** OB-003 : prévente réservée aux membres, règle serveur (jamais un claim client). */
   @Column({ type: "boolean", default: false, name: "presale_requires_membership" })
   presaleRequiresMembership!: boolean;
