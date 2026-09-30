@@ -9,7 +9,7 @@ USE foot;
 
 CREATE TABLE IF NOT EXISTS player_transfers (
   id VARCHAR(191) NOT NULL PRIMARY KEY,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   from_team_id CHAR(36) NOT NULL,
   to_team_id CHAR(36) NOT NULL,
   transfer_type ENUM('PERMANENT', 'LOAN', 'LOAN_RETURN', 'FREE_TRANSFER') NOT NULL,

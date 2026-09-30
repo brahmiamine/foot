@@ -118,11 +118,189 @@ import { StatReviewPolicy } from "@/entities/StatReviewPolicy";
 import { ClubFeatureSettings } from "@/entities/ClubFeatureSettings";
 import { DisciplineRuleApplication, DisciplineRuleOverride, DisciplineRuleSet } from "@/entities/DisciplineRule";
 
-let dataSource: DataSource | null = null;
-let initPromise: Promise<DataSource> | null = null;
+/**
+ * En dev Next.js (`--webpack`), chaque route compilée à la demande charge un
+ * module distinct : `dataSource`/`initPromise` en variables de module
+ * créeraient une DataSource (donc un pool de connexions MariaDB) PAR ROUTE —
+ * avec ~190 routes, la base sature (`ER_CON_COUNT_ERROR: Too many
+ * connections`). On stocke donc l'instance et la promesse sur `globalThis`,
+ * partagées par tous les modules. Même pattern que `identity/src/lib/db.ts`,
+ * `arbinote/src/lib/db.ts` et `federation-hub`.
+ */
+const globalForDataSource = globalThis as unknown as {
+  clubHubDataSource?: DataSource | null;
+  clubHubDataSourceInit?: Promise<DataSource> | null;
+};
+
+let dataSource: DataSource | null = globalForDataSource.clubHubDataSource ?? null;
+let initPromise: Promise<DataSource> | null = globalForDataSource.clubHubDataSourceInit ?? null;
+
+const ENTITIES = [
+  Federation,
+  Stadium,
+  Team,
+  TeamBranding,
+  News,
+  Player,
+  TeamMember,
+  Staff,
+  MediaItem,
+  MediaGallery,
+  MediaGalleryItem,
+  NewsMedia,
+  MatchGallery,
+  Match,
+  User,
+  CardReason,
+  Card,
+  Suspension,
+  Fine,
+  Note,
+  AuditLog,
+  Settings,
+  Matchday,
+  Notification,
+  Convocation,
+  ProductCategory,
+  Product,
+  SponsorRequest,
+  Sponsor,
+  SponsorContractApproval,
+  SponsorContractDecision,
+  SponsorshipGovernanceSettings,
+  SponsorWorkflowEvent,
+  MatchLineup,
+  Role,
+  UserRole,
+  RoleDelegation,
+  FriendlyMatch,
+  Training,
+  TrainingInvitation,
+  TrainingTemplate,
+  MatchFormation,
+  TacticsBoard,
+  TrainingBlock,
+  PlayerStat,
+  Injury,
+  Goal,
+  Substitution,
+  MatchInjury,
+  Trip,
+  TripVehicle,
+  TripParticipant,
+  TripGovernanceSettings,
+  TripBudgetApproval,
+  TripBudgetDecision,
+  TripExpenseReceipt,
+  TripWorkflowEvent,
+  ClubInfo,
+  History,
+  HistoryFigure,
+  Honor,
+  AcademyCategory,
+  AcademyInfo,
+  PlayerApplication,
+  PlayerApplicationEvent,
+  RecruitmentNeed,
+  RecruitmentApplication,
+  RecruitmentApplicationEvent,
+  Announcement,
+  TeamSocials,
+  ContactInfo,
+  ContactMessage,
+  TicketCategory,
+  MatchTicketCategory,
+  TicketSaleRule,
+  ShopOrder,
+  ShopOrderItem,
+  NotificationOutboxEvent,
+  ProcessedWebhookEvent,
+  StockUnavailableRefund,
+  PlayerTransfer,
+  TeamAffiliation,
+  ClubLicenseApplication,
+  ClubLicenseRequirement,
+  ClubLicenseDocument,
+  ClubLicenseHistory,
+  PersonLicense,
+  PersonLicenseDocument,
+  PersonLicenseHistory,
+  PlayerRegistration,
+  PlayerRegistrationHistory,
+  PlayerContract,
+  PlayerContractDocument,
+  PlayerContractHistory,
+  PlayerAdministrativeRequest,
+  StaffContract,
+  StaffContractDocument,
+  StaffContractHistory,
+  ClubSanction,
+  ClubSanctionHistory,
+  LegalCase,
+  LegalCaseDocument,
+  LegalCaseHearing,
+  LegalCaseDecision,
+  LegalCaseEvent,
+  SeasonRegulatoryCycle,
+  FinancialCompliance,
+  FinancialComplianceHistory,
+  BoardMandate,
+  BoardMember,
+  BoardMandateHistory,
+  CoachQualification,
+  CoachQualificationHistory,
+  MedicalEligibility,
+  MedicalEligibilityHistory,
+  FootballAgent,
+  RepresentationAgreement,
+  Appeal,
+  AppealDocument,
+  AppealEvent,
+  CompetitionRegistration,
+  CompetitionRegistrationHistory,
+  TransferWindow,
+  TransferWindowHistory,
+  ClubGovernanceSettings,
+  ClubApprovalRequest,
+  ClubApprovalDecision,
+  Membership,
+  MembershipType,
+  PublicFormSettings,
+  PublicContentPolicy,
+  ClubConfigurationAudit,
+  ClubFeatureSettings,
+  DisciplineRuleSet,
+  DisciplineRuleOverride,
+  DisciplineRuleApplication,
+  StatReviewPolicy,
+];
+
+/**
+ * Next.js (dev, `--webpack`) compile certaines routes à la demande dans des
+ * chunks distincts : les classes d'entités importées par une route
+ * fraîchement compilée peuvent être des objets différents de ceux utilisés
+ * pour construire la DataSource mise en cache (même fichier source, identité
+ * de classe différente). TypeORM résout ses métadonnées par référence de
+ * classe, donc `getRepository(X)` échoue avec « No metadata for X was found »
+ * alors que la DataSource est "initialized". On détecte ce cas et on
+ * reconstruit une DataSource fraîche. Sans effet en production (un bundle).
+ */
+function isStale(ds: DataSource): boolean {
+  return !ENTITIES.every((entity) => ds.hasMetadata(entity));
+}
 
 export async function getDataSource(): Promise<DataSource> {
-  if (dataSource && dataSource.isInitialized) return dataSource;
+  if (dataSource && dataSource.isInitialized) {
+    if (!isStale(dataSource)) {
+      return dataSource;
+    }
+    const stale = dataSource;
+    dataSource = null;
+    initPromise = null;
+    globalForDataSource.clubHubDataSource = null;
+    globalForDataSource.clubHubDataSourceInit = null;
+    await stale.destroy().catch(() => {});
+  }
 
   if (!initPromise) {
     const newDataSource = new DataSource({
@@ -134,40 +312,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false,
       logging: process.env.NODE_ENV === "development",
-      entities: [
-        Federation, Stadium, Team, TeamBranding, News, Player, TeamMember, Staff,
-        MediaItem, MediaGallery, MediaGalleryItem, NewsMedia, MatchGallery, Match,
-        User, CardReason, Card, Suspension, Fine, Note, AuditLog, Settings,
-        Matchday, Notification, Convocation, ProductCategory, Product, SponsorRequest,
-        Sponsor, SponsorContractApproval, SponsorContractDecision,
-        SponsorshipGovernanceSettings, SponsorWorkflowEvent, MatchLineup, Role, UserRole,
-        RoleDelegation, FriendlyMatch, Training, TrainingInvitation, TrainingTemplate, MatchFormation,
-        TacticsBoard, TrainingBlock, PlayerStat, Injury, Goal, Substitution, MatchInjury,
-        Trip, TripVehicle, TripParticipant, TripGovernanceSettings, TripBudgetApproval,
-        TripBudgetDecision, TripExpenseReceipt, TripWorkflowEvent, ClubInfo, History,
-        HistoryFigure, Honor, AcademyCategory, AcademyInfo, PlayerApplication,
-        PlayerApplicationEvent, RecruitmentNeed, RecruitmentApplication,
-        RecruitmentApplicationEvent, Announcement, TeamSocials, ContactInfo,
-        ContactMessage, TicketCategory, MatchTicketCategory, TicketSaleRule, ShopOrder,
-        ShopOrderItem, NotificationOutboxEvent, ProcessedWebhookEvent,
-        StockUnavailableRefund, PlayerTransfer, TeamAffiliation, ClubLicenseApplication,
-        ClubLicenseRequirement, ClubLicenseDocument, ClubLicenseHistory, PersonLicense,
-        PersonLicenseDocument, PersonLicenseHistory, PlayerRegistration,
-        PlayerRegistrationHistory, PlayerContract, PlayerContractDocument,
-        PlayerContractHistory, PlayerAdministrativeRequest, StaffContract, StaffContractDocument,
-        StaffContractHistory, ClubSanction, ClubSanctionHistory, LegalCase,
-        LegalCaseDocument, LegalCaseHearing, LegalCaseDecision, LegalCaseEvent,
-        SeasonRegulatoryCycle, FinancialCompliance, FinancialComplianceHistory,
-        BoardMandate, BoardMember, BoardMandateHistory, CoachQualification,
-        CoachQualificationHistory, MedicalEligibility, MedicalEligibilityHistory,
-        FootballAgent, RepresentationAgreement, Appeal, AppealDocument, AppealEvent,
-        CompetitionRegistration, CompetitionRegistrationHistory, TransferWindow,
-        TransferWindowHistory, ClubGovernanceSettings, ClubApprovalRequest,
-        ClubApprovalDecision, Membership, MembershipType, PublicFormSettings,
-        PublicContentPolicy, ClubConfigurationAudit, ClubFeatureSettings,
-        DisciplineRuleSet, DisciplineRuleOverride, DisciplineRuleApplication,
-        StatReviewPolicy,
-      ],
+      entities: ENTITIES,
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",
@@ -175,6 +320,8 @@ export async function getDataSource(): Promise<DataSource> {
 
     initPromise = newDataSource.initialize().then((ds) => {
       dataSource = ds;
+      globalForDataSource.clubHubDataSource = ds;
+      globalForDataSource.clubHubDataSourceInit = initPromise;
       return ds;
     });
   }
@@ -187,5 +334,7 @@ export async function closeDataSource(): Promise<void> {
     await dataSource.destroy();
     dataSource = null;
     initPromise = null;
+    globalForDataSource.clubHubDataSource = null;
+    globalForDataSource.clubHubDataSourceInit = null;
   }
 }

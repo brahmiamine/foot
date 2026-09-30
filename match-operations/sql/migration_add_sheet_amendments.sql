@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS ms_sheet_amendments (
   id BIGINT NOT NULL AUTO_INCREMENT,
   sheet_id BIGINT NOT NULL,
-  match_id CHAR(36) NOT NULL,
+  match_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   status ENUM('AMENDMENT_REQUESTED','AMENDED','RE_SIGNED') NOT NULL,
   original_sheet_status VARCHAR(32) NOT NULL,
   reason TEXT NOT NULL,

@@ -16,7 +16,7 @@ USE foot;
 CREATE TABLE IF NOT EXISTS cms_player_availability_declarations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   status ENUM('AVAILABLE','UNAVAILABLE','LIMITED') NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS cms_player_availability_declarations (
 CREATE TABLE IF NOT EXISTS cms_player_consents (
   id CHAR(36) PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   consent_type ENUM('CONTRACT','TRANSFER','LICENSE','IMAGE_RIGHTS','REGULATION') NOT NULL,
   reference_id VARCHAR(191) NULL,
   signed_at DATETIME NOT NULL,
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS cms_player_consents (
 CREATE TABLE IF NOT EXISTS cms_player_administrative_requests (
   id CHAR(36) PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   requester_user_id VARCHAR(191) NOT NULL,
   request_type ENUM('ATTESTATION','DOCUMENT','APPOINTMENT') NOT NULL,
   details TEXT NOT NULL,

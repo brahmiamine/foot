@@ -101,7 +101,14 @@ const nextConfig: NextConfig = {
     config.module = config.module || {}
     config.module.exprContextCritical = false
 
-    if (!isServer) {
+    if (isServer) {
+      // Garder typeorm/reflect-metadata comme modules Node uniques (non
+      // rebundlés) : sinon Webpack en crée plusieurs copies, chacune avec sa
+      // propre identité de classes. TypeORM résout ses métadonnées par
+      // référence de classe, d'où `EntityMetadataNotFoundError` alors que la
+      // table existe bien. Même correctif que `identity/next.config.ts`.
+      config.externals = [...(config.externals || []), 'typeorm', 'reflect-metadata']
+    } else {
       // require() volontaire : webpack n'est utile qu'ici (build client),
       // pas dispo en top-level import sans risquer de le charger aussi côté
       // Edge/serveur.

@@ -9,7 +9,7 @@ USE foot;
 CREATE TABLE cms_injuries (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   injury_date DATE NOT NULL,
   zone VARCHAR(100) NOT NULL,
   severity ENUM('MINOR', 'MODERATE', 'SEVERE') NOT NULL DEFAULT 'MINOR',
@@ -23,7 +23,7 @@ CREATE TABLE cms_injuries (
   documents TEXT NULL,
   status ENUM('ONGOING', 'RECOVERING', 'RESOLVED') NOT NULL DEFAULT 'ONGOING',
   notes TEXT NULL,
-  created_by VARCHAR(191) NULL,
+  created_by VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_cms_injuries_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,

@@ -57,7 +57,12 @@ async function callNotificationApi<T>(path: string, init?: RequestInit): Promise
 
 export async function fetchNotifications(): Promise<NotificationRecord[]> {
   try {
-    return await callNotificationApi<NotificationRecord[]>("/api/notifications");
+    // L'API `notifications` renvoie un résultat paginé `{ items, total, page,
+    // limit }` (voir notifications/src/common/dto/pagination.dto.ts), pas un
+    // tableau : on extrait `items` pour conserver l'API tableau attendue par
+    // les pages (sinon `notifications.filter is not a function`).
+    const page = await callNotificationApi<{ items: NotificationRecord[] }>("/api/notifications");
+    return page.items ?? [];
   } catch {
     return [];
   }

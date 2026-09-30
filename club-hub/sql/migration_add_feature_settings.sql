@@ -2,7 +2,7 @@
 -- L'absence de ligne conserve le comportement historique : module activé.
 CREATE TABLE IF NOT EXISTS cms_feature_settings (
   id CHAR(36) NOT NULL,
-  team_id CHAR(36) NOT NULL,
+  team_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   feature ENUM('ACADEMY','RECRUITMENT','SPONSORING','TICKETING','MARKETPLACE') NOT NULL,
   enabled TINYINT(1) NOT NULL DEFAULT 1,
   version INT NOT NULL DEFAULT 1,

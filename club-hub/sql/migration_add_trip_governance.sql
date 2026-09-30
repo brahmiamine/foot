@@ -8,35 +8,50 @@
 USE foot;
 
 ALTER TABLE cms_trips
-  ADD COLUMN workflow_status ENUM(
+  ADD COLUMN IF NOT EXISTS workflow_status ENUM(
     'DRAFT','APPROVAL_PENDING','APPROVED','READY','DEPARTED','COMPLETED','CANCELLED'
   ) NOT NULL DEFAULT 'DRAFT' AFTER notes,
-  ADD COLUMN estimated_budget DECIMAL(12,3) NULL AFTER workflow_status,
-  ADD COLUMN approved_budget DECIMAL(12,3) NULL AFTER estimated_budget,
-  ADD COLUMN actual_budget DECIMAL(12,3) NULL AFTER approved_budget,
-  ADD COLUMN budget_submitted_by VARCHAR(191) NULL AFTER actual_budget,
-  ADD COLUMN budget_submitted_at DATETIME NULL AFTER budget_submitted_by,
-  ADD COLUMN budget_approved_at DATETIME NULL AFTER budget_submitted_at,
-  ADD COLUMN ready_by VARCHAR(191) NULL AFTER budget_approved_at,
-  ADD COLUMN ready_at DATETIME NULL AFTER ready_by,
-  ADD COLUMN departed_by VARCHAR(191) NULL AFTER ready_at,
-  ADD COLUMN departed_at DATETIME NULL AFTER departed_by,
-  ADD COLUMN completed_by VARCHAR(191) NULL AFTER departed_at,
-  ADD COLUMN completed_at DATETIME NULL AFTER completed_by,
-  ADD COLUMN cancelled_by VARCHAR(191) NULL AFTER completed_at,
-  ADD COLUMN cancelled_at DATETIME NULL AFTER cancelled_by,
-  ADD COLUMN cancellation_reason TEXT NULL AFTER cancelled_at,
-  ADD INDEX idx_cms_trips_workflow (team_id, workflow_status, departure_time);
+  ADD COLUMN IF NOT EXISTS estimated_budget DECIMAL(12,3) NULL AFTER workflow_status,
+  ADD COLUMN IF NOT EXISTS approved_budget DECIMAL(12,3) NULL AFTER estimated_budget,
+  ADD COLUMN IF NOT EXISTS actual_budget DECIMAL(12,3) NULL AFTER approved_budget,
+  ADD COLUMN IF NOT EXISTS budget_submitted_by VARCHAR(191) NULL AFTER actual_budget,
+  ADD COLUMN IF NOT EXISTS budget_submitted_at DATETIME NULL AFTER budget_submitted_by,
+  ADD COLUMN IF NOT EXISTS budget_approved_at DATETIME NULL AFTER budget_submitted_at,
+  ADD COLUMN IF NOT EXISTS ready_by VARCHAR(191) NULL AFTER budget_approved_at,
+  ADD COLUMN IF NOT EXISTS ready_at DATETIME NULL AFTER ready_by,
+  ADD COLUMN IF NOT EXISTS departed_by VARCHAR(191) NULL AFTER ready_at,
+  ADD COLUMN IF NOT EXISTS departed_at DATETIME NULL AFTER departed_by,
+  ADD COLUMN IF NOT EXISTS completed_by VARCHAR(191) NULL AFTER departed_at,
+  ADD COLUMN IF NOT EXISTS completed_at DATETIME NULL AFTER completed_by,
+  ADD COLUMN IF NOT EXISTS cancelled_by VARCHAR(191) NULL AFTER completed_at,
+  ADD COLUMN IF NOT EXISTS cancelled_at DATETIME NULL AFTER cancelled_by,
+  ADD COLUMN IF NOT EXISTS cancellation_reason TEXT NULL AFTER cancelled_at;
+
+-- Index créés conditionnellement (`ADD INDEX` n'accepte pas `IF NOT EXISTS`
+-- en MariaDB, et ils existent déjà sur une base où les colonnes ont été
+-- ajoutées lors d'un passage antérieur).
+SET @ix_trips = (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cms_trips' AND INDEX_NAME = 'idx_cms_trips_workflow');
+SET @sql = IF(@ix_trips = 0,
+  'ALTER TABLE cms_trips ADD INDEX idx_cms_trips_workflow (team_id, workflow_status, departure_time)',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 ALTER TABLE cms_trip_participants
-  ADD COLUMN consent_status ENUM('NOT_REQUIRED','PENDING','GRANTED','REFUSED')
+  ADD COLUMN IF NOT EXISTS consent_status ENUM('NOT_REQUIRED','PENDING','GRANTED','REFUSED')
     NOT NULL DEFAULT 'NOT_REQUIRED' AFTER confirmed,
-  ADD COLUMN consent_recorded_by VARCHAR(191) NULL AFTER consent_status,
-  ADD COLUMN consent_recorded_at DATETIME NULL AFTER consent_recorded_by,
-  ADD COLUMN consent_note TEXT NULL AFTER consent_recorded_at,
-  ADD INDEX idx_cms_trip_participants_consent (trip_id, consent_status);
+  ADD COLUMN IF NOT EXISTS consent_recorded_by VARCHAR(191) NULL AFTER consent_status,
+  ADD COLUMN IF NOT EXISTS consent_recorded_at DATETIME NULL AFTER consent_recorded_by,
+  ADD COLUMN IF NOT EXISTS consent_note TEXT NULL AFTER consent_recorded_at;
 
-CREATE TABLE cms_trip_governance_settings (
+SET @ix_part = (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cms_trip_participants' AND INDEX_NAME = 'idx_cms_trip_participants_consent');
+SET @sql = IF(@ix_part = 0,
+  'ALTER TABLE cms_trip_participants ADD INDEX idx_cms_trip_participants_consent (trip_id, consent_status)',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS cms_trip_governance_settings (
   team_id CHAR(36) PRIMARY KEY,
   dual_approval_threshold DECIMAL(12,3) NOT NULL DEFAULT 0.000,
   receipt_required_threshold DECIMAL(12,3) NOT NULL DEFAULT 0.000,
@@ -47,7 +62,7 @@ CREATE TABLE cms_trip_governance_settings (
     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-CREATE TABLE cms_trip_budget_approvals (
+CREATE TABLE IF NOT EXISTS cms_trip_budget_approvals (
   id CHAR(36) PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
   trip_id BIGINT NOT NULL,
@@ -69,7 +84,7 @@ CREATE TABLE cms_trip_budget_approvals (
   INDEX idx_cms_trip_budget_approvals_trip (team_id, trip_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-CREATE TABLE cms_trip_budget_decisions (
+CREATE TABLE IF NOT EXISTS cms_trip_budget_decisions (
   id CHAR(36) PRIMARY KEY,
   approval_id CHAR(36) NOT NULL,
   actor_user_id VARCHAR(191) NOT NULL,
@@ -81,7 +96,7 @@ CREATE TABLE cms_trip_budget_decisions (
   CONSTRAINT uq_cms_trip_budget_decision_actor UNIQUE (approval_id, actor_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-CREATE TABLE cms_trip_expense_receipts (
+CREATE TABLE IF NOT EXISTS cms_trip_expense_receipts (
   id CHAR(36) PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
   trip_id BIGINT NOT NULL,
@@ -103,7 +118,7 @@ CREATE TABLE cms_trip_expense_receipts (
   INDEX idx_cms_trip_expense_receipts_status (team_id, trip_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-CREATE TABLE cms_trip_workflow_events (
+CREATE TABLE IF NOT EXISTS cms_trip_workflow_events (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
   trip_id BIGINT NOT NULL,

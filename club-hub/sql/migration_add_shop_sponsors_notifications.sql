@@ -26,7 +26,7 @@ CREATE TABLE cms_convocations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
   match_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   response ENUM('PENDING','PRESENT','ABSENT') NOT NULL DEFAULT 'PENDING',
   notes VARCHAR(255) NULL,
   notified_at DATETIME NULL,

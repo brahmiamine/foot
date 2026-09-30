@@ -1,7 +1,7 @@
 -- ID-004 — policy d'inscription MEMBER par club + workflow email/approval/invitation.
 CREATE TABLE IF NOT EXISTS member_registration_policies (
   id CHAR(36) NOT NULL,
-  team_id CHAR(36) NOT NULL,
+  team_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   mode ENUM('OPEN','EMAIL_VERIFICATION','CLUB_APPROVAL','INVITE_ONLY','CLOSED') NOT NULL DEFAULT 'OPEN',
   version INT NOT NULL DEFAULT 1,
   effective_from DATETIME NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS member_registration_policies (
 
 CREATE TABLE IF NOT EXISTS member_registration_requests (
   id CHAR(36) NOT NULL,
-  team_id CHAR(36) NOT NULL,
+  team_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   email VARCHAR(191) NOT NULL,
   name VARCHAR(191) NOT NULL,
   first_name VARCHAR(100) NULL,

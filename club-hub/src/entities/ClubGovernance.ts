@@ -82,7 +82,7 @@ export class ClubApprovalRequest {
   @Column({ type: "tinyint", default: 1, name: "maker_checker_enabled" })
   makerCheckerEnabled!: boolean;
 
-  @Column({ type: "simple-enum", enum: ["SINGLE_APPROVAL", "DUAL_APPROVAL"] })
+  @Column({ type: "simple-enum", enum: ["SINGLE_APPROVAL", "DUAL_APPROVAL"], name: "approval_mode" })
   approvalMode!: Exclude<ClubApprovalMode, "AUTO">;
 
   @Column({ type: "int", name: "required_approvals" })

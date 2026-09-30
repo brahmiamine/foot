@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS ms_competition_match_protocols (
   id BIGINT NOT NULL AUTO_INCREMENT,
-  season_id CHAR(36) NOT NULL,
+  season_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   pre_match_signing_deadline_minutes INT NULL,
   max_bench_players INT NULL,
   max_substitutions INT NULL,

@@ -15,9 +15,9 @@ USE foot;
 -- ---------------------------------------------------------------------
 -- STAFF-002 : verrouillage automatique de la composition avant coup d'envoi.
 -- ---------------------------------------------------------------------
-CREATE TABLE cms_lineup_lock_policies (
+CREATE TABLE IF NOT EXISTS cms_lineup_lock_policies (
   id CHAR(36) NOT NULL,
-  team_id CHAR(36) NOT NULL,
+  team_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   enabled TINYINT(1) NOT NULL DEFAULT 0,
   lock_minutes_before_kickoff INT NOT NULL DEFAULT 60,
   version INT NOT NULL DEFAULT 1,
@@ -34,9 +34,9 @@ CREATE TABLE cms_lineup_lock_policies (
 -- ---------------------------------------------------------------------
 -- STAFF-003 : validation optionnelle des plans d'entraînement.
 -- ---------------------------------------------------------------------
-CREATE TABLE cms_training_approval_policies (
+CREATE TABLE IF NOT EXISTS cms_training_approval_policies (
   id CHAR(36) NOT NULL,
-  team_id CHAR(36) NOT NULL,
+  team_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   approval_required TINYINT(1) NOT NULL DEFAULT 0,
   version INT NOT NULL DEFAULT 1,
   effective_from DATETIME NULL,
@@ -52,19 +52,19 @@ CREATE TABLE cms_training_approval_policies (
 -- `plan_status` defaults to APPROVED so every training created before this
 -- migration (or while the policy above is disabled) stays immediately usable.
 ALTER TABLE cms_trainings
-  ADD COLUMN plan_status ENUM('DRAFT', 'SUBMITTED', 'APPROVED') NOT NULL DEFAULT 'APPROVED' AFTER status,
-  ADD COLUMN submitted_by VARCHAR(191) NULL AFTER plan_status,
-  ADD COLUMN submitted_at DATETIME NULL AFTER submitted_by,
-  ADD COLUMN approved_by VARCHAR(191) NULL AFTER submitted_at,
-  ADD COLUMN approved_at DATETIME NULL AFTER approved_by;
+  ADD COLUMN IF NOT EXISTS plan_status ENUM('DRAFT', 'SUBMITTED', 'APPROVED') NOT NULL DEFAULT 'APPROVED' AFTER status,
+  ADD COLUMN IF NOT EXISTS submitted_by VARCHAR(191) NULL AFTER plan_status,
+  ADD COLUMN IF NOT EXISTS submitted_at DATETIME NULL AFTER submitted_by,
+  ADD COLUMN IF NOT EXISTS approved_by VARCHAR(191) NULL AFTER submitted_at,
+  ADD COLUMN IF NOT EXISTS approved_at DATETIME NULL AFTER approved_by;
 
 -- ---------------------------------------------------------------------
 -- STAFF-004 : fenêtre de revue post-match puis verrouillage des statistiques,
 -- avec correction possible après verrouillage à condition d'être auditée.
 -- ---------------------------------------------------------------------
-CREATE TABLE cms_stat_review_policies (
+CREATE TABLE IF NOT EXISTS cms_stat_review_policies (
   id CHAR(36) NOT NULL,
-  team_id CHAR(36) NOT NULL,
+  team_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   review_window_hours INT NOT NULL DEFAULT 72,
   version INT NOT NULL DEFAULT 1,
   effective_from DATETIME NULL,
@@ -80,8 +80,8 @@ CREATE TABLE cms_stat_review_policies (
 -- `updated_at` existe déjà (migration_add_player_stats.sql) : seules
 -- locked_at/locked_by sont nouvelles ici.
 ALTER TABLE cms_player_stats
-  ADD COLUMN locked_at DATETIME NULL AFTER trainings_total,
-  ADD COLUMN locked_by VARCHAR(191) NULL AFTER locked_at;
+  ADD COLUMN IF NOT EXISTS locked_at DATETIME NULL AFTER trainings_total,
+  ADD COLUMN IF NOT EXISTS locked_by VARCHAR(191) NULL AFTER locked_at;
 
 -- ---------------------------------------------------------------------
 -- STAFF-005 : délégation temporaire des fonctions d'entraîneur principal,
@@ -91,9 +91,9 @@ ALTER TABLE cms_player_stats
 -- générique) car elle porte une contrainte métier propre : le contrôle de
 -- qualification du délégataire et la portée "un seul match".
 -- ---------------------------------------------------------------------
-CREATE TABLE cms_head_coach_delegations (
+CREATE TABLE IF NOT EXISTS cms_head_coach_delegations (
   id CHAR(36) NOT NULL,
-  team_id CHAR(36) NOT NULL,
+  team_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
   delegator_user_id VARCHAR(191) NOT NULL,
   delegatee_user_id VARCHAR(191) NOT NULL,
   delegatee_staff_id BIGINT NOT NULL,

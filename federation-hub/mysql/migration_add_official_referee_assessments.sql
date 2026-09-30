@@ -43,7 +43,7 @@ UPDATE referee_official_evaluations evaluation
 JOIN matches m ON m.id = evaluation.match_id
 JOIN journees j ON j.id = m.journee_id
 JOIN saisons s ON s.id = j.saison_id
-JOIN leagues l ON l.id = s.league_id
+JOIN ligues l ON l.id = s.league_id
 SET evaluation.federation_id = l.federation_id,
     evaluation.league_id = l.id
 WHERE evaluation.federation_id IS NULL OR evaluation.league_id IS NULL;

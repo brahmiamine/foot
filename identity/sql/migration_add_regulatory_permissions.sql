@@ -5,9 +5,9 @@ USE foot;
 
 CREATE TABLE IF NOT EXISTS regulatory_user_permissions (
   id bigint NOT NULL AUTO_INCREMENT,
-  user_id varchar(191) NOT NULL,
+  user_id varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   permission varchar(100) NOT NULL,
-  granted_by varchar(191) DEFAULT NULL,
+  granted_by varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_regulatory_user_permission (user_id, permission),

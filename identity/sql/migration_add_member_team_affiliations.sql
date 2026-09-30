@@ -7,7 +7,7 @@
 USE foot;
 
 CREATE TABLE IF NOT EXISTS member_team_affiliations (
-  user_id VARCHAR(191) NOT NULL,
+  user_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   team_id CHAR(36) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, team_id),

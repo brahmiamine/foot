@@ -77,26 +77,25 @@ function hasAllRequiredEntities(dataSource: DataSource): boolean {
 }
 
 /**
- * Next.js peut déclencher plusieurs appels concurrents à getDataSource() (ex:
- * layout + page rendus en parallèle) avant la fin de la première
- * initialisation. Sans verrou, chaque appel concurrent créait sa propre
- * DataSource et écrasait celle des autres en cours de route, laissant
- * certains appelants avec une instance non entièrement initialisée
- * ("No metadata for X was found"). On mémorise donc la promesse
- * d'initialisation en cours pour que tout le monde attende la MÊME instance.
+ * Next.js (dev, `--webpack`) compile certaines routes à la demande dans des
+ * chunks distincts : les classes d'entités importées par une route
+ * fraîchement compilée peuvent être des objets différents de celles
+ * utilisées pour construire la DataSource mise en cache (même fichier
+ * source, identité de classe différente). TypeORM résout ses métadonnées
+ * par référence de classe, donc `getRepository(X)` échoue avec
+ * « No metadata for X was found » bien que la DataSource soit "initialized".
+ * On reconstruit alors une DataSource fraîche plutôt que de renvoyer
+ * l'instance périmée. Sans effet en production (un seul bundle).
  */
 export async function getDataSource(): Promise<DataSource> {
-  // En développement, toujours vérifier et réinitialiser si des entités manquent
-  if (process.env.NODE_ENV === 'development' && globalForDataSource.dataSource?.isInitialized) {
+  // Si une instance en cache n'expose pas toutes les entités requises, elle
+  // est périmée (chunk recompilé) : on la détruit et on en reconstruit une.
+  if (globalForDataSource.dataSource?.isInitialized) {
     if (!hasAllRequiredEntities(globalForDataSource.dataSource)) {
-      console.log('Some required entities not found in metadata, reinitializing DataSource...')
-      try {
-        await globalForDataSource.dataSource.destroy()
-      } catch (e) {
-        console.error('Error destroying DataSource:', e)
-      }
-      delete globalForDataSource.dataSource
-      delete globalForDataSource.dataSourceInit
+      const stale = globalForDataSource.dataSource
+      globalForDataSource.dataSource = undefined
+      globalForDataSource.dataSourceInit = undefined
+      await stale.destroy().catch(() => {})
     }
   }
 
@@ -121,4 +120,28 @@ export async function getDataSource(): Promise<DataSource> {
   }
 
   return globalForDataSource.dataSourceInit
+}
+
+/**
+ * Retourne le repository TypeORM d'une entité même si la classe importée par
+ * l'appelant n'est pas *la même référence* que celle enregistrée dans la
+ * DataSource (duplication de classes par Webpack en dev, voir ci-dessus). On
+ * retombe sur la métadonnée résolue par nom de classe / nom de table, ce qui
+ * garantit que `getRepository` ne lève jamais `EntityMetadataNotFoundError`
+ * pour une entité réellement enregistrée.
+ */
+export async function getRepository<Entity extends object>(
+  entity: new () => Entity
+): Promise<ReturnType<DataSource['getRepository']>> {
+  const dataSource = await getDataSource()
+  const metadata =
+    dataSource.entityMetadatas.find((m) => m.target === entity) ??
+    dataSource.entityMetadatas.find((m) => m.name === entity.name)
+
+  if (!metadata) {
+    // L'entité n'est pas du tout enregistrée : on laisse TypeORM signaler.
+    return dataSource.getRepository(entity)
+  }
+
+  return dataSource.getRepository(metadata.target as new () => Entity)
 }

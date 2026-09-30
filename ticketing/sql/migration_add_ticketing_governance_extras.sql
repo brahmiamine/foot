@@ -7,7 +7,7 @@
 
 -- TICK-003 — quota de billets gratuits/invitations par offre match+catégorie.
 ALTER TABLE tk_ticket_sale_rules
-  ADD COLUMN comp_quota INT NOT NULL DEFAULT 0 AFTER max_tickets_per_user;
+  ADD COLUMN IF NOT EXISTS comp_quota INT NOT NULL DEFAULT 0 AFTER max_tickets_per_user;
 
 CREATE TABLE IF NOT EXISTS tk_ticket_grants (
   id CHAR(36) PRIMARY KEY,
@@ -48,18 +48,18 @@ CREATE TABLE IF NOT EXISTS tk_scan_devices (
 -- manifeste hors-ligne ; NULL préserve le comportement historique (aucune
 -- fenêtre, aucune expiration).
 ALTER TABLE tk_governance_settings
-  ADD COLUMN gate_open_minutes_before_kickoff INT NULL AFTER price_reapproval_required,
-  ADD COLUMN gate_close_minutes_after_kickoff INT NULL AFTER gate_open_minutes_before_kickoff,
-  ADD COLUMN offline_manifest_validity_minutes INT NULL AFTER gate_close_minutes_after_kickoff,
+  ADD COLUMN IF NOT EXISTS gate_open_minutes_before_kickoff INT NULL AFTER price_reapproval_required,
+  ADD COLUMN IF NOT EXISTS gate_close_minutes_after_kickoff INT NULL AFTER gate_open_minutes_before_kickoff,
+  ADD COLUMN IF NOT EXISTS offline_manifest_validity_minutes INT NULL AFTER gate_close_minutes_after_kickoff,
   -- TICK-006 — transfert de billet.
-  ADD COLUMN transfer_enabled TINYINT NOT NULL DEFAULT 0 AFTER offline_manifest_validity_minutes,
-  ADD COLUMN transfer_deadline_hours_before_kickoff INT NOT NULL DEFAULT 24 AFTER transfer_enabled,
-  ADD COLUMN max_transfers_per_ticket INT NOT NULL DEFAULT 1 AFTER transfer_deadline_hours_before_kickoff,
+  ADD COLUMN IF NOT EXISTS transfer_enabled TINYINT NOT NULL DEFAULT 0 AFTER offline_manifest_validity_minutes,
+  ADD COLUMN IF NOT EXISTS transfer_deadline_hours_before_kickoff INT NOT NULL DEFAULT 24 AFTER transfer_enabled,
+  ADD COLUMN IF NOT EXISTS max_transfers_per_ticket INT NOT NULL DEFAULT 1 AFTER transfer_deadline_hours_before_kickoff,
   -- TICK-007 — durée par défaut d'un abonnement saison lors du renouvellement.
-  ADD COLUMN season_pass_duration_days INT NOT NULL DEFAULT 365 AFTER max_transfers_per_ticket,
+  ADD COLUMN IF NOT EXISTS season_pass_duration_days INT NOT NULL DEFAULT 365 AFTER max_transfers_per_ticket,
   -- TICK-008 — une promotion doit être approuvée avant d'être utilisable
   -- (même maker/checker que la vente elle-même) sauf si désactivé.
-  ADD COLUMN promotion_approval_required TINYINT NOT NULL DEFAULT 1 AFTER season_pass_duration_days;
+  ADD COLUMN IF NOT EXISTS promotion_approval_required TINYINT NOT NULL DEFAULT 1 AFTER season_pass_duration_days;
 
 -- TICK-006 — transferts de billet, une ligne par transfert (jamais mutée
 -- rétroactivement au-delà de sa propre progression de statut).
@@ -138,8 +138,8 @@ ALTER TABLE tk_ticket_scans
 -- Traçabilité de l'origine d'un billet (achat / don-invitation / abonnement
 -- saison / promotion appliquée) et compteur de transferts déjà effectués.
 ALTER TABLE tk_tickets
-  ADD COLUMN source ENUM('PURCHASE','GRANT','SEASON_PASS') NOT NULL DEFAULT 'PURCHASE' AFTER price,
-  ADD COLUMN grant_id CHAR(36) NULL AFTER source,
-  ADD COLUMN season_pass_id CHAR(36) NULL AFTER grant_id,
-  ADD COLUMN promotion_id CHAR(36) NULL AFTER season_pass_id,
-  ADD COLUMN transfer_count INT NOT NULL DEFAULT 0 AFTER promotion_id;
+  ADD COLUMN IF NOT EXISTS source ENUM('PURCHASE','GRANT','SEASON_PASS') NOT NULL DEFAULT 'PURCHASE' AFTER price,
+  ADD COLUMN IF NOT EXISTS grant_id CHAR(36) NULL AFTER source,
+  ADD COLUMN IF NOT EXISTS season_pass_id CHAR(36) NULL AFTER grant_id,
+  ADD COLUMN IF NOT EXISTS promotion_id CHAR(36) NULL AFTER season_pass_id,
+  ADD COLUMN IF NOT EXISTS transfer_count INT NOT NULL DEFAULT 0 AFTER promotion_id;

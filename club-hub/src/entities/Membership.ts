@@ -94,7 +94,11 @@ export class Membership {
   @Column({ type: "varchar", length: 191, name: "user_id" })
   userId!: string;
 
-  @Column({ type: "char", length: 36, name: "membership_type_id" })
+  // Colonne scalaire partagée avec la relation : TypeORM n'accepte pas de
+  // `length` sur une colonne déjà décrite par un `@JoinColumn` vers une PK
+  // générée (`membership_type_id` est `char(36)` en base). Le type est dérivé
+  // de `MembershipType.id`, on ne duplique donc pas `type`/`length` ici.
+  @Column({ name: "membership_type_id" })
   membershipTypeId!: string;
 
   @ManyToOne(() => MembershipType)

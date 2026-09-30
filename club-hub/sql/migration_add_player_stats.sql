@@ -9,7 +9,7 @@ USE foot;
 CREATE TABLE cms_player_stats (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   match_type ENUM('OFFICIAL', 'FRIENDLY') NULL,
   match_id CHAR(36) NULL,
   friendly_match_id BIGINT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE cms_player_stats (
   trainings_attended INT NOT NULL DEFAULT 0,
   trainings_total INT NOT NULL DEFAULT 0,
   notes VARCHAR(500) NULL,
-  created_by VARCHAR(191) NULL,
+  created_by VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_cms_player_stats_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,

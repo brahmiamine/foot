@@ -12,7 +12,7 @@ USE foot;
 CREATE TABLE cms_tactics_boards (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  owner_id VARCHAR(191) NOT NULL,
+  owner_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   category ENUM(
     'seniors',
     'u21', 'u20', 'u19', 'u18', 'u17', 'u16', 'u15', 'u14', 'u13',

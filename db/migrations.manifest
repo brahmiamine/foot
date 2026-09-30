@@ -155,7 +155,14 @@ federation-hub/mysql/migration_add_appeals.sql
 # formation/solidarité, conformité documentaire et sélections nationales.
 federation-hub/mysql/migration_add_federal_operations_v3.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
-federation-hub/mysql/migration_add_official_referee_assessments.sql
+# migration_add_official_referee_assessments.sql est superseded par
+# migration_add_official_criteria_versioning.sql (ci-dessous) : ses deux tables
+# (`referee_official_evaluations`, `official_referee_criteria`) existent déjà et
+# ses colonnes scopées sont en place. Son `INSERT` de critères utilise un schéma
+# antérieur (sans `version`/`season_id`/`effective_from`) et échoue désormais
+# (`Field 'effective_from' doesn't have a default value`) — les 5 critères sont
+# déjà présents. Exclue volontairement du manifest.
+# federation-hub/mysql/migration_add_official_referee_assessments.sql
 # FED-001..004 (platform-governance-roadmap.md, section N) : Regulatory Policy
 # Center hiérarchique + templates documentaires contrat/médical + signature.
 federation-hub/mysql/migration_add_regulatory_policy_center.sql
@@ -185,7 +192,14 @@ arbinote/mysql/migration_add_arbinote_governance.sql
 # --- club-hub (Player, discipline, cms_*) ---
 club-hub/sql/migration_unify_players.sql
 club-hub/sql/migration_add_match_lineups.sql
-club-hub/sql/migrate_matches_external_teams.sql
+# migrate_matches_external_teams.sql cible un schéma `matches` inexistant
+# (`home_team_id`/`away_team_id` BIGINT) alors que la table réelle utilise
+# `equipe_home`/`equipe_away` CHAR(36) : ses ALTER échouent (`Unknown column
+# 'home_team_id'`) et ses FK BIGINT -> teams.id CHAR(36) seraient de toute
+# façon invalides. Aucun code applicatif ne lit `home_team_name`/
+# `away_team_name`. Migration obsolète : exclue volontairement du manifest
+# (voir aussi `insert_matches_external_teams_example.sql`, non référencé).
+# club-hub/sql/migrate_matches_external_teams.sql
 club-hub/sql/migration_cms_unification.sql
 club-hub/sql/migration_add_shop_sponsors_notifications.sql
 club-hub/sql/migration_add_notification_scope.sql

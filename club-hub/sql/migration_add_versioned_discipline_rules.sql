@@ -3,7 +3,7 @@
 -- chaque carton traité par club-hub conserve un snapshot immuable de la règle.
 USE foot;
 
-CREATE TABLE cms_discipline_rule_sets (
+CREATE TABLE IF NOT EXISTS cms_discipline_rule_sets (
   id char(36) NOT NULL,
   team_id char(36) NOT NULL,
   season_id char(36) NULL,
@@ -29,12 +29,12 @@ CREATE TABLE cms_discipline_rule_sets (
   CONSTRAINT fk_discipline_rule_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-CREATE TABLE cms_discipline_rule_overrides (
+CREATE TABLE IF NOT EXISTS cms_discipline_rule_overrides (
   id char(36) NOT NULL,
   team_id char(36) NOT NULL,
   targetType enum('MATCH','PLAYER') NOT NULL,
   target_id varchar(191) NOT NULL,
-  values json NOT NULL,
+  `values` json NOT NULL,
   valid_from datetime NOT NULL,
   valid_until datetime NULL,
   reason text NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE cms_discipline_rule_overrides (
   CONSTRAINT fk_discipline_override_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-CREATE TABLE cms_discipline_rule_applications (
+CREATE TABLE IF NOT EXISTS cms_discipline_rule_applications (
   id char(36) NOT NULL,
   team_id char(36) NOT NULL,
   card_id varchar(191) NOT NULL,

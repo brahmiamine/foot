@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useI18n } from "@/i18n/provider";
 import { apiErrorKey } from "@/i18n/apiErrors";
 
@@ -24,8 +24,11 @@ export default function MfaRequiredEnrollmentForm({
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [finalRedirect, setFinalRedirect] = useState(redirectTo || "/");
+  const inFlight = useRef(false);
 
   async function startEnrollment() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -44,11 +47,14 @@ export default function MfaRequiredEnrollmentForm({
       setError(err instanceof Error ? err.message : t("auth.mfa.startFailed"));
     } finally {
       setLoading(false);
+      inFlight.current = false;
     }
   }
 
   async function confirmEnrollment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -68,6 +74,7 @@ export default function MfaRequiredEnrollmentForm({
       setError(err instanceof Error ? err.message : t("auth.mfa.invalid"));
     } finally {
       setLoading(false);
+      inFlight.current = false;
     }
   }
 

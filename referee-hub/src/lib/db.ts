@@ -18,11 +18,60 @@ import { RefereeConflictDeclaration } from "@/entities/RefereeConflictDeclaratio
 import { RefereeConfigurationAudit } from "@/entities/RefereeConfigurationAudit";
 import { RefereeReportSlaAlert } from "@/entities/RefereeReportSlaAlert";
 
-let dataSource: DataSource | null = null;
-let initPromise: Promise<DataSource> | null = null;
+const globalForDataSource = globalThis as unknown as {
+  refereeHubDataSource?: DataSource | null;
+  refereeHubDataSourceInit?: Promise<DataSource> | null;
+};
+
+let dataSource: DataSource | null = globalForDataSource.refereeHubDataSource ?? null;
+let initPromise: Promise<DataSource> | null = globalForDataSource.refereeHubDataSourceInit ?? null;
+
+const ENTITIES = [
+  Assignment,
+  AssignmentResponse,
+  ReplacementRequest,
+  League,
+  Match,
+  Matchday,
+  Referee,
+  RefereeMatchReport,
+  RefereeUnavailability,
+  RefereeUnavailabilityPolicy,
+  RefereeReportPolicy,
+  RefereeConflictDeclaration,
+  RefereeConfigurationAudit,
+  RefereeReportSlaAlert,
+  Season,
+  Team,
+  User,
+];
+
+/**
+ * Next.js (dev, `--webpack`) compile certaines routes à la demande dans des
+ * chunks distincts : les classes d'entités importées par une route
+ * fraîchement compilée peuvent être des objets différents de ceux utilisés
+ * pour construire la DataSource mise en cache (même fichier source, identité
+ * de classe différente). TypeORM résout ses métadonnées par référence de
+ * classe, donc `getRepository(X)` échoue avec « No metadata for X was found »
+ * alors que la DataSource est "initialized". On détecte ce cas et on
+ * reconstruit une DataSource fraîche. Sans effet en production (un bundle).
+ */
+function isStale(ds: DataSource): boolean {
+  return !ENTITIES.every((entity) => ds.hasMetadata(entity));
+}
 
 export async function getDataSource(): Promise<DataSource> {
-  if (dataSource?.isInitialized) return dataSource;
+  if (dataSource?.isInitialized) {
+    if (!isStale(dataSource)) {
+      return dataSource;
+    }
+    const stale = dataSource;
+    dataSource = null;
+    initPromise = null;
+    globalForDataSource.refereeHubDataSource = null;
+    globalForDataSource.refereeHubDataSourceInit = null;
+    await stale.destroy().catch(() => {});
+  }
 
   if (!initPromise) {
     const nextDataSource = new DataSource({
@@ -36,28 +85,12 @@ export async function getDataSource(): Promise<DataSource> {
       logging: process.env.NODE_ENV === "development",
       charset: "utf8mb4",
       timezone: "Z",
-      entities: [
-        Assignment,
-        AssignmentResponse,
-        ReplacementRequest,
-        League,
-        Match,
-        Matchday,
-        Referee,
-        RefereeMatchReport,
-        RefereeUnavailability,
-        RefereeUnavailabilityPolicy,
-        RefereeReportPolicy,
-        RefereeConflictDeclaration,
-        RefereeConfigurationAudit,
-        RefereeReportSlaAlert,
-        Season,
-        Team,
-        User,
-      ],
+      entities: ENTITIES,
     });
     initPromise = nextDataSource.initialize().then((initialized) => {
       dataSource = initialized;
+      globalForDataSource.refereeHubDataSource = initialized;
+      globalForDataSource.refereeHubDataSourceInit = initPromise;
       return initialized;
     });
   }

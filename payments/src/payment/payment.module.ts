@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment } from './entities/payment.entity';
 import { PaymentRoutingPolicy } from './entities/payment-routing-policy.entity';
+import { PaymentReconciliationCase } from './entities/payment-reconciliation-case.entity';
+import { PaymentReconciliationEvent } from './entities/payment-reconciliation-event.entity';
 import { PaymentService } from './payment.service';
 import { PaymentController } from './payment.controller';
 import { PaymentRoutingController } from './payment-routing.controller';
@@ -21,7 +23,12 @@ import { PaymentReconciliationHealthController } from './payment-reconciliation-
 @Module({
   imports: [
     ConfigModule.forFeature(paymentRoutingConfig),
-    TypeOrmModule.forFeature([Payment, PaymentRoutingPolicy]),
+    TypeOrmModule.forFeature([
+      Payment,
+      PaymentRoutingPolicy,
+      PaymentReconciliationCase,
+      PaymentReconciliationEvent,
+    ]),
     KonnectModule,
     PaymeeModule,
     FlouciModule,

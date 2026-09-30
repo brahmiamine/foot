@@ -16,7 +16,7 @@ const optionalDbPackages = [
 ];
 
 const nextConfig: NextConfig = {
-  webpack(config) {
+  webpack(config, { isServer }) {
     config.resolve = config.resolve || {};
     config.resolve.alias = config.resolve.alias || {};
     config.resolve.alias.mysql = config.resolve.alias.mysql ?? require.resolve("mysql2");
@@ -25,6 +25,13 @@ const nextConfig: NextConfig = {
     });
     config.module = config.module || {};
     config.module.exprContextCritical = false;
+    if (isServer) {
+      // Garder typeorm/reflect-metadata comme modules Node uniques (non
+      // rebundlés) : sinon Webpack en crée plusieurs copies, chacune avec sa
+      // propre identité de classes, d'où `EntityMetadataNotFoundError`. Même
+      // correctif que `identity/next.config.ts`.
+      config.externals = [...(config.externals || []), "typeorm", "reflect-metadata"];
+    }
     config.ignoreWarnings = config.ignoreWarnings || [];
     config.ignoreWarnings.push({
       module: /typeorm/,

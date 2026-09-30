@@ -13,7 +13,7 @@ export class ProductCategory {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 36 })
+  @Column({ type: 'varchar', length: 36, name: 'club_id' })
   clubId: string;
 
   @Column({ type: 'varchar', length: 191 })

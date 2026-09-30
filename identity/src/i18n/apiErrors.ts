@@ -15,6 +15,8 @@ export const API_ERROR_KEYS: Record<string, TranslationKey> = {
   MFA_CODE_INVALID: "auth.mfa.invalid",
   MFA_SESSION_EXPIRED: "auth.mfa.sessionExpired",
   MFA_ENROLLMENT_EXPIRED: "auth.mfa.enrollmentExpired",
+  MFA_SETUP_EXPIRED: "auth.mfa.enrollmentExpired",
+  MFA_ALREADY_ENABLED: "auth.mfa.alreadyEnabled",
 };
 
 export function apiErrorKey(code: unknown, fallback: TranslationKey): TranslationKey {

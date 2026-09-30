@@ -77,7 +77,7 @@ CREATE TABLE cms_roles (
 CREATE TABLE cms_user_roles (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  user_id VARCHAR(191) NOT NULL,
+  user_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   role_id BIGINT NOT NULL,
   category ENUM(
     'seniors',
@@ -121,11 +121,16 @@ CREATE TABLE cms_friendly_matches (
   score_away INT NULL,
   status ENUM('UPCOMING', 'IN_PROGRESS', 'FINISHED', 'CANCELLED') NOT NULL DEFAULT 'UPCOMING',
   notes TEXT NULL,
-  created_by VARCHAR(191) NULL,
+  created_by VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_cms_friendly_matches_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
-  CONSTRAINT fk_cms_friendly_matches_opponent FOREIGN KEY (opponent_team_id) REFERENCES teams(id) ON DELETE SET NULL,
+  -- `RESTRICT` (et non `SET NULL`) : MariaDB 12.3 refuse `ERROR 1901` une
+  -- colonne FK `ON DELETE SET NULL` utilisée dans un `CHECK`. Or
+  -- `opponent_team_id` est partie du `chk_cms_friendly_matches_opponent`
+  -- ci-dessous. Un club adverse référencé par un match amical ne peut donc
+  -- plus être supprimé silencieusement, ce qui est plus sûr.
+  CONSTRAINT fk_cms_friendly_matches_opponent FOREIGN KEY (opponent_team_id) REFERENCES teams(id) ON DELETE RESTRICT,
   CONSTRAINT fk_cms_friendly_matches_stadium FOREIGN KEY (stadium_id) REFERENCES cms_stadiums(id) ON DELETE SET NULL,
   CONSTRAINT fk_cms_friendly_matches_creator FOREIGN KEY (created_by) REFERENCES User(id) ON DELETE SET NULL,
   CONSTRAINT chk_cms_friendly_matches_opponent CHECK (opponent_team_id IS NOT NULL OR opponent_name IS NOT NULL),
@@ -152,7 +157,7 @@ CREATE TABLE cms_trainings (
   venue_name VARCHAR(200) NULL,
   notes TEXT NULL,
   status ENUM('SCHEDULED', 'DONE', 'CANCELLED') NOT NULL DEFAULT 'SCHEDULED',
-  created_by VARCHAR(191) NULL,
+  created_by VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_cms_trainings_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
@@ -164,7 +169,7 @@ CREATE TABLE cms_trainings (
 CREATE TABLE cms_training_invitations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   training_id BIGINT NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   response ENUM('PENDING', 'PRESENT', 'ABSENT') NOT NULL DEFAULT 'PENDING',
   notified_at DATETIME NULL,
   responded_at DATETIME NULL,

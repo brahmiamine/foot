@@ -1,4 +1,4 @@
-import type { ArbiNoteVotingPolicyValues } from './entities/ArbiNoteVotingPolicy'
+import type { ArbiNoteVotingPolicyValues } from './entities'
 
 export const DEFAULT_VOTING_POLICY: ArbiNoteVotingPolicyValues = {
   votingMode: 'ANONYMOUS',

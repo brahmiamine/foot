@@ -41,7 +41,7 @@ ALTER TABLE cms_player_applications
   ADD COLUMN rejected_at DATETIME NULL AFTER administrative_notes,
   ADD COLUMN rejected_by VARCHAR(191) NULL AFTER rejected_at,
   ADD COLUMN rejection_reason TEXT NULL AFTER rejected_by,
-  ADD COLUMN player_id VARCHAR(191) NULL AFTER rejection_reason,
+  ADD COLUMN player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER rejection_reason,
   ADD COLUMN player_created_at DATETIME NULL AFTER player_id,
   ADD COLUMN player_created_by VARCHAR(191) NULL AFTER player_created_at,
   ADD CONSTRAINT uq_cms_player_applications_player UNIQUE (player_id),

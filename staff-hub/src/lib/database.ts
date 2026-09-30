@@ -37,12 +37,69 @@ import { PlayerAvailabilityDeclaration } from "@/entities/PlayerAvailabilityDecl
  * déplacements) : c'est le même RBAC (cms_roles/cms_user_roles) qui décide
  * qui peut faire quoi, pas une frontière technique entre les deux apps.
  */
-let dataSource: DataSource | null = null;
-let initPromise: Promise<DataSource> | null = null;
+const globalForDataSource = globalThis as unknown as {
+  staffHubDataSource?: DataSource | null;
+  staffHubDataSourceInit?: Promise<DataSource> | null;
+};
+
+let dataSource: DataSource | null = globalForDataSource.staffHubDataSource ?? null;
+let initPromise: Promise<DataSource> | null = globalForDataSource.staffHubDataSourceInit ?? null;
+
+const ENTITIES = [
+  Team,
+  TeamBranding,
+  Player,
+  Staff,
+  Role,
+  UserRole,
+  Match,
+  FriendlyMatch,
+  Convocation,
+  Training,
+  TrainingInvitation,
+  PlayerStat,
+  Card,
+  Suspension,
+  Fine,
+  Trip,
+  TripParticipant,
+  Injury,
+  MatchLineup,
+  MatchFormation,
+  TacticsBoard,
+  LineupLockPolicy,
+  TrainingApprovalPolicy,
+  StatReviewPolicy,
+  HeadCoachDelegation,
+  StaffConfigurationAudit,
+  PlayerAvailabilityDeclaration,
+];
+
+/**
+ * Next.js (dev, `--webpack`) compile certaines routes à la demande dans des
+ * chunks distincts : les classes d'entités importées par une route
+ * fraîchement compilée peuvent être des objets différents de ceux utilisés
+ * pour construire la DataSource mise en cache (même fichier source, identité
+ * de classe différente). TypeORM résout ses métadonnées par référence de
+ * classe, donc `getRepository(X)` échoue avec « No metadata for X was found »
+ * alors que la DataSource est "initialized". On détecte ce cas et on
+ * reconstruit une DataSource fraîche. Sans effet en production (un bundle).
+ */
+function isStale(ds: DataSource): boolean {
+  return !ENTITIES.every((entity) => ds.hasMetadata(entity));
+}
 
 export async function getDataSource(): Promise<DataSource> {
   if (dataSource && dataSource.isInitialized) {
-    return dataSource;
+    if (!isStale(dataSource)) {
+      return dataSource;
+    }
+    const stale = dataSource;
+    dataSource = null;
+    initPromise = null;
+    globalForDataSource.staffHubDataSource = null;
+    globalForDataSource.staffHubDataSourceInit = null;
+    await stale.destroy().catch(() => {});
   }
 
   if (!initPromise) {
@@ -55,35 +112,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false,
       logging: process.env.NODE_ENV === "development",
-      entities: [
-        Team,
-        TeamBranding,
-        Player,
-        Staff,
-        Role,
-        UserRole,
-        Match,
-        FriendlyMatch,
-        Convocation,
-        Training,
-        TrainingInvitation,
-        PlayerStat,
-        Card,
-        Suspension,
-        Fine,
-        Trip,
-        TripParticipant,
-        Injury,
-        MatchLineup,
-        MatchFormation,
-        TacticsBoard,
-        LineupLockPolicy,
-        TrainingApprovalPolicy,
-        StatReviewPolicy,
-        HeadCoachDelegation,
-        StaffConfigurationAudit,
-        PlayerAvailabilityDeclaration,
-      ],
+      entities: ENTITIES,
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",
@@ -91,6 +120,8 @@ export async function getDataSource(): Promise<DataSource> {
 
     initPromise = newDataSource.initialize().then((ds) => {
       dataSource = ds;
+      globalForDataSource.staffHubDataSource = ds;
+      globalForDataSource.staffHubDataSourceInit = initPromise;
       return ds;
     });
   }

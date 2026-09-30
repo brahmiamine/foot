@@ -35,12 +35,63 @@ import { MedicalEligibility } from "@/entities/MedicalEligibility";
  * déclarations de disponibilité, consentements et demandes administratives
  * (voir services/PlayerPortalService.ts).
  */
-let dataSource: DataSource | null = null;
-let initPromise: Promise<DataSource> | null = null;
+const globalForDataSource = globalThis as unknown as {
+  playerHubDataSource?: DataSource | null;
+  playerHubDataSourceInit?: Promise<DataSource> | null;
+};
+
+let dataSource: DataSource | null = globalForDataSource.playerHubDataSource ?? null;
+let initPromise: Promise<DataSource> | null = globalForDataSource.playerHubDataSourceInit ?? null;
+
+const ENTITIES = [
+  Team,
+  TeamBranding,
+  Player,
+  Match,
+  FriendlyMatch,
+  Convocation,
+  Training,
+  TrainingInvitation,
+  PlayerStat,
+  Card,
+  Suspension,
+  Fine,
+  Trip,
+  TripParticipant,
+  Injury,
+  PlayerAvailabilityDeclaration,
+  PlayerConsent,
+  PlayerAdministrativeRequest,
+  PlayerContract,
+  PlayerRegistration,
+  MedicalEligibility,
+];
+
+/**
+ * Next.js (dev, `--webpack`) compile certaines routes à la demande dans des
+ * chunks distincts : les classes d'entités importées par une route
+ * fraîchement compilée peuvent être des objets différents de ceux utilisés
+ * pour construire la DataSource mise en cache (même fichier source, identité
+ * de classe différente). TypeORM résout ses métadonnées par référence de
+ * classe, donc `getRepository(X)` échoue avec « No metadata for X was found »
+ * alors que la DataSource est "initialized". On détecte ce cas et on
+ * reconstruit une DataSource fraîche. Sans effet en production (un bundle).
+ */
+function isStale(ds: DataSource): boolean {
+  return !ENTITIES.every((entity) => ds.hasMetadata(entity));
+}
 
 export async function getDataSource(): Promise<DataSource> {
   if (dataSource && dataSource.isInitialized) {
-    return dataSource;
+    if (!isStale(dataSource)) {
+      return dataSource;
+    }
+    const stale = dataSource;
+    dataSource = null;
+    initPromise = null;
+    globalForDataSource.playerHubDataSource = null;
+    globalForDataSource.playerHubDataSourceInit = null;
+    await stale.destroy().catch(() => {});
   }
 
   if (!initPromise) {
@@ -53,29 +104,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false,
       logging: process.env.NODE_ENV === "development",
-      entities: [
-        Team,
-        TeamBranding,
-        Player,
-        Match,
-        FriendlyMatch,
-        Convocation,
-        Training,
-        TrainingInvitation,
-        PlayerStat,
-        Card,
-        Suspension,
-        Fine,
-        Trip,
-        TripParticipant,
-        Injury,
-        PlayerAvailabilityDeclaration,
-        PlayerConsent,
-        PlayerAdministrativeRequest,
-        PlayerContract,
-        PlayerRegistration,
-        MedicalEligibility,
-      ],
+      entities: ENTITIES,
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",
@@ -83,6 +112,8 @@ export async function getDataSource(): Promise<DataSource> {
 
     initPromise = newDataSource.initialize().then((ds) => {
       dataSource = ds;
+      globalForDataSource.playerHubDataSource = ds;
+      globalForDataSource.playerHubDataSourceInit = initPromise;
       return ds;
     });
   }

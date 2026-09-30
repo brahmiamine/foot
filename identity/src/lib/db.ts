@@ -11,6 +11,22 @@ import { IdentityPolicyAudit } from "@/entities/IdentityPolicyAudit";
 import { MemberRegistrationPolicy } from "@/entities/MemberRegistrationPolicy";
 import { MemberRegistrationRequest } from "@/entities/MemberRegistrationRequest";
 import { UserSession } from "@/entities/UserSession";
+import { MfaEnrollmentChallenge } from "@/entities/MfaEnrollmentChallenge";
+
+const ENTITIES = [
+  User,
+  Team,
+  MemberTeamAffiliation,
+  PasswordResetToken,
+  SecurityEvent,
+  AccountInvitation,
+  MfaRolePolicy,
+  IdentityPolicyAudit,
+  MemberRegistrationPolicy,
+  MemberRegistrationRequest,
+  UserSession,
+  MfaEnrollmentChallenge,
+];
 
 const globalForDataSource = globalThis as unknown as {
   dataSource?: DataSource;
@@ -33,20 +49,24 @@ function createDataSource() {
     database: DB_NAME,
     logging: DB_LOGGING === "true",
     synchronize: false,
-    entities: [
-      User,
-      Team,
-      MemberTeamAffiliation,
-      PasswordResetToken,
-      SecurityEvent,
-      AccountInvitation,
-      MfaRolePolicy,
-      IdentityPolicyAudit,
-      MemberRegistrationPolicy,
-      MemberRegistrationRequest,
-      UserSession,
-    ],
+    entities: ENTITIES,
   });
+}
+
+/**
+ * Next.js (dev, `--webpack`) compile certaines routes à la demande dans des
+ * chunks distincts : les classes d'entités importées par une route
+ * fraîchement compilée peuvent alors être des objets différents de celles
+ * utilisées pour construire la DataSource mise en cache (même fichier
+ * source, identité de classe différente). TypeORM résout ses métadonnées
+ * par référence de classe, donc `getRepository(User)` échoue avec
+ * `EntityMetadataNotFoundError` bien que la DataSource soit "initialized".
+ * On détecte ce cas (métadonnées manquantes pour une entité qu'on sait
+ * enregistrée) et on reconstruit une DataSource fraîche plutôt que de
+ * renvoyer l'instance périmée. Sans effet en production (un seul bundle).
+ */
+function isStale(dataSource: DataSource): boolean {
+  return !ENTITIES.every((entity) => dataSource.hasMetadata(entity));
 }
 
 /**
@@ -56,7 +76,13 @@ function createDataSource() {
  */
 export async function getDataSource(): Promise<DataSource> {
   if (globalForDataSource.dataSource?.isInitialized) {
-    return globalForDataSource.dataSource;
+    if (!isStale(globalForDataSource.dataSource)) {
+      return globalForDataSource.dataSource;
+    }
+    const stale = globalForDataSource.dataSource;
+    globalForDataSource.dataSource = undefined;
+    globalForDataSource.dataSourceInit = undefined;
+    await stale.destroy().catch(() => {});
   }
 
   if (!globalForDataSource.dataSourceInit) {

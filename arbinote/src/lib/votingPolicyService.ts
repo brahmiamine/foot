@@ -1,17 +1,17 @@
-import { getDataSource } from './db'
-import { ArbiNoteVotingPolicy, type ArbiNoteVotingPolicyScopeType, type ArbiNoteVotingPolicyValues } from './entities/ArbiNoteVotingPolicy'
-import { ArbiNoteConfigurationAudit } from './entities/ArbiNoteConfigurationAudit'
+import { getDataSource, getRepository } from './db'
+import { ArbiNoteVotingPolicy, ArbiNoteConfigurationAudit } from './entities'
+import type { ArbiNoteVotingPolicyScopeType, ArbiNoteVotingPolicyValues } from './entities'
 import { DEFAULT_VOTING_POLICY } from './votingPolicy'
 import {
   resolvePolicy,
   type PolicyContext,
   type PolicyRecord,
   type ResolvedPolicy,
-} from '../../../packages/domain-contracts/src/policy'
+} from './domain-contracts/policy'
 import {
   requireConfigurationChangeReason,
   type ConfigurationAuditContext,
-} from '../../../packages/domain-contracts/src/configuration-audit'
+} from './domain-contracts/configuration-audit'
 
 function toPolicyRecord(row: ArbiNoteVotingPolicy): PolicyRecord<ArbiNoteVotingPolicyValues> {
   return {
@@ -50,7 +50,8 @@ export class ArbiNoteVotingPolicyService {
     at: Date = new Date(),
   ): Promise<ResolvedPolicy<ArbiNoteVotingPolicyValues>> {
     const dataSource = await getDataSource()
-    const records = await dataSource.getRepository(ArbiNoteVotingPolicy).find()
+    const policyRepository = await getRepository(ArbiNoteVotingPolicy)
+    const records = await policyRepository.find()
     const context: PolicyContext = {
       federationId: scope.federationId ?? null,
       leagueId: scope.leagueId ?? null,
@@ -64,8 +65,8 @@ export class ArbiNoteVotingPolicyService {
   }
 
   async findAll(): Promise<ArbiNoteVotingPolicy[]> {
-    const dataSource = await getDataSource()
-    return dataSource.getRepository(ArbiNoteVotingPolicy).find({ order: { scopeType: 'ASC', version: 'DESC' } })
+    const policyRepository = await getRepository(ArbiNoteVotingPolicy)
+    return policyRepository.find({ order: { scopeType: 'ASC', version: 'DESC' } })
   }
 
   async upsert(input: UpsertVotingPolicyInput): Promise<ArbiNoteVotingPolicy> {
@@ -81,8 +82,16 @@ export class ArbiNoteVotingPolicyService {
 
     const dataSource = await getDataSource()
     return dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(ArbiNoteVotingPolicy)
-      const auditRepository = manager.getRepository(ArbiNoteConfigurationAudit)
+      // Résolution par métadonnée : voir `getRepository` dans `./db` (classes
+      // d'entités dupliquées possibles en dev Webpack).
+      const policyMeta = dataSource.entityMetadatas.find(
+        (m) => m.target === ArbiNoteVotingPolicy || m.name === ArbiNoteVotingPolicy.name
+      )
+      const auditMeta = dataSource.entityMetadatas.find(
+        (m) => m.target === ArbiNoteConfigurationAudit || m.name === ArbiNoteConfigurationAudit.name
+      )
+      const repository = manager.getRepository(policyMeta?.target ?? ArbiNoteVotingPolicy)
+      const auditRepository = manager.getRepository(auditMeta?.target ?? ArbiNoteConfigurationAudit)
       const current = await repository.findOne({
         where: { scopeType: input.scopeType, scopeId: scopeId ?? undefined },
         order: { version: 'DESC' },

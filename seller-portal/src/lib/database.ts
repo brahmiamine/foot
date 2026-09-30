@@ -27,12 +27,57 @@ import { TeamBranding } from "@/entities/TeamBranding";
  * les rendus concurrents de Next.js (layout + page en parallèle) attendent
  * tous la même instance au lieu d'en recréer une seconde.
  */
-let dataSource: DataSource | null = null;
-let initPromise: Promise<DataSource> | null = null;
+const globalForDataSource = globalThis as unknown as {
+  sellerPortalDataSource?: DataSource | null;
+  sellerPortalDataSourceInit?: Promise<DataSource> | null;
+};
+
+let dataSource: DataSource | null = globalForDataSource.sellerPortalDataSource ?? null;
+let initPromise: Promise<DataSource> | null = globalForDataSource.sellerPortalDataSourceInit ?? null;
+
+const ENTITIES = [
+  Seller,
+  SellerUser,
+  ProductCategory,
+  Product,
+  ProductImage,
+  ProductVariant,
+  InventoryItem,
+  MarketOrder,
+  SellerOrder,
+  SellerOrderItem,
+  ReturnRequest,
+  Payout,
+  Notification,
+  Team,
+  TeamBranding,
+];
+
+/**
+ * Next.js (dev, `--webpack`) compile certaines routes à la demande dans des
+ * chunks distincts : les classes d'entités importées par une route
+ * fraîchement compilée peuvent être des objets différents de ceux utilisés
+ * pour construire la DataSource mise en cache (même fichier source, identité
+ * de classe différente). TypeORM résout ses métadonnées par référence de
+ * classe, donc `getRepository(X)` échoue avec « No metadata for X was found »
+ * alors que la DataSource est "initialized". On détecte ce cas et on
+ * reconstruit une DataSource fraîche. Sans effet en production (un bundle).
+ */
+function isStale(ds: DataSource): boolean {
+  return !ENTITIES.every((entity) => ds.hasMetadata(entity));
+}
 
 export async function getDataSource(): Promise<DataSource> {
   if (dataSource && dataSource.isInitialized) {
-    return dataSource;
+    if (!isStale(dataSource)) {
+      return dataSource;
+    }
+    const stale = dataSource;
+    dataSource = null;
+    initPromise = null;
+    globalForDataSource.sellerPortalDataSource = null;
+    globalForDataSource.sellerPortalDataSourceInit = null;
+    await stale.destroy().catch(() => {});
   }
 
   if (!initPromise) {
@@ -45,23 +90,7 @@ export async function getDataSource(): Promise<DataSource> {
       database: process.env.DB_NAME || "foot",
       synchronize: false, // Jamais en production — voir sql/schema.sql
       logging: process.env.NODE_ENV === "development",
-      entities: [
-        Seller,
-        SellerUser,
-        ProductCategory,
-        Product,
-        ProductImage,
-        ProductVariant,
-        InventoryItem,
-        MarketOrder,
-        SellerOrder,
-        SellerOrderItem,
-        ReturnRequest,
-        Payout,
-        Notification,
-        Team,
-        TeamBranding,
-      ],
+      entities: ENTITIES,
       migrations: [],
       charset: "utf8mb4",
       timezone: "Z",
@@ -69,6 +98,8 @@ export async function getDataSource(): Promise<DataSource> {
 
     initPromise = newDataSource.initialize().then((ds) => {
       dataSource = ds;
+      globalForDataSource.sellerPortalDataSource = ds;
+      globalForDataSource.sellerPortalDataSourceInit = initPromise;
       return ds;
     });
   }
@@ -81,5 +112,7 @@ export async function closeDataSource(): Promise<void> {
     await dataSource.destroy();
     dataSource = null;
     initPromise = null;
+    globalForDataSource.sellerPortalDataSource = null;
+    globalForDataSource.sellerPortalDataSourceInit = null;
   }
 }

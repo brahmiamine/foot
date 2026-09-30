@@ -7,7 +7,7 @@ USE foot;
 CREATE TABLE IF NOT EXISTS cms_player_profile_change_requests (
   id CHAR(36) PRIMARY KEY,
   team_id CHAR(36) NOT NULL,
-  player_id VARCHAR(191) NOT NULL,
+  player_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   requester_user_id VARCHAR(191) NOT NULL,
   status ENUM('PENDING','APPROVED','REJECTED','STALE','AUTO_APPLIED') NOT NULL DEFAULT 'PENDING',
   requested_changes JSON NOT NULL,
