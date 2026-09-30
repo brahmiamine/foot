@@ -41,8 +41,15 @@
 # et documentée (annotée ci-dessous).
 
 # --- identity (User, authentification — fondation) ---
-identity/sql/migration_add_token_version_to_user.sql
+# `token_version` est ajoutée AFTER `mfa_recovery_codes` : la migration MFA doit
+# donc passer EN PREMIER, sinon l'ALTER échoue avec
+# "Unknown column 'mfa_recovery_codes' in 'User'".
 identity/sql/migration_add_mfa_to_user.sql
+identity/sql/migration_add_token_version_to_user.sql
+# `User.updatedAt` (schéma Prisma d'origine) n'avait pas de défaut alors que les
+# colonnes @UpdateDateColumn de TypeORM (identity) en dépendent : sans défaut,
+# toute création de compte échoue en ER_NO_DEFAULT_FOR_FIELD.
+identity/sql/migration_add_user_updated_at_default.sql
 identity/sql/migration_add_password_reset_tokens.sql
 # Provisionnement par invitation (Player Hub et futurs parcours administrés).
 identity/sql/migration_add_account_invitations.sql
@@ -155,14 +162,14 @@ federation-hub/mysql/migration_add_appeals.sql
 # formation/solidarité, conformité documentaire et sélections nationales.
 federation-hub/mysql/migration_add_federal_operations_v3.sql
 federation-hub/mysql/migration_extend_referee_profiles.sql
-# migration_add_official_referee_assessments.sql est superseded par
-# migration_add_official_criteria_versioning.sql (ci-dessous) : ses deux tables
-# (`referee_official_evaluations`, `official_referee_criteria`) existent déjà et
-# ses colonnes scopées sont en place. Son `INSERT` de critères utilise un schéma
-# antérieur (sans `version`/`season_id`/`effective_from`) et échoue désormais
-# (`Field 'effective_from' doesn't have a default value`) — les 5 critères sont
-# déjà présents. Exclue volontairement du manifest.
-# federation-hub/mysql/migration_add_official_referee_assessments.sql
+# Prérequis de migration_add_official_criteria_versioning.sql (ci-dessous) : crée
+# `referee_official_evaluations` et `official_referee_criteria`, que la migration
+# de versionnement ALTERe ensuite. Indispensable sur une base amorcée depuis
+# db/foot.sql (ces deux tables n'y figurent pas). Sur une base qui les possède
+# déjà, le CREATE est un no-op, les ALTER sont en IF NOT EXISTS et l'INSERT des
+# 5 critères est en INSERT IGNORE (il n'échoue donc plus sur une table déjà
+# versionnée où `effective_from` est NOT NULL), sans réécrire les lignes.
+federation-hub/mysql/migration_add_official_referee_assessments.sql
 # FED-001..004 (platform-governance-roadmap.md, section N) : Regulatory Policy
 # Center hiérarchique + templates documentaires contrat/médical + signature.
 federation-hub/mysql/migration_add_regulatory_policy_center.sql
@@ -313,7 +320,13 @@ referee-hub/sql/migration_add_assignment_responses_replacements.sql
 referee-hub/sql/migration_add_referee_governance_ref003_005.sql
 
 # --- payments (base payment_api, remboursements multi-provider) ---
-payments/sql/migration_add_refunds.sql
+# Volontairement exclu : ce fichier vise la base autonome `payment_api` avec un
+# schéma snake_case qui diverge des entités TypeORM (`paymentId`/`initiatedByUser`)
+# et de la migration baseline de `payments`, seule source de vérité du domaine.
+# Exécuté dans `foot` via ce manifest, il y créait une table `refunds`
+# incompatible que la baseline sautait (CREATE TABLE IF NOT EXISTS), bloquant
+# toutes les migrations payments suivantes.
+# payments/sql/migration_add_refunds.sql
 
 # --- ticketing (tk_*, dépend de teams/matches) ---
 ticketing/sql/schema.sql

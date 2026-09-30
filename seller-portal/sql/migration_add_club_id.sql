@@ -9,11 +9,11 @@
 -- concerné avant de compter dessus pour filtrer une requête.
 
 ALTER TABLE sp_sellers
-  ADD COLUMN club_id CHAR(36) NULL AFTER id,
-  ADD KEY idx_sp_sellers_club (club_id);
+  ADD COLUMN IF NOT EXISTS club_id CHAR(36) NULL AFTER id,
+  ADD KEY IF NOT EXISTS idx_sp_sellers_club (club_id);
 
 ALTER TABLE sp_product_categories
-  ADD COLUMN club_id CHAR(36) NULL AFTER id;
+  ADD COLUMN IF NOT EXISTS club_id CHAR(36) NULL AFTER id;
 
 -- L'ancienne contrainte d'unicité globale sur `slug` doit être remplacée
 -- par une unicité par club, sinon deux clubs ne peuvent pas avoir chacun
@@ -21,5 +21,5 @@ ALTER TABLE sp_product_categories
 -- l'install a été bootstrapée avec une version antérieure de schema.sql où
 -- elle porterait un nom différent.
 ALTER TABLE sp_product_categories
-  DROP KEY uq_sp_product_categories_slug,
-  ADD UNIQUE KEY uq_sp_product_categories_club_slug (club_id, slug);
+  DROP KEY IF EXISTS uq_sp_product_categories_slug,
+  ADD UNIQUE KEY IF NOT EXISTS uq_sp_product_categories_club_slug (club_id, slug);

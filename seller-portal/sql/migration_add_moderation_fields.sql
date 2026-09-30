@@ -10,5 +10,5 @@
 -- comme le reste de l'app (voir migration_add_club_id.sql).
 
 ALTER TABLE sp_products
-  ADD COLUMN reviewedBy VARCHAR(191) NULL AFTER rejectionReason,
-  ADD COLUMN reviewedAt DATETIME NULL AFTER reviewedBy;
+  ADD COLUMN IF NOT EXISTS reviewedBy VARCHAR(191) NULL AFTER rejectionReason,
+  ADD COLUMN IF NOT EXISTS reviewedAt DATETIME NULL AFTER reviewedBy;

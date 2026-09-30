@@ -6,4 +6,4 @@
 -- donc les votes avec device_fingerprint NULL (aucun ne devrait exister en pratique) ne sont pas bloqués.
 
 ALTER TABLE `votes`
-ADD UNIQUE KEY `uniq_votes_match_device` (`match_id`, `device_fingerprint`);
+ADD UNIQUE KEY IF NOT EXISTS `uniq_votes_match_device` (`match_id`, `device_fingerprint`);

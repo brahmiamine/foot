@@ -33,7 +33,7 @@ const ACCOUNTS: Array<Partial<User> & { id: string; email: string; role: string 
     email: "player@test.local",
     role: "PLAYER",
     teamId: "team-ob",
-    player_id: "ob-1",
+    playerId: "ob-1",
   },
   {
     id: "test-referee",
@@ -78,7 +78,7 @@ async function main() {
       existing.password = hashed;
       existing.role = account.role as User["role"];
       existing.teamId = account.teamId ?? existing.teamId ?? null;
-      existing.player_id = account.player_id ?? existing.player_id ?? null;
+      existing.playerId = account.playerId ?? existing.playerId ?? null;
       existing.updatedAt = now;
       await repository.save(existing);
       console.log(`Mis à jour : ${account.email} (${account.role})`);
@@ -91,7 +91,7 @@ async function main() {
         role: account.role as User["role"],
         isActive: true,
         teamId: account.teamId ?? null,
-        player_id: account.player_id ?? null,
+        playerId: account.playerId ?? null,
         createdAt: now,
         updatedAt: now,
       });

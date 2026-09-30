@@ -1,3 +1,6 @@
+// Charge `.env` avant que data-source.ts ne lise process.env (DB_HOST/DB_PORT…) :
+// sans ça, la migration se rabat sur localhost:3306 au lieu du MariaDB du projet.
+import 'dotenv/config';
 import notificationsDataSource from './data-source';
 
 async function run(): Promise<void> {

@@ -4,6 +4,13 @@
 -- trace SQL pour un déploiement en production (synchronize désactivé,
 -- voir README "Limites connues").
 
+-- NB : ce fichier est une trace SQL pour la base autonome `payment_api` ; il
+-- n'est PAS dans db/migrations.manifest. Son schéma (snake_case : payment_id,
+-- initiated_by_user…) diverge des entités TypeORM de `payments` (camelCase :
+-- paymentId, initiatedByUser…) et de sa migration baseline, seule source de
+-- vérité du domaine. L'inclure dans le manifest de la base partagée `foot`
+-- créait une table `refunds` incompatible que la baseline sautait ensuite
+-- (CREATE TABLE IF NOT EXISTS), faisant échouer les migrations suivantes.
 USE payment_api;
 
 CREATE TABLE IF NOT EXISTS refunds (

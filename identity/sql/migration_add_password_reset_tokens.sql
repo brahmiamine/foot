@@ -8,7 +8,7 @@ USE foot;
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id CHAR(36) NOT NULL DEFAULT uuid() PRIMARY KEY,
-  user_id VARCHAR(191) NOT NULL,
+  user_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   token_hash VARCHAR(191) NOT NULL,
   expires_at DATETIME NOT NULL,
   used_at DATETIME NULL,

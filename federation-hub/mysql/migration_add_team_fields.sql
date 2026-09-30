@@ -2,15 +2,15 @@
 
 -- Ajouter le champ team_type (club ou sélection nationale)
 ALTER TABLE `teams`
-ADD COLUMN `team_type` ENUM('club', 'national') NOT NULL DEFAULT 'club' AFTER `nom_ar`;
+ADD COLUMN IF NOT EXISTS `team_type` ENUM('club', 'national') NOT NULL DEFAULT 'club' AFTER `nom_ar`;
 
 -- Ajouter le champ country_code (code pays ISO 3 lettres)
 ALTER TABLE `teams`
-ADD COLUMN `country_code` VARCHAR(3) NULL DEFAULT NULL AFTER `team_type`;
+ADD COLUMN IF NOT EXISTS `country_code` VARCHAR(3) NULL DEFAULT NULL AFTER `team_type`;
 
 -- Ajouter le champ sport
 ALTER TABLE `teams`
-ADD COLUMN `sport` ENUM(
+ADD COLUMN IF NOT EXISTS `sport` ENUM(
     'football',
     'handball',
     'basketball',
@@ -19,7 +19,7 @@ ADD COLUMN `sport` ENUM(
 
 -- Ajouter le champ age_category
 ALTER TABLE `teams`
-ADD COLUMN `age_category` ENUM(
+ADD COLUMN IF NOT EXISTS `age_category` ENUM(
     'seniors',
     'u21',
     'u20',
@@ -33,17 +33,17 @@ ADD COLUMN `age_category` ENUM(
 ) NOT NULL DEFAULT 'seniors' AFTER `sport`;
 
 -- Ajouter un index sur country_code pour les recherches
-ALTER TABLE `teams` ADD INDEX `idx_teams_country` (`country_code`);
+ALTER TABLE `teams` ADD INDEX IF NOT EXISTS `idx_teams_country` (`country_code`);
 
 -- Ajouter un index sur sport pour les recherches
-ALTER TABLE `teams` ADD INDEX `idx_teams_sport` (`sport`);
+ALTER TABLE `teams` ADD INDEX IF NOT EXISTS `idx_teams_sport` (`sport`);
 
 -- Ajouter un index sur team_type pour les recherches
-ALTER TABLE `teams` ADD INDEX `idx_teams_type` (`team_type`);
+ALTER TABLE `teams` ADD INDEX IF NOT EXISTS `idx_teams_type` (`team_type`);
 
 -- Ajouter un index sur age_category pour les recherches
 ALTER TABLE `teams`
-ADD INDEX `idx_teams_age_category` (`age_category`);
+ADD INDEX IF NOT EXISTS `idx_teams_age_category` (`age_category`);
 
 -- Mettre à jour les équipes tunisiennes existantes (basé sur city_ar non null)
 UPDATE `teams`

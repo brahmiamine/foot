@@ -6,7 +6,7 @@ USE foot;
 
 CREATE TABLE IF NOT EXISTS identity_user_sessions (
   id VARCHAR(36) NOT NULL,
-  user_id VARCHAR(191) NOT NULL,
+  user_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   token_version INT NOT NULL,
   ip_address VARCHAR(45) NULL,
   user_agent VARCHAR(512) NULL,

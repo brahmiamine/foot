@@ -186,6 +186,48 @@ La résolution en workspace unique fait passer `eslint-plugin-react-hooks` en 7.
 
 `club-ob`, `ticketing`, `seller-portal`, `marketplace`, `payments` et `notifications` ne sont pas lancés. Démarrez-les depuis leur dossier, après copie de leur `.env.example` vers le fichier demandé par l'application (`.env.local` pour Next.js, `.env` pour les APIs NestJS). Attention : plusieurs scripts Next.js et `payments` utilisent 3000 par défaut ; choisissez `PORT` ou l'option du framework pour éviter une collision. `seller-portal`, `notifications` et `marketplace` fixent respectivement 3006, 3010 et 3011.
 
+### Lancer toute la plateforme — `./start-all.sh`
+
+`start-all.sh` étend `start.sh` à **l'intégralité** de la plateforme : même amorçage Docker/MariaDB/phpMyAdmin que `start.sh`, puis les migrations (`db/migrate.sh` pour le schéma partagé, `migration:run` TypeORM pour `payments` et `notifications`), le provisionnement des comptes de test `identity`, et les 15 applications :
+
+| Application | Port | Commande | Fichier d'env |
+|---|---:|---|---|
+| `identity` | 3004 | `pnpm run dev` (`PORT=3004`) | `.env.local` |
+| `arbinote` | 3000 | `pnpm run dev` (`PORT=3000`) | `.env.local` |
+| `match-operations` | 3001 | `pnpm run dev` (`PORT=3001`) | `.env.local` |
+| `federation-hub` | 3002 | `pnpm run dev` (`PORT=3002`) | `.env.local` |
+| `club-hub` | 3003 | `pnpm run dev` (`PORT=3003`) | `.env.local` |
+| `referee-hub` | 3009 | `pnpm run dev` (`PORT=3009`) | `.env.local` |
+| `player-hub` | 3007 | `pnpm run dev` (port fixé par le script) | `.env.local` |
+| `staff-hub` | 3008 | `pnpm run dev` (idem) | `.env.local` |
+| `medical-hub` | 3012 | `pnpm run dev` (idem) | `.env.local` |
+| `club-ob` | 3013 | `pnpm run dev` (`PORT=3013`) | `.env.local` |
+| `ticketing` | 3015 | `pnpm run dev` (`PORT=3015`) | `.env.local` |
+| `seller-portal` | 3006 | `pnpm run dev` (port fixé par le script) | `.env.local` |
+| `notifications` | 3010 | `pnpm run start:dev` | `.env` |
+| `marketplace` | 3011 | `pnpm run start:dev` | `.env` |
+| `payments` | 3014 | `pnpm run start:dev` | `.env` |
+
+`club-ob` et `ticketing` reçoivent `PORT` de `start-all.sh` (3013/3015) car leurs scripts `dev` retombent sinon sur 3000, déjà pris par `arbinote`. `marketplace`, `notifications` et `payments` lisent leur `PORT` dans leur `.env` respectif.
+
+```bash
+./start-all.sh                      # base + migrations + 15 applications
+./start-all.sh --no-db              # MariaDB déjà prêt, ne touche pas à Docker
+./start-all.sh --no-migrate         # ne rejoue pas les migrations
+./start-all.sh --no-seed            # ne provisionne pas les comptes de test identity
+./start-all.sh --only club-hub,identity,payments
+./start-all.sh --list               # applications gérées et ports
+./start-all.sh --check              # sonde une instance déjà lancée
+```
+
+Chaque application écrit ses logs dans `.logs/<application>.log` (non versionné) et Ctrl+C arrête tout ce que le script a démarré. Les applications dont le fichier d'env est absent sont signalées et ignorées, sans interrompre les autres.
+
+### Erreurs non bloquantes connues au démarrage
+
+- `notifications` journalise des avertissements (`SMTP_HOST`, `WEB_PUSH_*`, `FCM_*`, `SMS_*` non configurés) : les providers email/push/SMS correspondants restent inactifs, le service démarre normalement.
+- `payments`/`notifications` en `NODE_ENV=production` n'exécutent pas `synchronize` : leurs tables viennent de `migration:run`, déjà lancé par `start-all.sh`.
+- L'avertissement `The "middleware" file convention is deprecated` de Next.js et le message `baseline-browser-mapping … over two months old` sont informatifs.
+
 ## Architecture partagée
 
 - **Authentification** : `identity` émet le cookie `foot_sso_session` (nom configurable), JWT RS256 issuer `foot-sso` (JWKS public, voir `packages/auth-shared`). `packages/auth-shared` centralise sa vérification et sa révocation dans les dix clients (`arbinote`, `match-operations`, `referee-hub`, `federation-hub`, `club-hub`, `club-ob`, `ticketing`, `player-hub`, `staff-hub`, `medical-hub`). `match-operations` conserve un fonctionnement kiosque sans exigence de connexion malgré la disponibilité du helper partagé.

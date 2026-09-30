@@ -23,4 +23,4 @@ CREATE TABLE IF NOT EXISTS `vote_alerts` (
     CONSTRAINT `fk_vote_alerts_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_uca1400_ai_ci;
 
-CREATE INDEX `idx_vote_alerts_match_status` ON `vote_alerts` (`match_id`, `status`);
+CREATE INDEX IF NOT EXISTS `idx_vote_alerts_match_status` ON `vote_alerts` (`match_id`, `status`);

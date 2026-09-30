@@ -19,3 +19,6 @@ node_modules/
 
 # Static Storybook build output (packages/ui) — generated, not versioned.
 storybook-static/
+
+# Logs des applications lancées par start.sh / start-all.sh (session-local).
+.logs/

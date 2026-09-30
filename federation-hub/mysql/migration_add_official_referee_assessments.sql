@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS official_referee_criteria (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
-INSERT INTO official_referee_criteria (id, label_fr, label_en, label_ar, display_order)
+INSERT IGNORE INTO official_referee_criteria (id, label_fr, label_en, label_ar, display_order)
 VALUES
   ('decision_accuracy', 'Exactitude des décisions', 'Decision accuracy', 'دقة القرارات', 10),
   ('match_control', 'Maîtrise du match', 'Match control', 'إدارة المباراة', 20),

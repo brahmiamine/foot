@@ -111,14 +111,17 @@ export class AddNotificationsGovernance1787017200000 implements MigrationInterfa
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
+    // Idempotent : ces colonnes peuvent déjà exister (base issue d'un
+    // déploiement antérieur ou d'un run interrompu — la DDL MySQL n'est pas
+    // transactionnelle), d'où les IF NOT EXISTS.
     await queryRunner.query(`
       ALTER TABLE notification_templates
-        ADD COLUMN status enum('DRAFT','SUBMITTED','APPROVED','ACTIVE','ARCHIVED') NOT NULL DEFAULT 'DRAFT',
-        ADD COLUMN version int NOT NULL DEFAULT 1,
-        ADD COLUMN created_by varchar(191) NULL,
-        ADD COLUMN submitted_by varchar(191) NULL,
-        ADD COLUMN approved_by varchar(191) NULL,
-        ADD COLUMN activated_at datetime NULL
+        ADD COLUMN IF NOT EXISTS status enum('DRAFT','SUBMITTED','APPROVED','ACTIVE','ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+        ADD COLUMN IF NOT EXISTS version int NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS created_by varchar(191) NULL,
+        ADD COLUMN IF NOT EXISTS submitted_by varchar(191) NULL,
+        ADD COLUMN IF NOT EXISTS approved_by varchar(191) NULL,
+        ADD COLUMN IF NOT EXISTS activated_at datetime NULL
     `);
 
     // Toute ligne pré-existante était de facto la version live : elle devient
@@ -130,18 +133,34 @@ export class AddNotificationsGovernance1787017200000 implements MigrationInterfa
         WHERE status = 'DRAFT'
     `);
 
-    await queryRunner.query(`
-      ALTER TABLE notification_templates
-        DROP INDEX UQ_notification_templates_type_channel_locale
+    // Remplacement de l'unicité globale par une unicité par version. Guardé
+    // (index présent / absent) car ADD/DROP INDEX n'accepte pas IF [NOT] EXISTS
+    // pour un index d'unicité nommé, et un run interrompu peut avoir déjà fait
+    // une partie des deux étapes.
+    const templateIndexes: Array<{ INDEX_NAME: string }> = await queryRunner.query(`
+      SELECT DISTINCT INDEX_NAME FROM information_schema.statistics
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification_templates'
     `);
-    await queryRunner.query(`
-      ALTER TABLE notification_templates
-        ADD UNIQUE INDEX UQ_notification_templates_type_channel_locale_version (type, channel, locale, version)
-    `);
-    await queryRunner.query(`
-      ALTER TABLE notification_templates
-        ADD INDEX IDX_notification_templates_type_channel_locale_status (type, channel, locale, status)
-    `);
+    const indexNames = new Set(templateIndexes.map((row) => row.INDEX_NAME));
+
+    if (indexNames.has('UQ_notification_templates_type_channel_locale')) {
+      await queryRunner.query(`
+        ALTER TABLE notification_templates
+          DROP INDEX UQ_notification_templates_type_channel_locale
+      `);
+    }
+    if (!indexNames.has('UQ_notification_templates_type_channel_locale_version')) {
+      await queryRunner.query(`
+        ALTER TABLE notification_templates
+          ADD UNIQUE INDEX UQ_notification_templates_type_channel_locale_version (type, channel, locale, version)
+      `);
+    }
+    if (!indexNames.has('IDX_notification_templates_type_channel_locale_status')) {
+      await queryRunner.query(`
+        ALTER TABLE notification_templates
+          ADD INDEX IDX_notification_templates_type_channel_locale_status (type, channel, locale, status)
+      `);
+    }
   }
 
   public down(): Promise<void> {
